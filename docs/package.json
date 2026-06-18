@@ -1,0 +1,15 @@
+{
+  "name": "openclaw-guard-docs",
+  "private": true,
+  "description": "VuePress documentation site for Openclaw Guard (龙虾卫士)",
+  "scripts": {
+    "docs:dev": "vuepress dev .",
+    "docs:build": "vuepress build ."
+  },
+  "devDependencies": {
+    "sass-embedded": "^1.89.0",
+    "vuepress": "^2.0.0-rc.20",
+    "@vuepress/bundler-vite": "^2.0.0-rc.20",
+    "@vuepress/theme-default": "^2.0.0-rc.20"
+  }
+}

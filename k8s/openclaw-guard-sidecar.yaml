@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw-guard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openclaw-guard
+  template:
+    metadata:
+      labels:
+        app: openclaw-guard
+    spec:
+      containers:
+        - name: openclaw-guard
+          image: openclaw-guard:latest
+          imagePullPolicy: IfNotPresent
+          args: ["python", "-m", "openclaw_guard.main", "launch", "--host", "0.0.0.0", "--port", "8780", "--no-browser"]
+          ports:
+            - containerPort: 8780
+          volumeMounts:
+            - name: openclaw-state
+              mountPath: /data/openclaw
+      volumes:
+        - name: openclaw-state
+          emptyDir: {}
+

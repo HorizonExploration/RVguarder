@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+docs/node_modules/
+docs/.vuepress/.cache/
+docs/.vuepress/.temp/
+dist/
+build/
+output/
+runtime/
+exports/
+htmlcov/
+.pytest_cache/

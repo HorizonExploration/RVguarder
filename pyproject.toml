@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openclaw-guard"
+version = "0.1.0"
+description = "Openclaw Guard (龙虾卫士), a non-intrusive security protection system for OpenClaw."
+requires-python = ">=3.13"
+authors = [
+  { name = "Codex" }
+]
+readme = "README.md"
+license = { text = "Proprietary" }
+
+[tool.setuptools]
+packages = ["openclaw_guard", "openclaw_guard.collectors"]
+

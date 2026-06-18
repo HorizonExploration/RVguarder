@@ -1,0 +1,82 @@
+:root {
+  --vp-c-brand-1: #111827;
+  --vp-c-brand-2: #1f2937;
+  --vp-c-brand-3: #334155;
+  --vp-c-accent-bg: linear-gradient(135deg, #111827 0%, #334155 100%);
+  --vp-c-bg-soft: #f8fafc;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.06), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.08), transparent 26%),
+    linear-gradient(180deg, #f8fafc 0%, #f3f4f6 100%);
+}
+
+.vp-navbar {
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.vp-home {
+  .hero {
+    padding: 4rem 0 2rem;
+  }
+
+  .description {
+    color: #475569;
+    max-width: 780px;
+  }
+}
+
+.theme-default-content,
+.vp-page {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.06);
+}
+
+.theme-default-content {
+  padding: 2rem 2.5rem;
+}
+
+.vp-sidebar {
+  background: rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(12px);
+}
+
+.vp-feature {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 22px;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.06);
+}
+
+.custom-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.custom-card {
+  padding: 1.1rem 1.2rem;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.05);
+}
+
+.custom-card h3 {
+  margin-top: 0;
+  margin-bottom: 0.35rem;
+}
+
+.soft-note {
+  padding: 1rem 1.1rem;
+  border-left: 4px solid #1d4ed8;
+  border-radius: 14px;
+  background: rgba(219, 234, 254, 0.55);
+  color: #1e3a8a;
+}
