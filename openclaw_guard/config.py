@@ -84,6 +84,21 @@ class GuardSettings:
     ui_mode: str = "pro"
     sqlite_path: Path | None = None
     json_backup_path: Path | None = None
+    # Database configuration (PostgreSQL or SQLite)
+    database_url: str | None = None  # e.g., "postgresql://user:pass@host:5432/db" or "sqlite:///path/to/db"
+    # PostgreSQL specific
+    db_host: str = "localhost"
+    db_port: int = 5432
+    db_name: str = "openclaw_guard"
+    db_username: str = ""
+    db_password: str = ""
+    # Redis cache specific
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 0
+    redis_password: str | None = None
+    redis_enabled: bool = False
+    # Feature flags
     enable_ptrace: bool = True
     enable_ebpf: bool = True
     enable_hook_bridge: bool = True
@@ -101,7 +116,19 @@ class GuardSettings:
             value = payload.get(key)
             if isinstance(value, Path):
                 payload[key] = str(value)
+        # Don't expose password in to_dict
+        payload.pop("db_password", None)
+        if payload.get("redis_password"):
+            payload["redis_password"] = "***"
         return payload
+
+    def get_database_url(self) -> str | None:
+        """Get the database connection URL"""
+        if self.database_url:
+            return self.database_url
+        if self.db_username and self.db_name:
+            return f"postgresql://{self.db_username}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+        return None
 
 
 @dataclass

@@ -41,7 +41,7 @@ features:
 
 Openclaw Guard（龙虾卫士）是一个面向 OpenClaw 的非侵入式安全增强客户端与本地控制面。项目目标不是替换 OpenClaw，而是在**不修改 OpenClaw 源码**的前提下，为 OpenClaw 增加更清晰的安全交互、更可控的执行前审批、更完整的基线扫描与审计能力，并把这些能力集中到一个可直接使用的前端工作台中。
 
-当前版本已经接入 OpenClaw 原生 `before_tool_call` / `after_tool_call` Hook，能够把删除、写入、配置修改、危险命令和外联请求挡在真正执行前。
+当前版本已经接入 OpenClaw 运行时 Hook 事件链。当前插件侧主要使用 `before_prompt_build` 与 `agent_end` 事件，并通过 Guard 内部的前后置审批 API 完成危险动作拦截。
 
 ## 核心特性
 
@@ -71,6 +71,9 @@ Openclaw Guard（龙虾卫士）是一个面向 OpenClaw 的非侵入式安全�
 
 - [快速开始](/guide/quick-start.html)
 - [normal 简洁模式](/guide/normal-mode.html)
+- [项目梳理导航](/guide/README.html)
+- [项目全景分析](/guide/project-overview.html)
+- [项目结构清单](/guide/project-structure.html)
 - [分层架构总览](/architecture/overview.html)
 - [高风险动作审批链](/features/action-gate.html)
 - [运行时 Hook 拦截](/features/runtime-hook.html)

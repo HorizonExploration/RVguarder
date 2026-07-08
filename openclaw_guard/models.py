@@ -156,6 +156,12 @@ class ControlledAction:
     matched_rules: list[str] = field(default_factory=list)
     execution_result: dict[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        if isinstance(self.event, dict):
+            self.event = BehaviorEvent(**self.event)
+        if isinstance(self.decision, dict):
+            self.decision = DetectionDecision(**self.decision)
+
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
         payload["event"] = self.event.to_dict()

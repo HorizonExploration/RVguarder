@@ -31,7 +31,24 @@ export default defineUserConfig({
       "/guide/": [
         {
           text: "使用指南",
-          children: ["/guide/quick-start.md", "/guide/normal-mode.md"],
+          children: [
+            "/guide/README.md",
+            "/guide/quick-start.md",
+            "/guide/normal-mode.md",
+          ],
+        },
+        {
+          text: "项目梳理",
+          children: [
+            "/improve/README.md",
+            "/improve/normal-mode.md",
+            "/improve/plugin-positioning.md",
+            "/improve/restructure-plan.md",
+            "/improve/frontend.md",
+            "/improve/project-overview.md",
+            "/improve/project-structure.md",
+            "/improve/project-cleanup.md",
+          ],
         },
       ],
       "/architecture/": [

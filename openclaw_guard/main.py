@@ -9,29 +9,42 @@ from openclaw_guard.web import launch_web
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="openclaw-guard", description="Openclaw Guard / 龙虾卫士")
+    parser = argparse.ArgumentParser(
+        prog="openclaw-guard",
+        description="OpenClaw Guard / 龙虾卫士 - OpenClaw 使用场景安全插件",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    launch_parser = subparsers.add_parser("launch", help="启动本地管理台")
-    _add_launch_arguments(launch_parser, default_ui_mode="pro")
+    # ---- 主入口：开启即用 ----
+    run_parser = subparsers.add_parser("run", help="启动 Guard 工作台（单一主入口）")
+    _add_run_arguments(run_parser)
 
-    normal_parser = subparsers.add_parser("normal", help="一键启动简洁模式，适合普通用户")
-    _add_launch_arguments(normal_parser, default_ui_mode="normal")
+    # ---- 维护子命令（一次性） ----
+    install_parser = subparsers.add_parser("install-hook", help="把本地 Hook 插件路径写入 OpenClaw 配置")
+    _add_maintenance_arguments(install_parser)
+
+    uninstall_parser = subparsers.add_parser("uninstall-hook", help="从 OpenClaw 配置中移除 Guard Hook 插件路径")
+    _add_maintenance_arguments(uninstall_parser)
 
     baseline_parser = subparsers.add_parser("baseline", help="运行基线扫描")
     baseline_parser.add_argument("--project-dir", type=Path, default=Path(__file__).resolve().parents[1])
     baseline_parser.add_argument("--openclaw-root", type=Path)
     baseline_parser.add_argument("--config-path", type=Path)
     baseline_parser.add_argument("--profile")
-
-    action_parser = subparsers.add_parser("action", help="模拟摄入行为事件")
-    action_parser.add_argument("--project-dir", type=Path, default=Path(__file__).resolve().parents[1])
-    action_parser.add_argument("--config-path", type=Path)
-    action_parser.add_argument("--event-file", type=Path)
+    baseline_parser.add_argument("--output", type=Path, help="把结果写入指定 JSON 文件")
 
     export_parser = subparsers.add_parser("export-audit", help="导出审计数据")
     export_parser.add_argument("--project-dir", type=Path, default=Path(__file__).resolve().parents[1])
     export_parser.add_argument("--config-path", type=Path)
+    export_parser.add_argument("--output", type=Path, required=True, help="导出文件路径")
+
+    doctor_parser = subparsers.add_parser("doctor", help="打印运行链路健康状况")
+    doctor_parser.add_argument("--project-dir", type=Path, default=Path(__file__).resolve().parents[1])
+    doctor_parser.add_argument("--openclaw-root", type=Path)
+    doctor_parser.add_argument("--config-path", type=Path)
+    doctor_parser.add_argument("--profile")
+    doctor_parser.add_argument("--json", action="store_true", help="以 JSON 格式输出")
+
     return parser
 
 
@@ -43,14 +56,13 @@ def main(argv: list[str] | None = None) -> int:
         openclaw_root=getattr(args, "openclaw_root", None),
         config_path=getattr(args, "config_path", None),
         profile=getattr(args, "profile", None),
-        ui_mode=getattr(args, "ui_mode", "pro"),
         host=getattr(args, "host", "127.0.0.1"),
         port=getattr(args, "port", 8780),
     )
 
-    if args.command in {"launch", "normal"}:
-        if args.command == "normal":
-            manager.ensure_baseline()
+    if args.command == "run":
+        # 启动即补一次基线，开箱即用
+        manager.ensure_baseline()
         if args.once:
             print(json.dumps(manager.summary(), ensure_ascii=False, indent=2))
             return 0
@@ -62,30 +74,68 @@ def main(argv: list[str] | None = None) -> int:
             server.shutdown()
             server.server_close()
         return 0
+
+    if args.command == "install-hook":
+        result = manager.install_hook()
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "uninstall-hook":
+        result = manager.uninstall_hook()
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
     if args.command == "baseline":
-        print(json.dumps(manager.run_baseline(), ensure_ascii=False, indent=2))
+        result = manager.run_baseline()
+        if args.output:
+            args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        else:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
-    if args.command == "action":
-        payload = json.loads(args.event_file.read_text(encoding="utf-8")) if args.event_file else {}
-        print(json.dumps(manager.ingest_event(payload, str(payload.get("raw_user_intent") or "")), ensure_ascii=False, indent=2))
-        return 0
+
     if args.command == "export-audit":
-        print(json.dumps(manager.export_audit(), ensure_ascii=False, indent=2))
+        result = manager.export_audit()
+        args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         return 0
+
+    if args.command == "doctor":
+        result = manager.doctor()
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            _print_doctor_human(result)
+        return 0
+
     parser.print_help()
     return 1
 
 
-def _add_launch_arguments(parser: argparse.ArgumentParser, *, default_ui_mode: str) -> None:
-    parser.add_argument("--project-dir", type=Path, default=Path(__file__).resolve().parents[1])
-    parser.add_argument("--openclaw-root", type=Path)
-    parser.add_argument("--config-path", type=Path)
-    parser.add_argument("--profile")
+def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
+    _add_maintenance_arguments(parser)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8780)
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--once", action="store_true")
-    parser.add_argument("--ui-mode", choices=("normal", "pro"), default=default_ui_mode)
+
+
+def _add_maintenance_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--project-dir", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--openclaw-root", type=Path)
+    parser.add_argument("--config-path", type=Path)
+    parser.add_argument("--profile")
+
+
+def _print_doctor_human(result: dict) -> None:
+    for section, value in result.items():
+        print(f"[{section}]")
+        if isinstance(value, dict):
+            for k, v in value.items():
+                print(f"  - {k}: {v}")
+        elif isinstance(value, list):
+            for item in value:
+                print(f"  - {item}")
+        else:
+            print(f"  - {value}")
 
 
 if __name__ == "__main__":

@@ -6,6 +6,13 @@ from uuid import uuid4
 
 from openclaw_guard.utils import utc_now_iso
 
+_RE_PATH = re.compile(r"(~/[^\s]+|/[^\s]+)")
+_RE_URL = re.compile(r"(https?://[^\s]+)", re.IGNORECASE)
+_RE_RM_RF = re.compile(r"\brm\s+-rf\b")
+_RE_DANGEROUS_CMD = re.compile(r"\b(sudo|ssh|scp|chmod|chown|mv|rm)\b")
+_MAX_URL_LENGTH = 2048
+_MAX_PATH_LENGTH = 4096
+
 
 def new_message(role: str, content: str, *, kind: str = "message", metadata: dict[str, Any] | None = None) -> dict[str, Any]:
     return {
@@ -20,10 +27,10 @@ def new_message(role: str, content: str, *, kind: str = "message", metadata: dic
 
 def infer_event_from_text(text: str) -> dict[str, Any]:
     lowered = text.lower()
-    path_match = re.search(r"(~/[^\s]+|/[^\s]+)", text)
-    url_match = re.search(r"(https?://[^\s]+)", text, re.IGNORECASE)
-    inferred_path = _normalize_path_match(path_match.group(1)) if path_match else None
-    inferred_url = url_match.group(1) if url_match else None
+    path_match = _RE_PATH.search(text)
+    url_match = _RE_URL.search(text)
+    inferred_path = _safe_path_match(path_match.group(1)) if path_match else None
+    inferred_url = _safe_url_match(url_match.group(1)) if url_match else None
     delete_intent = _contains_delete_intent(text, lowered)
     write_intent = _contains_write_intent(text, lowered)
     config_intent = _contains_config_intent(text, lowered)
@@ -37,10 +44,10 @@ def infer_event_from_text(text: str) -> dict[str, Any]:
     }
     if home_intent:
         payload["metadata"]["outside_workspace"] = True
-    if re.search(r"\brm\s+-rf\b", lowered):
+    if _RE_RM_RF.search(lowered):
         payload.update({"action_type": "command_exec", "command": text})
         return payload
-    if re.search(r"\b(sudo|ssh|scp|chmod|chown|mv|rm)\b", lowered):
+    if _RE_DANGEROUS_CMD.search(lowered):
         payload.update({"action_type": "command_exec", "command": text})
         return payload
     if delete_intent:
@@ -63,6 +70,18 @@ def infer_event_from_text(text: str) -> dict[str, Any]:
         return payload
     payload.update({"action_type": "chat_message"})
     return payload
+
+
+def _safe_url_match(url: str) -> str | None:
+    if len(url) > _MAX_URL_LENGTH:
+        return url[:_MAX_URL_LENGTH]
+    return url
+
+
+def _safe_path_match(path: str) -> str | None:
+    if len(path) > _MAX_PATH_LENGTH:
+        return None
+    return _normalize_path_match(path)
 
 
 def assistant_reply_for_action(action: dict[str, Any]) -> str:

@@ -95,13 +95,14 @@ OpenclawGuard/
 │   ├── openclaw_adapter.py # OpenClaw Gateway / Session / Chat 适配
 │   ├── ui.py               # 前端静态资源生成
 │   ├── web.py              # 本地 HTTP 服务与 API
-│   └── whitelist.py        # 白名单匹配
+│   ├── storage/            # 存储层
+│   │   ├── __init__.py
+│   │   ├── audit_store.py
+│   │   └── db_store.py
+│   └── collectors/         # 运行时采集适配器
+├── frontend/               # 前端独立工程（Vite + 原生 JS）
 ├── docs/                   # VuePress 文档站
-├── pics/                   # README / 文档截图
-├── tests/                  # 自动化测试
-├── scripts/                # 安装与卸载脚本
-├── docker/                 # Docker 部署文件
-└── k8s/                    # Kubernetes / Sidecar 示例
+└── tests/                  # 自动化测试
 ```
 
 ## 工作原理
@@ -109,7 +110,7 @@ OpenclawGuard/
 Openclaw Guard 的核心链路可以概括为：
 
 1. Guard 自动发现本机 OpenClaw 配置、工作区、日志目录与 Gateway 状态
-2. Guard 将本地 Hook 插件写入 OpenClaw 配置，并通过 OpenClaw 官方插件机制接入 `before_tool_call` / `after_tool_call`
+2. Guard 将本地 Hook 插件写入 OpenClaw 配置，并通过 OpenClaw 官方插件机制接入当前运行时 Hook 事件链，再由 Guard 内部前后置审批 API 完成拦截
 3. 用户从 Guard 前端发起对话或操作
 4. OpenClaw 在真正调用工具前，先把请求交给 Guard 判定
 5. Guard 根据规则、白名单、上下文与风险等级给出 `allow / ask / block / escalate`
@@ -127,15 +128,14 @@ Openclaw Guard 的核心链路可以概括为：
 ### 2. 安装
 
 ```bash
-cd OpenclawGuard
-bash scripts/install.sh
-source .venv/bin/activate
+cd OpenClaw-RVGuarder
+pip install -e .
 ```
 
-### 3. 一键启动普通模式
+### 3. 启动
 
 ```bash
-python -m openclaw_guard.main normal
+openclaw-guard run
 ```
 
 该命令会：
@@ -143,72 +143,40 @@ python -m openclaw_guard.main normal
 - 自动发现 OpenClaw 配置
 - 准备 `runtime/`、`output/`、`exports/` 等目录
 - 自动补齐一份基线扫描结果
-- 启动本地 Web 服务
-- 打开简洁模式界面
+- 生成/同步 Hook 插件并写入 OpenClaw 配置
+- 启动本地 Web 工作台
+- 默认尝试打开浏览器
 
-### 4. 启动完整模式
-
-```bash
-python -m openclaw_guard.main launch
-```
-
-### 5. 仅做自检
+### 4. 仅做自检
 
 ```bash
-python -m openclaw_guard.main normal --once --no-browser
+openclaw-guard run --once --no-browser
 ```
 
 ## 常用命令
 
-### 启动普通模式
-
 ```bash
-python -m openclaw_guard.main normal
-```
-
-### 启动完整模式
-
-```bash
-python -m openclaw_guard.main launch --no-browser
-```
-
-### 运行基线扫描
-
-```bash
-python -m openclaw_guard.main baseline --config-path ~/.openclaw/openclaw.json
-```
-
-### 导出审计数据
-
-```bash
-python -m openclaw_guard.main export-audit
-```
-
-### 摄入一条行为事件
-
-```bash
-python -m openclaw_guard.main action --event-file examples/dangerous-delete.json
+openclaw-guard run                  # 启动主服务
+openclaw-guard run --no-browser     # 启动但不开浏览器
+openclaw-guard doctor               # 打印运行链路健康状况
+openclaw-guard baseline             # 运行基线扫描
+openclaw-guard export-audit /path/audit.json  # 导出审计 JSONL
+openclaw-guard install-hook         # 把 Hook 插件路径写入 OpenClaw 配置
+openclaw-guard uninstall-hook       # 移除 Hook 插件路径
 ```
 
 ## 前端能力
 
-当前前端已经支持以下主要功能：
+当前 Guard 工作台支持以下主要功能：
 
-- 聊天与会话管理
-- OpenClaw 连接状态检测
-- 当前模型与 Agent 状态展示
-- 模型切换
-- 新建会话
-- 待确认动作审批
-- 动作分页浏览
-- 技能管理
-- 渠道管理
+- OpenClaw 连接状态与当前模型/Agent 展示
+- 待确认动作审批（确认继续 / 拒绝）
+- 动作历史分页浏览（按状态筛选）
 - 运行时 Hook 状态检查
 - 基线扫描与整改建议查看
 - 审计导出
-- 运行时调试信息与日志查看
 
-目标是让普通用户尽量不需要直接去改配置文件、翻日志目录或手动调用命令行接口。
+> 对话功能回归 OpenClaw 原生页面，Guard 不再提供内置对话 UI。
 
 ## 输出目录
 
@@ -259,23 +227,10 @@ npm run docs:build
 
 ### 本地部署
 
-直接使用 Python 启动：
-
 ```bash
-python -m openclaw_guard.main normal
+pip install -e .
+openclaw-guard run
 ```
-
-### Docker
-
-参考：
-
-- `docker/Dockerfile`
-
-### Kubernetes / Sidecar
-
-参考：
-
-- `k8s/openclaw-guard-sidecar.yaml`
 
 ## 与 OpenClaw 的集成说明
 
@@ -372,7 +327,7 @@ python -m openclaw_guard.main normal
 当前版本已经能完成真实对话、模型切换、Hook 接入、动作审批、基线扫描与审计导出，但仍有这些边界：
 
 - `ptrace` / `eBPF` 目前主要是能力探测与接口预留，主执行链依赖 OpenClaw 原生 Hook
-- 某些不走 `before_tool_call` 的内部运行路径，仍需要继续补充覆盖
+- 某些不走当前 Guard Hook 拦截链的内部运行路径，仍需要继续补充覆盖
 - 运行时链路依赖 OpenClaw Gateway 的实际可达性与鉴权配置
 - 前端仍在持续优化中，当前版本已支持局部 patch、增量消息刷新和轻量状态轮询，但还会继续打磨
 

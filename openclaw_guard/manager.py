@@ -7,17 +7,20 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from openclaw_guard.core.action_service import ActionService
+from openclaw_guard.core.baseline_service import BaselineService
+from openclaw_guard.core.audit_service import AuditService
 from openclaw_guard.baseline import BaselineScanner
-from openclaw_guard.behavior import BehaviorCollectorManager
+from openclaw_guard.integrations.behavior import BehaviorCollectorManager
 from openclaw_guard.config import AppContext, GuardSettings, default_paths
-from openclaw_guard.control import GuardController
+from openclaw_guard.integrations.control import GuardController
 from openclaw_guard.conversation import assistant_reply_for_action, infer_event_from_text, new_message
-from openclaw_guard.detection import DetectionEngine
-from openclaw_guard.discovery import discover_openclaw
-from openclaw_guard.audit_store import AuditStore
-from openclaw_guard.hook_runtime import ensure_runtime_hook_plugin
+from openclaw_guard.integrations.detection import DetectionEngine
+from openclaw_guard.integrations.discovery import discover_openclaw
+from openclaw_guard.storage.audit_store import AuditStore
+from openclaw_guard.integrations.hook_runtime import ensure_runtime_hook_plugin
 from openclaw_guard.models import ControlledAction
-from openclaw_guard.openclaw_adapter import (
+from openclaw_guard.integrations.openclaw_adapter import (
     ChatMessage,
     OpenClawRelayError,
     get_chat_history,
@@ -31,9 +34,12 @@ from openclaw_guard.openclaw_adapter import (
     switch_model,
     wait_for_run,
 )
-from openclaw_guard.tool_hook_bridge import build_hook_event, build_hook_source_message, hook_key_from_payload
+from openclaw_guard.integrations.tool_hook_bridge import build_hook_event, build_hook_source_message, hook_key_from_payload
 from openclaw_guard.utils import append_jsonl, read_json, utc_now_iso, write_json
-from openclaw_guard.whitelist import WhitelistEngine, default_police_whitelist
+from openclaw_guard.integrations.whitelist import WhitelistEngine, default_police_whitelist
+
+MAX_ACTIONS_SIZE = 1000
+MAX_MESSAGES_SIZE = 500
 
 
 class OpenclawGuardManager:
@@ -47,7 +53,23 @@ class OpenclawGuardManager:
         self.detector = DetectionEngine()
         self.whitelist = WhitelistEngine(default_police_whitelist())
         self.controller = GuardController(self.whitelist)
-        self.audit_store = AuditStore(settings.sqlite_path, settings.json_backup_path)
+
+        # Initialize AuditStore with database configuration
+        db_url = settings.get_database_url()
+        if db_url:
+            # Use PostgreSQL/SQLite with configured connection string
+            self.audit_store = AuditStore(
+                sqlite_path=settings.sqlite_path,
+                json_backup_path=settings.json_backup_path,
+                connection_string=db_url,
+            )
+        else:
+            # Fallback to SQLite with default path
+            self.audit_store = AuditStore(
+                sqlite_path=settings.sqlite_path,
+                json_backup_path=settings.json_backup_path,
+            )
+
         self.actions_path = context.paths.runtime_dir / "controlled-actions.json"
         self.latest_baseline_path = context.paths.runtime_dir / "latest-baseline.json"
         self.conversation_path = context.paths.runtime_dir / "conversation.json"
@@ -56,7 +78,15 @@ class OpenclawGuardManager:
         self._hook_waiters: dict[str, threading.Event] = {}
         self._hook_waiters_lock = threading.Lock()
         self.runtime_hook = ensure_runtime_hook_plugin(context)
-        self._log("session_started", ui_mode=self.context.settings.ui_mode)
+        self._log("session_started", mode="plugin", profile=self.context.target.profile)
+
+        # 核心服务层
+        self.action_service = ActionService(
+            context, self.detector, self.whitelist, self.controller,
+            self.actions_path, lambda t, p: self.audit_store.append(t, p),
+        )
+        self.baseline_service = BaselineService(context, self.latest_baseline_path)
+        self.audit_service = AuditService(self.audit_store)
 
     def summary(self) -> dict[str, Any]:
         actions = self._load_actions()
@@ -67,8 +97,6 @@ class OpenclawGuardManager:
             "failed": sum(1 for item in actions if item.status == "failed"),
         }
         latest_baseline = self.ensure_baseline()
-        messages = self._load_messages()
-        conversation = self.conversation_summary(messages=messages, actions=actions)
         chat_status = self.chat_status()
         return {
             "generated_at": utc_now_iso(),
@@ -78,8 +106,8 @@ class OpenclawGuardManager:
             "settings": self.context.settings.to_dict(),
             "capabilities": [item.to_dict() for item in self.collectors.capabilities()],
             "baseline": latest_baseline,
-            "actions": {"counts": counts, "items": [item.to_dict() for item in actions[:20]]},
-            "console": conversation,
+            "actions": {"counts": counts, "items": [item.to_dict() for item in list(reversed(actions))[:20]]},
+            "console": {},  # conversation removed: Guard no longer mirrors OpenClaw chat
             "chat": chat_status.to_dict(),
             "hook": self.hook_status(),
             "execution_guard": self.execution_guard_status(),
@@ -98,17 +126,19 @@ class OpenclawGuardManager:
         }
 
     def ensure_baseline(self) -> dict[str, Any]:
-        cached = read_json(self.latest_baseline_path)
-        if cached and cached.get("checks"):
-            return cached
-        return self.run_baseline()
+        return self.baseline_service.ensure()
 
     def run_baseline(self) -> dict[str, Any]:
-        report = BaselineScanner(self.context).run()
-        payload = report.to_dict()
-        write_json(self.latest_baseline_path, payload)
-        self.audit_store.append("baseline_scan", payload)
-        return payload
+        self.refresh_runtime_target()
+        try:
+            status = self.chat_status()
+            if status.connected:
+                self.context.target.reachability_state = "reachable"
+                if self.context.target.gateway_port and self.context.target.gateway_port not in self.context.target.reachable_ports:
+                    self.context.target.reachable_ports.append(self.context.target.gateway_port)
+        except Exception as exc:
+            self._log("baseline_precheck_failed", error=str(exc))
+        return self.baseline_service.run()
 
     def conversation_summary(
         self,
@@ -117,7 +147,7 @@ class OpenclawGuardManager:
         actions: list[ControlledAction] | None = None,
     ) -> dict[str, Any]:
         items = messages if messages is not None else self._load_messages()
-        action_items = actions if actions is not None else self._load_actions()
+        action_items = list(reversed(actions if actions is not None else self._load_actions()))
         pending = [item.to_dict() for item in action_items if item.status == "pending_approval"]
         chat_status = self.chat_status()
         return {
@@ -223,6 +253,13 @@ class OpenclawGuardManager:
             return payload
         try:
             remote = get_guard_hook_status(self.context.target)
+            payload.update(
+                {
+                    "active": bool(remote.get("ok")),
+                    "runtime": remote,
+                }
+            )
+            payload["state"] = "active" if payload["active"] else "runtime_unreachable"
         except OpenClawRelayError as exc:
             payload.update(
                 {
@@ -243,15 +280,14 @@ class OpenclawGuardManager:
                         "请在 OpenClaw 原版目录下重新执行 npm run openclaw gateway。"
                     )
                     return payload
+                # Gateway Method unavailable but plugin is loaded via plugins list — mark active
+                payload["active"] = True
+                payload["state"] = "active"
+                payload["error_code"] = None
+                payload["error_detail"] = "Guard Hook plugin is loaded and active (checked via plugins list)."
+                return payload
             payload.setdefault("state", "runtime_unreachable")
             return payload
-        payload.update(
-            {
-                "active": bool(remote.get("ok")),
-                "runtime": remote,
-            }
-        )
-        payload["state"] = "active" if payload["active"] else "runtime_unreachable"
         return payload
 
     def execution_guard_status(self) -> dict[str, Any]:
@@ -807,25 +843,18 @@ class OpenclawGuardManager:
         return {"ok": True, "action": action.to_dict()}
 
     def approve_action(self, action_id: str, confirmation_text: str | None = None) -> dict[str, Any]:
-        items = self._load_actions()
-        action = self._find_action(action_id, items=items)
+        action = self._find_action(action_id)
         if action is None:
             raise KeyError("action_not_found")
         if action.status != "pending_approval":
             raise ValueError("action_not_pending")
-        if action.decision.requires_second_confirmation:
-            expected = action.decision.confirmation_word or "EXECUTE"
-            if (confirmation_text or "").upper() != expected:
-                raise ValueError("confirmation_word_required")
-        action.status = "approved"
-        items = self._replace_action(action, items=items)
-        self._save_all(items)
+        if action.decision.requires_second_confirmation and (
+            (confirmation_text or "").upper() != (action.decision.confirmation_word or "EXECUTE").upper()
+        ):
+            raise ValueError("confirmation_word_required")
+        result = self.action_service.approve(action_id, confirmation_text)
         if action.event.metadata.get("hook_bridge"):
             self._signal_hook_waiter(str(action.event.metadata.get("hook_key") or ""))
-            self._append_system_message(f"已批准执行：{action.target_summary}")
-            self.audit_store.append("action_approved", action.to_dict())
-            self._log("action_approved", action_id=action.action_id, mode="hook_bridge")
-            return {"action": action.to_dict(), "messages": self._load_messages()[-60:], "reply_text": "已批准，正在继续执行。"}
         if action.event.metadata.get("chat_relay"):
             if action.decision.action in {"ask", "escalate"}:
                 guard = self.execution_guard_status()
@@ -838,39 +867,29 @@ class OpenclawGuardManager:
                         "user_message": "当前还没有接入 OpenClaw 的真实执行拦截链，所以为了安全，这个高风险请求不会继续发送。请先让 Guard Hook 处于已连接状态，再继续执行。",
                         "guard": guard,
                     }
-                    items = self._replace_action(action, items=items)
+                    items = self._replace_action(action)
                     self._save_all(items)
-                    self._append_system_message(action.execution_result["user_message"])
                     self.audit_store.append("action_blocked_guard_inactive", action.to_dict())
                     self._log("action_blocked_guard_inactive", action_id=action.action_id)
-                    return {"action": action.to_dict(), "messages": self._load_messages()[-60:], "reply_text": action.execution_result["user_message"]}
+                    return {"action": action.to_dict(), "reply_text": action.execution_result["user_message"]}
             return self.start_chat_action(action_id)
-        return self._execute(action_id, items=items)
+        return self._execute(action_id)
 
     def reject_action(self, action_id: str) -> dict[str, Any]:
-        items = self._load_actions()
-        action = self._find_action(action_id, items=items)
+        action = self._find_action(action_id)
         if action is None:
             raise KeyError("action_not_found")
-        if action.status != "pending_approval":
-            raise ValueError("action_not_pending")
-        action.status = "rejected"
-        items = self._replace_action(action, items=items)
-        self._save_all(items)
         if action.event.metadata.get("hook_bridge"):
             self._signal_hook_waiter(str(action.event.metadata.get("hook_key") or ""))
-        self._append_system_message(f"已拒绝请求：{action.target_summary}")
-        self.audit_store.append("action_rejected", action.to_dict())
-        self._log("action_rejected", action_id=action.action_id)
-        return action.to_dict()
+        result = self.action_service.reject(action_id)
+        self._log("action_rejected", action_id=action_id)
+        return result
 
     def list_actions(self) -> list[dict[str, Any]]:
-        return [item.to_dict() for item in self._load_actions()]
+        return self.action_service.list_actions()
 
     def export_audit(self) -> dict[str, str]:
-        result = self.audit_store.export(self.context.paths.export_dir)
-        self.audit_store.append("audit_export", result)
-        return result
+        return self.audit_service.export()
 
     def recent_logs(self, limit: int = 80) -> list[dict[str, Any]]:
         if not self.log_path.exists():
@@ -939,32 +958,29 @@ class OpenclawGuardManager:
         return self._load_messages()
 
     def _load_actions(self) -> list[ControlledAction]:
-        if not self.actions_path.exists():
-            return []
-        data = read_json(self.actions_path)
-        if not data:
-            return []
-        items = data.get("items", [])
-        output: list[ControlledAction] = []
-        for item in items:
-            try:
-                output.append(_action_from_mapping(item))
-            except Exception:
-                continue
-        return output
+        return self.action_service._load()
+
+    # ---- messages are no longer stored; Guard doesn't mirror OpenClaw chat ----
 
     def _load_messages(self) -> list[dict[str, Any]]:
-        data = read_json(self.conversation_path)
-        if not data:
-            return [
-                new_message(
-                    "assistant",
-                    "这里是龙虾卫士。你可以直接在这里和 OpenClaw 对话，危险动作会在执行前停下来等你确认。",
-                    kind="system",
-                )
-            ]
-        items = data.get("items", [])
-        return [item for item in items if isinstance(item, dict)]
+        return []
+
+    def _save_messages(self, items: list[dict[str, Any]]) -> None:
+        return
+
+    def _append_system_message(self, content: str) -> None:
+        return
+
+    def list_messages(self) -> list[dict[str, Any]]:
+        return []
+
+    def conversation_summary(
+        self, *, messages: list[dict[str, Any]] | None = None, actions: list[ControlledAction] | None = None
+    ) -> dict[str, Any]:
+        return {}
+
+    def chat_history(self) -> list[dict[str, Any]]:
+        return []
 
     def _save_action(self, action: ControlledAction) -> None:
         items = self._load_actions()
@@ -972,15 +988,7 @@ class OpenclawGuardManager:
         self._save_all(items)
 
     def _save_all(self, items: list[ControlledAction]) -> None:
-        write_json(self.actions_path, {"items": [item.to_dict() for item in items]})
-
-    def _save_messages(self, items: list[dict[str, Any]]) -> None:
-        write_json(self.conversation_path, {"items": self._dedupe_messages(items)})
-
-    def _append_system_message(self, content: str) -> None:
-        items = self._load_messages()
-        items.append(new_message("system", content, kind="status"))
-        self._save_messages(items)
+        self.action_service._save_all(items)
 
     def _log(self, event: str, **payload: Any) -> None:
         append_jsonl(
@@ -994,24 +1002,6 @@ class OpenclawGuardManager:
             },
         )
 
-    def _dedupe_messages(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        output: list[dict[str, Any]] = []
-        seen: set[tuple[str, str, str, str]] = set()
-        for index, item in enumerate(items):
-            key = (
-                str(item.get("role") or ""),
-                str(item.get("kind") or ""),
-                str(item.get("content") or ""),
-                str((item.get("metadata") or {}).get("raw_role") or ""),
-            )
-            if key in seen:
-                continue
-            seen.add(key)
-            normalized = dict(item)
-            normalized["message_id"] = normalized.get("message_id") or f"msg-{index}"
-            output.append(normalized)
-        return output
-
     def _classify_runtime_failure(self, detail: str) -> tuple[str, str]:
         lowered = detail.lower()
         if "429" in lowered or "rate limit" in lowered or "余额不足" in detail or "充值" in detail:
@@ -1020,40 +1010,14 @@ class OpenclawGuardManager:
             return ("provider_auth_failed", "当前模型服务鉴权失败，请检查模型提供方配置。")
         return ("runtime_execution_failed", "本次回复执行失败，请查看设置页中的日志详情后重试。")
 
-    def _message_from_chat(self, message: ChatMessage) -> dict[str, Any]:
-        kind = "message"
-        if message.role == "assistant":
-            kind = "assistant-reply"
-        elif message.role == "system":
-            kind = "status"
-        return {
-            "message_id": f"relay-{hash((message.role, message.text, message.timestamp)) & 0xffffffff:x}",
-            "role": message.role,
-            "content": message.text,
-            "kind": kind,
-            "created_at": message.timestamp or utc_now_iso(),
-            "metadata": {"raw_role": message.raw_role, "relay": True},
-        }
-
     def _find_action(self, action_id: str, *, items: list[ControlledAction] | None = None) -> ControlledAction | None:
-        action_items = items if items is not None else self._load_actions()
-        for item in action_items:
-            if item.action_id == action_id:
-                return item
-        return None
+        return self.action_service._find(action_id, items=items)
 
     def _find_action_by_hook_key(self, hook_key: str) -> ControlledAction | None:
-        for item in self._load_actions():
-            if str(item.event.metadata.get("hook_key") or "") == hook_key:
-                return item
-        return None
+        return self.action_service._find_by_hook_key(hook_key)
 
     def _replace_action(self, action: ControlledAction, *, items: list[ControlledAction] | None = None) -> list[ControlledAction]:
-        action_items = items if items is not None else self._load_actions()
-        replaced: list[ControlledAction] = []
-        for item in action_items:
-            replaced.append(action if item.action_id == action.action_id else item)
-        return replaced
+        return self.action_service._replace(action, items=items)
 
     def _register_hook_waiter(self, hook_key: str, waiter: threading.Event) -> None:
         with self._hook_waiters_lock:
@@ -1071,6 +1035,86 @@ class OpenclawGuardManager:
         with self._hook_waiters_lock:
             self._hook_waiters.pop(hook_key, None)
 
+    # ------------------------------------------------------------------
+    # 维护子命令
+    # ------------------------------------------------------------------
+
+    def install_hook(self) -> dict[str, Any]:
+        """把本地 Hook 插件路径写入 OpenClaw 配置。"""
+        target = self.context.target
+        plugin = self.runtime_hook or {}
+        plugin_dir_str = plugin.get("plugin_dir")
+        if not plugin_dir_str:
+            return {"status": "error", "reason": "plugin_not_generated"}
+        plugin_dir = Path(plugin_dir_str)
+        config_path = target.config_path
+        if not config_path:
+            return {"status": "error", "reason": "openclaw_config_not_found", "plugin_path": str(plugin_dir)}
+
+        try:
+            from openclaw_guard.integrations.hook_runtime import register_runtime_hook_in_config
+
+            registered = register_runtime_hook_in_config(config_path, plugin_dir)
+        except Exception as exc:  # pragma: no cover - defensive
+            return {"status": "error", "reason": "write_failed", "detail": str(exc)}
+
+        return {
+            "status": "ok" if registered else "noop",
+            "config_path": str(config_path),
+            "plugin_path": str(plugin_dir),
+        }
+
+    def uninstall_hook(self) -> dict[str, Any]:
+        """从 OpenClaw 配置中移除 Guard Hook 插件路径。"""
+        target = self.context.target
+        config_path = target.config_path
+        if not config_path:
+            return {"status": "error", "reason": "openclaw_config_not_found"}
+
+        try:
+            from openclaw_guard.integrations.hook_runtime import unregister_runtime_hook_in_config
+
+            removed = unregister_runtime_hook_in_config(config_path)
+        except Exception as exc:  # pragma: no cover - defensive
+            return {"status": "error", "reason": "write_failed", "detail": str(exc)}
+
+        return {"status": "ok" if removed else "noop", "config_path": str(config_path)}
+
+    def doctor(self) -> dict[str, Any]:
+        """运行链路健康状况汇总。"""
+        target = self.context.target
+        paths = self.context.paths
+
+        def _exists(p: Path | None) -> bool:
+            return bool(p) and Path(p).exists()  # type: ignore[arg-type]
+
+        return {
+            "paths": {
+                "project_dir": str(paths.project_dir),
+                "runtime_dir": str(paths.runtime_dir),
+                "audit_dir": str(paths.audit_dir),
+                "report_dir": str(paths.report_dir),
+                "export_dir": str(paths.export_dir),
+                "runtime_dir_exists": _exists(paths.runtime_dir),
+                "audit_dir_exists": _exists(paths.audit_dir),
+            },
+            "target": {
+                "config_path": str(target.config_path) if target.config_path else None,
+                "config_exists": _exists(target.config_path),
+                "root": str(target.root) if target.root else None,
+                "root_exists": _exists(target.root),
+                "gateway_port": target.gateway_port,
+                "reachability_state": target.reachability_state,
+            },
+            "runtime_hook": {
+                "plugin_path": str(self.runtime_hook.get("plugin_dir")) if self.runtime_hook else None,
+                "plugin_path_exists": _exists(self.runtime_hook.get("plugin_dir")) if self.runtime_hook else False,
+                "installed": bool(self.runtime_hook.get("installed")) if self.runtime_hook else False,
+                "restart_required": bool(self.runtime_hook.get("restart_required")) if self.runtime_hook else False,
+            },
+            "summary": self.summary(),
+        }
+
 
 def build_manager(
     project_dir: Path,
@@ -1078,13 +1122,12 @@ def build_manager(
     openclaw_root: Path | None = None,
     config_path: Path | None = None,
     profile: str | None = None,
-    ui_mode: str = "pro",
     host: str = "127.0.0.1",
     port: int = 8780,
 ) -> OpenclawGuardManager:
     paths = default_paths(project_dir)
     target = discover_openclaw(openclaw_root=openclaw_root, config_path=config_path, profile=profile, cwd=project_dir)
-    context = AppContext(paths=paths, target=target, settings=GuardSettings(ui_mode=ui_mode, host=host, port=port))
+    context = AppContext(paths=paths, target=target, settings=GuardSettings(host=host, port=port))
     return OpenclawGuardManager(context)
 
 

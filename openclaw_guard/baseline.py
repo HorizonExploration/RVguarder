@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from openclaw_guard.config import AppContext
-from openclaw_guard.discovery import collect_assets
+from openclaw_guard.integrations.discovery import collect_assets
 from openclaw_guard.models import AssetRecord, BaselineCheck, BaselineFinding, ComplianceReport
 from openclaw_guard.utils import build_simple_pdf, json_dumps, utc_now_iso, write_json
 
@@ -338,7 +338,17 @@ class BaselineScanner:
         return checks
 
     def _scan_gateway_health(self) -> list[BaselineCheck]:
-        if self.context.target.reachability_state == "reachable":
+        # Prioritize reachability_state which might have been overridden by manager using real API status
+        is_reachable = self.context.target.reachability_state == "reachable"
+        
+        evidence = {
+            "gateway_port": self.context.target.gateway_port,
+            "gateway_bind": self.context.target.gateway_bind,
+            "gateway_urls": list(self.context.target.gateway_urls),
+            "reachability_state": self.context.target.reachability_state,
+        }
+
+        if is_reachable:
             return [
                 BaselineCheck(
                     check_id="BASE-012A",
@@ -346,8 +356,8 @@ class BaselineScanner:
                     title="OpenClaw gateway 端口可达",
                     status="ok",
                     severity="info",
-                    description="已检测到 gateway 监听端口可达。",
-                    evidence={"gateway_port": self.context.target.gateway_port},
+                    description="已检测到 gateway 监听端口可达或 API 通信正常。",
+                    evidence=evidence,
                     recommendation="保持 gateway 在内网可控范围内运行。",
                 )
             ]
@@ -359,11 +369,7 @@ class BaselineScanner:
                 status="risk",
                 severity="high",
                 description="当前没有从 Guard 侧确认到 gateway 可达，实时拦截与对话能力可能失效。",
-                evidence={
-                    "gateway_port": self.context.target.gateway_port,
-                    "gateway_bind": self.context.target.gateway_bind,
-                    "gateway_urls": list(self.context.target.gateway_urls),
-                },
+                evidence=evidence,
                 recommendation="确认 OpenClaw gateway 已启动，并检查本机回环地址与鉴权配置。",
             )
         ]

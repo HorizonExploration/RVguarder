@@ -4,7 +4,7 @@
 
 项目已提供：
 
-- [Dockerfile](/Users/dynooob/Projects/OpenClaw/OpenclawGuard/docker/Dockerfile)
+- [Dockerfile](../../docker/Dockerfile)
 
 适合：
 
@@ -16,7 +16,7 @@
 
 项目已提供：
 
-- [openclaw-guard-sidecar.yaml](/Users/dynooob/Projects/OpenClaw/OpenclawGuard/k8s/openclaw-guard-sidecar.yaml)
+- [openclaw-guard-sidecar.yaml](../../k8s/openclaw-guard-sidecar.yaml)
 
 推荐用作：
 
