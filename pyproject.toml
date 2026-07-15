@@ -13,6 +13,5 @@ authors = [
 readme = "README.md"
 license = { text = "Proprietary" }
 
-[tool.setuptools]
-packages = ["openclaw_guard", "openclaw_guard.collectors"]
-
+[tool.setuptools.packages.find]
+include = ["openclaw_guard*"]

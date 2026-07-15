@@ -123,9 +123,10 @@ class ActionService:
         final_decision = self.whitelist.refine(decision, event)
         final_decision = self.controller.enforce(final_decision, items)
 
-        action_id = f"{int(0):08x}"
+        from uuid import uuid4
+        action_id = uuid4().hex[:16]
         action = ControlledAction(
-            action_id=action_id[:16],
+            action_id=action_id,
             source_message=raw_intent,
             status=(
                 "pending_approval" if final_decision.action in {"warn", "escalate"}

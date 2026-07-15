@@ -5,9 +5,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openclaw_guard.audit_store import AuditStore
-from openclaw_guard.behavior import BehaviorCollectorManager
-from openclaw_guard.whitelist import WhitelistEngine, default_police_whitelist
+from openclaw_guard.integrations.behavior import BehaviorCollectorManager
+from openclaw_guard.integrations.whitelist import WhitelistEngine, default_police_whitelist
+from openclaw_guard.storage.audit_store import AuditStore
 
 
 class WhitelistAuditTests(unittest.TestCase):
@@ -43,7 +43,7 @@ class WhitelistAuditTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             store = AuditStore(root / "audit.db", root / "audit.jsonl")
-            with patch("openclaw_guard.audit_store.utc_now_iso", return_value="2026-04-06T00:00:00+00:00"):
+            with patch("openclaw_guard.storage.audit_store.utc_now_iso", return_value="2026-04-06T00:00:00+00:00"):
                 store.append("event", {"action": "first"})
                 store.append("event", {"action": "second"})
             rows = store.query(limit=2)

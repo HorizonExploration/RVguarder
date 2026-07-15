@@ -7,3 +7,4 @@ from openclaw_guard.integrations.whitelist import *           # noqa: F401,F403
 from openclaw_guard.integrations.control import *             # noqa: F401,F403
 from openclaw_guard.integrations.hook_runtime import *        # noqa: F401,F403
 from openclaw_guard.integrations.tool_hook_bridge import *    # noqa: F401,F403
+from openclaw_guard.integrations.semantic_enhancer import *   # noqa: F401,F403

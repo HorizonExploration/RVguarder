@@ -19,6 +19,7 @@ from openclaw_guard.integrations.detection import DetectionEngine
 from openclaw_guard.integrations.discovery import discover_openclaw
 from openclaw_guard.storage.audit_store import AuditStore
 from openclaw_guard.integrations.hook_runtime import ensure_runtime_hook_plugin
+from openclaw_guard.integrations.semantic_enhancer import SemanticEnhancer
 from openclaw_guard.models import ControlledAction
 from openclaw_guard.integrations.openclaw_adapter import (
     ChatMessage,
@@ -51,6 +52,7 @@ class OpenclawGuardManager:
         self.context = context
         self.collectors = BehaviorCollectorManager()
         self.detector = DetectionEngine()
+        self.semantic_enhancer = SemanticEnhancer(config_path=context.paths.runtime_dir / "guard-config.json")
         self.whitelist = WhitelistEngine(default_police_whitelist())
         self.controller = GuardController(self.whitelist)
 
@@ -91,10 +93,12 @@ class OpenclawGuardManager:
     def summary(self) -> dict[str, Any]:
         actions = self._load_actions()
         counts = {
+            "total": len(actions),
             "pending": sum(1 for item in actions if item.status == "pending_approval"),
             "blocked": sum(1 for item in actions if item.status == "blocked"),
-            "executed": sum(1 for item in actions if item.status == "executed"),
+            "executed": sum(1 for item in actions if item.status == "executed" or item.status == "allow"),
             "failed": sum(1 for item in actions if item.status == "failed"),
+            "rejected": sum(1 for item in actions if item.status == "rejected"),
         }
         latest_baseline = self.ensure_baseline()
         chat_status = self.chat_status()
@@ -106,7 +110,7 @@ class OpenclawGuardManager:
             "settings": self.context.settings.to_dict(),
             "capabilities": [item.to_dict() for item in self.collectors.capabilities()],
             "baseline": latest_baseline,
-            "actions": {"counts": counts, "items": [item.to_dict() for item in list(reversed(actions))[:20]]},
+            "actions": {"counts": counts, "items": [item.to_dict() for item in list(reversed(actions))[:50]]},
             "console": {},  # conversation removed: Guard no longer mirrors OpenClaw chat
             "chat": chat_status.to_dict(),
             "hook": self.hook_status(),
@@ -609,7 +613,9 @@ class OpenclawGuardManager:
         reply_text = next((item.text for item in reversed(suffix) if item.role == "assistant" and item.text.strip()), None)
 
         if reply_text:
-            reply_scan = self.detector.evaluate(self.collectors.ingest(infer_event_from_text(reply_text)))
+            reply_event = self.collectors.ingest(infer_event_from_text(reply_text))
+            self._annotate_event_context(reply_event, source_message=reply_text, origin="reply")
+            reply_scan = self.detector.evaluate(reply_event)
             action.execution_result.update(
                 {
                     "status": "completed",
@@ -668,19 +674,7 @@ class OpenclawGuardManager:
 
     def ingest_event(self, payload: dict[str, Any], source_message: str = "", *, auto_execute: bool = True) -> dict[str, Any]:
         event = self.collectors.ingest(payload)
-        workspace = self.context.target.workspace_path
-        if workspace and event.target_paths:
-            workspace_root = Path(workspace).expanduser()
-            outside = False
-            for item in event.target_paths:
-                try:
-                    Path(item).expanduser().resolve().relative_to(workspace_root.resolve())
-                except Exception:
-                    outside = True
-                    break
-            event.metadata["outside_workspace"] = outside
-        if len(event.target_paths) > 1:
-            event.metadata["multi-target"] = True
+        self._annotate_event_context(event, source_message=source_message, origin="chat")
         decision = self.detector.evaluate(event)
         controlled = self.controller.decide(event, decision, source_message or payload.get("raw_user_intent", ""))
         self._save_action(controlled)
@@ -692,21 +686,10 @@ class OpenclawGuardManager:
 
     def handle_before_tool_call(self, payload: dict[str, Any], *, wait_timeout_ms: int | None = None) -> dict[str, Any]:
         event = build_hook_event(payload)
-        workspace = self.context.target.workspace_path
-        if workspace and event.target_paths:
-            workspace_root = Path(workspace).expanduser()
-            outside = False
-            for item in event.target_paths:
-                try:
-                    Path(item).expanduser().resolve().relative_to(workspace_root.resolve())
-                except Exception:
-                    outside = True
-                    break
-            event.metadata["outside_workspace"] = outside
-        if len(event.target_paths) > 1:
-            event.metadata["multi-target"] = True
+        hook_source_message = build_hook_source_message(event)
+        self._annotate_event_context(event, source_message=hook_source_message, origin="hook")
         decision = self.detector.evaluate(event)
-        controlled = self.controller.decide(event, decision, build_hook_source_message(event))
+        controlled = self.controller.decide(event, decision, hook_source_message)
         hook_key = str(event.metadata.get("hook_key") or hook_key_from_payload(payload))
         controlled.event.metadata["hook_key"] = hook_key
         controlled.event.metadata["hook_bridge"] = True
@@ -802,6 +785,31 @@ class OpenclawGuardManager:
             "blockReason": "Openclaw Guard 未批准本次工具执行。",
             "action_record": refreshed.to_dict(),
         }
+
+    def _annotate_event_context(self, event: Any, *, source_message: str = "", origin: str = "unknown") -> None:
+        workspace = self.context.target.workspace_path
+        if workspace and event.target_paths:
+            workspace_root = Path(workspace).expanduser()
+            outside = False
+            for item in event.target_paths:
+                try:
+                    Path(item).expanduser().resolve().relative_to(workspace_root.resolve())
+                except Exception:
+                    outside = True
+                    break
+            event.metadata["outside_workspace"] = outside
+        if len(event.target_paths) > 1:
+            event.metadata["multi-target"] = True
+        semantic_payload = self.semantic_enhancer.evaluate(
+            event,
+            {
+                "source_message": source_message,
+                "origin": origin,
+                "workspace_path": str(workspace) if workspace else None,
+            },
+        )
+        event.metadata["semantic"] = semantic_payload["semantic"]
+        event.metadata["rv_trace"] = semantic_payload["rv_trace"]
 
     def handle_after_tool_call(self, payload: dict[str, Any]) -> dict[str, Any]:
         hook_key = hook_key_from_payload(payload)
@@ -931,6 +939,24 @@ class OpenclawGuardManager:
             raise KeyError("action_not_found")
         if action.status not in {"approved", "proposed"}:
             raise ValueError("action_not_ready")
+
+        # 如果是安全放行的动作（proposed），在模拟环境下标记为 allow
+        if action.status == "proposed":
+            action.status = "allow"
+            action.execution_result = {
+                "completed_at": utc_now_iso(),
+                "mode": "simulation",
+                "message": "已安全放行（模拟执行）",
+            }
+            items = self._replace_action(action, items=items)
+            self._save_all(items)
+            self.audit_store.append("action_allowed", action.to_dict())
+            return {
+                "action": action.to_dict(),
+                "reply_text": "已安全放行。",
+                "messages": self._load_messages()[-60:],
+            }
+
         action.status = "executing"
         items = self._replace_action(action, items=items)
         self._save_all(items)

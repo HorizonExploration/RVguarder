@@ -10,9 +10,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openclaw_guard.main import main
-from openclaw_guard.manager import build_manager
-from openclaw_guard.discovery import _extract_available_models
-from openclaw_guard.openclaw_adapter import (
+from openclaw_guard.integrations.discovery import _extract_available_models
+from openclaw_guard.integrations.openclaw_adapter import (
     ChatMessage,
     ChatStartResult,
     OpenClawRelayError,
@@ -21,6 +20,7 @@ from openclaw_guard.openclaw_adapter import (
     resolve_session_key,
     switch_model,
 )
+from openclaw_guard.manager import build_manager
 from openclaw_guard.ui import build_ui
 from openclaw_guard.web import _error_message
 
@@ -458,11 +458,11 @@ class WebCliTests(unittest.TestCase):
             config_path = Path(tmp) / "openclaw.json"
             config_path.write_text("{}", encoding="utf-8")
             manager = build_manager(Path(tmp), config_path=config_path)
-            with patch("openclaw_guard.openclaw_adapter.resolve_session_key", return_value="main"), patch(
-                "openclaw_guard.openclaw_adapter.get_current_session_model",
+            with patch("openclaw_guard.integrations.openclaw_adapter.resolve_session_key", return_value="main"), patch(
+                "openclaw_guard.integrations.openclaw_adapter.get_current_session_model",
                 return_value={"key": "main", "provider": "zai", "model": "glm-4.6", "value": "zai/glm-4.6"},
             ), patch(
-                "openclaw_guard.openclaw_adapter._gateway_call",
+                "openclaw_guard.integrations.openclaw_adapter._gateway_call",
                 return_value={"ok": True, "resolved": {"modelProvider": "zai", "model": "glm-4.6"}},
             ) as gateway_call:
                 result = switch_model(manager.context.target, "zai/glm-4.6")
@@ -482,7 +482,7 @@ class WebCliTests(unittest.TestCase):
                     {"key": "agent:main:main", "modelProvider": "zai", "model": "glm-5"},
                 ]
             }
-            with patch("openclaw_guard.openclaw_adapter._gateway_call", return_value=payload):
+            with patch("openclaw_guard.integrations.openclaw_adapter._gateway_call", return_value=payload):
                 key = resolve_session_key(manager.context.target)
             self.assertEqual(key, "main")
 

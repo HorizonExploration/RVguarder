@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from typing import Iterable
 
+from openclaw_guard.integrations.semantic_enhancer import SemanticEnhancer
 from openclaw_guard.models import BehaviorEvent, DetectionDecision, DetectionRule
 from openclaw_guard.utils import utc_now_iso
 
@@ -81,84 +81,89 @@ def builtin_rules() -> list[DetectionRule]:
 class DetectionEngine:
     def __init__(self, rules: Iterable[DetectionRule] | None = None) -> None:
         self.rules = list(rules or builtin_rules())
+        self.rule_index = {rule.rule_id: rule for rule in self.rules}
+        self.semantic = SemanticEnhancer(api_key="")
 
     def evaluate(self, event: BehaviorEvent) -> DetectionDecision:
-        matched: list[DetectionRule] = []
-        trace: list[dict[str, object]] = []
-        haystack = " ".join(
-            [
-                event.command or "",
-                " ".join(event.target_paths),
-                " ".join(event.network_targets),
-                event.api_name or "",
-                event.skill_name or "",
-                event.channel_name or "",
-                str(event.raw_payload),
-            ]
-        ).lower()
-        for rule in self.rules:
-            if event.action_type not in rule.action_types:
-                continue
-            hit = False
-            if rule.keywords and any(keyword.lower() in haystack for keyword in rule.keywords):
-                hit = True
-            if rule.command_prefixes and event.command and any(event.command.lower().startswith(prefix.lower()) for prefix in rule.command_prefixes):
-                hit = True
-            if rule.path_prefixes and any(path.startswith(prefix.replace("~", str(__import__("pathlib").Path.home()))) for path in event.target_paths for prefix in rule.path_prefixes):
-                hit = True
-            if rule.network_patterns and any(pattern.lower() in haystack for pattern in rule.network_patterns):
-                hit = True
-            if "outside-workspace" in rule.tags and event.metadata.get("outside_workspace"):
-                hit = True
-            if "multi-target" in rule.tags and len(event.target_paths) > 1:
-                hit = True
-            if "channel" in rule.tags and bool(event.channel_name):
-                hit = True
-            trace.append({"rule_id": rule.rule_id, "outcome": "match" if hit else "miss"})
-            if hit:
-                matched.append(rule)
-        if not matched:
-            fallback = _fallback_decision(event)
+        semantic_payload = self._ensure_semantic_payload(event)
+        labels = set(str(item) for item in semantic_payload["semantic"].get("labels", []))
+        labels.update(_rv_props(semantic_payload))
+        scenario = str(semantic_payload["semantic"].get("scenario") or event.action_type)
+        trace: list[dict[str, object]] = [
+            {
+                "stage": "semantic",
+                "scenario": scenario,
+                "labels": sorted(labels),
+            }
+        ]
+
+        office_decision = _office_decision(event, scenario, labels, trace)
+        if office_decision is not None:
+            return office_decision
+
+        matched_rule_ids = [rule_id for rule_id, predicate in _semantic_predicates() if predicate(event, labels, scenario)]
+        if matched_rule_ids:
+            matched_rules = [self.rule_index[rule_id] for rule_id in matched_rule_ids if rule_id in self.rule_index]
+            strongest = sorted(matched_rules, key=lambda item: ("blocked", "dangerous", "caution", "safe").index(item.risk_level))[0]
+            requires_second = strongest.decision == "escalate"
             return DetectionDecision(
                 event_id=event.event_id,
                 timestamp=utc_now_iso(),
                 action_type=event.action_type,
-                risk_level=fallback["risk_level"],
-                action=fallback["action"],
-                reason=fallback["reason"],
-                rule_ids=[],
-                trace=trace + [{"stage": "default", "outcome": fallback["action"]}],
-                requires_second_confirmation=bool(fallback.get("requires_second_confirmation")),
-                confirmation_word=fallback.get("confirmation_word"),
+                risk_level=strongest.risk_level,
+                action=strongest.decision,
+                reason=strongest.description,
+                rule_ids=matched_rule_ids,
+                trace=trace + [{"stage": "semantic_rules", "matches": matched_rule_ids}] + [{"stage": "decision", "outcome": strongest.decision, "rule_id": strongest.rule_id}],
+                requires_second_confirmation=requires_second,
+                confirmation_word="EXECUTE" if requires_second else None,
             )
-        strongest = sorted(matched, key=lambda item: ("blocked", "dangerous", "caution", "safe").index(item.risk_level))[0]
-        requires_second = strongest.decision == "escalate"
+
+        fallback = _fallback_decision(event, scenario=scenario, labels=labels)
         return DetectionDecision(
             event_id=event.event_id,
             timestamp=utc_now_iso(),
             action_type=event.action_type,
-            risk_level=strongest.risk_level,
-            action=strongest.decision,
-            reason=strongest.description,
-            rule_ids=[item.rule_id for item in matched],
-            trace=trace + [{"stage": "decision", "outcome": strongest.decision, "rule_id": strongest.rule_id}],
-            requires_second_confirmation=requires_second,
-            confirmation_word="EXECUTE" if requires_second else None,
+            risk_level=fallback["risk_level"],
+            action=fallback["action"],
+            reason=fallback["reason"],
+            rule_ids=[],
+            trace=trace + [{"stage": "default", "outcome": fallback["action"]}],
+            requires_second_confirmation=bool(fallback.get("requires_second_confirmation")),
+            confirmation_word=fallback.get("confirmation_word"),
         )
 
+    def _ensure_semantic_payload(self, event: BehaviorEvent) -> dict[str, object]:
+        semantic = event.metadata.get("semantic")
+        rv_trace = event.metadata.get("rv_trace")
+        if isinstance(semantic, dict) and isinstance(rv_trace, list):
+            return {"semantic": semantic, "rv_trace": rv_trace}
+        payload = self.semantic.evaluate(event, {"origin": "detector"})
+        event.metadata["semantic"] = payload["semantic"]
+        event.metadata["rv_trace"] = payload["rv_trace"]
+        return payload
 
-def _fallback_decision(event: BehaviorEvent) -> dict[str, object]:
-    if event.action_type == "chat_message":
+
+def _fallback_decision(event: BehaviorEvent, *, scenario: str | None = None, labels: set[str] | None = None) -> dict[str, object]:
+    active_scenario = scenario or event.action_type
+    signals = labels or set()
+    if active_scenario == "chat_message":
         return {
             "risk_level": "safe",
             "action": "allow",
             "reason": "未命中高危规则，按低风险对话放行。",
         }
-    if event.action_type == "command_exec" and _is_low_risk_command(event.command):
+    if "command_readonly" in signals:
         return {
             "risk_level": "safe",
             "action": "allow",
             "reason": "检测为只读命令，按低风险动作放行。",
+        }
+    if active_scenario in {"mail_send", "report_send"}:
+        return {
+            "risk_level": "dangerous",
+            "action": "ask",
+            "reason": "外发类办公场景默认进入人工确认。",
         }
     if event.action_type in {"file_delete", "file_write", "config_modify", "network_egress", "channel_send", "skill_run"}:
         return {
@@ -184,3 +189,139 @@ def _is_low_risk_command(command: str | None) -> bool:
         return False
     normalized = command.strip().lower()
     return normalized.startswith(("ls", "pwd", "cat ", "grep ", "find ", "echo "))
+
+
+def _rv_props(payload: dict[str, object]) -> set[str]:
+    props: set[str] = set()
+    for item in payload.get("rv_trace", []):  # type: ignore[union-attr]
+        if not isinstance(item, dict):
+            continue
+        for value in item.get("props", []):
+            props.add(str(value))
+    return props
+
+
+def _office_decision(
+    event: BehaviorEvent,
+    scenario: str,
+    labels: set[str],
+    trace: list[dict[str, object]],
+) -> DetectionDecision | None:
+    if scenario == "mail_send" and {"external_recipient", "contains_secret"} <= labels:
+        return DetectionDecision(
+            event_id=event.event_id,
+            timestamp=utc_now_iso(),
+            action_type=event.action_type,
+            risk_level="blocked",
+            action="block",
+            reason="邮件外发包含敏感信息，已按办公安全策略阻断。",
+            rule_ids=["SEM-OFFICE-001"],
+            trace=trace + [{"stage": "office_policy", "policy_id": "SEM-OFFICE-001", "outcome": "block"}],
+            requires_second_confirmation=False,
+            confirmation_word=None,
+        )
+    if scenario == "report_send" and {"external_recipient", "internal_source"} <= labels:
+        return DetectionDecision(
+            event_id=event.event_id,
+            timestamp=utc_now_iso(),
+            action_type=event.action_type,
+            risk_level="blocked",
+            action="block",
+            reason="日报外发包含内部来源内容，已按办公安全策略阻断。",
+            rule_ids=["SEM-OFFICE-002"],
+            trace=trace + [{"stage": "office_policy", "policy_id": "SEM-OFFICE-002", "outcome": "block"}],
+            requires_second_confirmation=False,
+            confirmation_word=None,
+        )
+    if scenario == "mail_send" and "bulk_send" in labels:
+        return DetectionDecision(
+            event_id=event.event_id,
+            timestamp=utc_now_iso(),
+            action_type=event.action_type,
+            risk_level="dangerous",
+            action="escalate",
+            reason="邮件群发属于高风险办公动作，需要二次确认。",
+            rule_ids=["SEM-OFFICE-003"],
+            trace=trace + [{"stage": "office_policy", "policy_id": "SEM-OFFICE-003", "outcome": "escalate"}],
+            requires_second_confirmation=True,
+            confirmation_word="EXECUTE",
+        )
+    if scenario == "mail_send" and "ai_generated_content" in labels and "requires_human_review" not in labels:
+        return DetectionDecision(
+            event_id=event.event_id,
+            timestamp=utc_now_iso(),
+            action_type=event.action_type,
+            risk_level="caution",
+            action="ask",
+            reason="AI 自动生成邮件内容尚未确认，需人工复核后发送。",
+            rule_ids=["SEM-OFFICE-004"],
+            trace=trace + [{"stage": "office_policy", "policy_id": "SEM-OFFICE-004", "outcome": "ask"}],
+            requires_second_confirmation=False,
+            confirmation_word=None,
+        )
+    if scenario == "report_generate" and "missing_scope_constraint" in labels:
+        return DetectionDecision(
+            event_id=event.event_id,
+            timestamp=utc_now_iso(),
+            action_type=event.action_type,
+            risk_level="caution",
+            action="ask",
+            reason="日报生成缺少明确时间或范围约束，需要人工确认。",
+            rule_ids=["SEM-OFFICE-005"],
+            trace=trace + [{"stage": "office_policy", "policy_id": "SEM-OFFICE-005", "outcome": "ask"}],
+            requires_second_confirmation=False,
+            confirmation_word=None,
+        )
+    return None
+
+
+def _semantic_predicates() -> list[tuple[str, callable]]:
+    return [
+        ("CMD-001", lambda event, labels, scenario: "command_rm_rf" in labels),
+        ("CMD-002", lambda event, labels, scenario: "command_pipe_curl_sh" in labels),
+        ("CMD-003", lambda event, labels, scenario: "command_pipe_wget_bash" in labels),
+        ("CMD-004", lambda event, labels, scenario: "command_sudo" in labels),
+        ("CMD-005", lambda event, labels, scenario: "command_ssh" in labels),
+        ("CMD-006", lambda event, labels, scenario: "command_scp" in labels),
+        ("CMD-007", lambda event, labels, scenario: "command_chmod" in labels),
+        ("CMD-008", lambda event, labels, scenario: "command_chown" in labels),
+        ("CMD-009", lambda event, labels, scenario: "command_mv" in labels),
+        ("CMD-010", lambda event, labels, scenario: "command_rm" in labels),
+        ("FILE-001", lambda event, labels, scenario: event.action_type == "file_delete" and "path_system_root" in labels),
+        ("FILE-002", lambda event, labels, scenario: event.action_type == "file_delete" and "path_sensitive_creds" in labels),
+        ("FILE-003", lambda event, labels, scenario: event.action_type == "file_delete" and "outside_workspace" in labels),
+        ("FILE-004", lambda event, labels, scenario: event.action_type == "file_delete" and "path_log" in labels),
+        ("FILE-005", lambda event, labels, scenario: event.action_type == "file_delete" and "path_high_value" in labels),
+        ("FILE-006", lambda event, labels, scenario: event.action_type == "config_modify" and "path_openclaw_config" in labels),
+        ("FILE-007", lambda event, labels, scenario: event.action_type == "file_write" and "outside_workspace" in labels),
+        ("FILE-008", lambda event, labels, scenario: event.action_type == "file_write" and "path_script" in labels),
+        ("FILE-009", lambda event, labels, scenario: event.action_type == "file_write" and "path_sensitive_creds" in labels),
+        ("FILE-010", lambda event, labels, scenario: event.action_type == "file_write" and "multi_target" in labels),
+        ("NET-001", lambda event, labels, scenario: event.action_type == "network_egress" and "network_http" in labels),
+        ("NET-002", lambda event, labels, scenario: event.action_type == "network_egress" and "network_public_ip" in labels),
+        ("NET-003", lambda event, labels, scenario: event.action_type == "network_egress" and "network_webhook" in labels),
+        ("NET-004", lambda event, labels, scenario: event.action_type == "network_egress" and "network_upload" in labels),
+        ("NET-005", lambda event, labels, scenario: event.action_type == "network_egress" and "network_secret_payload" in labels),
+        ("NET-006", lambda event, labels, scenario: event.action_type == "network_egress" and "network_proxy" in labels),
+        ("API-001", lambda event, labels, scenario: event.action_type == "channel_send" and "channel_external_send" in labels),
+        ("API-002", lambda event, labels, scenario: event.action_type == "channel_send" and "channel_admin" in labels),
+        ("API-003", lambda event, labels, scenario: event.action_type == "channel_send" and "channel_present" in labels),
+        ("API-004", lambda event, labels, scenario: event.action_type == "channel_send" and "bulk_send" in labels),
+        ("SKL-001", lambda event, labels, scenario: event.action_type == "skill_run" and "skill_shell" in labels),
+        ("SKL-002", lambda event, labels, scenario: event.action_type == "skill_run" and "skill_network" in labels),
+        ("SKL-003", lambda event, labels, scenario: event.action_type == "skill_run" and "skill_delete" in labels),
+        ("SKL-004", lambda event, labels, scenario: event.action_type == "skill_run" and "skill_write" in labels),
+        ("SKL-005", lambda event, labels, scenario: event.action_type == "skill_run" and "skill_persistence" in labels),
+        ("SKL-006", lambda event, labels, scenario: event.action_type == "skill_run" and "skill_system_admin" in labels),
+        ("CFG-001", lambda event, labels, scenario: event.action_type == "config_modify" and "config_provider_change" in labels),
+        ("CFG-002", lambda event, labels, scenario: event.action_type == "config_modify" and "config_auth_disable" in labels),
+        ("CFG-003", lambda event, labels, scenario: event.action_type == "config_modify" and "config_bypass" in labels),
+        ("CFG-004", lambda event, labels, scenario: event.action_type == "config_modify" and "config_sandbox_disable" in labels),
+        ("CFG-005", lambda event, labels, scenario: event.action_type == "config_modify" and "config_audit_disable" in labels),
+        ("GEN-001", lambda event, labels, scenario: event.action_type == "file_delete" and "unparsed_target" in labels),
+        ("GEN-002", lambda event, labels, scenario: event.action_type == "file_write" and "unparsed_target" in labels),
+        ("GEN-003", lambda event, labels, scenario: event.action_type == "command_exec" and "command_delete_intent" in labels),
+        ("GEN-004", lambda event, labels, scenario: event.action_type == "network_egress" and "network_unknown_external" in labels),
+        ("GEN-005", lambda event, labels, scenario: event.action_type in {"file_delete", "file_write"} and "path_high_value" in labels),
+        ("GEN-006", lambda event, labels, scenario: event.action_type in {"file_delete", "file_write"} and "multi_target" in labels),
+    ]

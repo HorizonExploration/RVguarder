@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 from openclaw_guard.manager import build_manager
 from openclaw_guard.web import launch_web
@@ -49,6 +51,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # 加载环境配置文件
+    load_dotenv(override=True)
+    
     parser = build_parser()
     args = parser.parse_args(argv)
     manager = build_manager(
