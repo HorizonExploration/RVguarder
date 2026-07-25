@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -10,6 +11,8 @@ from typing import Any
 from uuid import uuid4
 
 from openclaw_guard.config import OpenClawTarget
+
+logger = logging.getLogger(__name__)
 
 
 CHAT_SESSION_KEY = "main"
@@ -441,6 +444,60 @@ def inspect_guard_plugin(target: OpenClawTarget, *, plugin_id: str = "openclaw-g
         "workspace_dir": payload.get("workspaceDir"),
         "diagnostics": payload.get("diagnostics") if isinstance(payload.get("diagnostics"), list) else [],
     }
+
+
+def resolve_plugin_approval(
+    target: OpenClawTarget,
+    *,
+    plugin_id: str = "openclaw-guard-hook",
+    run_id: str,
+    tool_call_id: str = "",
+    decision: str,
+) -> dict[str, Any]:
+    """Sync an approval decision from the Guard Dashboard back to OpenClaw.
+
+    When a user approves/rejects a tool action in the Guard Dashboard
+    (not in OpenClaw's native UI), this tells OpenClaw about the decision
+    so the agent run can continue.
+
+    This is best-effort: if the gateway call fails, a warning is logged and
+    ``{"ok": False, "error": "approval_resolve_failed"}`` is returned.
+    """
+    # Approach 1: approvals.resolve
+    try:
+        return _gateway_call(
+            target,
+            "approvals.resolve",
+            {"pluginId": plugin_id, "runId": run_id, "decision": decision},
+            timeout_ms=5000,
+            step="approvals.resolve",
+        )
+    except OpenClawRelayError as exc:
+        if exc.code not in ("gateway_call_failed", "gateway_invalid_response"):
+            # Non-recoverable errors (auth, unreachable, etc.) — don't try fallback
+            logger.warning(
+                "Failed to resolve plugin approval via approvals.resolve: %s (code=%s)",
+                exc.detail,
+                exc.code,
+            )
+            return {"ok": False, "error": "approval_resolve_failed"}
+
+    # Approach 2 (fallback): plugin.resolveApproval
+    try:
+        return _gateway_call(
+            target,
+            "plugin.resolveApproval",
+            {"pluginId": plugin_id, "decision": decision, "toolCallId": tool_call_id},
+            timeout_ms=5000,
+            step="plugin.resolveApproval",
+        )
+    except OpenClawRelayError as exc:
+        logger.warning(
+            "Failed to resolve plugin approval via fallback plugin.resolveApproval: %s (code=%s)",
+            exc.detail,
+            exc.code,
+        )
+        return {"ok": False, "error": "approval_resolve_failed"}
 
 
 def resolve_session_key(target: OpenClawTarget, *, session_key: str = CHAT_SESSION_KEY) -> str:

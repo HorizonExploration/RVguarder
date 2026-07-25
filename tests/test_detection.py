@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openclaw_guard.integrations.behavior import BehaviorCollectorManager
-from openclaw_guard.integrations.detection import DetectionEngine, builtin_rules
+from openclaw_guard.engine.behavior import BehaviorCollectorManager
+from openclaw_guard.engine.detection import DetectionEngine, builtin_rules
 from openclaw_guard.manager import build_manager
 
 

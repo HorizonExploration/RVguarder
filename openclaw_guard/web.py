@@ -5,6 +5,7 @@ import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import unquote
 
 from openclaw_guard import api
 from openclaw_guard.manager import OpenclawGuardManager
@@ -21,8 +22,11 @@ def launch_web(
 
     ui_dir = manager.context.paths.runtime_dir / "ui"
     build_ui(ui_dir, manager.summary())
+    class GuardHTTPServer(ThreadingHTTPServer):
+        allow_reuse_address = True
+
     handler = _build_handler(manager, ui_dir)
-    server = ThreadingHTTPServer((host, port), handler)
+    server = GuardHTTPServer((host, port), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     actual_host, actual_port = server.server_address
@@ -78,34 +82,62 @@ def _build_handler(manager: OpenclawGuardManager, ui_dir: Path):
             return self.rfile.read(length) if length else b""
 
         def _write_json(self, payload, status: HTTPStatus) -> None:
-            body = api.dump_response(payload)
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            try:
+                body = api.dump_response(payload)
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                # 客户端（浏览器）提前关闭了连接，忽略此错误以保持日志清洁
+                pass
 
     return Handler
 
 
 def _serve_static(handler: BaseHTTPRequestHandler, path: str, ui_dir: Path) -> bool:
-    static_path: Path | None
-    content_type: str
-    if path == "/":
-        static_path = ui_dir / "index.html"
-        content_type = "text/html; charset=utf-8"
-    elif path == "/app.js":
-        static_path = ui_dir / "app.js"
-        content_type = "application/javascript; charset=utf-8"
-    elif path == "/styles.css":
-        static_path = ui_dir / "styles.css"
-        content_type = "text/css; charset=utf-8"
+    raw_path = unquote((path or "/").split("?", 1)[0])
+    if raw_path == "/":
+        rel = "index.html"
     else:
+        rel = raw_path.lstrip("/")
+        if not rel:
+            rel = "index.html"
+
+    static_path = (ui_dir / rel).resolve()
+    ui_root = ui_dir.resolve()
+    try:
+        static_path.relative_to(ui_root)
+    except Exception:
+        handler.send_error(HTTPStatus.NOT_FOUND, "Not found")
+        return True
+
+    if not static_path.exists() or not static_path.is_file():
         return False
 
-    if not static_path.exists():
-        handler.send_error(HTTPStatus.NOT_FOUND, "Missing asset")
-        return True
+    suffix = static_path.suffix.lower()
+    if suffix in {".html"}:
+        content_type = "text/html; charset=utf-8"
+    elif suffix in {".js", ".mjs"}:
+        content_type = "application/javascript; charset=utf-8"
+    elif suffix in {".css"}:
+        content_type = "text/css; charset=utf-8"
+    elif suffix in {".json"}:
+        content_type = "application/json; charset=utf-8"
+    elif suffix in {".png"}:
+        content_type = "image/png"
+    elif suffix in {".jpg", ".jpeg"}:
+        content_type = "image/jpeg"
+    elif suffix in {".svg"}:
+        content_type = "image/svg+xml; charset=utf-8"
+    elif suffix in {".woff"}:
+        content_type = "font/woff"
+    elif suffix in {".woff2"}:
+        content_type = "font/woff2"
+    else:
+        content_type = "application/octet-stream"
+
     data = static_path.read_bytes()
     handler.send_response(HTTPStatus.OK)
     handler.send_header("Content-Type", content_type)
@@ -131,8 +163,25 @@ _POST_ROUTES = {
     "/api/baseline/run": api.baseline_run,
     "/api/hook/before-tool-call": api.hook_before_tool_call,
     "/api/hook/after-tool-call": api.hook_after_tool_call,
+    "/api/hook/resolve-approval": api.resolve_hook_approval,
     "/api/actions/ingest": api.ingest_event,
     "/api/actions/approve": api.approve_action,
     "/api/actions/reject": api.reject_action,
+    "/api/actions/clear": api.clear_actions,
     "/api/audit/export": api.audit_export,
+    "/api/skills/upsert": api.skill_upsert,
+    "/api/skills/delete": api.skill_delete,
+    "/api/channels/upsert": api.channel_upsert,
+    "/api/channels/delete": api.channel_delete,
 }
+
+
+def _error_message(code: str) -> str:
+    mapping = {
+        "message_empty": "输入不能为空。",
+        "action_not_found": "未找到对应动作记录。",
+        "gateway_unreachable": "无法连接 OpenClaw gateway，请检查 OpenClaw 是否启动。",
+        "hook_unauthorized": "Hook 鉴权失败。",
+        "internal_error": "服务内部错误。",
+    }
+    return mapping.get(code, code)

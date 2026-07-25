@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import threading
+import time
 from datetime import datetime, timedelta, timezone
 from dataclasses import asdict
 from pathlib import Path
@@ -11,15 +11,16 @@ from openclaw_guard.core.action_service import ActionService
 from openclaw_guard.core.baseline_service import BaselineService
 from openclaw_guard.core.audit_service import AuditService
 from openclaw_guard.baseline import BaselineScanner
-from openclaw_guard.integrations.behavior import BehaviorCollectorManager
+from openclaw_guard.engine.behavior import BehaviorCollectorManager
 from openclaw_guard.config import AppContext, GuardSettings, default_paths
-from openclaw_guard.integrations.control import GuardController
+from openclaw_guard.engine.control import GuardController
 from openclaw_guard.conversation import assistant_reply_for_action, infer_event_from_text, new_message
-from openclaw_guard.integrations.detection import DetectionEngine
+from openclaw_guard.engine.detection import DetectionEngine
 from openclaw_guard.integrations.discovery import discover_openclaw
 from openclaw_guard.storage.audit_store import AuditStore
 from openclaw_guard.integrations.hook_runtime import ensure_runtime_hook_plugin
-from openclaw_guard.integrations.semantic_enhancer import SemanticEnhancer
+from openclaw_guard.engine.semantic_enhancer import SemanticEnhancer
+from openclaw_guard.engine.runtime_verification import RuntimeVerificationEngine
 from openclaw_guard.models import ControlledAction
 from openclaw_guard.integrations.openclaw_adapter import (
     ChatMessage,
@@ -30,6 +31,7 @@ from openclaw_guard.integrations.openclaw_adapter import (
     inspect_guard_plugin,
     list_available_models,
     reset_chat_session,
+    resolve_plugin_approval,
     send_chat_message,
     start_chat_message,
     switch_model,
@@ -37,7 +39,7 @@ from openclaw_guard.integrations.openclaw_adapter import (
 )
 from openclaw_guard.integrations.tool_hook_bridge import build_hook_event, build_hook_source_message, hook_key_from_payload
 from openclaw_guard.utils import append_jsonl, read_json, utc_now_iso, write_json
-from openclaw_guard.integrations.whitelist import WhitelistEngine, default_police_whitelist
+from openclaw_guard.engine.whitelist import WhitelistEngine, default_police_whitelist
 
 MAX_ACTIONS_SIZE = 1000
 MAX_MESSAGES_SIZE = 500
@@ -53,6 +55,7 @@ class OpenclawGuardManager:
         self.collectors = BehaviorCollectorManager()
         self.detector = DetectionEngine()
         self.semantic_enhancer = SemanticEnhancer(config_path=context.paths.runtime_dir / "guard-config.json")
+        self.rv_engine = RuntimeVerificationEngine(window_size=10)
         self.whitelist = WhitelistEngine(default_police_whitelist())
         self.controller = GuardController(self.whitelist)
 
@@ -77,14 +80,12 @@ class OpenclawGuardManager:
         self.conversation_path = context.paths.runtime_dir / "conversation.json"
         self.preferences_path = context.paths.runtime_dir / "preferences.json"
         self.log_path = context.paths.runtime_dir / "guard.log"
-        self._hook_waiters: dict[str, threading.Event] = {}
-        self._hook_waiters_lock = threading.Lock()
         self.runtime_hook = ensure_runtime_hook_plugin(context)
         self._log("session_started", mode="plugin", profile=self.context.target.profile)
 
         # 核心服务层
         self.action_service = ActionService(
-            context, self.detector, self.whitelist, self.controller,
+            context, self.detector, self.whitelist, self.controller, self.semantic_enhancer,
             self.actions_path, lambda t, p: self.audit_store.append(t, p),
         )
         self.baseline_service = BaselineService(context, self.latest_baseline_path)
@@ -95,7 +96,8 @@ class OpenclawGuardManager:
         counts = {
             "total": len(actions),
             "pending": sum(1 for item in actions if item.status == "pending_approval"),
-            "blocked": sum(1 for item in actions if item.status == "blocked"),
+            "approved": sum(1 for item in actions if item.status == "approved"),
+            "executing": sum(1 for item in actions if item.status == "executing"),
             "executed": sum(1 for item in actions if item.status == "executed" or item.status == "allow"),
             "failed": sum(1 for item in actions if item.status == "failed"),
             "rejected": sum(1 for item in actions if item.status == "rejected"),
@@ -128,6 +130,17 @@ class OpenclawGuardManager:
                 "whitelist": asdict(default_police_whitelist()),
             },
         }
+
+    @staticmethod
+    def _ensure_pipeline_timings(event: Any) -> dict[str, Any]:
+        metadata = getattr(event, "metadata", None)
+        if not isinstance(metadata, dict):
+            return {}
+        timings = metadata.get("pipeline_timings_ms")
+        if not isinstance(timings, dict):
+            timings = {}
+            metadata["pipeline_timings_ms"] = timings
+        return timings
 
     def ensure_baseline(self) -> dict[str, Any]:
         return self.baseline_service.ensure()
@@ -233,28 +246,42 @@ class OpenclawGuardManager:
             payload.setdefault("error_code", "plugin_load_failed")
             payload.setdefault("error_detail", payload.get("plugin_validation_error") or "The Guard hook plugin could not be parsed by OpenClaw.")
             return payload
-        if recent_hook_event:
+
+        # 优先通过 gateway probe 确认插件是否已加载到 OpenClaw gateway 中
+        plugin_loaded_in_gateway = bool(
+            plugin_probe.get("ok") and plugin_probe.get("found") and plugin_probe.get("status") == "loaded"
+        )
+        if plugin_loaded_in_gateway:
             payload.update(
                 {
                     "active": True,
                     "state": "active",
-                    "runtime_hint": "recent_hook_activity",
-                    "runtime_event": recent_hook_event,
+                    "plugin_loaded": True,
+                    "plugin_hook_count": plugin_probe.get("hook_count"),
+                    "plugin_gateway_methods": plugin_probe.get("gateway_methods"),
                     "error_code": None,
-                    "error_detail": "最近已经收到 OpenClaw 真实工具调用，Guard Hook 当前已在执行链中工作。",
+                    "error_detail": "Guard Hook 已成功加载到 OpenClaw gateway 中，正实时拦截工具调用。",
                 }
             )
-            if plugin_probe.get("ok") and plugin_probe.get("found") and plugin_probe.get("status") == "loaded":
-                payload["plugin_loaded"] = True
-                payload["plugin_hook_count"] = plugin_probe.get("hook_count")
-                payload["plugin_gateway_methods"] = plugin_probe.get("gateway_methods")
+            if recent_hook_event:
+                payload["runtime_hint"] = "recent_hook_activity"
             return payload
+
+        # gateway 无法确认插件已加载，检查是否只是未重启
         if payload.get("restart_required"):
             payload.setdefault("active", False)
             payload["state"] = "loaded_waiting_restart"
             payload.setdefault("error_code", "gateway_restart_required")
-            payload.setdefault("error_detail", "OpenClaw gateway must restart before the Guard hook becomes active.")
+            payload.setdefault("error_detail",
+                "Guard Hook 插件已写入 OpenClaw 配置，但尚未加载到 Gateway 中。\n"
+                "请在 OpenClaw 原版目录下执行以下命令重启 Gateway：\n"
+                "  npm run openclaw gateway"
+            )
+            if recent_hook_event:
+                payload["runtime_hint"] = "recent_hook_activity（来自历史日志，非当前实时连接）"
             return payload
+
+        # 尝试通过 gateway remote call 确认状态
         try:
             remote = get_guard_hook_status(self.context.target)
             payload.update(
@@ -264,35 +291,19 @@ class OpenclawGuardManager:
                 }
             )
             payload["state"] = "active" if payload["active"] else "runtime_unreachable"
+            return payload
         except OpenClawRelayError as exc:
             payload.update(
                 {
                     "active": False,
-                    "error_code": exc.code,
-                    "error_detail": exc.detail,
+                    "error_code": "gateway_unreachable",
+                    "error_detail": "无法连接 OpenClaw gateway。请先启动 OpenClaw，再运行本服务。",
                 }
             )
-            if plugin_probe.get("ok") and plugin_probe.get("found") and plugin_probe.get("status") == "loaded":
-                payload["plugin_loaded"] = True
-                payload["plugin_hook_count"] = plugin_probe.get("hook_count")
-                payload["plugin_gateway_methods"] = plugin_probe.get("gateway_methods")
-                if exc.code in {"gateway_unreachable", "runtime_not_running"}:
-                    payload["state"] = "loaded_waiting_restart"
-                    payload["error_code"] = "gateway_restart_required"
-                    payload["error_detail"] = (
-                        "Guard Hook 插件已经写入并可被 OpenClaw 加载，但当前正在运行的 gateway 进程还没有接入它。"
-                        "请在 OpenClaw 原版目录下重新执行 npm run openclaw gateway。"
-                    )
-                    return payload
-                # Gateway Method unavailable but plugin is loaded via plugins list — mark active
-                payload["active"] = True
-                payload["state"] = "active"
-                payload["error_code"] = None
-                payload["error_detail"] = "Guard Hook plugin is loaded and active (checked via plugins list)."
-                return payload
-            payload.setdefault("state", "runtime_unreachable")
+            payload["state"] = "runtime_unreachable"
+            if recent_hook_event:
+                payload["runtime_hint"] = "recent_hook_activity（历史日志）"
             return payload
-        return payload
 
     def execution_guard_status(self) -> dict[str, Any]:
         hook = self.hook_status()
@@ -350,7 +361,6 @@ class OpenclawGuardManager:
                         "enabled": bool(value.get("enabled", True)),
                         "description": value.get("description") or "",
                         "permissions": value.get("permissions") or value.get("capabilities") or [],
-                        "raw": value,
                     }
                 )
         return {"items": items}
@@ -369,7 +379,6 @@ class OpenclawGuardManager:
                         "enabled": bool(value.get("enabled", True)),
                         "status": value.get("status") or ("enabled" if value.get("enabled", True) else "disabled"),
                         "target": value.get("defaultTarget") or value.get("target") or "",
-                        "raw": value,
                     }
                 )
         return {"items": items}
@@ -673,10 +682,21 @@ class OpenclawGuardManager:
         return {"ok": True, "model": confirmed_model, "requested_model": model, "result": result}
 
     def ingest_event(self, payload: dict[str, Any], source_message: str = "", *, auto_execute: bool = True) -> dict[str, Any]:
+        started = time.perf_counter()
         event = self.collectors.ingest(payload)
         self._annotate_event_context(event, source_message=source_message, origin="chat")
+        detect_started = time.perf_counter()
         decision = self.detector.evaluate(event)
+        timings = self._ensure_pipeline_timings(event)
+        timings["detection_ms"] = round((time.perf_counter() - detect_started) * 1000.0, 3)
+        decision = self._apply_rv_if_available(event, decision)
+        timings = self._ensure_pipeline_timings(event)
+        timings.setdefault("rv_ms", 0.0)
+        controller_started = time.perf_counter()
         controlled = self.controller.decide(event, decision, source_message or payload.get("raw_user_intent", ""))
+        timings = self._ensure_pipeline_timings(event)
+        timings["controller_ms"] = round((time.perf_counter() - controller_started) * 1000.0, 3)
+        timings["total_ms"] = round((time.perf_counter() - started) * 1000.0, 3)
         self._save_action(controlled)
         self.audit_store.append("detection_decision", controlled.to_dict())
         self._log("detection_decision", action_id=controlled.action_id, status=controlled.status, decision=controlled.decision.action)
@@ -685,11 +705,28 @@ class OpenclawGuardManager:
         return controlled.to_dict()
 
     def handle_before_tool_call(self, payload: dict[str, Any], *, wait_timeout_ms: int | None = None) -> dict[str, Any]:
+        started = time.perf_counter()
+        
+        # 自动收尾该会话中可能残留的“执行中”状态（防止 Hook 事件丢失导致卡死）
+        session_id = str(payload.get("sessionId") or "")
+        if session_id:
+            self._auto_complete_previous_actions(session_id)
+
         event = build_hook_event(payload)
         hook_source_message = build_hook_source_message(event)
         self._annotate_event_context(event, source_message=hook_source_message, origin="hook")
+        detect_started = time.perf_counter()
         decision = self.detector.evaluate(event)
+        timings = self._ensure_pipeline_timings(event)
+        timings["detection_ms"] = round((time.perf_counter() - detect_started) * 1000.0, 3)
+        decision = self._apply_rv_if_available(event, decision)
+        timings = self._ensure_pipeline_timings(event)
+        timings.setdefault("rv_ms", 0.0)
+        controller_started = time.perf_counter()
         controlled = self.controller.decide(event, decision, hook_source_message)
+        timings = self._ensure_pipeline_timings(event)
+        timings["controller_ms"] = round((time.perf_counter() - controller_started) * 1000.0, 3)
+        timings["total_ms"] = round((time.perf_counter() - started) * 1000.0, 3)
         hook_key = str(event.metadata.get("hook_key") or hook_key_from_payload(payload))
         controlled.event.metadata["hook_key"] = hook_key
         controlled.event.metadata["hook_bridge"] = True
@@ -697,10 +734,6 @@ class OpenclawGuardManager:
             "mode": "openclaw-before-tool-call",
             "tool_name": event.metadata.get("tool_name"),
         }
-        waiter: threading.Event | None = None
-        if controlled.status == "pending_approval":
-            waiter = threading.Event()
-            self._register_hook_waiter(hook_key, waiter)
         self._save_action(controlled)
         self.audit_store.append("hook_before_tool_call", controlled.to_dict())
         self._log(
@@ -710,6 +743,13 @@ class OpenclawGuardManager:
             tool_name=event.metadata.get("tool_name"),
             decision=controlled.decision.action,
         )
+
+        # 意图预警阶段禁止触发阻塞审批（OpenClaw 此时不等待返回）
+        if event.metadata.get("tool_name") == "before_prompt_build":
+            return {
+                "action": "allow",
+                "action_record": controlled.to_dict(),
+            }
 
         if controlled.status == "blocked":
             self._append_system_message(f"已拦截高风险工具调用：{controlled.target_summary}")
@@ -730,60 +770,19 @@ class OpenclawGuardManager:
                 "action_record": controlled.to_dict(),
             }
 
-        self._append_system_message(f"OpenClaw 请求执行动作，已暂停等待确认：{controlled.target_summary}")
-        effective_timeout_ms = wait_timeout_ms or 180_000
-        approved = bool(waiter) and waiter.wait(timeout=max(effective_timeout_ms / 1000.0, 1.0))
-        self._clear_hook_waiter(hook_key)
-        refreshed = self._find_action_by_hook_key(hook_key)
-        if refreshed is None:
+        if controlled.status == "pending_approval":
+            self._append_system_message(f"OpenClaw 请求执行动作，已转交审批：{controlled.target_summary}")
             return {
-                "action": "block",
-                "blockReason": "Openclaw Guard 未找到待审批动作记录。",
+                "action": "require_approval",
+                "message": controlled.decision.reason,
+                "severity": "critical" if controlled.decision.action == "escalate" else "warning",
+                "action_record": controlled.to_dict(),
             }
-        if not approved:
-            if refreshed.status == "pending_approval":
-                refreshed.status = "blocked"
-                refreshed.execution_result = {
-                    "error_code": "approval_timeout",
-                    "message": "Timed out while waiting for operator approval.",
-                    "failed_at": utc_now_iso(),
-                }
-                self._save_all(self._replace_action(refreshed))
-            return {
-                "action": "block",
-                "blockReason": "等待龙虾卫士审批超时，已阻止本次工具执行。",
-                "action_record": refreshed.to_dict(),
-            }
-        if refreshed.status == "approved":
-            refreshed.status = "executing"
-            refreshed.execution_result.update(
-                {
-                    "approved_at": utc_now_iso(),
-                    "mode": "openclaw-before-tool-call",
-                }
-            )
-            self._save_all(self._replace_action(refreshed))
-            return {
-                "action": "allow",
-                "params": payload.get("params") if isinstance(payload.get("params"), dict) else {},
-                "action_record": refreshed.to_dict(),
-            }
-        if refreshed.status == "rejected":
-            return {
-                "action": "block",
-                "blockReason": "该工具调用已被用户拒绝。",
-                "action_record": refreshed.to_dict(),
-            }
-        if refreshed.status == "blocked":
-            return {
-                "action": "block",
-                "blockReason": refreshed.decision.reason,
-                "action_record": refreshed.to_dict(),
-            }
+
         return {
-            "action": "block",
-            "blockReason": "Openclaw Guard 未批准本次工具执行。",
-            "action_record": refreshed.to_dict(),
+            "action": "allow",
+            "params": payload.get("params") if isinstance(payload.get("params"), dict) else {},
+            "action_record": controlled.to_dict(),
         }
 
     def _annotate_event_context(self, event: Any, *, source_message: str = "", origin: str = "unknown") -> None:
@@ -800,6 +799,7 @@ class OpenclawGuardManager:
             event.metadata["outside_workspace"] = outside
         if len(event.target_paths) > 1:
             event.metadata["multi-target"] = True
+        semantic_started = time.perf_counter()
         semantic_payload = self.semantic_enhancer.evaluate(
             event,
             {
@@ -808,8 +808,54 @@ class OpenclawGuardManager:
                 "workspace_path": str(workspace) if workspace else None,
             },
         )
+        timings = self._ensure_pipeline_timings(event)
+        timings["semantic_ms"] = round((time.perf_counter() - semantic_started) * 1000.0, 3)
         event.metadata["semantic"] = semantic_payload["semantic"]
         event.metadata["rv_trace"] = semantic_payload["rv_trace"]
+
+    def _apply_rv_if_available(self, event: Any, decision: Any) -> Any:
+        """在现有 detection decision 上叠加 RV 判定。
+
+        RV 判定仅在 rv_trace 存在时执行。如果 RV 的风险等级高于
+        原有 detection 判定，则覆盖 action/reason/rule_ids。
+
+        Args:
+            event: 已标注的事件对象（含 rv_trace）
+            decision: DetectionDecision 实例
+
+        Returns:
+            可能被覆盖后的 decision
+        """
+        rv_trace = event.metadata.get("rv_trace", [])
+        if not rv_trace:
+            timings = self._ensure_pipeline_timings(event)
+            timings.setdefault("rv_ms", 0.0)
+            return decision
+
+        rv_started = time.perf_counter()
+        rv_result = self.rv_engine.evaluate(rv_trace)
+        timings = self._ensure_pipeline_timings(event)
+        timings["rv_ms"] = round((time.perf_counter() - rv_started) * 1000.0, 3)
+        event.metadata["rv_result"] = rv_result
+
+        rv_severity = {"block": 4, "escalate": 3, "ask": 2, "ok": 1}
+        det_severity = {"block": 4, "escalate": 3, "ask": 2, "allow": 1}
+
+        rv_level = rv_severity.get(rv_result["verdict"], 0)
+        det_action = getattr(decision, "action", "allow")
+        det_level = det_severity.get(det_action, 1)
+
+        if rv_level > det_level:
+            decision.action = rv_result["verdict"]
+            decision.reason = (
+                f"[RV] {rv_result.get('reason', '')} "
+                f"(原有: {det_action})"
+            )
+            if rv_result.get("triggered_by"):
+                decision.rule_ids = list(decision.rule_ids) + [
+                    f"RV-{rv_result['triggered_by']}"
+                ]
+        return decision
 
     def handle_after_tool_call(self, payload: dict[str, Any]) -> dict[str, Any]:
         hook_key = hook_key_from_payload(payload)
@@ -836,9 +882,15 @@ class OpenclawGuardManager:
                 }
             )
             self._append_system_message(f"工具执行失败：{action.target_summary}")
-        else:
+        elif action.status not in {"blocked", "rejected"}:
             action.status = "executed"
             action.execution_result.update({"status": "completed"})
+        
+        # 如果动作已经被拦截或拒绝，但仍然收到了 after_tool_call (可能发生了绕过或钩子逻辑异常)
+        if action.status in {"blocked", "rejected"} and not error:
+            action.execution_result["unexpected_execution"] = True
+            self._log("unexpected_execution_after_block", action_id=action.action_id, status=action.status)
+
         self._save_all(self._replace_action(action))
         self.audit_store.append("hook_after_tool_call", action.to_dict())
         self._log(
@@ -862,7 +914,22 @@ class OpenclawGuardManager:
             raise ValueError("confirmation_word_required")
         result = self.action_service.approve(action_id, confirmation_text)
         if action.event.metadata.get("hook_bridge"):
-            self._signal_hook_waiter(str(action.event.metadata.get("hook_key") or ""))
+            # 双端同步：通知 OpenClaw 放行
+            run_id = (action.event.metadata.get("run_id") or
+                      action.event.raw_payload.get("runId") or
+                      (action.execution_result or {}).get("run_id") or "")
+            if run_id:
+                import threading
+                threading.Thread(
+                    target=lambda: resolve_plugin_approval(
+                        self.context.target,
+                        plugin_id="openclaw-guard-hook",
+                        run_id=run_id,
+                        tool_call_id=action.event.metadata.get("tool_call_id") or "",
+                        decision="allow-once",
+                    ),
+                    daemon=True,
+                ).start()
         if action.event.metadata.get("chat_relay"):
             if action.decision.action in {"ask", "escalate"}:
                 guard = self.execution_guard_status()
@@ -881,20 +948,40 @@ class OpenclawGuardManager:
                     self._log("action_blocked_guard_inactive", action_id=action.action_id)
                     return {"action": action.to_dict(), "reply_text": action.execution_result["user_message"]}
             return self.start_chat_action(action_id)
-        return self._execute(action_id)
+        # 非 Hook/非 Chat 动作：直接返回审批结果，不尝试执行
+        return result
 
     def reject_action(self, action_id: str) -> dict[str, Any]:
         action = self._find_action(action_id)
         if action is None:
             raise KeyError("action_not_found")
-        if action.event.metadata.get("hook_bridge"):
-            self._signal_hook_waiter(str(action.event.metadata.get("hook_key") or ""))
         result = self.action_service.reject(action_id)
         self._log("action_rejected", action_id=action_id)
+        if action.event.metadata.get("hook_bridge"):
+            # 双端同步：通知 OpenClaw 拒绝
+            run_id = (action.event.metadata.get("run_id") or
+                      action.event.raw_payload.get("runId") or
+                      (action.execution_result or {}).get("run_id") or "")
+            if run_id:
+                import threading
+                threading.Thread(
+                    target=lambda: resolve_plugin_approval(
+                        self.context.target,
+                        plugin_id="openclaw-guard-hook",
+                        run_id=run_id,
+                        tool_call_id=action.event.metadata.get("tool_call_id") or "",
+                        decision="deny",
+                    ),
+                    daemon=True,
+                ).start()
         return result
 
     def list_actions(self) -> list[dict[str, Any]]:
         return self.action_service.list_actions()
+
+    def clear_actions(self) -> dict[str, Any]:
+        self.action_service.clear_all()
+        return {"ok": True}
 
     def export_audit(self) -> dict[str, str]:
         return self.audit_service.export()
@@ -1036,6 +1123,22 @@ class OpenclawGuardManager:
             return ("provider_auth_failed", "当前模型服务鉴权失败，请检查模型提供方配置。")
         return ("runtime_execution_failed", "本次回复执行失败，请查看设置页中的日志详情后重试。")
 
+    def _auto_complete_previous_actions(self, session_id: str) -> None:
+        """如果收到新动作，自动将同会话中旧的“执行中”动作标记为已完成。"""
+        actions = self.action_service._load()
+        changed = False
+        for action in actions:
+            if action.status == "executing" and action.event and action.event.metadata.get("session_id") == session_id:
+                action.status = "executed"
+                action.execution_result.update({
+                    "status": "completed",
+                    "completed_at": utc_now_iso(),
+                    "auto_completed": True
+                })
+                changed = True
+        if changed:
+            self._save_all(actions)
+
     def _find_action(self, action_id: str, *, items: list[ControlledAction] | None = None) -> ControlledAction | None:
         return self.action_service._find(action_id, items=items)
 
@@ -1044,22 +1147,6 @@ class OpenclawGuardManager:
 
     def _replace_action(self, action: ControlledAction, *, items: list[ControlledAction] | None = None) -> list[ControlledAction]:
         return self.action_service._replace(action, items=items)
-
-    def _register_hook_waiter(self, hook_key: str, waiter: threading.Event) -> None:
-        with self._hook_waiters_lock:
-            self._hook_waiters[hook_key] = waiter
-
-    def _signal_hook_waiter(self, hook_key: str) -> None:
-        if not hook_key:
-            return
-        with self._hook_waiters_lock:
-            waiter = self._hook_waiters.get(hook_key)
-        if waiter is not None:
-            waiter.set()
-
-    def _clear_hook_waiter(self, hook_key: str) -> None:
-        with self._hook_waiters_lock:
-            self._hook_waiters.pop(hook_key, None)
 
     # ------------------------------------------------------------------
     # 维护子命令
@@ -1150,10 +1237,14 @@ def build_manager(
     profile: str | None = None,
     host: str = "127.0.0.1",
     port: int = 8780,
+    ui_mode: str = "pro",
 ) -> OpenclawGuardManager:
+    from openclaw_guard.storage.db_store import reset_db_store
+
+    reset_db_store()
     paths = default_paths(project_dir)
     target = discover_openclaw(openclaw_root=openclaw_root, config_path=config_path, profile=profile, cwd=project_dir)
-    context = AppContext(paths=paths, target=target, settings=GuardSettings(host=host, port=port))
+    context = AppContext(paths=paths, target=target, settings=GuardSettings(host=host, port=port, ui_mode=ui_mode))
     return OpenclawGuardManager(context)
 
 

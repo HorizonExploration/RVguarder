@@ -16,16 +16,17 @@ const state = {
   _pollTimer: null,
   _summaryHash: "",
   _userScrolling: false,
+  rvMode: (localStorage.getItem("openclaw-guard-rv-mode") || "on") === "on",
 };
 
 const T = {
   appName: "龙虾卫士", appSub: "OpenClaw 安全插件",
-  dashboard: "概览", actions: "动作审批", rules: "安全规则", settings: "安全扫描",
+  dashboard: "概览", actions: "动作审批", rules: "安全规则", settings: "安全扫描", skills: "技能管理",
   connected: "已连接", disconnected: "未连接", openOpenClaw: "前往 OpenClaw 继续对话",
   approve: "确认继续", reject: "拒绝", approving: "正在确认…", rejecting: "正在拒绝…",
   details: "查看详情",
   status_pending_approval: "待确认", status_blocked: "已拦截", status_executed: "已执行", status_failed: "失败",
-  status_allow: "安全放行", status_proposed: "待处理", status_rejected: "已拒绝", status_approved: "已批准",
+  status_allow: "安全放行", status_proposed: "待处理", status_rejected: "已拒绝", status_approved: "已批准", status_executing: "执行中",
   pendingTitle: "待确认动作", noPending: "当前没有待确认动作。",
   recentActions: "最近动作", noActions: "还没有动作记录。",
   scanTitle: "基线扫描", scanStart: "开始扫描", scanRunning: "正在扫描中…", scanFinished: "扫描完成",
@@ -44,9 +45,16 @@ const T = {
   hookInactive: "还没有接入 OpenClaw 工具拦截链",
   hookRestart: "需要重启 OpenClaw gateway 后才会生效。",
   auditExport: "导出审计 JSON",
+  clear: "清空",
   rulesTitle: "安全规则管理", rulesSearch: "搜索规则…", rulesTotal: "条规则",
   traceTitle: "安全执行链路", traceNoData: "暂无动作记录",
   loadingText: "正在加载…", error_default: "请求处理失败",
+  refresh: "刷新",
+  rvMode: "RV 模式",
+  rvModeOn: "开启",
+  rvModeOff: "关闭",
+  skillsTitle: "技能管理",
+  skillsEmpty: "当前没有可管理的 skill 配置。",
 };
 function t(k) { return T[k] || k; }
 
@@ -66,6 +74,11 @@ const STATUS_ZH = {
 };
 
 function esc(v) { return String(v ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;"); }
+
+function _setRvMode(on) {
+  state.rvMode = !!on;
+  localStorage.setItem("openclaw-guard-rv-mode", state.rvMode ? "on" : "off");
+}
 
 /* ── API & Toast ─────────────────────── */
 async function api(p, opts = {}) {
@@ -92,7 +105,7 @@ function startPolling() {
         state.summary = s; state.loading = false; state._summaryHash = h; render();
       }
     } catch (_) {}
-  }, 4000);
+  }, 1500);
 }
 function stopPolling() { if (state._pollTimer) { clearInterval(state._pollTimer); state._pollTimer = null; } }
 
@@ -121,14 +134,25 @@ function renderDashboard() {
   return '<div class="dashboard">'
     + _heroCard(connected, chat)
     + _statsRow(items, pending)
-    + _liveTrace(items)
+    + (state.rvMode ? _liveTrace(items) : "")
     + _pendingSection(pending)
     + _recentSection(items)
     + _hookSection(hook)
     + '</div>';
 }
 function _heroCard(connected, chat) {
-  return '<section class="hero-card' + (connected?" connected":"") + '"><div class="hero-row"><span class="status-dot ' + (connected?"green":"red") + '"></span><strong>' + t(connected?"connected":"disconnected") + '</strong></div><p>' + t("openOpenClaw") + '</p>' + (connected?'<div class="hero-meta"><span>模型：' + esc(chat.current_model||"—") + '</span><span>Agent：' + esc(chat.current_agent||"—") + '</span></div>':"") + '</section>';
+  const target = state.summary.target || {};
+  const openClawUrl = (target.web_urls && target.web_urls.length) ? target.web_urls[0] : "http://localhost:8000";
+  return '<section class="card hero-card' + (connected?" connected":"") + '">'
+    + '<div class="hero-main">'
+    + '<div class="hero-status"><span class="status-dot ' + (connected?"green":"red") + '"></span><strong>' + t(connected?"connected":"disconnected") + '</strong></div>'
+    + '<div class="hero-action">'
+    + '<p>' + t("openOpenClaw") + '</p>'
+    + '<a href="' + openClawUrl + '" target="_blank" class="btn primary hero-btn">立即前往</a>'
+    + '</div>'
+    + '</div>'
+    + (connected?'<div class="hero-meta"><span>模型：' + esc(chat.current_model||"—") + '</span><span>Agent：' + esc(chat.current_agent||"—") + '</span></div>':"")
+    + '</section>';
 }
 function _statsRow(items, pending) {
   const counts = (state.summary.actions || {}).counts || {};
@@ -141,10 +165,25 @@ function _pendingSection(pending) {
 }
 function _recentSection(items) {
   const recent = items.slice(0, 6);
-  return '<section class="card"><div class="card-head"><h3>' + t("recentActions") + '</h3></div><div class="approval-list">' + (recent.length?recent.map(renderPendingCard).join(""):'<div class="empty">' + t("noActions") + '</div>') + '</div></section>';
+  return '<section class="card"><div class="card-head"><h3>' + t("recentActions") + '</h3>'
+    + (items.length ? '<button class="btn-text danger" id="clear-actions">' + t("clear") + '</button>' : '')
+    + '</div><div class="approval-list">' + (recent.length?recent.map(renderPendingCard).join(""):'<div class="empty">' + t("noActions") + '</div>') + '</div></section>';
 }
 function _hookSection(hook) {
-  return '<section class="card"><div class="card-head"><h3>' + t("hookTitle") + '</h3></div><div class="hook-status">' + (hook.active?'<span class="badge ok">' + t("hookActive") + '</span>':'<span class="badge warn">' + t("hookInactive") + '</span>' + (hook.restart_required?' ' + t("hookRestart"):"")) + '</div></section>';
+  const st = hook.state || "unknown";
+  let badge = '<span class="badge warn">' + t("hookInactive") + '</span>';
+  if (hook.active && st === "active") {
+    badge = '<span class="badge ok">' + t("hookActive") + '</span>';
+  } else if (st === "loaded_waiting_restart") {
+    badge = '<span class="badge warn">⏳ 已配置，需重启 Gateway</span>';
+  } else if (st === "runtime_unreachable") {
+    badge = '<span class="badge warn">⚠️ OpenClaw Gateway 未连接</span>';
+  } else if (st === "plugin_invalid") {
+    badge = '<span class="badge danger">❌ 插件文件异常</span>';
+  }
+  const detail = hook.error_detail ? '<p class="hook-detail">' + esc(hook.error_detail) + '</p>' : "";
+  const hint = hook.runtime_hint ? '<p class="hook-hint">' + esc(hook.runtime_hint) + '</p>' : "";
+  return '<section class="card"><div class="card-head"><h3>' + t("hookTitle") + '</h3></div><div class="hook-status">' + badge + detail + hint + '</div></section>';
 }
 
 /* ── Live Trace Timeline（修复状态 + 滚动） ── */
@@ -159,6 +198,8 @@ function _liveTrace(items) {
     const dec = item.decision || {};
     const em = (item.event || {}).metadata || {};
     const sem = em.semantic || {};
+    const rv = em.rv_result || {};
+    const timings = em.pipeline_timings_ms || {};
     const sc = sem.scenario || item.event?.action_type || "unknown";
     const labels = sem.labels || [];
     const rsn = dec.reason || item.target_summary || "";
@@ -183,6 +224,23 @@ function _liveTrace(items) {
     html += '<div class="tl-step"><div class="tl-head"><span class="tl-icon">' + icon + '</span><span class="tl-scene">' + esc(sceneZh(sc)) + '</span><span class="tl-status ' + st + '">' + sta + '</span></div>';
     html += '<div class="tl-time">' + esc((item.created_at||"").slice(0,19).replace("T"," ")) + '</div>';
     if (rsn) html += '<div class="tl-reason">' + esc(rsn) + '</div>';
+    if (timings && Object.keys(timings).length) {
+      const s = (k, label) => (timings[k] !== undefined ? '<span class="tl-chip">' + label + ' ' + esc(timings[k]) + 'ms</span>' : "");
+      html += '<div class="tl-chips">' + s("semantic_ms", "语义") + s("detection_ms", "检测") + s("rv_ms", "RV") + s("controller_ms", "决策") + s("total_ms", "总耗时") + '</div>';
+    }
+    if (rv && rv.verdict) {
+      const tone = rv.verdict === "ok" ? "ok" : rv.verdict === "ask" ? "warn" : rv.verdict === "escalate" ? "warn" : "danger";
+      html += '<div class="tl-rv">'
+        + '<div class="tl-rv-head">'
+        + '<span class="badge ' + tone + '">运行时验证 (RV): ' + esc(rv.verdict.toUpperCase()) + '</span>'
+        + (rv.window_size !== undefined ? '<span class="tl-rv-win">窗口: ' + esc(rv.window_size) + '</span>' : '')
+        + '</div>'
+        + '<div class="tl-rv-body">'
+        + (rv.triggered_by ? '<div><strong>触发监视器:</strong> ' + esc(rv.triggered_by) + '</div>' : "")
+        + (rv.reason ? '<div><strong>判定依据:</strong> ' + esc(rv.reason) + '</div>' : "")
+        + '</div>'
+        + '</div>';
+    }
     if (labels.length) html += '<div class="tl-tags">' + labels.slice(0,5).map(l=>'<span class="tl-tag">' + esc(l) + '</span>').join("") + '</div>';
     html += '<details><summary>' + t("details") + '</summary><pre>' + esc(JSON.stringify(item,null,2)) + '</pre></details>';
     html += '</div></div>';
@@ -196,7 +254,22 @@ function renderActionsView() {
   const items = (state.summary.actions || {}).items || [];
   const filtered = items.filter(i => i.status === state.actionFilter);
   const page = paginate(filtered, "actions");
-  return '<div class="stack-view"><div class="action-filters">' + ["pending_approval","blocked","executed","failed"].map(s => '<button class="filter-chip' + (state.actionFilter===s?" active":"") + '" data-f="' + s + '">' + t("status_"+s) + '</button>').join("") + '</div><div class="approval-list">' + (page.items.length?page.items.map(renderPendingCard).join(""):'<div class="empty">' + t("noActions") + '</div>') + '</div>' + renderPager("actions",page.current,page.total) + '</div>';
+  return '<div class="stack-view"><div class="action-filters">' + ["pending_approval","approved","executing","executed","rejected","blocked","failed"].map(s => '<button class="filter-chip' + (state.actionFilter===s?" active":"") + '" data-f="' + s + '">' + t("status_"+s) + '</button>').join("") + '</div><div class="approval-list">' + (page.items.length?page.items.map(renderPendingCard).join(""):'<div class="empty">' + t("noActions") + '</div>') + '</div>' + renderPager("actions",page.current,page.total) + '</div>';
+}
+
+function renderSkillsView() {
+  const items = (state.summary.skills || {}).items || [];
+  const q = (state.rulesSearch || "").trim().toLowerCase();
+  const filtered = q ? items.filter(s => (s.name + " " + (s.description||"") + " " + (s.permissions||[]).join(" ")).toLowerCase().includes(q)) : items;
+  return '<div class="stack-view"><div class="rules-header"><h3>' + t("skillsTitle") + ' <span class="rule-count">' + filtered.length + '</span></h3><input class="rules-search" id="skills-s" placeholder="搜索 skill…" value="' + esc(state.rulesSearch||"") + '"></div>'
+    + (filtered.length ? '<div class="skills-grid">' + filtered.map(s => {
+      const en = !!s.enabled;
+      return '<article class="skill-card"><div class="skill-head"><div class="skill-name"><strong>' + esc(s.name) + '</strong><span class="skill-desc">' + esc(s.description||"") + '</span></div>'
+        + '<button class="skill-toggle ' + (en?"on":"off") + '" data-skill="' + esc(s.name) + '" data-enabled="' + (en?"1":"0") + '">' + (en?"已启用":"已停用") + '</button></div>'
+        + ((s.permissions||[]).length ? '<div class="skill-perms">' + s.permissions.slice(0, 8).map(p => '<span class="tl-tag">' + esc(p) + '</span>').join("") + '</div>' : "")
+        + '</article>';
+    }).join("") + '</div>' : '<div class="empty">' + t("skillsEmpty") + '</div>')
+    + '</div>';
 }
 
 /* ── Rules ───────────────────────────── */
@@ -293,7 +366,7 @@ function render() {
   const root = document.getElementById("app");
   const viewChanged = _prevView !== state.view;
   _prevView = state.view;
-  root.innerHTML = '<div class="shell"><aside class="sidebar"><div class="brand"><h1>'+t("appName")+'</h1><p>'+t("appSub")+'</p></div><nav class="nav">'+[["dashboard","▤",t("dashboard")],["actions","☰",t("actions")],["rules","◈",t("rules")],["settings","⚙",t("settings")]].map(v=>'<button class="nav-btn'+(state.view===v[0]?" active":"")+'" data-view="'+v[0]+'"><span class="nav-icon">'+v[1]+'</span>'+v[2]+'</button>').join("")+'</nav></aside><main class="main"><div class="topbar"><button class="topbar-btn primary" id="refresh-btn">'+t("refresh")+'</button></div><div class="content">'+(state.view==="actions"?renderActionsView():state.view==="rules"?renderRulesView():state.view==="settings"?renderSettingsView():renderDashboard())+'</div></main><div id="toast-root"></div></div>';
+  root.innerHTML = '<div class="shell"><aside class="sidebar"><div class="brand"><h1>'+t("appName")+'</h1><p>'+t("appSub")+'</p></div><nav class="nav">'+[["dashboard","▤",t("dashboard")],["actions","☰",t("actions")],["rules","◈",t("rules")],["skills","🔧",t("skills")],["settings","⚙",t("settings")]].map(v=>'<button class="nav-btn'+(state.view===v[0]?" active":"")+'" data-view="'+v[0]+'"><span class="nav-icon">'+v[1]+'</span>'+v[2]+'</button>').join("")+'</nav></aside><main class="main"><div class="topbar"><div class="rv-toggle"><span>'+t("rvMode")+'</span><button id="rv-toggle" class="rv-btn '+(state.rvMode?"on":"off")+'">'+(state.rvMode?t("rvModeOn"):t("rvModeOff"))+'</button></div><button class="topbar-btn primary" id="refresh-btn">'+t("refresh")+'</button></div><div class="content">'+(state.view==="actions"?renderActionsView():state.view==="rules"?renderRulesView():state.view==="skills"?renderSkillsView():state.view==="settings"?renderSettingsView():renderDashboard())+'</div></main><div id="toast-root"></div></div>';
   bind();
   // 滚动修复：仅当用户不在手动滚动时，新数据到达后保持当前滚动位置
   const el = document.getElementById("timeline-scroll");
@@ -307,6 +380,10 @@ function render() {
 function bind() {
   document.querySelectorAll(".nav-btn").forEach(b=>{b.onclick=()=>setView(b.dataset.view);});
   document.getElementById("refresh-btn").onclick=()=>refreshAll();
+  const rvb = document.getElementById("rv-toggle");
+  if (rvb) rvb.onclick = () => { _setRvMode(!state.rvMode); render(); };
+  const cab = document.getElementById("clear-actions");
+  if (cab) cab.onclick = () => _clearActions();
   document.querySelectorAll(".approve-action").forEach(b=>{b.onclick=()=>approveAction(b.dataset.id);});
   document.querySelectorAll(".reject-action").forEach(b=>{b.onclick=()=>rejectAction(b.dataset.id);});
   document.querySelectorAll(".filter-chip").forEach(b=>{b.onclick=()=>{state.actionFilter=b.dataset.f;state.pages.actions=1;render();};});
@@ -315,6 +392,8 @@ function bind() {
   const eb=document.getElementById("export-audit");if(eb)eb.onclick=()=>exportAudit();
   document.querySelectorAll(".scan-item").forEach(b=>{b.onclick=()=>{state.scan.selected=b.dataset.scanKey;render();};});
   const ri=document.getElementById("rules-s");if(ri){ri.oninput=e=>{state.rulesSearch=e.target.value;render();};setTimeout(()=>ri.focus(),50);}
+  const si=document.getElementById("skills-s");if(si){si.oninput=e=>{state.rulesSearch=e.target.value;render();};setTimeout(()=>si.focus(),50);}
+  document.querySelectorAll(".skill-toggle").forEach(b=>{b.onclick=()=>toggleSkill(b.dataset.skill, b.dataset.enabled==="1");});
   // 跟踪 Trace 滚动状态：用户手动滚动时停止自动滚动
   const tl=document.getElementById("timeline-scroll");
   if(tl){
@@ -334,6 +413,17 @@ async function refreshAll() {
   catch (error) { toast(error.payload?.message||t("error_default")); }
 }
 
+async function toggleSkill(name, enabled) {
+  const target = !enabled;
+  try {
+    await api("/api/skills/upsert", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, enabled: target }) });
+    toast(target ? "✅ 已启用 skill" : "⏸ 已停用 skill");
+    await refreshAll();
+  } catch (error) {
+    toast(error.payload?.message || t("error_default"));
+  }
+}
+
 /* ── Actions optimistic ───────────────── */
 function _optimisticUpdate(id, s) {
   const a = state.summary.actions||{}, items = (a.items||[]).map(i => i.action_id===id ? {...i, status:s} : i);
@@ -343,15 +433,25 @@ function _setLoading(id, l) {
   const a = state.summary.actions||{}, items = (a.items||[]).map(i => i.action_id===id ? {...i, _loading:l} : i);
   state.summary = {...state.summary, actions:{...a, items}};
 }
+async function _clearActions() {
+  if (!confirm("确定要清空所有动作历史记录吗？")) return;
+  try {
+    await api("/api/actions/clear", { method: "POST" });
+    toast("✅ 已清空历史记录");
+    await refreshAll();
+  } catch (error) {
+    toast(error.payload?.message || t("error_default"));
+  }
+}
 async function approveAction(id) {
   _setLoading(id,true);render();
-  try{await api("/api/actions/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action_id:id,confirmation_text:""})});_optimisticUpdate(id,"approved");toast("✅ 已批准");render();await refreshAll();}
-  catch(error){_setLoading(id,false);render();toast(error.payload?.message||t("error_default"));}
+  try{await api("/api/actions/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action_id:id,confirmation_text:""})});_optimisticUpdate(id,"approved");toast("✅ 已批准");render();refreshAll();}
+  catch(error){_setLoading(id,false);render();toast(error.payload?.message||t("error_default"));refreshAll();}
 }
 async function rejectAction(id) {
   _setLoading(id,true);render();
-  try{await api("/api/actions/reject",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action_id:id})});_optimisticUpdate(id,"rejected");toast("🚫 已拒绝");render();await refreshAll();}
-  catch(error){_setLoading(id,false);render();toast(error.payload?.message||t("error_default"));}
+  try{await api("/api/actions/reject",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action_id:id})});_optimisticUpdate(id,"rejected");toast("🚫 已拒绝");render();refreshAll();}
+  catch(error){_setLoading(id,false);render();toast(error.payload?.message||t("error_default"));refreshAll();}
 }
 
 /* ── Scan / Audit ─────────────────────── */

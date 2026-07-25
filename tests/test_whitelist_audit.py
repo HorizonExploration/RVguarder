@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openclaw_guard.integrations.behavior import BehaviorCollectorManager
-from openclaw_guard.integrations.whitelist import WhitelistEngine, default_police_whitelist
+from openclaw_guard.engine.behavior import BehaviorCollectorManager
+from openclaw_guard.engine.whitelist import WhitelistEngine, default_police_whitelist
 from openclaw_guard.storage.audit_store import AuditStore
 
 

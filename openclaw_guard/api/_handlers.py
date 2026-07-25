@@ -45,6 +45,10 @@ def list_actions(manager: OpenclawGuardManager) -> JsonResponse:
     return {"items": manager.list_actions()}, HTTPStatus.OK
 
 
+def clear_actions(manager: OpenclawGuardManager, payload: dict[str, Any] | None = None) -> JsonResponse:
+    return manager.clear_actions(), HTTPStatus.OK
+
+
 def approve_action(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
     return _call_action(manager.approve_action, payload, "action_id", confirmation_text="confirmation_text")
 
@@ -78,12 +82,85 @@ def hook_after_tool_call(manager: OpenclawGuardManager, payload: dict[str, Any])
     return manager.handle_after_tool_call(payload), HTTPStatus.OK
 
 
+def resolve_hook_approval(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+    action_id = str(payload.get("actionId") or payload.get("action_id") or "")
+    decision = str(payload.get("decision") or "")
+    if not action_id or not decision:
+        return _error("Missing actionId or decision", HTTPStatus.BAD_REQUEST)
+    try:
+        # get_action returns dict
+        action = manager.action_service.get_action(action_id)
+        if action is None:
+            return _error("action_not_found", HTTPStatus.NOT_FOUND)
+        # action is a dict, check status field
+        if action.get("status") == "pending_approval":
+            # Allow decisions (including dash format from official spec and underscore from legacy)
+            if decision in ("allow-once", "allow-always", "allow_once", "allow_always"):
+                manager.action_service.approve(action_id, None)
+            else:
+                # deny, timeout, cancelled are all reject
+                manager.action_service.reject(action_id)
+        return {"ok": True}, HTTPStatus.OK
+    except (KeyError, ValueError) as e:
+        return _error(str(e), HTTPStatus.BAD_REQUEST)
+    except Exception as e:
+        return _error(str(e), HTTPStatus.INTERNAL_SERVER_ERROR)
+
+
 def refresh_runtime(manager: OpenclawGuardManager) -> JsonResponse:
     return manager.refresh_runtime_target(), HTTPStatus.OK
 
 
 def debug_logs(manager: OpenclawGuardManager) -> JsonResponse:
     return {"path": str(manager.log_path), "items": manager.recent_logs()}, HTTPStatus.OK
+
+
+def skill_upsert(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+    name = str(payload.get("name") or "")
+    if not name:
+        return _error("message_empty", HTTPStatus.BAD_REQUEST)
+    try:
+        return manager.upsert_skill(name, payload), HTTPStatus.OK
+    except FileNotFoundError:
+        return _error("config_not_found", HTTPStatus.NOT_FOUND)
+    except ValueError as exc:
+        return _error(str(exc), HTTPStatus.BAD_REQUEST)
+
+
+def skill_delete(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+    name = str(payload.get("name") or "")
+    if not name:
+        return _error("message_empty", HTTPStatus.BAD_REQUEST)
+    try:
+        return manager.delete_skill(name), HTTPStatus.OK
+    except FileNotFoundError:
+        return _error("config_not_found", HTTPStatus.NOT_FOUND)
+    except ValueError as exc:
+        return _error(str(exc), HTTPStatus.BAD_REQUEST)
+
+
+def channel_upsert(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+    name = str(payload.get("name") or "")
+    if not name:
+        return _error("message_empty", HTTPStatus.BAD_REQUEST)
+    try:
+        return manager.upsert_channel(name, payload), HTTPStatus.OK
+    except FileNotFoundError:
+        return _error("config_not_found", HTTPStatus.NOT_FOUND)
+    except ValueError as exc:
+        return _error(str(exc), HTTPStatus.BAD_REQUEST)
+
+
+def channel_delete(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+    name = str(payload.get("name") or "")
+    if not name:
+        return _error("message_empty", HTTPStatus.BAD_REQUEST)
+    try:
+        return manager.delete_channel(name), HTTPStatus.OK
+    except FileNotFoundError:
+        return _error("config_not_found", HTTPStatus.NOT_FOUND)
+    except ValueError as exc:
+        return _error(str(exc), HTTPStatus.BAD_REQUEST)
 
 
 # ---------- helpers ----------

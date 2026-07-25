@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from openclaw_guard.integrations.semantic_enhancer import SemanticEnhancer
+from openclaw_guard.engine.semantic_enhancer import SemanticEnhancer
 from openclaw_guard.models import BehaviorEvent, DetectionDecision, DetectionRule
 from openclaw_guard.utils import utc_now_iso
 

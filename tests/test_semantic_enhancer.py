@@ -6,10 +6,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from openclaw_guard.integrations.detection import DetectionEngine
+from openclaw_guard.engine.detection import DetectionEngine
 from openclaw_guard.manager import build_manager
 from openclaw_guard.models import BehaviorEvent
-from openclaw_guard.integrations.semantic_enhancer import SemanticEnhancer
+from openclaw_guard.engine.semantic_enhancer import SemanticEnhancer
 from openclaw_guard.utils import utc_now_iso
 
 

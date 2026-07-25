@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import threading
 from copy import deepcopy
 from dataclasses import asdict
@@ -15,12 +16,15 @@ from pathlib import Path
 from typing import Any, Callable
 
 from openclaw_guard.config import AppContext
-from openclaw_guard.integrations.control import GuardController
-from openclaw_guard.integrations.detection import DetectionEngine
-from openclaw_guard.integrations.whitelist import WhitelistEngine
+from openclaw_guard.engine.control import GuardController
+from openclaw_guard.engine.detection import DetectionEngine
+from openclaw_guard.engine.whitelist import WhitelistEngine
 from openclaw_guard.models import ControlledAction
+from openclaw_guard.utils import utc_now_iso
 
 MAX_ACTIONS_SIZE = 1000
+
+logger = logging.getLogger(__name__)
 
 
 class ActionService:
@@ -32,6 +36,7 @@ class ActionService:
         detector: DetectionEngine,
         whitelist: WhitelistEngine,
         controller: GuardController,
+        semantic_enhancer: Any,
         actions_path: Path,
         audit_append: Callable[..., Any],
     ) -> None:
@@ -39,46 +44,63 @@ class ActionService:
         self.detector = detector
         self.whitelist = whitelist
         self.controller = controller
+        self.semantic_enhancer = semantic_enhancer
         self.actions_path = actions_path
         self.audit_append = audit_append
+        self._cache: list[ControlledAction] | None = None
+        self._lock = threading.Lock()
 
     # — 持久化 —
 
-    def _load(self) -> list[ControlledAction]:
-        try:
-            data = json.loads(self.actions_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return []
-        items = data.get("items", []) if isinstance(data, dict) else []
-        result: list[ControlledAction] = []
-        for item in items:
-            if not isinstance(item, dict):
-                continue
+    def _load(self, force_refresh: bool = False) -> list[ControlledAction]:
+        with self._lock:
+            if self._cache is not None and not force_refresh:
+                return self._cache
+            
             try:
-                result.append(ControlledAction(**item))
-            except Exception:
-                continue
-        return result[-MAX_ACTIONS_SIZE:]
+                data = json.loads(self.actions_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                self._cache = []
+                return self._cache
+                
+            items = data.get("items", []) if isinstance(data, dict) else []
+            result: list[ControlledAction] = []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                try:
+                    result.append(ControlledAction(**item))
+                except Exception:
+                    continue
+            self._cache = result[-MAX_ACTIONS_SIZE:]
+            return self._cache
 
     def _save_all(self, items: list[ControlledAction]) -> None:
-        if len(items) > MAX_ACTIONS_SIZE:
-            items = items[-MAX_ACTIONS_SIZE:]
-        self.actions_path.parent.mkdir(parents=True, exist_ok=True)
-        self.actions_path.write_text(
-            json.dumps({"items": [item.to_dict() for item in items]}, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        with self._lock:
+            if len(items) > MAX_ACTIONS_SIZE:
+                items = items[-MAX_ACTIONS_SIZE:]
+            self._cache = items
+            
+            self.actions_path.parent.mkdir(parents=True, exist_ok=True)
+            self.actions_path.write_text(
+                json.dumps({"items": [item.to_dict() for item in items]}, ensure_ascii=False),
+                encoding="utf-8",
+            )
 
     def _replace(self, action: ControlledAction, *, items: list[ControlledAction] | None = None) -> list[ControlledAction]:
         target = items if items is not None else self._load()
-        replaced = False
-        for i, item in enumerate(target):
-            if item.action_id == action.action_id:
-                target[i] = action
-                replaced = True
-                break
-        if not replaced:
-            target.append(action)
+        with self._lock:
+            replaced = False
+            for i, item in enumerate(target):
+                if item.action_id == action.action_id:
+                    target[i] = action
+                    replaced = True
+                    break
+            if not replaced:
+                target.append(action)
+            # 释放锁之前更新缓存
+            self._cache = target
+            
         self._save_all(target)
         return target
 
@@ -118,6 +140,38 @@ class ActionService:
         event_payload["raw_user_intent"] = raw_intent
 
         event = BehaviorEvent(**event_payload)
+        
+        # 优化：优先尝试从现有动作中寻找已生成的语义信息 (基于 runId 和 toolCallId)
+        # 这样 before_tool_call 就能直接复用 before_prompt_build 阶段耗时生成的语义结果
+        existing_semantic = None
+        run_id = event.raw_payload.get("runId")
+        tool_call_id = event.raw_payload.get("toolCallId")
+        
+        if run_id and tool_call_id:
+            items = self._load()
+            for item in items:
+                if (item.event.raw_payload.get("runId") == run_id and 
+                    item.event.metadata.get("semantic")):
+                    existing_semantic = item.event.metadata["semantic"]
+                    break
+
+        if existing_semantic:
+            event.metadata["semantic"] = existing_semantic
+            logger.info("Reusing existing semantic enhancement for runId=%s", run_id)
+        else:
+            # 只有在没有缓存时才调用 LLM，避免重复耗时
+            try:
+                semantic_payload = self.semantic_enhancer.evaluate(
+                    event,
+                    {
+                        "source_message": source_message,
+                        "origin": "chat",
+                    },
+                )
+                event.metadata["semantic"] = semantic_payload["semantic"]
+            except Exception as exc:
+                logger.warning("Semantic enhancement failed during ingest: %s", exc)
+
         items = self._load()
         decision = self.detector.decide(event, items)
         final_decision = self.whitelist.refine(decision, event)
@@ -125,6 +179,12 @@ class ActionService:
 
         from uuid import uuid4
         action_id = uuid4().hex[:16]
+        
+        # 使用 controller.decide 逻辑来统一 ControlledAction 的创建
+        # 注意：此处为了保持 ingest 接口的独立性，直接调用 controller.decide 产生的摘要逻辑
+        from openclaw_guard.engine.control import _target_summary
+        summary = _target_summary(event)
+
         action = ControlledAction(
             action_id=action_id,
             source_message=raw_intent,
@@ -135,14 +195,17 @@ class ActionService:
             ),
             event=event,
             decision=final_decision,
-            created_at="",
-            target_summary=str(payload.get("tool_name") or final_decision.reason or ""),
+            created_at=utc_now_iso(),
+            target_summary=summary,
             decision_trace=list(final_decision.trace or []),
             matched_whitelists=list(final_decision.matched_whitelists or []),
             matched_rules=list(final_decision.matched_rules or []),
         )
         self._replace(action)
         self.audit_append("action_ingest", action.to_dict())
+        
+        # 性能优化：UI 审批时点击响应慢，通常是因为后端在处理 ingest 时同步写入了大 JSON 文件
+        # 我们已经有了 _cache 机制，这里确保写入是高效的
         return action.to_dict()
 
     # — 审批 / 拒绝 —
@@ -172,3 +235,8 @@ class ActionService:
         self._replace(action)
         self.audit_append("action_rejected", action.to_dict())
         return {"action": action.to_dict(), "status": "rejected"}
+
+    def clear_all(self) -> None:
+        """清空所有动作记录。"""
+        self._save_all([])
+        self.audit_append("actions_cleared", {})

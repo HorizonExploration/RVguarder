@@ -1,3 +1,108 @@
+# v0.2.1 版本更新说明
+
+**日期**：2026-07-25  
+**版本号**：v0.2.1  
+**前一版本**：v0.2.0
+
+---
+
+## 一、更新背景
+
+v0.2.0 的 Hook 插件使用了已废弃的 `api.registerHook()` API，`requireApproval` 返回格式与 OpenClaw 官方 Plugin SDK 规范不兼容，导致钩子拦截完全失效——工具调用无法被挂起，Guard 后端也收不到任何事件。v0.2.1 按官方 `api.on()` 规范全面重构钩子，并实现 OpenClaw 原生审批 UI 与 Guard Dashboard 之间的双向状态同步。
+
+---
+
+## 二、核心改动
+
+### 1. 钩子 API 迁移：`api.registerHook()` → `api.on()`
+
+**修改文件**：[`openclaw_guard/integrations/hook_runtime.py`](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/integrations/hook_runtime.py)
+
+- 插件中全部 3 个钩子（`before_prompt_build`、`before_tool_call`、`after_tool_call`）从已废弃的 `api.registerHook("event", handler, opts)` 迁移为官方 `api.on("event", handler, opts)` API
+- 生成的插件 JS 通过 `node --check` 语法验证
+
+**影响范围**：Hook 运行时插件代码生成
+
+---
+
+### 2. `requireApproval` 格式对齐官方规范
+
+**修改文件**：[`openclaw_guard/integrations/hook_runtime.py`](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/integrations/hook_runtime.py)
+
+- 移除 `allowedDecisions`（非官方字段），添加 `timeoutBehavior: "deny"`（官方字段：`"allow"` | `"deny"`）
+- `onResolution` 回调使用官方类型化决策值：`"allow-once"` | `"allow-always"` | `"deny"` | `"timeout"` | `"cancelled"`
+- 事件上下文从 `event.context` 获取（`agentId`/`sessionKey`/`sessionId`），兼容 `hookCtx` 回退
+- fail-closed 模式下返回硬阻块（`block: true`）替代残缺的 `requireApproval`，避免 OpenClaw 展示损坏的审批 UI
+- 插件清单中 `runtimeExtensions` → `extensions`，新增 `activation.onStartup: true`
+
+**影响范围**：钩子拦截行为、审批卡片展示
+
+---
+
+### 3. 双端状态同步机制
+
+**新增/修改文件**：
+- [`openclaw_guard/integrations/openclaw_adapter.py`](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/integrations/openclaw_adapter.py) — 新增 `resolve_plugin_approval()` 函数
+- [`openclaw_guard/manager.py`](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/manager.py) — `approve_action` / `reject_action` 中调用同步
+
+- **OpenClaw → Dashboard**（Push 模式）：插件 `onResolution` 回调直接 POST `/api/hook/resolve-approval`，后端同步更新动作状态
+- **Dashboard → OpenClaw**（Gateway 远程调用）：审批/拒绝时通过 `openclaw gateway call approvals.resolve` 异步通知 OpenClaw 原生审批系统放行/拒绝
+- Gateway 调用采用 `threading.Thread` 异步执行，不阻塞 UI 响应
+- 回退机制：`approvals.resolve` 方法不存在时自动尝试 `plugin.resolveApproval`
+
+**影响范围**：审批同步、用户体验
+
+---
+
+### 4. 后端 `resolve_hook_approval` 处理函数修正
+
+**修改文件**：[`openclaw_guard/api/_handlers.py`](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/api/_handlers.py)
+
+- 字段名兼容：同时接受 `actionId`（camelCase）和 `action_id`（snake_case）
+- 决策值兼容：同时接受 `allow-once`（官方连字符格式）和 `allow_once`（旧版下划线格式）
+- `timeout`/`cancelled` 统一走 reject 路径
+- 异常处理细化：`KeyError`/`ValueError` → 400，其他异常 → 500
+
+**影响范围**：Hook 回调 API
+
+---
+
+### 5. 遗留代码清理
+
+**修改文件**：[`openclaw_guard/manager.py`](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/manager.py)
+
+- 移除 `_hook_waiters` 字典和 `_hook_waiters_lock`
+- 移除 `_register_hook_waiter`、`_signal_hook_waiter`、`_clear_hook_waiter` 方法
+- 移除 `handle_before_tool_call` 中 `threading.Event` 创建逻辑
+
+**原因**：基于 `threading.Event().wait()` 的阻塞方案已被 OpenClaw 原生 `requireApproval` 挂起机制替代，残留代码无实际作用。
+
+**影响范围**：manager.py（主协调层）
+
+---
+
+## 三、影响范围汇总
+
+| 模块 | 文件 | 变更类型 |
+|------|------|----------|
+| 钩子插件模板 | `openclaw_guard/integrations/hook_runtime.py` | 重构 |
+| Gateway 适配器 | `openclaw_guard/integrations/openclaw_adapter.py` | 修改 |
+| 主协调层 | `openclaw_guard/manager.py` | 修改 + 清理 |
+| HTTP API | `openclaw_guard/api/_handlers.py` | 修改 |
+| 运行时插件 | `runtime/openclaw-guard-plugin/index.js` | 自动重新生成 |
+
+---
+
+## 四、注意事项
+
+1. **插件需重新生成**：重启 Guard 服务或执行初始化时，插件会自动重新生成到 `runtime/openclaw-guard-plugin/`
+2. **Gateway 重启**：插件 JS 内容变更后需重启 OpenClaw Gateway 使新钩子生效
+3. **双端同步为异步**：Dashboard 审批时同步 OpenClaw 使用后台线程，不阻塞前端响应
+4. **回退兼容**：`resolve_plugin_approval` 在 Gateway 方法不可用时静默降级，不影响审批本身
+5. **决策值格式**：`onResolution` 回调传递的是官方类型化决策值（连字符格式），后端已做双格式兼容
+
+---
+
 # v0.2.0 版本更新说明
 
 **日期**：2026-07-14  

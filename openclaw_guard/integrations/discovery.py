@@ -37,6 +37,7 @@ def discover_openclaw(
     config_data = _load_config_data(found_config)
     gateway_info = _extract_gateway_info(config_data)
     gateway_urls = _derive_gateway_urls(gateway_info)
+    http_urls = _derive_http_urls(gateway_info)
     reachability = _probe_gateway(gateway_info["port"])
 
     root = explicit_root or (found_config.parent if found_config else source_root)
@@ -65,6 +66,7 @@ def discover_openclaw(
         gateway_bind=gateway_info["bind"],
         gateway_host=gateway_info["host"],
         gateway_urls=gateway_urls,
+        web_urls=http_urls,
         auth_mode=gateway_info["auth_mode"],
         reachability_state=reachability["state"],
         reachable_ports=reachability["ports"],
@@ -273,6 +275,32 @@ def _derive_gateway_urls(gateway_info: dict[str, Any]) -> list[str]:
             ]
         )
     urls.extend(f"ws://127.0.0.1:{candidate}" for candidate in COMMON_PORTS if candidate != port)
+    unique: list[str] = []
+    seen: set[str] = set()
+    for url in urls:
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        unique.append(url)
+    return unique
+
+
+def _derive_http_urls(gateway_info: dict[str, Any]) -> list[str]:
+    """从 gateway 信息推导 HTTP 访问地址（用于浏览器跳转）。"""
+    port = int(gateway_info["port"])
+    host = str(gateway_info["host"] or "127.0.0.1")
+    bind = str(gateway_info["bind"] or "").lower()
+    urls: list[str] = []
+    if bind in {"lan", "0.0.0.0"} or host in {"0.0.0.0", "::"}:
+        urls.extend([f"http://127.0.0.1:{port}", f"http://localhost:{port}"])
+    elif host:
+        urls.extend(
+            [
+                f"http://{host}:{port}",
+                f"http://127.0.0.1:{port}" if host not in {"127.0.0.1", "localhost"} else "",
+                f"http://localhost:{port}" if host != "localhost" else "",
+            ]
+        )
     unique: list[str] = []
     seen: set[str] = set()
     for url in urls:

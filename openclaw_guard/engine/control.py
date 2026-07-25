@@ -4,7 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from openclaw_guard.models import BehaviorEvent, ControlledAction, DetectionDecision
-from openclaw_guard.integrations.whitelist import WhitelistEngine
+from openclaw_guard.engine.whitelist import WhitelistEngine
 from openclaw_guard.utils import utc_now_iso
 
 
@@ -50,6 +50,13 @@ class GuardController:
 
 
 def _target_summary(event: BehaviorEvent) -> str:
+    # 优先使用语义增强层生成的摘要
+    semantic = event.metadata.get("semantic")
+    if isinstance(semantic, dict):
+        intent = semantic.get("intent")
+        if isinstance(intent, dict) and intent.get("goal"):
+            return str(intent["goal"])
+
     raw_intent = str(event.raw_payload.get("raw_user_intent") or "").strip()
     if event.target_paths:
         return ", ".join(event.target_paths[:3])

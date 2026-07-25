@@ -1,0 +1,12 @@
+{
+  "name": "openclaw-guard-e2e",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "install:browsers": "playwright install"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}

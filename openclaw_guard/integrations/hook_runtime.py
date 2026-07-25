@@ -241,11 +241,12 @@ def _write_plugin_bundle(plugin_dir: Path, *, guard_url: str, auth_token: str) -
         "version": __version__,
         "type": "module",
         "openclaw": {
-            "runtimeExtensions": ["./index.js"],
+            "extensions": ["./index.js"],
             "compat": {"pluginApi": ">=2026.4.0"},
         },
     }
     manifest = {
+        "activation": {"onStartup": True},
         "id": HOOK_PLUGIN_ID,
         "name": "Openclaw Guard Hook",
         "description": "Pre-execution tool approval bridge for OpenClaw Guard.",
@@ -379,71 +380,139 @@ export default {{
       });
       api.logger.info(`[${PLUGIN_ID}] registered gateway method: ${STATUS_METHOD}`);
     } catch (e) {
-      api.logger.warn(`[${PLUGIN_ID}] registerGatewayMethod not available, status check via plugins list`);
+      api.logger.warn(`[${{PLUGIN_ID}}] registerGatewayMethod not available, status check via plugins list`);
     }
 
-    api.on("before_prompt_build", async (event, hookCtx) => {{
-      try {{
-        const result = await postJson(
+    // before_prompt_build: intent precheck (non-blocking)
+    api.on(
+      "before_prompt_build",
+      (event, hookCtx) => {{
+        postJson(
           `${{guardUrl}}/api/hook/before-tool-call`,
           {{
             toolName: "before_prompt_build",
             params: event.params || {{}},
             runId: event.runId || hookCtx.runId || "",
             toolCallId: event.promptId || "",
-            agentId: hookCtx.agentId || "",
-            sessionKey: hookCtx.sessionKey || "",
-            sessionId: hookCtx.sessionId || "",
+            agentId: event.context?.agentId || hookCtx.agentId || "",
+            sessionKey: event.context?.sessionKey || hookCtx.sessionKey || "",
+            sessionId: event.context?.sessionId || hookCtx.sessionId || "",
           }},
-          decisionTimeoutMs,
+          5000,
           authToken,
-        );
-        if (result.action === "allow") {{
-          return result.params && typeof result.params === "object"
-            ? {{ params: result.params }}
-            : undefined;
-        }}
-        return {{
-          block: true,
-          blockReason: String(result.blockReason || "Blocked by Openclaw Guard."),
-        }};
-      }} catch (error) {{
-        const detail = error instanceof Error ? error.message : String(error);
-        api.logger.warn(`[${{PLUGIN_ID}}] before_prompt_build bridge failed: ${{detail}}`);
-        if (!failClosed) {{
-          return undefined;
-        }}
-        return {{
-          block: true,
-          blockReason: `Openclaw Guard unavailable: ${{detail}}`,
-        }};
-      }}
-    }});
+        ).catch(err => {{
+          api.logger.debug(`[${{PLUGIN_ID}}] Intent pre-check skipped: ${{err.message}}`);
+        }});
+      }},
+      {{ name: "openclaw_guard_intent_precheck" }},
+    );
 
-    api.on("agent_end", async (event, hookCtx) => {{
-      try {{
-        await postJson(
-          `${{guardUrl}}/api/hook/after-tool-call`,
-          {{
-            toolName: "agent_end",
-            params: event.params || {{}},
-            runId: event.runId || hookCtx.runId || "",
-            toolCallId: event.promptId || "",
-            agentId: hookCtx.agentId || "",
-            sessionKey: hookCtx.sessionKey || "",
-            sessionId: hookCtx.sessionId || "",
-            error: event.error || null,
-            durationMs: event.durationMs || null,
-            resultSummary: summarizeResult(event.result),
-          }},
-          callbackTimeoutMs,
-          authToken,
-        );
-      }} catch (error) {{
-        const detail = error instanceof Error ? error.message : String(error);
-        api.logger.warn(`[${{PLUGIN_ID}}] agent_end bridge failed: ${{detail}}`);
-      }}
-    }});
+    // before_tool_call: main approval gate
+    api.on(
+      "before_tool_call",
+      async (event, hookCtx) => {{
+        api.logger.info(`[${{PLUGIN_ID}}] before_tool_call FIRED: ${{event.toolName}}`);
+        try {{
+          const result = await postJson(
+            `${{guardUrl}}/api/hook/before-tool-call`,
+            {{
+              toolName: event.toolName || "tool",
+              params: event.params || {{}},
+              runId: event.runId || hookCtx.runId || "",
+              toolCallId: event.toolCallId || "",
+              agentId: event.context?.agentId || hookCtx.agentId || "",
+              sessionKey: event.context?.sessionKey || hookCtx.sessionKey || "",
+              sessionId: event.context?.sessionId || hookCtx.sessionId || "",
+            }},
+            decisionTimeoutMs,
+            authToken,
+          );
+          if (result.action === "allow") {{
+            return result.params && typeof result.params === "object"
+              ? {{ params: result.params }}
+              : undefined;
+          }}
+
+          if (result.action === "require_approval") {{
+            api.logger.info(`[${{PLUGIN_ID}}] requiring approval for: ${{event.toolName}}`);
+            return {{
+              requireApproval: {{
+                pluginId: PLUGIN_ID,
+                title: result.title || "龙虾卫士安全审批",
+                description: result.message || `拦截动作：${{event.toolName}}`,
+                severity: result.severity || "warning",
+                timeoutMs: 300000,
+                timeoutBehavior: "deny",
+                onResolution: async (decision) => {{
+                  try {{
+                    await postJson(
+                      `${{guardUrl}}/api/hook/resolve-approval`,
+                      {{
+                        actionId: result.action_record?.action_id || result.action_id,
+                        decision: decision,
+                      }},
+                      5000,
+                      authToken,
+                    );
+                  }} catch (e) {{
+                    api.logger.warn(`[${{PLUGIN_ID}}] Failed to sync resolution to guard: ${{e}}`);
+                  }}
+                }},
+              }},
+            }};
+          }}
+
+          return {{
+            block: true,
+            blockReason: String(result.blockReason || "Blocked by Openclaw Guard."),
+          }};
+        }} catch (error) {{
+          const detail = error instanceof Error ? error.message : String(error);
+          api.logger.warn(`[${{PLUGIN_ID}}] before_tool_call bridge failed: ${{detail}}`);
+          if (!failClosed) {{
+            return undefined;
+          }}
+          // fail-closed: return a hard block to avoid broken approval UI
+          return {{
+            block: true,
+            blockReason: `Guard backend unreachable (Fail-Closed). Detail: ${{detail}}`,
+          }};
+        }}
+      }},
+      {{ name: "openclaw_guard_before_tool_call" }},
+    );
+
+    // after_tool_call: audit logging (non-blocking)
+    api.on(
+      "after_tool_call",
+      async (event, hookCtx) => {{
+        try {{
+          await postJson(
+            `${{guardUrl}}/api/hook/after-tool-call`,
+            {{
+              toolName: event.toolName || "tool",
+              params: event.params || {{}},
+              runId: event.runId || hookCtx.runId || "",
+              toolCallId: event.toolCallId || "",
+              agentId: event.context?.agentId || hookCtx.agentId || "",
+              sessionKey: event.context?.sessionKey || hookCtx.sessionKey || "",
+              sessionId: event.context?.sessionId || hookCtx.sessionId || "",
+              error: event.error || null,
+              durationMs: event.durationMs || null,
+              resultSummary: summarizeResult(event.result),
+            }},
+            callbackTimeoutMs,
+            authToken,
+          );
+        }} catch (error) {{
+          const detail = error instanceof Error ? error.message : String(error);
+          api.logger.warn(`[${{PLUGIN_ID}}] after_tool_call bridge failed: ${{detail}}`);
+        }}
+      }},
+      {{ name: "openclaw_guard_after_tool_call" }},
+    );
+
+    api.logger.info(`[${{PLUGIN_ID}}] registered all hooks (3) via api.on()`);
   },
 }};
 """

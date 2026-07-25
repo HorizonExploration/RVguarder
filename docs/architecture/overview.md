@@ -38,8 +38,9 @@ Openclaw Guard 采用分层、非侵入、模块化设计，核心原则是：**
 - `control.py`：动作决策、审批状态流
 - `audit_store.py`：SQLite + JSON 审计与哈希链
 - `manager.py`：统一编排与主业务入口
-- `hook_runtime.py`：生成并安装 OpenClaw Guard 本地 Hook 插件
+- `hook_runtime.py`：生成并安装 OpenClaw Guard 本地 Hook 插件（使用官方 `api.on()` API）
 - `tool_hook_bridge.py`：把 `before_tool_call` / `after_tool_call` 转成 Guard 行为事件
+- `openclaw_adapter.py`：Gateway 远程调用适配层（含 `resolve_plugin_approval` 双端同步）
 - `web.py` / `ui.py`：本地 Web 工作台
 
 ## 关键设计原则

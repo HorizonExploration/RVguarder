@@ -47,6 +47,7 @@ class OpenClawTarget:
     gateway_bind: str | None = None
     gateway_host: str | None = None
     gateway_urls: list[str] = field(default_factory=list)
+    web_urls: list[str] = field(default_factory=list)
     auth_mode: str | None = None
     reachability_state: str = "unreachable"
     reachable_ports: list[int] = field(default_factory=list)
@@ -66,6 +67,7 @@ class OpenClawTarget:
             "gateway_bind": self.gateway_bind,
             "gateway_host": self.gateway_host,
             "gateway_urls": list(self.gateway_urls),
+            "web_urls": list(self.web_urls),
             "auth_mode": self.auth_mode,
             "reachability_state": self.reachability_state,
             "reachable_ports": list(self.reachable_ports),

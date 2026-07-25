@@ -13,22 +13,13 @@
 - capabilities
 - baseline
 - actions
-- console
 - chat
 - hook
+- execution_guard
+- skills
+- channels
 - audit
 - policy
-
-## GET `/api/conversation`
-
-返回当前会话摘要：
-
-- `messages`
-- `pending_requests`
-- `request_count`
-- `workspace`
-- `profile`
-- `connection_state`
 
 ## GET `/api/actions`
 
@@ -40,16 +31,13 @@
 }
 ```
 
-## GET `/api/chat/debug`
+## GET `/api/baseline/latest`
 
-返回聊天链和 Hook 链的调试信息，包括：
+返回最新基线扫描结果。
 
-- `profile`
-- `config_path`
-- `gateway_urls`
-- `relay`
-- `hook`
-- `log_path`
+## GET `/api/audit/export`
+
+导出审计数据。
 
 ## GET `/api/runtime/refresh`
 
@@ -63,32 +51,9 @@
 
 这个接口适合在你已经重启 OpenClaw gateway 后，让 Guard 立刻重新判断当前 Hook 状态。
 
-## POST `/api/chat/send`
+## GET `/api/debug/logs`
 
-请求体：
-
-```json
-{
-  "message": "请删除 /Users/dynooob/secret.txt"
-}
-```
-
-作用：
-
-- 发送用户请求
-- 触发动作推断
-- 经过检测引擎和 action gate
-- 返回更新后的消息流与动作结果
-
-低风险消息会继续转发到 OpenClaw gateway。高风险消息会先进入待审批，不会直接继续。
-
-## POST `/api/chat/new`
-
-开启一个新的对话会话。
-
-## POST `/api/chat/poll`
-
-轮询当前聊天动作是否已收到 OpenClaw 回复。
+返回运行时日志记录。
 
 ## POST `/api/baseline/run`
 
@@ -105,7 +70,7 @@
 }
 ```
 
-如果动作来自运行时 Hook，这个接口会直接唤醒等待中的 `before_tool_call`，让原工具调用继续执行。
+如果动作来自运行时 Hook，这个接口会通过 Gateway 远程调用同步审批结果到 OpenClaw，让原工具调用继续执行。
 
 ## POST `/api/actions/reject`
 
@@ -117,7 +82,11 @@
 }
 ```
 
-如果动作来自运行时 Hook，这个接口会让原工具调用收到 `block` 结果。
+如果动作来自运行时 Hook，这个接口会通过 Gateway 远程调用同步拒绝结果到 OpenClaw，让原工具调用收到拒绝。
+
+## POST `/api/actions/clear`
+
+清空所有动作历史记录。
 
 ## POST `/api/hook/before-tool-call`
 
@@ -127,8 +96,8 @@ OpenClaw Guard 本地插件内部使用的同步审批接口。
 
 - 接收 OpenClaw 的 `before_tool_call`
 - 生成动作记录
-- 执行 `allow / ask / block / escalate`
-- 等待 UI 里的批准或拒绝
+- 执行 `allow / require_approval / block / escalate`
+- 返回给 OpenClaw 的 `requireApproval` 遵循官方 `BeforeToolCallResult` 类型
 
 ## POST `/api/hook/after-tool-call`
 
@@ -139,6 +108,80 @@ OpenClaw Guard 本地插件内部使用的结果回写接口。
 - 接收 OpenClaw 的 `after_tool_call`
 - 把动作状态改成 `executed` 或 `failed`
 - 写入审计与日志
+
+## POST `/api/hook/resolve-approval`
+
+OpenClaw 原生审批卡片 `onResolution` 回调使用的接口。
+
+用途：
+
+- 接收 OpenClaw 插件 `onResolution` 的审批结果
+- 同步更新 Guard `action_service` 中动作状态
+
+请求体：
+
+```json
+{
+  "actionId": "xxxx",
+  "decision": "allow-once"
+}
+```
+
+- `actionId` 也兼容 `action_id` 字段名
+- `decision` 支持 `allow-once` / `allow-always` / `deny` / `timeout` / `cancelled`（同时兼容 `allow_once` / `allow_always` 旧格式）
+
+## POST `/api/skills/upsert`
+
+创建或更新一个 skill 配置。
+
+请求体：
+
+```json
+{
+  "name": "my-skill",
+  "enabled": true,
+  "description": "...",
+  "permissions": ["read", "write"]
+}
+```
+
+## POST `/api/skills/delete`
+
+删除一个 skill 配置。
+
+请求体：
+
+```json
+{
+  "name": "my-skill"
+}
+```
+
+## POST `/api/channels/upsert`
+
+创建或更新一个 channel 配置。
+
+请求体：
+
+```json
+{
+  "name": "my-channel",
+  "enabled": true,
+  "target": "..."
+}
+```
+
+## POST `/api/channels/delete`
+
+删除一个 channel 配置。
+
+请求体：
+
+```json
+{
+  "name": "my-channel"
+}
+```
 
 ## POST `/api/audit/export`
 
@@ -152,6 +195,16 @@ OpenClaw Guard 本地插件内部使用的结果回写接口。
 {
   "error": "message_empty",
   "error_code": "message_empty",
-  "message": "消息内容不能为空。"
+  "detail": "输入不能为空。"
 }
 ```
+
+常见的错误码：
+
+| 错误码 | 含义 |
+|--------|------|
+| `message_empty` | 输入不能为空 |
+| `action_not_found` | 未找到对应动作记录 |
+| `gateway_unreachable` | 无法连接 OpenClaw gateway |
+| `hook_unauthorized` | Hook 鉴权失败 |
+| `internal_error` | 服务内部错误 |

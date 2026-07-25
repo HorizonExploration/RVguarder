@@ -25,7 +25,7 @@ _SCRIPT_SUFFIXES = {".sh", ".ps1", ".bat"}
 _READONLY_COMMANDS = ("ls", "pwd", "cat ", "grep ", "find ", "echo ")
 
 _DEFAULT_LLM_BASE_URL = "https://api.deepseek.com/v1"
-_DEFAULT_LLM_MODEL = "deepseek-chat"
+_DEFAULT_LLM_MODEL = "deepseek-v4-flash"
 _DEFAULT_TIMEOUT_SEC = 10
 _CONFIG_FILE_NAME = "guard-config.json"
 
@@ -230,7 +230,7 @@ class SemanticEnhancer:
     "scenario": "请判断最匹配的场景：mail_send / mail_read / report_generate / report_send / attachment_download / file_delete / file_write / config_modify / network_egress / channel_send / skill_run / command_exec / chat_message",
     "intent": {{
       "category": "场景分类",
-      "goal": "用英文简述用户目标"
+      "goal": "用中文简明扼要地概括用户本次动作的目标，如：发送汇报邮件、删除系统日志、访问外部API等"
     }},
     "entities": {{
       "paths": ["目标路径列表"],
@@ -558,11 +558,18 @@ def _extract_constraints(source_message: str, haystack: str, scenario: str) -> d
 
 def _goal_for_scenario(scenario: str, event: BehaviorEvent) -> str:
     mapping = {
-        "mail_send": "send email",
-        "mail_read": "read mailbox",
-        "report_generate": "generate report",
-        "report_send": "send report",
-        "attachment_download": "download attachment",
+        "mail_send": "发送邮件",
+        "mail_read": "读取邮件",
+        "report_generate": "生成汇报",
+        "report_send": "发送汇报",
+        "attachment_download": "下载附件",
+        "file_delete": "删除文件",
+        "file_write": "写入文件",
+        "config_modify": "修改配置",
+        "network_egress": "网络访问",
+        "channel_send": "通道发送",
+        "skill_run": "运行技能",
+        "command_exec": "执行命令",
     }
     return mapping.get(scenario, event.action_type.replace("_", " "))
 

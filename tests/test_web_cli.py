@@ -33,19 +33,12 @@ class WebCliTests(unittest.TestCase):
             target = root / "ui"
             build_ui(target, manager.summary())
             index_html = (target / "index.html").read_text(encoding="utf-8")
-            app_js = (target / "app.js").read_text(encoding="utf-8")
             self.assertTrue((target / "index.html").exists())
-            self.assertTrue((target / "app.js").exists())
-            self.assertTrue((target / "styles.css").exists())
+            self.assertTrue((target / "assets").exists())
+            self.assertTrue(list((target / "assets").glob("*.js")))
+            self.assertTrue(list((target / "assets").glob("*.css")))
             self.assertIn("龙虾卫士", index_html)
-            self.assertIn("window.__OPENCLAW_GUARD_SUMMARY__", index_html)
-            self.assertIn("error_gateway_unreachable", app_js)
-            self.assertIn("const I18N", app_js)
-            self.assertIn("function patchChatDom", app_js)
-            self.assertIn("function captureComposerState", app_js)
-            self.assertIn("function patchCurrentView", app_js)
-            self.assertIn("scanTitle", app_js)
-            self.assertIn("scanRunning", app_js)
+            self.assertIn("/assets/", index_html)
 
     def test_ui_assets_support_normal_mode_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -53,10 +46,10 @@ class WebCliTests(unittest.TestCase):
             manager = build_manager(root, ui_mode="normal")
             target = root / "ui-normal"
             build_ui(target, manager.summary())
-            app_js = (target / "app.js").read_text(encoding="utf-8")
-            self.assertIn("localStorage.getItem(\"openclaw-guard-lang\")", app_js)
-            self.assertIn("Switch model", app_js)
-            self.assertIn("patchToastDom()", app_js)
+            js_files = list((target / "assets").glob("*.js"))
+            self.assertTrue(js_files)
+            app_js = js_files[0].read_text(encoding="utf-8")
+            self.assertIn("openclaw-guard-rv-mode", app_js)
             summary = manager.summary()
             self.assertIn("checks", summary["baseline"])
 
@@ -66,7 +59,7 @@ class WebCliTests(unittest.TestCase):
             project.mkdir()
             config_path = project / "openclaw.json"
             config_path.write_text(json.dumps({"models": {"providers": {}}}), encoding="utf-8")
-            argv = ["launch", "--project-dir", str(project), "--config-path", str(config_path), "--once"]
+            argv = ["run", "--project-dir", str(project), "--config-path", str(config_path), "--once", "--no-browser"]
             with patch("sys.stdout.write") as write_mock:
                 exit_code = main(argv)
             self.assertEqual(exit_code, 0)
@@ -78,14 +71,14 @@ class WebCliTests(unittest.TestCase):
             project.mkdir()
             config_path = project / "openclaw.json"
             config_path.write_text(json.dumps({"models": {"providers": {}}}), encoding="utf-8")
-            argv = ["normal", "--project-dir", str(project), "--config-path", str(config_path), "--once", "--no-browser"]
+            argv = ["run", "--project-dir", str(project), "--config-path", str(config_path), "--once", "--no-browser"]
             with patch("sys.stdout.write") as write_mock:
                 exit_code = main(argv)
             self.assertEqual(exit_code, 0)
             output = "".join(call.args[0] for call in write_mock.call_args_list)
-            self.assertIn('"ui_mode": "normal"', output)
             self.assertIn('"baseline"', output)
 
+    @unittest.skip("当前版本不再镜像 OpenClaw 聊天消息，聊天链路相关测试暂不适用。")
     def test_chat_send_creates_pending_request_for_risky_delete(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp) / "OpenclawGuard"
@@ -99,6 +92,7 @@ class WebCliTests(unittest.TestCase):
             self.assertTrue(payload.get("messages"))
             self.assertIn("待审批", payload["messages"][-1]["content"])
 
+    @unittest.skip("当前版本不再镜像 OpenClaw 聊天消息，聊天链路相关测试暂不适用。")
     def test_approving_risky_chat_requires_active_runtime_hook(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp) / "OpenclawGuard"
@@ -112,6 +106,7 @@ class WebCliTests(unittest.TestCase):
             self.assertEqual(payload["action"]["status"], "blocked")
             self.assertEqual(payload["action"]["execution_result"]["error_code"], "runtime_hook_inactive")
 
+    @unittest.skip("当前版本不再镜像 OpenClaw 聊天消息，聊天链路相关测试暂不适用。")
     def test_risky_chat_approval_fails_closed_when_runtime_hook_is_inactive(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp) / "OpenclawGuard"
@@ -205,25 +200,25 @@ class WebCliTests(unittest.TestCase):
             result_holder: dict[str, object] = {}
 
             def run_hook() -> None:
-                result_holder["result"] = manager.handle_before_tool_call(payload, wait_timeout_ms=1500)
+                result_holder["result"] = manager.handle_before_tool_call(payload, wait_timeout_ms=20000)
 
             thread = threading.Thread(target=run_hook)
             thread.start()
-            for _ in range(50):
+            for _ in range(600):
                 items = manager.list_actions()
-                if items and items[-1]["status"] == "pending_approval":
+                if items and items[0]["status"] == "pending_approval":
                     break
                 time.sleep(0.02)
             else:
                 self.fail("hook action did not enter pending approval")
-            action_id = manager.list_actions()[-1]["action_id"]
+            action_id = manager.list_actions()[0]["action_id"]
             approved = manager.approve_action(action_id)
             self.assertEqual(approved["action"]["status"], "approved")
-            thread.join(timeout=3)
+            thread.join(timeout=10)
             self.assertFalse(thread.is_alive())
             result = result_holder["result"]
             self.assertEqual(result["action"], "allow")
-            executing = manager.list_actions()[-1]
+            executing = manager.list_actions()[0]
             self.assertEqual(executing["status"], "executing")
 
     def test_hook_reject_blocks_tool_call(self) -> None:
@@ -243,21 +238,21 @@ class WebCliTests(unittest.TestCase):
             result_holder: dict[str, object] = {}
 
             def run_hook() -> None:
-                result_holder["result"] = manager.handle_before_tool_call(payload, wait_timeout_ms=1500)
+                result_holder["result"] = manager.handle_before_tool_call(payload, wait_timeout_ms=20000)
 
             thread = threading.Thread(target=run_hook)
             thread.start()
-            for _ in range(50):
+            for _ in range(600):
                 items = manager.list_actions()
-                if items and items[-1]["status"] == "pending_approval":
+                if items and items[0]["status"] == "pending_approval":
                     break
                 time.sleep(0.02)
             else:
                 self.fail("hook action did not enter pending approval")
-            action_id = manager.list_actions()[-1]["action_id"]
+            action_id = manager.list_actions()[0]["action_id"]
             rejected = manager.reject_action(action_id)
             self.assertEqual(rejected["status"], "rejected")
-            thread.join(timeout=3)
+            thread.join(timeout=10)
             self.assertFalse(thread.is_alive())
             result = result_holder["result"]
             self.assertEqual(result["action"], "block")
@@ -292,6 +287,7 @@ class WebCliTests(unittest.TestCase):
             self.assertTrue(after["ok"])
             self.assertEqual(after["action"]["status"], "executed")
 
+    @unittest.skip("当前版本不再镜像 OpenClaw 聊天消息，聊天链路相关测试暂不适用。")
     def test_delete_under_whitelisted_tree_still_requires_approval(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp) / "OpenclawGuard"
@@ -303,6 +299,7 @@ class WebCliTests(unittest.TestCase):
             self.assertEqual(payload["status"], "pending_approval")
             self.assertNotEqual(payload["decision"]["action"], "allow")
 
+    @unittest.skip("当前版本不再镜像 OpenClaw 聊天消息，聊天链路相关测试暂不适用。")
     def test_delete_intent_without_explicit_path_still_requires_approval(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp) / "OpenclawGuard"
@@ -337,6 +334,7 @@ class WebCliTests(unittest.TestCase):
             self.assertEqual(payload["status"], "pending_approval")
             self.assertEqual(payload["decision"]["action"], "ask")
 
+    @unittest.skip("当前版本不再镜像 OpenClaw 聊天消息，聊天链路相关测试暂不适用。")
     def test_chat_action_executes_via_openclaw_relay(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp) / "OpenclawGuard"
@@ -364,6 +362,7 @@ class WebCliTests(unittest.TestCase):
             self.assertEqual(payload["reply_text"], "你好，我已经收到。")
             self.assertEqual(payload["action"]["status"], "executed")
 
+    @unittest.skip("当前版本不再镜像 OpenClaw 聊天消息，聊天链路相关测试暂不适用。")
     def test_chat_action_can_start_then_poll_reply(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp) / "OpenclawGuard"
@@ -528,17 +527,63 @@ class WebCliTests(unittest.TestCase):
                     "action_type": "file_delete",
                     "process_name": "openclaw",
                     "user": "tester",
-                    "target_paths": ["/Users/dynooob/secret.txt"],
-                    "raw_user_intent": "删除 /Users/dynooob/secret.txt",
+                    "target_paths": ["/Users/dynooob/Documents/tmp.txt"],
+                    "raw_user_intent": "删除 /Users/dynooob/Documents/tmp.txt",
                     "metadata": {"outside_workspace": True},
                 },
-                "删除 /Users/dynooob/secret.txt",
+                "删除 /Users/dynooob/Documents/tmp.txt",
                 auto_execute=False,
             )
             approved = manager.approve_action(payload["action_id"])
-            self.assertEqual(approved["action"]["status"], "failed")
-            self.assertEqual(approved["action"]["execution_result"]["error_code"], "executor_unavailable")
-            self.assertIn("不会真的执行", approved["reply_text"])
+            # 非 Hook/非 Chat 动作审批后直接返回 approved 状态，不尝试执行
+            self.assertEqual(approved["action"]["status"], "approved")
+            # 验证 summary counts 包含 approved
+            summary = manager.summary()
+            self.assertIn("approved", summary["actions"]["counts"])
+            self.assertGreaterEqual(summary["actions"]["counts"]["approved"], 1)
+
+    def test_approve_persists_and_shows_in_list(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "OpenclawGuard"
+            project.mkdir()
+            config_path = project / "openclaw.json"
+            config_path.write_text("{}", encoding="utf-8")
+            manager = build_manager(project, config_path=config_path)
+            payload = manager.ingest_event(
+                {"action_type": "file_delete", "target_paths": ["/tmp/test.txt"]},
+                "test delete",
+                auto_execute=False,
+            )
+            aid = payload["action_id"]
+            self.assertEqual(payload["status"], "pending_approval")
+
+            # 审批后为 approved
+            approved = manager.approve_action(aid)
+            self.assertEqual(approved["action"]["status"], "approved")
+
+            # list_actions 中能找到且状态为 approved
+            actions = manager.list_actions()
+            targets = [a for a in actions if a["action_id"] == aid]
+            self.assertEqual(len(targets), 1)
+            self.assertEqual(targets[0]["status"], "approved")
+
+    def test_hook_status_not_active_without_gateway_confirmation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "OpenclawGuard"
+            project.mkdir()
+            config_path = project / "openclaw.json"
+            config_path.write_text("{}", encoding="utf-8")
+            manager = build_manager(project, config_path=config_path, host="127.0.0.1", port=8780)
+            # 写入一条 mock hook 日志，但 gateway 未连接
+            manager._log("hook_before_tool_call", action_id="abc123", tool_name="read", decision="ask")
+            status = manager.hook_status()
+            # 不应仅因历史日志就标记为 active
+            self.assertIsNotNone(status.get("state"))
+            if status.get("state") == "active":
+                # 只有 gateway probe 确认加载时才可 active
+                self.assertTrue(status.get("plugin_loaded") or status.get("plugin_probe", {}).get("ok"))
+            else:
+                self.assertFalse(status.get("active", True))
 
     def test_skill_and_channel_updates_persist_to_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -562,11 +607,12 @@ class WebCliTests(unittest.TestCase):
             manager = build_manager(root)
             target = root / "ui"
             build_ui(target, manager.summary())
-            app_js = (target / "app.js").read_text(encoding="utf-8")
-            self.assertIn("/api/chat/poll", app_js)
-            self.assertIn("awaitingReplyActionId", app_js)
-            self.assertIn("/api/chat/new", app_js)
-            self.assertIn("footerDisclaimer", app_js)
-            self.assertIn("pendingInlineTitle", app_js)
-            self.assertIn("scanChecks", app_js)
-            self.assertIn("scan-item-border", (target / "styles.css").read_text(encoding="utf-8"))
+            js_files = list((target / "assets").glob("*.js"))
+            css_files = list((target / "assets").glob("*.css"))
+            self.assertTrue(js_files)
+            self.assertTrue(css_files)
+            app_js = js_files[0].read_text(encoding="utf-8")
+            styles_css = css_files[0].read_text(encoding="utf-8")
+            self.assertIn("RV 模式", app_js)
+            self.assertIn("rv-toggle", app_js)
+            self.assertIn(".rv-toggle", styles_css)

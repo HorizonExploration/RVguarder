@@ -8,6 +8,9 @@ from openclaw_guard.api._handlers import (
     audit_export,
     baseline_latest,
     baseline_run,
+    channel_delete,
+    channel_upsert,
+    clear_actions,
     debug_logs,
     dump_response,
     health,
@@ -19,5 +22,8 @@ from openclaw_guard.api._handlers import (
     read_json_body,
     refresh_runtime,
     reject_action,
+    resolve_hook_approval,
+    skill_delete,
+    skill_upsert,
     summary,
 )

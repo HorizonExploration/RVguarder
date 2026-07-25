@@ -714,7 +714,25 @@ class SQLiteStore(DBStoreInterface):
     @contextmanager
     def _get_connection(self) -> Iterator[sqlite3.Connection]:
         import sqlite3
+        self.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.sqlite_path, timeout=30.0)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS audit_log (
+                record_id TEXT PRIMARY KEY,
+                timestamp TEXT NOT NULL,
+                record_type TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                previous_hash TEXT NOT NULL,
+                record_hash TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_type ON audit_log(record_type)")
+        conn.commit()
         try:
             yield conn
         finally:
@@ -990,8 +1008,21 @@ class SQLiteStore(DBStoreInterface):
 # Factory Function
 # =============================================================================
 
-_db_store: DBStoreInterface | None = None
+_db_store_cache: dict[str, DBStoreInterface] = {}
 _db_store_lock = threading.Lock()
+
+
+def _store_cache_key(connection_string: str | None, config: DBConfig | None) -> str:
+    if connection_string:
+        return connection_string
+    if not config:
+        return "sqlite:///output/audit/audit.db"
+    if config.db_type == "postgresql":
+        return (
+            f"postgresql://{config.username}:{config.password}@"
+            f"{config.host}:{config.port}/{config.database}"
+        )
+    return f"sqlite:///{config.sqlite_path or Path('output/audit/audit.db')}"
 
 
 def get_db_store(connection_string: str | None = None, config: DBConfig | None = None) -> DBStoreInterface:
@@ -1018,24 +1049,27 @@ def get_db_store(connection_string: str | None = None, config: DBConfig | None =
                          username="user", password="pass")
         db = get_db_store(config=config)
     """
-    global _db_store
-
-    if _db_store is not None:
-        return _db_store
+    cache_key = _store_cache_key(connection_string, config)
+    cached = _db_store_cache.get(cache_key)
+    if cached is not None:
+        return cached
 
     with _db_store_lock:
-        if _db_store is not None:
-            return _db_store
+        cached = _db_store_cache.get(cache_key)
+        if cached is not None:
+            return cached
 
         if config is None:
             config = _parse_connection_string(connection_string or "sqlite:///output/audit/audit.db")
 
         if config.db_type == "postgresql":
-            _db_store = PostgreSQLStore(config)
+            store: DBStoreInterface = PostgreSQLStore(config)
         else:
-            _db_store = SQLiteStore(config.sqlite_path or Path("output/audit/audit.db"))
+            store = SQLiteStore(config.sqlite_path or Path("output/audit/audit.db"))
 
-        return _db_store
+        cache_key = _store_cache_key(connection_string, config)
+        _db_store_cache[cache_key] = store
+        return store
 
 
 def _parse_connection_string(connection_string: str) -> DBConfig:
@@ -1070,8 +1104,7 @@ def _parse_connection_string(connection_string: str) -> DBConfig:
 
 def reset_db_store() -> None:
     """Reset the global database store (for testing or reconfiguration)"""
-    global _db_store
     with _db_store_lock:
-        if _db_store:
-            _db_store.close()
-        _db_store = None
+        for store in _db_store_cache.values():
+            store.close()
+        _db_store_cache.clear()
