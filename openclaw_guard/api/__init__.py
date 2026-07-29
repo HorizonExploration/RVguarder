@@ -23,6 +23,8 @@ from openclaw_guard.api._handlers import (
     refresh_runtime,
     reject_action,
     resolve_hook_approval,
+    rv_status,
+    rv_toggle,
     skill_delete,
     skill_upsert,
     summary,

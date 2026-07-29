@@ -11,7 +11,7 @@
 建议先运行：
 
 ```bash
-python -m openclaw_guard.main normal --once --no-browser
+openclaw-guard run --once --no-browser
 ```
 
 ## 2. 为什么首页不是一堆安全报表

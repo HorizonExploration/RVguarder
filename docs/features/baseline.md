@@ -23,7 +23,7 @@
 ## 使用方式
 
 ```bash
-python -m openclaw_guard.main baseline --config-path ~/.openclaw-dev/openclaw.json
+openclaw-guard baseline
 ```
 
 ## 风险分级

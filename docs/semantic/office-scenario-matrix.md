@@ -433,10 +433,10 @@ class BatchFileMonitor(BaseMonitor):
 
 | 文档 | 更新内容 |
 |:---|:---|
-| [method.md](file:///home/yosoro126/OpenClaw-RVGuarder/docs/Sematic/method.md) | §12.2 场景列表从 5 个扩展至至少 20+ 个 |
+| [method.md](file:///home/yosoro126/OpenClaw-RVGuarder/docs/semantic/method.md) | §12.2 场景列表从 5 个扩展至至少 20+ 个 |
 | [detection.py](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/integrations/detection.py) | 新增群发/导出/批量操作的办公策略规则 |
 | [semantic_enhancer.py](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/integrations/semantic_enhancer.py) | 新增 `channel_broadcast` / `database_query` / `batch_file_upload` 场景识别 |
-| [rv-development-plan.md](file:///home/yosoro126/OpenClaw-RVGuarder/docs/Sematic/rv-development-plan.md) | 新增 BroadcastMonitor / DataExportMonitor / BatchFileMonitor |
+| [rv-development-plan.md](file:///home/yosoro126/OpenClaw-RVGuarder/docs/archive/rv-development-plan.md) | 新增 BroadcastMonitor / DataExportMonitor / BatchFileMonitor |
 
 ### 8.2 新增语义标签（13个）
 

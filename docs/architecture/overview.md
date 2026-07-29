@@ -30,18 +30,20 @@ Openclaw Guard 采用分层、非侵入、模块化设计，核心原则是：**
 
 ## 当前代码映射
 
-- `discovery.py`：资产发现、运行环境探测
-- `baseline.py`：基线扫描、报告生成、修复脚本
-- `behavior.py`：行为事件摄入
-- `detection.py`：47 条高危规则与检测引擎
-- `whitelist.py`：Trie / Radix Tree 白名单匹配
-- `control.py`：动作决策、审批状态流
-- `audit_store.py`：SQLite + JSON 审计与哈希链
+- `integrations/discovery.py`：资产发现、运行环境探测
+- `core/baseline_service.py`：基线扫描、报告生成、修复脚本
+- `engine/behavior.py`：行为事件摄入
+- `engine/detection.py`：内置安全规则与检测引擎
+- `engine/whitelist.py`：Trie / Radix Tree 白名单匹配
+- `engine/control.py`：动作决策、审批状态流
+- `engine/runtime_verification.py`：RV 运行时验证引擎 (FSM + 滑动窗口)
+- `engine/semantic_enhancer.py`：语义分析与上下文标注 (DeepSeek 驱动)
+- `core/audit_service.py`：SQLite + JSON 审计与哈希链
 - `manager.py`：统一编排与主业务入口
-- `hook_runtime.py`：生成并安装 OpenClaw Guard 本地 Hook 插件（使用官方 `api.on()` API）
-- `tool_hook_bridge.py`：把 `before_tool_call` / `after_tool_call` 转成 Guard 行为事件
-- `openclaw_adapter.py`：Gateway 远程调用适配层（含 `resolve_plugin_approval` 双端同步）
-- `web.py` / `ui.py`：本地 Web 工作台
+- `integrations/hook_runtime.py`：生成并安装 OpenClaw Guard 本地 Hook 插件（使用官方 `api.on()` API）
+- `integrations/tool_hook_bridge.py`：把 `before_tool_call` / `after_tool_call` 转成 Guard 行为事件
+- `integrations/openclaw_adapter.py`：Gateway 远程调用适配层（含 `resolve_plugin_approval` 双端同步）
+- `web.py` / `ui.py`：本地 Web 工作台 API 与前端资源管理
 
 ## 关键设计原则
 

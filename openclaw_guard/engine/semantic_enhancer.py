@@ -105,17 +105,29 @@ class SemanticEnhancer:
         origin = str(ctx.get("origin") or event.source or "unknown")
         haystack = _build_haystack(event, source_message, tool_name)
 
+        result: dict[str, Any] | None = None
+
         # 1. 若配置了 LLM，优先调用 LLM API
         if self._llm_enabled and source_message:
             try:
                 result = self._call_llm(event, source_message, tool_name, haystack, origin)
-                if result is not None:
-                    return result
             except Exception as exc:
                 logger.warning("LLM semantic analysis failed, falling back to local rules: %s", exc)
 
         # 2. 降级到本地规则化实现
-        return self._local_evaluate(event, source_message, tool_name, haystack, origin)
+        if result is None:
+            result = self._local_evaluate(event, source_message, tool_name, haystack, origin)
+
+        # 3. Hard validation: 根据工具名称硬性纠正语义标签，防止 LLM 幻觉误分类
+        hard_tool_name = (
+            getattr(event, 'metadata', {}).get('tool_name')
+            or (event.raw_payload.get('toolName') if hasattr(event, 'raw_payload') and isinstance(getattr(event, 'raw_payload', None), dict) else '')
+            or ''
+        )
+        if hard_tool_name:
+            result["semantic"] = self._validate_tool_name(hard_tool_name, result["semantic"])
+
+        return result
 
     def _call_llm(
         self,
@@ -268,6 +280,62 @@ class SemanticEnhancer:
 5. constraints 中的 exclude 列表列出用户明确要求排除的内容
 6. rv_trace 第一条的 event 必须与 scenario 一致
 """
+
+    @staticmethod
+    def _validate_tool_name(tool_name: str, semantic: dict) -> dict:
+        """根据工具名称硬性纠正语义标签，防止 LLM 幻觉误分类。
+
+        规则矩阵：
+        - read → 强制注入 file_read，剔除 file_write
+        - write/edit → 强制注入 file_write，剔除 file_read
+        - exec/shell → 强制注入 command_exec
+        - search → 强制注入 file_search
+        - delete/remove → 强制注入 file_delete
+        """
+        labels = list(semantic.get("labels", []))
+        lowered = (tool_name or "").lower()
+        scenario = semantic.get("scenario", "")
+
+        # Read operations: never write
+        if lowered in ("read", "file_read", "grep", "cat", "head", "tail", "list", "ls"):
+            # Remove write-related labels
+            labels = [l for l in labels if l not in ("file_write", "config_modify")]
+            # Remove write scenario
+            if scenario == "file_write":
+                semantic["scenario"] = "file_read"
+            # Inject read labels
+            for tag in ("file_read",):
+                if tag not in labels:
+                    labels.append(tag)
+
+        # Write operations: never read
+        elif lowered in ("write", "edit", "create", "save", "overwrite", "patch"):
+            labels = [l for l in labels if l not in ("file_read",)]
+            for tag in ("file_write",):
+                if tag not in labels:
+                    labels.append(tag)
+
+        # Execute operations
+        elif lowered in ("exec", "shell", "command", "bash", "run", "execute"):
+            labels = [l for l in labels if l not in ("file_read", "file_write", "network_egress")]
+            for tag in ("command_exec",):
+                if tag not in labels:
+                    labels.append(tag)
+
+        # Search operations
+        elif "search" in lowered or lowered in ("grep", "find", "locate"):
+            for tag in ("file_search",):
+                if tag not in labels:
+                    labels.append(tag)
+
+        # Delete operations
+        elif lowered in ("delete", "remove", "unlink", "rm", "trash"):
+            for tag in ("file_delete",):
+                if tag not in labels:
+                    labels.append(tag)
+
+        semantic["labels"] = labels
+        return semantic
 
     # ---- 本地规则化降级实现 ----
 
@@ -517,6 +585,27 @@ def _office_labels(
         labels.add("internal_source")
     if scenario == "report_generate" and not constraints.get("time_range"):
         labels.add("missing_scope_constraint")
+
+    # 新增：来源可信度与操作阶段标签（支持 RV FSM 链式检测）
+    # 来源标签
+    if any(token in haystack for token in ("外部", "external", "outside", "附件打开")):
+        labels.add("external_source")
+    if any(token in haystack for token in ("内部", "internal", "公司内部", "组织内")):
+        labels.add("source_internal")
+    if any(token in haystack for token in ("附件", "attachment")) and \
+       any(token in haystack for token in ("打开", "读取", "查看", "open", "read")):
+        labels.add("attachment_open")
+    # 操作阶段标签
+    if any(token in haystack for token in ("合并", "拼接", "merge", "combine", "concat")):
+        labels.add("file_merge")
+    if any(token in haystack for token in ("打包", "压缩", "compress", "zip", "tar", "package")):
+        labels.add("file_compress")
+    if any(token in haystack for token in ("通讯录", "contacts", "crm", "客户库")):
+        labels.add("contacts_db")
+    if any(token in haystack for token in ("上传", "upload", "发送文件", "外传")):
+        labels.add("file_upload")
+    if any(token in haystack for token in ("跨组织", "cross", "合作单位", "外部群")):
+        labels.add("cross_org")
     return labels
 
 

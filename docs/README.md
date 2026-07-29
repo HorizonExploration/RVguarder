@@ -1,84 +1,121 @@
 ---
 home: true
-title: Openclaw Guard 文档
-heroText: Openclaw Guard / 龙虾卫士
-tagline: 面向 OpenClaw 的非侵入式安全增强客户端与本地控制面，统一提供对话、执行前审批、基线扫描、审计导出与运行时调试能力。
+title: OpenClaw-RVGuarder
+heroText: OpenClaw-RVGuarder / 龙虾卫士
+tagline: Refined. Rebuilt. Ready.
 actions:
-  - text: 立即开始
+  - text: 快速开始
     link: /guide/quick-start.html
     type: primary
-  - text: 了解简洁模式
-    link: /guide/normal-mode.html
+  - text: 运行时 Hook 拦截
+    link: /features/runtime-hook.html
     type: secondary
 
 features:
-  - title: 一键进入工作台
-    details: 使用 normal 模式即可启动，自动探测 OpenClaw、准备运行目录、补齐基线结果并打开本地 Web 工作台。
-  - title: 先审批再执行
-    details: 删除、写入、配置修改、危险命令和外联动作会在 OpenClaw 真正调用工具前先被 Guard 拦住，再等待确认。
-  - title: 对话、安全、审计集中在一个界面
-    details: 普通用户可以在同一个前端里完成对话、风险确认、模型切换、日志查看、基线扫描和审计导出。
-  - title: 非侵入接入 OpenClaw
-    details: 不修改 OpenClaw 源码，不替换系统库，通过本地插件、Hook Bridge、Gateway 调用与能力探测实现增强。
+  - title: 🛡️ 原生审批拦截
+    details: 基于 OpenClaw 官方 `api.on("before_tool_call")` API，工具执行前挂起 agent，通过 requireApproval 实现物理拦截。不再有「先执行后审批」的尴尬。
+  - title: 🔄 双端状态同步
+    details: OpenClaw 原生审批卡片 ↔ RVGuarder Dashboard 双向同步。任一端确认，两端同时更新。审批结果通过 onResolution 回调 + Gateway 远程调用实时流转。
+  - title: ⚡ 零侵入接入
+    details: 不改 OpenClaw 一行源码。通过本地插件、Gateway 调用、行为事件桥接完成安全增强。安装即用，卸载无损。
+  - title: 🧠 语义理解增强
+    details: DeepSeek LLM 驱动的语义分析引擎，理解「删除昨天的实验报告」这样的自然语言约束，而非简单的关键词匹配。
+  - title: 🩺 基线扫描与审计
+    details: 配置、端口、用户、日志、依赖全量扫描。SQLite + JSONL 双写审计链，支持 JSON/CSV 导出，满足合规取证需求。
+  - title: 🖥️ 统一工作台
+    details: 动作审批、实时 Trace、安全规则、技能管理、RV 运行时验证 — 一个前端界面全部搞定。
 ---
 
 <div class="custom-card-grid">
   <div class="custom-card">
-    <h3>适合谁用</h3>
-    <p>高安全终端、内网环境、实训场景，以及希望保留 OpenClaw 原始代码结构的团队与个人。</p>
+    <h3>🎯 适合谁用</h3>
+    <p>高安全终端、内网环境、AI 实训场景，以及希望在不侵入 OpenClaw 的前提下增加安全管控的团队与个人。</p>
+    <p><em>For teams who want OpenClaw safety without touching a single line of its source.</em></p>
   </div>
   <div class="custom-card">
-    <h3>核心收益</h3>
-    <p>让用户在一个工作台里直接完成对话、任务申请和风险确认，并把危险动作拦在真正执行之前。</p>
+    <h3>🧱 架构概览</h3>
+    <p>插件层 (api.on) → 桥接层 (HTTP POST) → 检测层 (规则+语义+RV) → 决策层 (approve/block) → 同步层 (onResolution + Gateway call)</p>
+    <p><em>Plugin hooks → Bridge API → Detection (Rule+Semantic+RV) → Decision (Approve/Block) → Sync (Bidirectional)</em></p>
   </div>
   <div class="custom-card">
-    <h3>当前模式</h3>
-    <p>推荐优先使用 normal 模式；开发、运维或策略调试再使用完整模式。</p>
+    <h3>📦 当前状态</h3>
+    <p>v0.2.1 — 钩子 API 已全面迁移至官方 `api.on()`，requireApproval 对齐官方规范，双端同步链路已闭环。</p>
+    <p><em>v0.2.1 — Hook API migrated to official `api.on()`, requireApproval aligned with SDK spec, bidirectional sync is live.</em></p>
   </div>
 </div>
 
-## 项目定位
+---
 
-Openclaw Guard（龙虾卫士）是一个面向 OpenClaw 的非侵入式安全增强客户端与本地控制面。项目目标不是替换 OpenClaw，而是在**不修改 OpenClaw 源码**的前提下，为 OpenClaw 增加更清晰的安全交互、更可控的执行前审批、更完整的基线扫描与审计能力，并把这些能力集中到一个可直接使用的前端工作台中。
+## 项目定位 · Project Positioning
 
-当前版本已经接入 OpenClaw 运行时 Hook 事件链。当前插件侧主要使用 `before_prompt_build` 与 `agent_end` 事件，并通过 Guard 内部的前后置审批 API 完成危险动作拦截。
+**中文**
 
-## 核心特性
+OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式安全增强客户端与本地控制面。我们不做替代品，做的是**安全补位**。
 
-- **非侵入式接入 OpenClaw**
-  - 不修改 OpenClaw 源码
-  - 通过 OpenClaw 原生 Hook、Gateway 调用、本地插件桥与 Guard Web 前端完成联动
-- **对话式工作台**
-  - 从 Guard 前端直接与 OpenClaw 对话
-  - 支持模型切换、会话重置、状态检测、运行时调试
-- **执行前风险控制**
-  - 删除、写入、配置修改、危险命令、外联、渠道发送、技能执行等动作会先经过 Guard 决策
-  - 支持 `allow / ask / block / escalate`
-  - 高风险动作需要明确确认后才继续执行
-- **基线扫描与风险展示**
-  - 扫描 OpenClaw 配置、运行用户、网络暴露、日志、依赖与 Hook 状态
-  - 输出 JSON / HTML / PDF 报告与整改脚本
-  - 前端提供动态扫描界面、检查项详情和整改建议
-- **审计与导出**
-  - SQLite + JSONL 双写审计
-  - 支持 JSON / CSV 导出
-  - 适配本地取证与后续集成
-- **普通用户模式**
-  - 提供 `normal` 一键启动入口
-  - 默认打开更简洁的操作界面
+过去的路走了不少弯路：`api.registerHook()` 废弃了才知道、`threading.Event().wait()` 阻塞了 HTTP 才知道、`allowedDecisions` 是非标字段才知道。v0.2.1 是一次彻底的**纠偏**——全面对齐官方 Plugin SDK 规范，用 `api.on()` 替代已废弃的 `registerHook`，`requireApproval` 遵循 `BeforeToolCallResult` 类型，双端同步不再依赖轮询和阻塞等待，而是通过 `onResolution` 回调 + Gateway 远程调用的双向 Push 机制实现实时流转。
 
-## 你可以从这里开始
+**English**
 
-- [快速开始](/guide/quick-start.html)
-- [normal 简洁模式](/guide/normal-mode.html)
-- [项目梳理导航](/guide/README.html)
-- [项目全景分析](/guide/project-overview.html)
-- [项目结构清单](/guide/project-structure.html)
-- [分层架构总览](/architecture/overview.html)
-- [高风险动作审批链](/features/action-gate.html)
-- [运行时 Hook 拦截](/features/runtime-hook.html)
-- [HTTP 接口清单](/api/http.html)
+OpenClaw-RVGuarder ("Lobster Guard") is a non-invasive security enhancement client and local control plane for OpenClaw. We don't replace OpenClaw — we **backfill the safety gap**.
 
-::: tip 推荐路径
-第一次部署建议直接走“安装 -> `python -m openclaw_guard.main normal` -> 浏览器打开本地页面 -> 发送一个测试任务”。
+The path here has been full of detours: finding out `api.registerHook()` was deprecated the hard way, discovering `threading.Event().wait()` blocks HTTP the hard way, realizing `allowedDecisions` was non-standard the hard way. v0.2.1 is a **full course correction** — aligned with the official Plugin SDK spec, using `api.on()` instead of deprecated `registerHook`, typed `requireApproval` per `BeforeToolCallResult`, and a real bidirectional push mechanism via `onResolution` callback + Gateway remote calls. No more polling, no more blocking waits.
+
+## 核心特性 · Core Features
+
+| 特性 | 说明 | Highlights |
+|------|------|------------|
+| **原生钩子拦截** | `api.on("before_tool_call")` 官方 API，工具执行前物理挂起 | Official hook API, physically pauses agent before tool execution |
+| **双端审批同步** | RVGuarder ↔ OpenClaw 实时双向同步 | Bidirectional sync — approve from either side, both update instantly |
+| **语义理解** | DeepSeek LLM 理解自然语言约束，而非关键词匹配 | Understands natural language intent, not keyword patterns |
+| **运行时验证 RV** | 窗口滑动检测，识别 tool-use 行为模式异常 | Sliding window anomaly detection on tool-use patterns |
+| **基线扫描** | 配置/端口/用户/依赖 全量安全扫描 | Full security scan: config, ports, users, dependencies |
+| **审计导出** | SQLite + JSONL 双写，JSON/CSV 导出 | Dual-write audit trail, JSON/CSV export |
+| **规则引擎** | 47+ 内置规则 + 语义增强规则 | 47+ built-in rules + semantic-enriched policies |
+| **双语言界面** | 前端全中文，技术与文档中英双版 | Chinese-first UI, bilingual technical docs |
+
+## 技术栈 · Tech Stack
+
+```
+Backend:   Python 3.13+ · HTTP 内建服务 (http.server) · DeepSeek API · SQLite
+Frontend:  Vanilla JS · 单页 SPA · 1.5s 轮询刷新
+Plugin:    JavaScript · OpenClaw Plugin SDK (api.on) · registerGatewayMethod
+Adapter:   openclaw gateway call CLI 子进程 · approvals.resolve
+Core:      Runtime Verification (RV) · 滑动窗口检测 · 白名单 Trie 树
+```
+
+## 快速开始 · Quick Start
+
+```bash
+# 1. 安装
+pip install openclaw-rvguarder
+
+# 2. 启动（自动探测 OpenClaw 配置）
+python -m openclaw_guard.main normal
+
+# 3. 浏览器打开 http://localhost:8780
+# 4. 发送一条消息，体验工具拦截 → 审批 → 放行全链路
+```
+
+要求 OpenClaw Plugin SDK >= 2026.4.0（已内置于 OpenClaw >= 2026.4.0 版本中）。
+
+## 文档导航 · Documentation
+
+| 章节 | 内容 | Section |
+|------|------|---------|
+| 🚀 [快速开始](/guide/quick-start.html) | 安装与首次启动 | Installation & first run |
+| 🛡️ [运行时 Hook 拦截](/features/runtime-hook.html) | 插件机制与双端同步详解 | Hook mechanism & bidirectional sync |
+| ⚙️ [动作审批链](/features/action-gate.html) | 决策流程与规则引擎 | Decision pipeline & rule engine |
+| 🌐 [HTTP 接口清单](/api/http.html) | 所有后端 API 文档 | Complete API reference |
+| 🏗️ [架构总览](/architecture/overview.html) | 分层设计与代码映射 | Architecture & code map |
+| 📋 [基线扫描](/features/baseline.html) | 安全扫描与报告 | Security scanning & reports |
+| 📝 [审计](/features/audit.html) | 审计链与导出 | Audit trail & export |
+| 🩺 [运维 FAQ](/ops/faq.html) | 常见问题 | Frequently asked questions |
+| 🗺️ [路线图](/ops/roadmap.html) | 开发计划 | Development roadmap |
+
+---
+
+::: tip 旧瓶新酒
+项目结构没变，但每一层的实现都重构过了。如果你是从 v0.1.0 升级上来的，建议通读[运行时 Hook 拦截](/features/runtime-hook.html)和 [CHANGELOG](https://github.com/OpenClaw-RVGuarder/CHANGELOG.md) 了解全部变更。
+
+*Same bottle, new vintage. If you're upgrading from v0.1.x, read the [runtime hook docs](/features/runtime-hook.html) and [CHANGELOG](https://github.com/OpenClaw-RVGuarder/CHANGELOG.md) for full migration notes.*
 :::

@@ -129,6 +129,10 @@ class OpenclawGuardManager:
                 "builtin_rule_count": len(self.detector.rules),
                 "whitelist": asdict(default_police_whitelist()),
             },
+            "rv": {
+                "mode": self.preferences().get("rv_mode", True),
+                "engine": self.rv_engine.result_summary(),
+            },
         }
 
     @staticmethod
@@ -391,6 +395,33 @@ class OpenclawGuardManager:
         prefs.update({k: v for k, v in payload.items() if k in {"guard_mode", "reply_scan"}})
         write_json(self.preferences_path, prefs)
         return prefs
+
+    def rv_toggle(self, payload: dict[str, Any]) -> dict[str, Any]:
+        enabled = bool(payload.get("enabled", True))
+        prefs = self.preferences()
+        prefs["rv_mode"] = enabled
+        write_json(self.preferences_path, prefs)
+        return {"ok": True, "rv_mode": enabled}
+
+    def rv_status(self) -> dict[str, Any]:
+        return {
+            "ok": True,
+            "mode": self.preferences().get("rv_mode", True),
+            "engine": self.rv_engine.result_summary(),
+            "session_count": self.rv_engine.session_count(),
+        }
+
+    def rv_monitor_status(self, session_key: str = "_default") -> dict[str, Any]:
+        """返回所有监视器在指定会话中的 FSM 状态摘要。
+
+        用于 Dashboard 实时追踪中展示监视器的链式攻击追踪进度。
+        """
+        return self.rv_engine.result_summary(session_key=session_key)
+
+    def cleanup_rv_session(self, session_key: str) -> dict[str, Any]:
+        """释放指定会话的 RV 状态（窗口 + 监视器）。"""
+        self.rv_engine.release_session(session_key)
+        return {"ok": True, "session_key": session_key}
 
     def upsert_skill(self, name: str, payload: dict[str, Any]) -> dict[str, Any]:
         if not name.strip():
@@ -813,14 +844,40 @@ class OpenclawGuardManager:
         event.metadata["semantic"] = semantic_payload["semantic"]
         event.metadata["rv_trace"] = semantic_payload["rv_trace"]
 
+    def _resolve_rv_session_key(self, event: Any) -> str:
+        """解析 RV 会话键用于 per-session 窗口隔离。
+
+        优先级：
+        1. Hook bridge 事件：使用 metadata 中的 session_id/hook_key
+        2. Chat 事件：使用 raw_payload 中的 sessionId
+        3. 默认："_default"（向后兼容）
+        """
+        metadata = getattr(event, "metadata", {}) or {}
+        raw = getattr(event, "raw_payload", {}) or {}
+
+        # Hook 事件优先使用 session_id
+        session_id = str(metadata.get("session_id") or raw.get("sessionId") or "")
+        if session_id:
+            return f"session_{session_id}"
+
+        # 回退到 session_key
+        session_key = str(metadata.get("session_key") or raw.get("sessionKey") or "")
+        if session_key:
+            return f"session_{session_key}"
+
+        return "_default"
+
     def _apply_rv_if_available(self, event: Any, decision: Any) -> Any:
         """在现有 detection decision 上叠加 RV 判定。
 
         RV 判定仅在 rv_trace 存在时执行。如果 RV 的风险等级高于
         原有 detection 判定，则覆盖 action/reason/rule_ids。
 
+        支持 per-session 窗口隔离：不同 OpenClaw 会话拥有独立的 RV 窗口，
+        避免跨会话的攻击链误关联。
+
         Args:
-            event: 已标注的事件对象（含 rv_trace）
+            event: 已标注的事件对象（含 rv_trace 和 session 上下文）
             decision: DetectionDecision 实例
 
         Returns:
@@ -832,11 +889,15 @@ class OpenclawGuardManager:
             timings.setdefault("rv_ms", 0.0)
             return decision
 
+        # Per-session 窗口隔离
+        session_key = self._resolve_rv_session_key(event)
+
         rv_started = time.perf_counter()
-        rv_result = self.rv_engine.evaluate(rv_trace)
+        rv_result = self.rv_engine.evaluate(rv_trace, session_key=session_key)
         timings = self._ensure_pipeline_timings(event)
         timings["rv_ms"] = round((time.perf_counter() - rv_started) * 1000.0, 3)
         event.metadata["rv_result"] = rv_result
+        event.metadata["rv_session_key"] = session_key
 
         rv_severity = {"block": 4, "escalate": 3, "ask": 2, "ok": 1}
         det_severity = {"block": 4, "escalate": 3, "ask": 2, "allow": 1}

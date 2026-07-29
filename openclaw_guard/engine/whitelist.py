@@ -6,6 +6,41 @@ from typing import Any
 
 from openclaw_guard.models import BehaviorEvent
 
+# 白名单需要排除的敏感路径模式
+# command:cat 等白名单不应匹配到读取敏感文件的操作
+_SENSITIVE_PATH_PATTERNS = (
+    "/etc/shadow",
+    "/etc/passwd",
+    "/etc/sudoers",
+    "/etc/ssh/",
+    "~/.ssh/",
+    "/root/.ssh/",
+    "id_rsa",
+    "id_ed25519",
+    "/etc/kubernetes/",
+    "/etc/ssl/",
+    "/etc/letsencrypt/",
+    ".env",
+    ".env.local",
+    "credentials",
+    "secret",
+    "token",
+    "api_key",
+    ".aws/",
+    ".gcp/",
+    ".azure/",
+    "/var/log/auth",
+    "/var/log/secure",
+)
+
+
+def _is_sensitive_command(command_value: str) -> bool:
+    """检查命令参数中是否包含敏感路径。"""
+    for pattern in _SENSITIVE_PATH_PATTERNS:
+        if pattern in command_value:
+            return True
+    return False
+
 
 class PrefixTrieNode:
     __slots__ = ("children", "terminal", "label")
@@ -90,7 +125,9 @@ class WhitelistEngine:
             if label := self.file_trie.match(path):
                 matches.append(label)
         if event.command and (label := self.command_trie.match(event.command)):
-            matches.append(label)
+            # 对于命令类型规则，排除包含敏感路径的命令
+            if not (label.startswith("command:") and _is_sensitive_command(event.command)):
+                matches.append(label)
         for target in event.network_targets:
             if label := self.network_radix.match(target):
                 matches.append(label)

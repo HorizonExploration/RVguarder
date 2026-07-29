@@ -1,3 +1,21 @@
+"""
+detection.py 职责：单步、无上下文的快速风险判定。
+
+- 关键词/路径匹配的硬阻断规则（47 条 semantic predicate 规则）
+- 不需要跨事件上下文的简单 office policy
+- 作为第一道防线，延迟 < 1ms
+
+rv_monitors.py 职责：跨步、有状态、有时序的链式风险判定。
+- 需要追踪 Agent 行为序列的攻击模式（如"外部来源→敏感数据→外发"链）
+- 依赖 transitions FSM 状态记忆 + WindowManager 统计增强
+- 作为第二道防线，延迟 < 5ms
+- SEM-OFFICE-001/002（mail_send/report_send 链式外发）已迁移至 MailMonitor/ReportMonitor
+
+分工约定：
+- 单步硬阻断（如 rm -rf、写入 SSH 密钥） → detection.py
+- 链式攻击（如"搜索→删除"、"外部源→敏感→外发"） → rv_monitors.py
+- RV 判定高于 detection 时可覆盖其决策（_apply_rv_if_available）
+"""
 from __future__ import annotations
 
 from typing import Iterable
@@ -207,32 +225,12 @@ def _office_decision(
     labels: set[str],
     trace: list[dict[str, object]],
 ) -> DetectionDecision | None:
-    if scenario == "mail_send" and {"external_recipient", "contains_secret"} <= labels:
-        return DetectionDecision(
-            event_id=event.event_id,
-            timestamp=utc_now_iso(),
-            action_type=event.action_type,
-            risk_level="blocked",
-            action="block",
-            reason="邮件外发包含敏感信息，已按办公安全策略阻断。",
-            rule_ids=["SEM-OFFICE-001"],
-            trace=trace + [{"stage": "office_policy", "policy_id": "SEM-OFFICE-001", "outcome": "block"}],
-            requires_second_confirmation=False,
-            confirmation_word=None,
-        )
-    if scenario == "report_send" and {"external_recipient", "internal_source"} <= labels:
-        return DetectionDecision(
-            event_id=event.event_id,
-            timestamp=utc_now_iso(),
-            action_type=event.action_type,
-            risk_level="blocked",
-            action="block",
-            reason="日报外发包含内部来源内容，已按办公安全策略阻断。",
-            rule_ids=["SEM-OFFICE-002"],
-            trace=trace + [{"stage": "office_policy", "policy_id": "SEM-OFFICE-002", "outcome": "block"}],
-            requires_second_confirmation=False,
-            confirmation_word=None,
-        )
+    # SEM-OFFICE-001 (mail_send + external + secret → block) 已迁移至 MailMonitor FSM
+    # SEM-OFFICE-002 (report_send + external + internal_source → block) 已迁移至 ReportMonitor FSM
+    # 原因：这两条规则本质上是跨步链式风险——需要确认"敏感数据是否来自外部源"
+    #       或"日报是否聚合了内部源数据"。RV FSM 的状态记忆能更精确地建模此链路。
+    # 保留规则：SEM-OFFICE-003/004/005 是真正的单步策略，仍在此处理。
+
     if scenario == "mail_send" and "bulk_send" in labels:
         return DetectionDecision(
             event_id=event.event_id,

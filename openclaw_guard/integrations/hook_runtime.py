@@ -138,7 +138,10 @@ def _ensure_plugin_config(
         "authToken": auth_token,
         "decisionTimeoutMs": 180000,
         "callbackTimeoutMs": 15000,
-        "failClosed": True,
+        "failClosed": False,
+        "failClosedGracePeriodMs": 30000,
+        "failThreshold": 3,
+        "recoveryThreshold": 2,
     }
     for key, value in desired.items():
         if entry_config.get(key) != value:
@@ -259,6 +262,9 @@ def _write_plugin_bundle(plugin_dir: Path, *, guard_url: str, auth_token: str) -
                 "decisionTimeoutMs": {"type": "integer"},
                 "callbackTimeoutMs": {"type": "integer"},
                 "failClosed": {"type": "boolean"},
+                "failClosedGracePeriodMs": {"type": "integer"},
+                "failThreshold": {"type": "integer"},
+                "recoveryThreshold": {"type": "integer"},
             },
         },
     }
@@ -363,18 +369,72 @@ export default {{
     const pluginConfig = api.pluginConfig || {{}};
     const guardUrl = trimTrailingSlash(pluginConfig.guardUrl || DEFAULT_GUARD_URL);
     const authToken = String(pluginConfig.authToken || DEFAULT_AUTH_TOKEN || "");
-    const failClosed = pluginConfig.failClosed !== false;
+    const failClosed = pluginConfig.failClosed === true;
     const decisionTimeoutMs = Number(pluginConfig.decisionTimeoutMs || 180000);
     const callbackTimeoutMs = Number(pluginConfig.callbackTimeoutMs || 15000);
 
+    // Circuit breaker state
+    let circuitOpen = false;
+    let consecutiveFails = 0;
+    let consecutiveSuccesses = 0;
+    const FAIL_THRESHOLD = Number(pluginConfig.failThreshold || 3);
+    const RECOVERY_THRESHOLD = Number(pluginConfig.recoveryThreshold || 2);
+    const failClosedGracePeriodMs = Number(pluginConfig.failClosedGracePeriodMs || 30000);
+    let graceStartedAt = null;
+    let healthCheckTimer = null;
+
+    async function doHealthCheck() {{
+      const wasOpen = circuitOpen;
+      try {{
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const response = await fetch(`${{guardUrl}}/api/health`, {{
+          method: "GET",
+          signal: controller.signal,
+        }});
+        clearTimeout(timeout);
+        if (response.ok) {{
+          consecutiveFails = 0;
+          consecutiveSuccesses++;
+          graceStartedAt = null;
+          if (circuitOpen && consecutiveSuccesses >= RECOVERY_THRESHOLD) {{
+            circuitOpen = false;
+            api.logger.info(`[${{PLUGIN_ID}}] Circuit CLOSED — Guard backend recovered after ${{consecutiveSuccesses}} successful checks`);
+          }}
+        }} else {{
+          _handleHealthFailure();
+        }}
+      }} catch (_err) {{
+        _handleHealthFailure();
+      }}
+      if (wasOpen !== circuitOpen) {{
+        api.logger.info(`[${{PLUGIN_ID}}] Circuit state changed: ${{circuitOpen ? "OPEN (fail-open)" : "CLOSED (fail-closed)"}}`);
+      }}
+    }}
+
+    function _handleHealthFailure() {{
+      consecutiveSuccesses = 0;
+      consecutiveFails++;
+      if (!graceStartedAt) {{
+        graceStartedAt = Date.now();
+        api.logger.warn(`[${{PLUGIN_ID}}] Health check failed — grace period started (${{failClosedGracePeriodMs / 1000}}s)`);
+      }}
+      const inGrace = (Date.now() - graceStartedAt) < failClosedGracePeriodMs;
+      if (!circuitOpen && !inGrace && consecutiveFails >= FAIL_THRESHOLD) {{
+        circuitOpen = true;
+        api.logger.warn(`[${{PLUGIN_ID}}] Circuit OPEN — Guard backend unreachable for ${{consecutiveFails}} checks, switching to fail-open`);
+      }}
+    }}
+
     try {
-      api.registerGatewayMethod(STATUS_METHOD, async ({ respond }) => {
+      api.registerGatewayMethod(STATUS_METHOD, async ({ respond }) => {{
         api.logger.info(`[${PLUGIN_ID}] responding to status request`);
         respond(true, {
           ok: true,
           pluginId: PLUGIN_ID,
           guardUrl,
           failClosed,
+          circuitOpen,
           decisionTimeoutMs,
         });
       });
@@ -401,7 +461,7 @@ export default {{
           5000,
           authToken,
         ).catch(err => {{
-          api.logger.debug(`[${{PLUGIN_ID}}] Intent pre-check skipped: ${{err.message}}`);
+          api.logger.warn(`[${{PLUGIN_ID}}] Intent pre-check skipped (non-blocking): ${{err.message}}`);
         }});
       }},
       {{ name: "openclaw_guard_intent_precheck" }},
@@ -428,9 +488,7 @@ export default {{
             authToken,
           );
           if (result.action === "allow") {{
-            return result.params && typeof result.params === "object"
-              ? {{ params: result.params }}
-              : undefined;
+            return undefined;
           }}
 
           if (result.action === "require_approval") {{
@@ -472,11 +530,16 @@ export default {{
           if (!failClosed) {{
             return undefined;
           }}
-          // fail-closed: return a hard block to avoid broken approval UI
-          return {{
-            block: true,
-            blockReason: `Guard backend unreachable (Fail-Closed). Detail: ${{detail}}`,
-          }};
+          // fail-closed: check circuit breaker first
+          if (!circuitOpen) {{
+            return {{
+              block: true,
+              blockReason: `Guard backend unreachable (Fail-Closed). Detail: ${{detail}}`,
+            }};
+          }}
+          // circuit is open — fail-open: allow the tool call
+          api.logger.warn(`[${{PLUGIN_ID}}] Circuit OPEN: allowing tool call despite backend unreachable (${{detail}})`);
+          return undefined;
         }}
       }},
       {{ name: "openclaw_guard_before_tool_call" }},
@@ -512,7 +575,32 @@ export default {{
       {{ name: "openclaw_guard_after_tool_call" }},
     );
 
-    api.logger.info(`[${{PLUGIN_ID}}] registered all hooks (3) via api.on()`);
+    // gateway_start: initialize health check
+    api.on(
+      "gateway_start",
+      () => {{
+        api.logger.info(`[${{PLUGIN_ID}}] Gateway started — initializing health check (30s interval)`);
+        // Immediate first check
+        doHealthCheck();
+        healthCheckTimer = setInterval(doHealthCheck, 30000);
+      }},
+      {{ name: "openclaw_guard_gateway_start" }},
+    );
+
+    // gateway_stop: cleanup
+    api.on(
+      "gateway_stop",
+      () => {{
+        api.logger.info(`[${{PLUGIN_ID}}] Gateway stopping — cleaning up health check timer`);
+        if (healthCheckTimer) {{
+          clearInterval(healthCheckTimer);
+          healthCheckTimer = null;
+        }}
+      }},
+      {{ name: "openclaw_guard_gateway_stop" }},
+    );
+
+    api.logger.info(`[${{PLUGIN_ID}}] registered all hooks (5) via api.on()`);
   },
 }};
 """

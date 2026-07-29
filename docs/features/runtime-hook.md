@@ -156,3 +156,52 @@ npm run openclaw gateway
 - [OpenClaw Plugin Hooks 官方文档](https://github.com/openclaw/openclaw/blob/main/docs/plugins/hooks.md)
 - [OpenClaw Hooks](https://docs.openclaw.ai/automation/hooks)
 - [OpenClaw Session Management](https://docs.openclaw.ai/concepts/session)
+
+---
+
+## 附：RV 模式
+
+### 什么是 RV 模式
+
+RV（Runtime Verification，运行时验证）模式是龙虾卫士的一项可选高级安全能力。开启后，系统会在常规规则引擎之外，额外运行一套**办公场景 FSM 监视器**，通过滑动窗口分析工具调用的行为序列，识别链式风险。
+
+### RV 模式能做什么
+
+| 场景 | 检测内容 | 判定 |
+|------|---------|------|
+| 邮件外发 + 敏感内容 | 外部收件人 + 含敏感信息 | block |
+| 邮件群发 / AI 草稿 | 群发或 AI 内容未审阅 | ask |
+| 日报外发 + 内部来源 | 内部日报发到外部 | block |
+| 搜索文件 → 删除 | 先搜索高价值路径后删除 | block |
+| 关闭审计 → 改配置 | 先关审计后改配置 | block |
+| 下载附件 → 外传 | 下载后外发或发邮件 | escalate |
+| 读取凭据 → 网络连接 | 读敏感凭据后外联 | escalate |
+| 批量删除累积 | 10 次以上 ask / 50 次以上 block | ask / block |
+| 数据库查询后导出 | 查敏感表后导出 | escalate |
+| 批量上传到外部 | 大批量文件发往外网 | escalate |
+| 共享链接权限变更 | 改为公开或移除密码 | ask |
+
+### 开启/关闭 RV 模式
+
+在龙虾卫士 Dashboard 右上角，点击 **RV 模式** 开关按钮：
+
+- **开启**（绿色高亮）：Dashboard 显示安全执行链路 Trace 时间线和 RV 引擎状态面板
+- **关闭**（灰色）：恢复标准视图，隐藏 Trace 和 RV 详情
+
+切换实时生效，状态持久化到浏览器本地存储。
+
+### RV 模式激活后的 UI 变化
+
+| 区域 | 常规模式 | RV 模式 |
+|------|----------|---------|
+| Dashboard | 概览、统计、待审批、最近动作 | 额外显示 Trace 时间线 + RV 引擎状态面板 |
+| 动作卡片 | 风险标签、原因 | 额外显示 RV 判定徽章 |
+| 引擎状态 | 不可见 | 显示监视器数量、窗口大小、快照 |
+
+### RV 后端 API
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/rv/status` | GET | 返回 RV 引擎当前状态（监视器数、窗口大小、窗口快照） |
+| `/api/rv/toggle` | POST | 切换 RV 模式（`{"enabled": true/false}`） |
+| `/api/summary` | GET | 返回的 `rv` 字段包含当前模式和引擎摘要 |

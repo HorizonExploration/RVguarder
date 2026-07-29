@@ -3,6 +3,14 @@ async function fetchSummary() {
   catch (_) { return {}; }
 }
 
+async function fetchRvStatus() {
+  try {
+    const r = await fetch("/api/rv/status");
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (_) { return null; }
+}
+
 const state = {
   summary: {},
   view: "dashboard",
@@ -17,6 +25,7 @@ const state = {
   _summaryHash: "",
   _userScrolling: false,
   rvMode: (localStorage.getItem("openclaw-guard-rv-mode") || "on") === "on",
+  rvStatus: null,
 };
 
 const T = {
@@ -78,6 +87,8 @@ function esc(v) { return String(v ?? "").replaceAll("&","&amp;").replaceAll("<",
 function _setRvMode(on) {
   state.rvMode = !!on;
   localStorage.setItem("openclaw-guard-rv-mode", state.rvMode ? "on" : "off");
+  toast(state.rvMode ? "🔄 RV 模式已开启 — 安全执行链路实时追踪" : "🔄 RV 模式已关闭 — 恢复标准视图");
+  api("/api/rv/toggle", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: state.rvMode }) }).catch(() => {});
 }
 
 /* ── API & Toast ─────────────────────── */
@@ -104,6 +115,11 @@ function startPolling() {
       if (h !== state._summaryHash || state.loading) {
         state.summary = s; state.loading = false; state._summaryHash = h; render();
       }
+      // 异步更新 RV 状态（不影响主渲染）
+      if (state.rvMode) {
+        const rv = await fetchRvStatus();
+        if (rv) state.rvStatus = rv;
+      }
     } catch (_) {}
   }, 1500);
 }
@@ -123,6 +139,29 @@ function renderPager(pk, cur, total) {
   return '<div class="pager"><button class="pager-btn" data-key="' + pk + '" data-n="0"' + (cur<=1?" disabled":"") + '>' + t("prevPage") + '</button><span class="pager-info">' + t("pageInfo").replace("{current}",cur).replace("{total}",total) + '</span><button class="pager-btn" data-key="' + pk + '" data-n="1"' + (cur>=total?" disabled":"") + '>' + t("nextPage") + '</button></div>';
 }
 
+function _rvStepTone(s) {
+  const p = (s.props || []).join(' ');
+  if (p.includes('block') || p.includes('secret')) return 'danger';
+  if (p.includes('ask') || p.includes('escalate')) return 'warn';
+  return '';
+}
+function _rvStatusPanel(rvData) {
+  if (!rvData || !rvData.engine) return '';
+  const eng = rvData.engine;
+  const win = eng.window_snapshot || [];
+  return '<section class="card rv-status-card">'
+    + '<div class="card-head"><h3>🔄 运行时验证引擎</h3><span class="badge info">活跃</span></div>'
+    + '<div class="rv-status-grid">'
+    + '<div class="rv-stat"><span class="rv-stat-label">监视器</span><strong>' + esc(eng.monitor_count || 0) + '</strong></div>'
+    + '<div class="rv-stat"><span class="rv-stat-label">窗口大小</span><strong>' + esc(eng.window_size || 0) + '</strong></div>'
+    + '</div>'
+    + (win.length ? '<div class="rv-window"><div class="rv-window-head">滑动窗口快照</div><div class="rv-window-steps">' 
+      + win.slice(-5).map(s => '<span class="rv-window-step' + (_rvStepTone(s) ? ' tone-' + _rvStepTone(s) : '') + '">'
+        + esc(s.event || '?') + '</span>').join(' → ')
+      + '</div></div>' : '')
+    + '</section>';
+}
+
 /* ── Dashboard（完整功能） ────────────── */
 function renderDashboard() {
   const items = (state.summary.actions || {}).items || [];
@@ -135,6 +174,7 @@ function renderDashboard() {
     + _heroCard(connected, chat)
     + _statsRow(items, pending)
     + (state.rvMode ? _liveTrace(items) : "")
+    + (state.rvMode ? _rvStatusPanel(state.rvStatus) : "")
     + _pendingSection(pending)
     + _recentSection(items)
     + _hookSection(hook)
@@ -357,7 +397,7 @@ function renderSettingsView() {
 /* ── Shared card ──────────────────────── */
 function renderPendingCard(item) {
   const d=item.decision||{},ip=item.status==="pending_approval",il=item._loading;
-  return '<article class="approval-card tone-'+esc(d.risk_level||"safe")+(il?" card-loading":"")+'"><div class="approval-head"><span class="risk-chip">'+esc(d.risk_level||"safe")+'</span><span class="status-chip">'+t("status_"+(item.status||"unknown"))+'</span></div><h4>'+esc(item.target_summary||item.source_message||"")+'</h4><p>'+esc(d.reason||"")+'</p>'+(ip?'<div class="approval-actions"><button class="btn primary approve-action" data-id="'+esc(item.action_id)+'"'+(il?" disabled":"")+'>'+(il?t("approving"):t("approve"))+'</button><button class="btn danger reject-action" data-id="'+esc(item.action_id)+'"'+(il?" disabled":"")+'>'+(il?t("rejecting"):t("reject"))+'</button></div>':"")+'<details><summary>'+t("details")+'</summary><pre>'+esc(JSON.stringify(item,null,2))+'</pre></details></article>';
+  return '<article class="approval-card tone-'+esc(d.risk_level||"safe")+(il?" card-loading":"")+'"><div class="approval-head"><span class="risk-chip">'+esc(d.risk_level||"safe")+'</span><span class="status-chip">'+t("status_"+(item.status||"unknown"))+'</span></div><h4>'+esc(item.target_summary||item.source_message||"")+'</h4><p>'+esc(d.reason||"")+'</p>'+(state.rvMode && item.event?.metadata?.rv_result?.verdict ? '<div class="rv-badge ' + esc(item.event.metadata.rv_result.verdict) + '">RV: ' + esc(item.event.metadata.rv_result.verdict.toUpperCase()) + '</div>' : '')+(ip?'<div class="approval-actions"><button class="btn primary approve-action" data-id="'+esc(item.action_id)+'"'+(il?" disabled":"")+'>'+(il?t("approving"):t("approve"))+'</button><button class="btn danger reject-action" data-id="'+esc(item.action_id)+'"'+(il?" disabled":"")+'>'+(il?t("rejecting"):t("reject"))+'</button></div>':"")+'<details><summary>'+t("details")+'</summary><pre>'+esc(JSON.stringify(item,null,2))+'</pre></details></article>';
 }
 
 /* ── Main render ──────────────────────── */

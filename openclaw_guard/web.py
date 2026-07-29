@@ -157,6 +157,7 @@ _GET_ROUTES = {
     "/api/audit/export": api.audit_export,
     "/api/runtime/refresh": api.refresh_runtime,
     "/api/debug/logs": api.debug_logs,
+    "/api/rv/status": api.rv_status,
 }
 
 _POST_ROUTES = {
@@ -173,6 +174,7 @@ _POST_ROUTES = {
     "/api/skills/delete": api.skill_delete,
     "/api/channels/upsert": api.channel_upsert,
     "/api/channels/delete": api.channel_delete,
+    "/api/rv/toggle": api.rv_toggle,
 }
 
 

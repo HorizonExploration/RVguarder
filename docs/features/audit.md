@@ -19,7 +19,7 @@
 ## 使用命令
 
 ```bash
-python -m openclaw_guard.main export-audit
+openclaw-guard export-audit /path/to/output.json
 ```
 
 ## 当前审计记录类型

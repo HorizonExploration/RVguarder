@@ -111,6 +111,14 @@ def refresh_runtime(manager: OpenclawGuardManager) -> JsonResponse:
     return manager.refresh_runtime_target(), HTTPStatus.OK
 
 
+def rv_status(manager: OpenclawGuardManager) -> JsonResponse:
+    return manager.rv_status(), HTTPStatus.OK
+
+
+def rv_toggle(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+    return manager.rv_toggle(payload), HTTPStatus.OK
+
+
 def debug_logs(manager: OpenclawGuardManager) -> JsonResponse:
     return {"path": str(manager.log_path), "items": manager.recent_logs()}, HTTPStatus.OK
 
