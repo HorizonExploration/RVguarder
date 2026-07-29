@@ -1,251 +1,312 @@
 # Openclaw-RVGuarder / 龙虾卫士
 
-Openclaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式安全增强客户端与本地控制面。
-
-项目目标是在**不修改 OpenClaw 源码**的前提下，为 OpenClaw 增加更清晰的安全交互、更可控的执行前审批、更完整的基线扫描与审计能力，并通过 **RV（运行时验证）引擎** 实现全链路行为模式监控。
+> 面向 OpenClaw 的非侵入式运行时安全保护系统
+> 
+> *Non-intrusive runtime security protection for OpenClaw*
 
 ![Python](https://img.shields.io/badge/Python-3.13%2B-3776AB?logo=python&logoColor=white)
-![OpenClaw](https://img.shields.io/badge/OpenClaw-External%20Guard-111827)
-![Hook](https://img.shields.io/badge/Runtime%20Hook-api.on-0F766E)
+![OpenClaw](https://img.shields.io/badge/OpenClaw-Plugin%20SDK-111827)
+![Hook](https://img.shields.io/badge/Hook-before__tool__call-0F766E)
+![RV](https://img.shields.io/badge/RV-Sliding%20Window%20FSM-7C3AED)
 ![Status](https://img.shields.io/badge/Status-v0.2.1-F59E0B)
 
-## 核心特性
+---
 
-- **非侵入式接入**：全面对齐官方 Plugin SDK 规范，使用 `api.on()` 接入 `before_tool_call` 拦截。
-- **物理审批拦截**：通过 `requireApproval` 实现工具执行前的真正挂起，支持双端状态同步。
-- **RV 运行时验证**：引入基于滑动窗口的行为模式检测，识别「搜索 -> 读取 -> 外发」等链式风险。
-- **语义增强**：集成 DeepSeek LLM 对工具调用进行语义分析，消除关键词匹配的局限性。
-- **基线与审计**：提供全量配置扫描与 SQLite + JSONL 双写审计链。
+## 项目简介 · Introduction
 
-## 项目结构
+Openclaw-RVGuarder（龙虾卫士）是一个面向 [OpenClaw](https://openclaw.ai/) 的**非侵入式安全增强插件**。它在**不修改 OpenClaw 一行源码**的前提下，通过 OpenClaw 官方 Plugin SDK 提供的钩子系统为 AI Agent 增加执行前审批、运行时行为验证、语义风险分析和全链路审计能力。
 
-```text
-OpenClaw-RVGuarder/
-├── openclaw_guard/         # 核心后端代码
-│   ├── api/                # HTTP 接口处理器
-│   ├── core/               # 核心业务逻辑 (Action, Audit, Baseline)
-│   ├── engine/             # 安全引擎 (Detection, RV, Semantic, Whitelist)
-│   ├── integrations/       # OpenClaw 适配器与 Hook 运行时
-│   ├── storage/            # 数据持久化层
-│   ├── manager.py          # 业务编排主入口
-│   └── web.py              # Web 服务定义
-├── frontend/               # 前端独立工程 (Vite + JS SPA)
-├── runtime/                # 运行时数据与生成的 Hook 插件
-├── docs/                   # 项目文档与 VuePress 文档站
-├── policies/               # 安全策略规则定义
-└── tests/                  # 单元测试与回归测试
+**核心设计原则**：
+
+- **非侵入** — 不改 OpenClaw 源码，通过插件桥接完成安全增强
+- **先决策后执行** — 高风险操作必须通过审批才能真正执行
+- **可取证** — 全链路审计，支持 SQLite/JSONL 双写与导出
+- **可降级** — 后端不可达时自动进入熔断 fail-open，不影响 OpenClaw 正常使用
+
+---
+
+## 核心特性 · Core Features
+
+| 特性 | 说明 | Status |
+|------|------|--------|
+| **原生钩子拦截** | `api.on("before_tool_call")` 官方 API，工具执行前物理挂起 Agent | ✅ |
+| **requireApproval 挂起** | 返回 BeforeToolCallResult 类型，Agent 线程真正挂起等待审批 | ✅ |
+| **双端状态同步** | OpenClaw 原生审批卡片 ↔ Guard Dashboard 双向实时同步 | ✅ |
+| **电路熔断器** | 后端不可达时自动开启熔断，优雅降级 fail-open，不封锁 OpenClaw | ✅ |
+| **语义理解增强** | DeepSeek LLM 驱动语义分析，7 维度 50+ 标签，理解自然语言意图 | ✅ |
+| **运行时验证 RV** | 滑动窗口 + FSM 监视器，检测链式攻击模式（搜索→删除→外发） | ✅ |
+| **基线安全扫描** | 配置、端口、用户、依赖全量扫描，输出 JSON/HTML/PDF 报告 | ✅ |
+| **审计链** | SQLite + JSONL 双写，哈希链防篡改，支持 JSON/CSV 导出 | ✅ |
+| **Web 工作台** | 轻量 SPA 前端，集成审批、Trace 可视化、RV 状态面板 | ✅ |
+
+---
+
+## 架构总览 · Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   Dashboard (前端 SPA)                    │
+│         概览 · 动作审批 · 安全规则 · 基线扫描 · RV 面板      │
+└──────────────────────┬──────────────────────────────────┘
+                       │ HTTP REST API
+┌──────────────────────▼──────────────────────────────────┐
+│               Guard Bridge (Python 后端)                  │
+│  ┌─────────┐ ┌──────────┐ ┌────────┐ ┌──────────────┐  │
+│  │ 语义增强 │ │ 规则检测 │ │ RV 引擎 │ │ 白名单/控制  │  │
+│  │ Semantic│ │Detection │ │  FSM+  │ │ Whitelist    │  │
+│  │Enhancer │ │ Engine   │ │ Window │ │ Controller   │  │
+│  └─────────┘ └──────────┘ └────────┘ └──────────────┘  │
+└──────────────────────┬──────────────────────────────────┘
+                       │ HTTP POST (before_tool_call)
+┌──────────────────────▼──────────────────────────────────┐
+│             OpenClaw Plugin Hook (JavaScript)            │
+│  api.on("before_tool_call") → requireApproval            │
+│  api.on("after_tool_call")  → audit logging              │
+│  Circuit Breaker · Health Check · onResolution callback  │
+└──────────────────────┬──────────────────────────────────┘
+                       │ Plugin SDK
+┌──────────────────────▼──────────────────────────────────┐
+│                   OpenClaw Gateway                        │
+│           Agent 运行 · 工具调用 · 原生审批 UI              │
+└─────────────────────────────────────────────────────────┘
 ```
 
-## 快速开始
+### 拦截链路
 
-```bash
-# 1. 安装依赖
-pip install -e .
-
-# 2. 启动服务
-openclaw-guard run
+```
+OpenClaw 准备调用工具
+  → api.on("before_tool_call") 触发
+  → 插件 POST Guard 后端 /api/hook/before-tool-call
+  → Guard: 语义分析 → 规则检测 → RV 验证 → 白名单 → 决策
+  → 返回 requireApproval | block | allow
+  → requireApproval 时 Agent 挂起，弹出审批卡片
+  → 用户审批 → onResolution 回调 → 双端同步
+  → Agent 继续或终止工具调用
+  → after_tool_call 回写审计
 ```
 
-该命令会：
+---
 
-- 自动发现 OpenClaw 配置
-- 准备 `runtime/`、`output/`、`exports/` 等目录
-- 自动补齐一份基线扫描结果
-- 生成/同步 Hook 插件并写入 OpenClaw 配置
-- 启动本地 Web 工作台
-- 默认尝试打开浏览器
+## 快速开始 · Quick Start
 
-### 4. 仅做自检
+### 环境要求
 
-```bash
-openclaw-guard run --once --no-browser
-```
+- Python 3.13+
+- OpenClaw (已安装并运行)
+- Node.js (可选，前端开发)
 
-## 常用命令
-
-```bash
-openclaw-guard run                  # 启动主服务
-openclaw-guard run --no-browser     # 启动但不开浏览器
-openclaw-guard doctor               # 打印运行链路健康状况
-openclaw-guard baseline             # 运行基线扫描
-openclaw-guard export-audit /path/audit.json  # 导出审计 JSONL
-openclaw-guard install-hook         # 把 Hook 插件路径写入 OpenClaw 配置
-openclaw-guard uninstall-hook       # 移除 Hook 插件路径
-```
-
-## 前端能力
-
-当前 Guard 工作台支持以下主要功能：
-
-- OpenClaw 连接状态与当前模型/Agent 展示
-- 待确认动作审批（确认继续 / 拒绝）
-- 动作历史分页浏览（按状态筛选）
-- 运行时 Hook 状态检查
-- 基线扫描与整改建议查看
-- 审计导出
-
-> 对话功能回归 OpenClaw 原生页面，Guard 不再提供内置对话 UI。
-
-## 输出目录
-
-运行过程中，Guard 会生成以下内容：
-
-### 基线扫描输出
-
-- `output/reports/compliance-report.json`
-- `output/reports/compliance-report.html`
-- `output/reports/compliance-report.pdf`
-- `output/fixes/baseline-remediation.sh`
-
-### 审计与导出
-
-- `output/audit/audit.db`
-- `output/audit/audit.jsonl`
-- `exports/audit-export.json`
-- `exports/audit-export.csv`
-
-### 运行时数据
-
-- `runtime/ui/`
-- `runtime/guard.log`
-- `runtime/controlled-actions.json`
-- `runtime/latest-baseline.json`
-- `runtime/openclaw-guard-plugin/`
-
-## 文档站
-
-本项目附带完整 VuePress 文档站，位于 `docs/`。
-
-本地预览：
-
-```bash
-cd docs
-npm install
-npm run docs:dev
-```
-
-构建静态站点：
-
-```bash
-cd docs
-npm run docs:build
-```
-
-## 部署方式
-
-### 本地部署
+### 安装
 
 ```bash
 pip install -e .
+```
+
+### 启动
+
+```bash
 openclaw-guard run
 ```
 
-## 与 OpenClaw 的集成说明
+启动后自动完成：发现 OpenClaw 配置 → 准备运行时目录 → 补齐基线扫描 → 生成 Hook 插件并注入配置 → 启动 Web 工作台。
 
-Openclaw Guard 遵循“非侵入式”原则：
+浏览器访问 `http://localhost:8780` 即可进入 Dashboard。
 
-- 不修改 OpenClaw 源码
-- 不替换系统库
-- 不要求改动 OpenClaw 官方前端代码
-
-它主要通过以下方式与 OpenClaw 交互：
-
-- OpenClaw Gateway RPC
-- OpenClaw `sessions.patch` / `chat.send` / `chat.history` / `agent.wait`
-- OpenClaw 原生 Hook
-- 本地运行时插件桥
-
-如果 Guard 已写入 Hook 插件但仍未生效，通常需要按你的实际启动方式重启 OpenClaw Gateway。
-
-例如：
+### 常用命令
 
 ```bash
-cd /path/to/openclaw
-npm run openclaw gateway
+openclaw-guard run                    # 启动服务
+openclaw-guard run --no-browser       # 启动但不打开浏览器
+openclaw-guard run --once             # 一次性自检（不启动长期服务）
+openclaw-guard baseline               # 运行基线扫描
+openclaw-guard doctor                 # 打印链路健康状况
+openclaw-guard export-audit --output ./audit.json  # 导出审计数据
+openclaw-guard install-hook           # 手动注入 Hook 插件
+openclaw-guard uninstall-hook         # 移除 Hook 插件
 ```
 
-## 测试
+---
 
-运行完整测试：
+## 后端结构 · Backend Structure
+
+```
+openclaw_guard/
+├── api/                  # HTTP API 处理器
+│   ├── __init__.py        # 路由注册与导出
+│   └── _handlers.py       # 各 API 端点实现
+├── core/                 # 核心业务逻辑
+│   ├── action_service.py  # 动作审批服务
+│   ├── audit_service.py   # 审计查询服务
+│   └── baseline_service.py# 基线扫描服务
+├── engine/               # 安全检测引擎
+│   ├── behavior.py        # 行为事件建模
+│   ├── control.py         # 决策与控制
+│   ├── detection.py       # 规则引擎（语义优先）
+│   ├── runtime_verification.py  # RV 引擎 + 滑动窗口
+│   ├── rv_monitors.py     # FSM 监视器（Mail/Report/Chain/DataBatch）
+│   ├── semantic_enhancer.py     # 语义分析增强
+│   └── whitelist.py       # 白名单匹配引擎
+├── integrations/         # OpenClaw 集成层
+│   ├── discovery.py       # 环境发现
+│   ├── hook_runtime.py    # Hook 插件生成与管理
+│   ├── openclaw_adapter.py# Gateway 远程调用适配
+│   └── tool_hook_bridge.py# 工具事件桥接
+├── storage/              # 数据持久化
+│   ├── audit_store.py     # 审计存储 + 哈希链
+│   └── db_store.py        # 数据库底层
+├── collectors/           # 运行时采集器
+│   ├── ebpf_adapter.py    # eBPF 接口（预留）
+│   ├── hook_bridge.py     # Hook 桥接采集
+│   └── ptrace_adapter.py  # ptrace 接口（预留）
+├── main.py               # CLI 入口
+├── manager.py            # 业务编排
+├── web.py                # HTTP 服务
+├── ui.py                 # 前端资源管理
+├── config.py             # 配置与上下文
+└── models.py             # 数据模型
+```
+
+### 前端工程
+
+```
+frontend/
+├── index.html            # 入口 HTML
+├── vite.config.js        # Vite 构建配置
+├── package.json          # 依赖
+└── src/
+    ├── app.js            # 主逻辑（SPA 渲染 + API 调用）
+    └── styles.css        # 样式
+```
+
+前端为独立工程，构建产物输出到 `runtime/ui/` 由后端静态托管。
+
+---
+
+## 运行时插件 · Hook Plugin
+
+Guard 通过生成一个标准的 OpenClaw 插件注入拦截逻辑：
+
+```
+runtime/openclaw-guard-plugin/
+├── package.json           # npm 包描述 (openclaw.extensions)
+├── openclaw.plugin.json   # 插件清单 (activation.onStartup: true)
+└── index.js               # 插件入口
+```
+
+插件注册的钩子：
+
+| 钩子 | 类型 | 用途 |
+|------|------|------|
+| `before_tool_call` | 同步拦截 | 物理挂起工具调用，返回 requireApproval |
+| `after_tool_call` | 异步审计 | 回写执行结果、耗时、错误 |
+| `before_prompt_build` | 非阻塞 | 意图预警（可选） |
+| `gateway_start` | 生命周期 | 初始化熔断器与健康检查 |
+| `gateway_stop` | 生命周期 | 清理健康检查定时器 |
+
+插件内置**电路熔断器**：
+- 后端不可达 → 优雅期（30s）→ 连续失败 ≥ 3 次 → 熔断 OPEN（fail-open）
+- 后端恢复 → 连续成功 ≥ 2 次 → 熔断 CLOSED（fail-closed）
+- 熔断期内所有工具调用自动放行，不阻塞 OpenClaw
+
+---
+
+## RV 运行时验证 · Runtime Verification
+
+RV 引擎通过滑动窗口和 FSM 监视器检测链式攻击模式：
+
+```
+工具调用链（按时间顺序）
+  s1: file_read  /tmp/data.xlsx                    ← 读取外部附件
+  s2: file_read  → 含 contains_secret              ← 读取到敏感数据
+  s3: file_search → 搜索通讯录                      ← 正常操作
+  s4: file_write → 合并数据到新文件                  ← 敏感数据被写入
+  s5: network_egress → external_target              ← 数据外传
+
+SecurityChainMonitor 触发:
+  检测到 "不可信来源 → 读取敏感数据 → 外传到外部目标" 链路
+  → 判定: BLOCK（自动阻断，级别高于单步规则 ASK）
+```
+
+### 内置监视器
+
+| 监视器 | 场景 | 判定 |
+|--------|------|------|
+| MailMonitor | 邮件外发 + 敏感内容 | block |
+| ReportMonitor | 日报外发 + 内部来源 | block |
+| SecurityChainMonitor | 搜索→删除 / 关审计→改配置 / 下载→外传 | block/escalate |
+| BroadcastMonitor | 消息群发/广播 | ask/block |
+| DataExportMonitor | 数据库查询后导出 | escalate/block |
+| BatchFileMonitor | 文件批量操作 | ask/escalate |
+
+---
+
+## 语义增强 · Semantic Enhancement
+
+`SemanticEnhancer` 对每个工具调用进行语义分析，产出结构化标签供检测引擎和 RV 引擎消费：
+
+**标签体系（7 维度）**：
+- 基础标签：action_type, scenario, outside_workspace
+- 命令标签：command_rm_rf, command_sudo, command_pipe_curl_sh
+- 路径标签：path_system_root, path_sensitive_creds, path_high_value
+- 网络标签：network_http, network_webhook, network_secret_payload
+- 配置标签：config_auth_disable, config_audit_disable
+- 渠道/技能标签：channel_external_send, skill_system_admin
+- 办公场景标签：mail_send, report_send, external_recipient, contains_secret
+
+支持双模式运行：
+- **LLM 模式**（配置 `DEEPSEEK_API_KEY` 后启用）
+- **本地规则化模式**（默认，延迟 < 1ms）
+
+---
+
+## 测试 · Testing
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-## FAQ
+测试覆盖：
 
-### 1. Guard 会修改 OpenClaw 源码吗？
+| 测试文件 | 覆盖内容 |
+|----------|----------|
+| `test_detection.py` | 规则引擎决策逻辑 |
+| `test_semantic_enhancer.py` | 语义增强器输出结构 |
+| `test_rv.py` | RV 引擎 + WindowManager |
+| `test_rv_fsm.py` | FSM 监视器状态转换 |
+| `test_baseline.py` | 基线扫描 |
+| `test_web_cli.py` | CLI 命令路由 |
+| `test_frontend_rv_contract.py` | 前端 ←→ 后端 RV 接口契约 |
+| `test_rv_frontend_integration.py` | 前端 RV 集成 |
 
-不会。Openclaw Guard 设计上遵循非侵入式原则，不修改 OpenClaw 官方源码文件。当前集成方式主要依赖：
+---
 
-- Gateway RPC
-- OpenClaw 原生 Hook
-- 本地运行时插件桥
-- Guard 自己的前端与本地 HTTP 服务
+## 文档站点 · Documentation Site
 
-### 2. 为什么 Guard 已启动，但仍提示运行时不可达？
-
-通常有以下几种原因：
-
-- OpenClaw Gateway 尚未启动
-- Gateway 已启动，但当前鉴权信息与 Guard 读取到的配置不一致
-- Hook 插件已经写入配置，但当前运行中的 Gateway 进程还没有重启加载它
-- 本机回环地址、局域网绑定方式或端口暴露状态与当前配置不一致
-
-建议优先检查：
-
-- `openclaw.json` 中的 `gateway` 配置
-- Guard 设置页中的运行时调试信息
-- `runtime/guard.log`
-
-### 3. 为什么模型切换后，实际回复模型和界面显示不一致？
-
-当前版本已经优先使用 OpenClaw 会话中的真实 `session key` 和 canonical model 标识来切模型，并在切换后回读会话模型确认结果。如果仍然不一致，通常说明：
-
-- 当前运行中的 OpenClaw 会话不是 Guard 正在控制的那一个
-- Gateway 返回的是旧会话状态
-- 当前 provider 已限流或不可用，OpenClaw 在运行时做了降级或回退
-
-### 4. 危险动作什么时候会被拦截？
-
-当前重点覆盖这些动作：
-
-- 删除文件
-- 写入文件
-- 修改配置
-- 外联请求
-- 渠道发送
-- 技能执行
-- OpenClaw 工具层 Hook 进入的高风险工具调用
-
-其中高风险动作会先进入审批，不会直接继续执行。
-
-### 5. 普通用户应该怎么启动？
-
-推荐直接使用：
+项目附带完整 VuePress 文档站（位于 `docs/`）：
 
 ```bash
-python -m openclaw_guard.main normal
+cd docs
+npm install
+npm run docs:dev     # 本地预览
+npm run docs:build   # 构建静态站点
 ```
 
-这个模式会自动准备运行目录、补一份基线扫描结果，并打开更简洁的前端界面。
+文档目录：
 
-## 已知边界
+| 路径 | 内容 |
+|------|------|
+| `features/runtime-hook.md` | 运行时 Hook 拦截详解 |
+| `features/action-gate.md` | 高危动作审批链 |
+| `features/audit.md` | 审计与取证 |
+| `features/baseline.md` | 基线扫描与合规检测 |
+| `architecture/overview.md` | 架构总览与代码映射 |
+| `api/http.md` | HTTP 接口清单 |
+| `semantic/method.md` | 语义理解增强方案 |
+| `deployment/local.md` | 本地部署 |
+| `ops/faq.md` | 常见问题 |
+| `test-design/openclaw-guard-test-design.md` | 测试设计方案 |
 
-当前版本已经能完成真实对话、模型切换、Hook 接入、动作审批、基线扫描与审计导出，但仍有这些边界：
+---
 
-- `ptrace` / `eBPF` 目前主要是能力探测与接口预留，主执行链依赖 OpenClaw 原生 Hook
-- 某些不走当前 Guard Hook 拦截链的内部运行路径，仍需要继续补充覆盖
-- 运行时链路依赖 OpenClaw Gateway 的实际可达性与鉴权配置
-- 前端仍在持续优化中，当前版本已支持局部 patch、增量消息刷新和轻量状态轮询，但还会继续打磨
+## 许可证 · License
 
-## 参考资料
-
-- [OpenClaw 官方网站](https://openclaw.ai/)
-- [OpenClaw Control UI 文档](https://docs.openclaw.ai/control-ui)
-- [OpenClaw Sessions 文档](https://docs.openclaw.ai/concepts/session)
-- [OpenClaw Hooks 文档](https://docs.openclaw.ai/automation/hooks)
-
-## 许可证
-
-本项目采用 Apache-2.0 开源协议。
+Apache-2.0

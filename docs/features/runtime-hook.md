@@ -67,12 +67,35 @@ OpenClaw 进入工具调用
 }
 ```
 
-### fail-closed 模式
+### 电路熔断器（Circuit Breaker）
 
-当 Guard 后端不可达时，根据 `failClosed` 配置决定行为：
+Guard 后端可能因维护、故障或网络隔离而不可达。为了避免「后端停服 → 全盘封锁 OpenClaw」，插件内置三层降级保护：
 
-- **failClosed = true**（默认）：返回 `{ block: true, blockReason: "Guard backend unreachable..." }`，工具调用被硬阻块
-- **failClosed = false**：返回 `undefined`，工具调用绕过审批继续执行
+1. **优雅期（Grace Period）**：首次检测到后端不可达时，进入 30 秒优雅期。优雅期内返回 `{ block: true }` 硬阻块。
+2. **熔断打开（Circuit OPEN）**：优雅期结束后，若连续失败 ≥ 3 次，熔断器进入 **OPEN**（fail-open）状态。此时所有工具调用绕过审批直接执行，不再封锁 OpenClaw。
+3. **熔断闭合（Circuit CLOSED）**：后端恢复后，健康检查连续成功 ≥ 2 次，熔断器自动闭合，恢复 fail-closed 审批模式。
+
+行为总结：
+
+| 后端状态 | 熔断器状态 | 行为 | 含义 |
+|----------|-----------|------|------|
+| 正常 | CLOSED | 返回 requireApproval / block / allow | 正常审批 |
+| 刚断开（< 30s） | CLOSED（优雅期） | 返回 block | 短时故障硬阻块 |
+| 断开（> 30s，≥ 3 次失败） | OPEN | 返回 undefined（放行） | 后端停服不封锁 OpenClaw |
+| 恢复（≥ 2 次健康检查成功） | CLOSED | 返回 requireApproval / block / allow | 恢复正常审批 |
+
+通过 `pluginConfig` 可配置：
+
+```javascript
+pluginConfig = {
+  failClosed: true,                    // false: 后端不可达时直接放行（不进入优雅期）
+  failThreshold: 3,                    // 连续失败次数阈值
+  recoveryThreshold: 2,                // 恢复成功次数阈值
+  failClosedGracePeriodMs: 30000,      // 优雅期毫秒数
+}
+```
+
+> **注意**：`failClosed: false` 时，后端不可达会直接放行所有工具调用（跳过优雅期和熔断），适用于不希望任何锁定的场景。
 
 ## 双端同步机制
 
