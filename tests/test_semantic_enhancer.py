@@ -62,6 +62,11 @@ class SemanticEnhancerTests(unittest.TestCase):
             self.assertEqual(payload["status"], "pending_approval")
 
     def test_semantic_decision_blocks_external_mail_with_secret(self) -> None:
+        """SEM-OFFICE-001 (mail_send + external + secret → block) 已迁移至 MailMonitor FSM。
+
+        单步 DetectionEngine 不再对 chat_message 类型的 mail_send 做 block 判定，
+        而是由 RV 引擎的 MailMonitor 在链式上下文中触发。此处验证单步兜底逻辑返回 ask。
+        """
         event = BehaviorEvent(
             event_id="evt-2",
             timestamp=utc_now_iso(),
@@ -73,8 +78,9 @@ class SemanticEnhancerTests(unittest.TestCase):
             source="chat",
         )
         decision = DetectionEngine().evaluate(event)
-        self.assertEqual(decision.action, "block")
-        self.assertIn("邮件外发包含敏感信息", decision.reason)
+        # 单步判定：fallback 对 mail_send 场景返回 ask（RV FSM 负责链式 block）
+        self.assertEqual(decision.action, "ask")
+        self.assertIn("外发类办公场景默认进入人工确认", decision.reason)
 
     def test_handle_before_tool_call_attaches_semantic_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -105,6 +111,11 @@ class SemanticEnhancerTests(unittest.TestCase):
             self.assertIn("external_recipient", metadata["rv_trace"][0]["props"])
 
     def test_create_chat_action_uses_semantic_decision_for_report_send(self) -> None:
+        """SEM-OFFICE-002 (report_send + external + internal_source → block) 已迁移至 ReportMonitor FSM。
+
+        manager 全流程中，单步判定对 report_send 场景返回 ask，
+        RV 引擎的 ReportMonitor 在有历史上下文时负责链式 block。
+        """
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp) / "OpenclawGuard"
             project.mkdir()
@@ -114,7 +125,8 @@ class SemanticEnhancerTests(unittest.TestCase):
 
             payload = manager.create_chat_action("把今天的日报发给 alice@example.com，不要带内部 bug 细节")
 
-            self.assertEqual(payload["decision"]["action"], "block")
+            # 单步判定：fallback 对 report_send 场景返回 ask（RV FSM 负责链式 block）
+            self.assertEqual(payload["decision"]["action"], "ask")
             self.assertEqual(payload["event"]["metadata"]["semantic"]["scenario"], "report_send")
             self.assertIn("internal_source", payload["event"]["metadata"]["rv_trace"][0]["props"])
 

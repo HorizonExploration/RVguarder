@@ -7,7 +7,18 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from openclaw_guard.manager import build_manager
-from openclaw_guard.web import launch_web
+from openclaw_guard.legacy_web import launch_web
+
+
+def _select_launch_web(args):
+    """根据 --fastapi flag 选择 HTTP 层实现。
+
+    默认使用旧版 legacy_web，--fastapi 切换到新 FastAPI 层。
+    """
+    if getattr(args, "fastapi", False):
+        from openclaw_guard.web import launch_web as _fastapi_launch
+        return _fastapi_launch
+    return launch_web
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -71,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.once:
             print(json.dumps(manager.summary(), ensure_ascii=False, indent=2))
             return 0
-        server, thread, url = launch_web(manager, args.host, args.port, no_browser=args.no_browser)
+        server, thread, url = _select_launch_web(args)(manager, args.host, args.port, no_browser=args.no_browser)
         print(json.dumps({"url": url, "project_dir": str(args.project_dir)}, ensure_ascii=False))
         try:
             thread.join()
@@ -121,6 +132,7 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--port", type=int, default=8780)
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--once", action="store_true")
+    parser.add_argument("--fastapi", action="store_true", help="使用 FastAPI HTTP 层（试验性）")
 
 
 def _add_maintenance_arguments(parser: argparse.ArgumentParser) -> None:
