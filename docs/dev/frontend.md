@@ -21,7 +21,7 @@ runtime/ui/                     # 构建产物（.gitignore，由 pnpm build 生
 ```
 
 - `frontend/` 是开发工作区，使用 Vite 做开发服务器和构建
-- `runtime/ui/` 是构建产物目录，由 Python 后端的 `web.py` 静态托管
+- `runtime/ui/` 是构建产物目录，由 Python 后端的 `legacy_web.py` 或 `web/` 包静态托管
 - 两者**不是**冗余：一个是源码，一个是输出
 
 ## 开发流程
@@ -117,4 +117,4 @@ def build_ui(target_dir: Path, summary=None) -> None:
     target_dir.mkdir(parents=True, exist_ok=True)
 ```
 
-`openclaw_guard/web.py` 负责托管 `runtime/ui/` 下的静态文件（`/`、`/app.js`、`/styles.css`）。
+`openclaw_guard/legacy_web.py`（旧版）和 `openclaw_guard/web/routes/static.py`（FastAPI）负责托管 `runtime/ui/` 下的静态文件（`/`、`/app.js`、`/styles.css`）。

@@ -1,8 +1,12 @@
+"""CLI 入口（argparse）。
+
+v0.3.0: 默认使用 legacy_web (stdlib)，--fastapi flag 切换到 FastAPI web/ 包。
+"""
+
 from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path
 from dotenv import load_dotenv
 

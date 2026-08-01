@@ -1,6 +1,6 @@
 # 发展路线图 · Roadmap
 
-当前版本：**v0.2.1** — 钩子、同步、RV、熔断器核心链路已闭环。
+当前版本：**v0.3.0** — FastAPI HTTP 层就绪，Pydantic v2 模型迁移完成。
 
 ---
 
@@ -15,6 +15,9 @@
 | 电路熔断器 | v0.2.1 | 优雅期 → 熔断 OPEN（fail-open）→ 恢复 CLOSED 三态自动切换 |
 | RV 运行时验证 | v0.2.1 | 6 个 FSM 监视器（Mail/Report/Chain/Broadcast/DataExport/BatchFile），滑动窗口 10 步 |
 | 前端 RV 面板 | v0.2.1 | Trace 时间线、RV 状态面板、RV 模式开关 |
+| **FastAPI HTTP 层** | **v0.3.0** | `web/` 包替代 stdlib `http.server`，`--fastapi` flag 选择加入，统一异常处理 |
+| **Pydantic v2 模型** | **v0.3.0** | models.py 全部迁移至 BaseModel，自动验证 + 序列化，`to_dict()` 兼容别名 |
+| **旧版 HTTP 层保留** | **v0.3.0** | `legacy_web.py` 为默认 HTTP 服务，与 FastAPI 双轨并行
 
 ---
 

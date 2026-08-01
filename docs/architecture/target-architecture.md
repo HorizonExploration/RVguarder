@@ -1,6 +1,6 @@
 # 重构后目标架构设计
 
-> 版本：v1.0 (重构目标) | 日期：2026-07-30 | 作者：架构评审组
+> 版本：v1.0 (重构目标) | 日期：2026-08-01 | 作者：架构评审组
 
 ---
 
@@ -516,17 +516,17 @@ jobs:
 
 ## 10. 迁移后对比
 
-| 维度 | 重构前 (v0.2.1) | 重构后 (v1.0) |
-|------|-----------------|---------------|
-| Web 框架 | `BaseHTTPRequestHandler` | FastAPI |
-| 序列化 | 手动 `to_dict()` | Pydantic 自动 |
-| 请求验证 | 无 | Pydantic schema |
-| API 文档 | 无 | Swagger + ReDoc 自动生成 |
-| 启动速度 | ~3-5秒（同步初始化全部组件） | ~150ms（懒加载，仅创建热路径） |
-| 编排层 | Manager 上帝对象 | 独立 Pipeline + 依赖注入 + LazyProxy |
-| 前端框架 | Vanilla JS（35k 行 app.js） | Preact SPA（3KB gzip，组件化） |
-| 存储层 | SQLiteStore (原生 SQL) | SQLAlchemy (可选) |
-| RV 监视器 | 6 个手写 FSM | ChainRule 声明式规约 |
-| 并发 | threading (无上限) | uvicorn worker (可配置) |
-| 测试 | unittest | pytest + httpx |
-| 类型安全 | 无 | mypy + Pydantic |
+| 维度 | 重构前 (v0.2.1) | 当前 (v0.3.0) | 重构后 (v1.0) |
+|------|-----------------|----------------|---------------|
+| Web 框架 | `BaseHTTPRequestHandler` | **FastAPI + 旧版并存** | FastAPI |
+| 序列化 | 手动 `to_dict()` | **Pydantic v2（to_dict 别名）** | Pydantic 自动 |
+| 请求验证 | 无 | 手动（Phase 1 桥接） | Pydantic schema |
+| API 文档 | 无 | 无（Phase 1 关闭） | Swagger + ReDoc 自动生成 |
+| 启动速度 | ~3-5秒（同步初始化全部组件） | ~3-5秒 | ~150ms（懒加载，仅创建热路径） |
+| 编排层 | Manager 上帝对象 | Manager 上帝对象 | 独立 Pipeline + 依赖注入 + LazyProxy |
+| 前端框架 | Vanilla JS（35k 行 app.js） | Vanilla JS | Preact SPA（3KB gzip，组件化） |
+| 存储层 | SQLiteStore (原生 SQL) | SQLiteStore (原生 SQL) | SQLAlchemy (可选) |
+| RV 监视器 | 6 个手写 FSM | 6 个手写 FSM | ChainRule 声明式规约 |
+| 并发 | threading (无上限) | threading | uvicorn worker (可配置) |
+| 测试 | unittest | unittest | pytest + httpx |
+| 类型安全 | 无 | **Pydantic 类型约束** | mypy + Pydantic |

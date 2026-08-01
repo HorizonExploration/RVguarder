@@ -40,8 +40,8 @@ features:
   </div>
   <div class="custom-card">
     <h3>📦 当前状态</h3>
-    <p>v0.2.1 — 钩子 API 已全面迁移至官方 `api.on()`，requireApproval 对齐官方规范，双端同步链路已闭环，RV 引擎 6 个监视器已上线，熔断器已落地。</p>
-    <p><em>v0.2.1 — Hook API on official `api.on()`, requireApproval compliant, bidirectional sync live, 6 RV monitors active, circuit breaker deployed.</em></p>
+    <p>v0.3.0 — FastAPI HTTP 层已就绪（默认关闭），Pydantic v2 模型迁移完成，双端同步链路闭环，RV 引擎 6 个监视器上线，熔断器、语义增强已落地。</p>
+    <p><em>v0.3.0 — FastAPI HTTP layer ready (opt-in), Pydantic v2 models migrated, bidirectional sync live, 6 RV monitors active, circuit breaker + semantic enhancer deployed.</em></p>
   </div>
 </div>
 
@@ -53,7 +53,7 @@ features:
 
 OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式安全增强客户端与本地控制面。我们不做替代品，做的是**安全补位**。
 
-v0.2.1 是一次彻底的**纠偏**——全面对齐官方 Plugin SDK 规范，用 `api.on()` 替代已废弃的 `registerHook`，`requireApproval` 遵循 `BeforeToolCallResult` 类型，双端同步通过 `onResolution` 回调 + Gateway 远程调用的双向 Push 机制实现实时流转。新增的 RV 引擎和电路熔断器分别解决了链式攻击检测和服务降级两大核心问题。
+v0.3.0 完成了两阶段架构升级：引入 FastAPI HTTP 层（`--fastapi` flag 选择加入）替代 stdlib `http.server`，并将全部数据模型从 `@dataclass` 迁移至 **Pydantic v2**。同时删除了死代码 `ActionService.ingest` 和 `_action_from_mapping`，清理了重复文件和孤立字节码。
 
 **English**
 

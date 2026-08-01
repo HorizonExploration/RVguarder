@@ -3,7 +3,7 @@
 实际前端资源由前端工程 frontend/ 构建产出（pnpm build → runtime/ui/），
 或直接手动放置静态文件。
 
-web.py 负责托管 runtime/ui/ 目录下的 index.html / app.js / styles.css。
+legacy_web.py / web/ 包的静态文件路由负责托管 runtime/ui/ 目录下的静态文件。
 """
 
 from __future__ import annotations

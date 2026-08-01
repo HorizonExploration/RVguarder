@@ -10,8 +10,6 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from copy import deepcopy
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Callable
 
@@ -129,84 +127,6 @@ class ActionService:
     def get_action(self, action_id: str) -> dict[str, Any] | None:
         action = self._find(action_id)
         return action.to_dict() if action else None
-
-    # — 事件摄入 —
-
-    def ingest(self, payload: dict[str, Any], source_message: str = "", *, auto_execute: bool = True) -> dict[str, Any]:
-        from openclaw_guard.models import BehaviorEvent, DetectionDecision
-
-        event_payload = deepcopy(payload)
-        raw_intent = str(payload.get("raw_user_intent") or source_message or "")
-        event_payload["raw_user_intent"] = raw_intent
-
-        event = BehaviorEvent(**event_payload)
-        
-        # 优化：优先尝试从现有动作中寻找已生成的语义信息 (基于 runId 和 toolCallId)
-        # 这样 before_tool_call 就能直接复用 before_prompt_build 阶段耗时生成的语义结果
-        existing_semantic = None
-        run_id = event.raw_payload.get("runId")
-        tool_call_id = event.raw_payload.get("toolCallId")
-        
-        if run_id and tool_call_id:
-            items = self._load()
-            for item in items:
-                if (item.event.raw_payload.get("runId") == run_id and 
-                    item.event.metadata.get("semantic")):
-                    existing_semantic = item.event.metadata["semantic"]
-                    break
-
-        if existing_semantic:
-            event.metadata["semantic"] = existing_semantic
-            logger.info("Reusing existing semantic enhancement for runId=%s", run_id)
-        else:
-            # 只有在没有缓存时才调用 LLM，避免重复耗时
-            try:
-                semantic_payload = self.semantic_enhancer.evaluate(
-                    event,
-                    {
-                        "source_message": source_message,
-                        "origin": "chat",
-                    },
-                )
-                event.metadata["semantic"] = semantic_payload["semantic"]
-            except Exception as exc:
-                logger.warning("Semantic enhancement failed during ingest: %s", exc)
-
-        items = self._load()
-        decision = self.detector.decide(event, items)
-        final_decision = self.whitelist.refine(decision, event)
-        final_decision = self.controller.enforce(final_decision, items)
-
-        from uuid import uuid4
-        action_id = uuid4().hex[:16]
-        
-        # 使用 controller.decide 逻辑来统一 ControlledAction 的创建
-        # 注意：此处为了保持 ingest 接口的独立性，直接调用 controller.decide 产生的摘要逻辑
-        from openclaw_guard.engine.control import _target_summary
-        summary = _target_summary(event)
-
-        action = ControlledAction(
-            action_id=action_id,
-            source_message=raw_intent,
-            status=(
-                "pending_approval" if final_decision.action in {"warn", "escalate"}
-                else "blocked" if final_decision.action == "block"
-                else "proposed"
-            ),
-            event=event,
-            decision=final_decision,
-            created_at=utc_now_iso(),
-            target_summary=summary,
-            decision_trace=list(final_decision.trace or []),
-            matched_whitelists=list(final_decision.matched_whitelists or []),
-            matched_rules=list(final_decision.matched_rules or []),
-        )
-        self._replace(action)
-        self.audit_append("action_ingest", action.to_dict())
-        
-        # 性能优化：UI 审批时点击响应慢，通常是因为后端在处理 ingest 时同步写入了大 JSON 文件
-        # 我们已经有了 _cache 机制，这里确保写入是高效的
-        return action.to_dict()
 
     # — 审批 / 拒绝 —
 

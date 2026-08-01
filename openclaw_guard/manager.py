@@ -1309,21 +1309,4 @@ def build_manager(
     return OpenclawGuardManager(context)
 
 
-def _action_from_mapping(payload: dict[str, Any]) -> ControlledAction:
-    from openclaw_guard.models import BehaviorEvent, ControlledAction, DetectionDecision
 
-    event = BehaviorEvent(**payload["event"])
-    decision = DetectionDecision(**payload["decision"])
-    return ControlledAction(
-        action_id=payload["action_id"],
-        source_message=payload["source_message"],
-        created_at=payload["created_at"],
-        status=payload["status"],
-        event=event,
-        decision=decision,
-        target_summary=payload.get("target_summary", ""),
-        decision_trace=list(payload.get("decision_trace", [])),
-        matched_whitelists=list(payload.get("matched_whitelists", [])),
-        matched_rules=list(payload.get("matched_rules", [])),
-        execution_result=dict(payload.get("execution_result", {})),
-    )

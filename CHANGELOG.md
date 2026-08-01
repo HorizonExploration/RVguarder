@@ -1,3 +1,71 @@
+# v0.3.0 版本更新说明
+
+**日期**：2026-08-01  
+**版本号**：v0.3.0  
+**前一版本**：v0.2.1
+
+---
+
+## 一、更新背景
+
+v0.2.1 基于 Python 标准库 `http.server.ThreadingHTTPServer` 提供 HTTP 服务，路由通过字典手动维护，所有数据模型使用 `@dataclass` + 手动 `to_dict()`。随着端点数量增长（22+），手动路由管理和序列化成为最大的技术债务。v0.3.0 分两个阶段解决这些问题。
+
+---
+
+## 二、阶段一：HTTP 层替换
+
+### FastAPI 替代 stdlib HTTP 服务
+
+- **新建 `openclaw_guard/web/` 包**：FastAPI 应用工厂 + 依赖注入 + 路由模块 + 统一异常处理 + SPA 静态文件托管
+- **双 HTTP 层并存**：默认仍使用旧版 `legacy_web.py`（原 `web.py` 重命名），通过 `--fastapi` flag 切换到 FastAPI
+- **桥接模式**：新路由通过包装现有 `api._handlers` 函数保证响应格式一致，业务代码零变动
+- **新增 `--fastapi` CLI flag**：`python -m openclaw_guard.main run --fastapi --port 8781`
+
+**涉及文件**：
+- 新建：`web/` 包（`app.py`, `dependencies.py`, `errors.py`, `routes/` 7 个模块）
+- 修改：`main.py`（`--fastapi` flag + 延迟导入）
+- 重命名：`web.py` → `legacy_web.py`
+- 更新：`pyproject.toml`（新增 `fastapi`, `uvicorn` 依赖）
+
+---
+
+## 三、阶段二：Pydantic 模型迁移
+
+### `@dataclass` → `pydantic.BaseModel`
+
+- **`models.py` 全部 10 个数据类迁移至 Pydantic v2**：`BehaviorEvent`, `DetectionDecision`, `ControlledAction`, `AuditRecord` 等
+- **`ControlledAction.__post_init__` 移除**：Pydantic 原生支持嵌套 dict 自动转换为嵌套模型
+- **`EventStatus` 新增 `"allow"` 兼容状态**：解决 `manager._execute()` 中的运行时赋值
+- **`ActionType` 新增 `"unknown"` 兜底类型**：容错外部原始 payload
+- **`to_dict()` 保留为兼容别名**：30+ 调用点无需修改，内部委托给 `model_dump()`
+- **`ComplianceReport.to_dict()` 保留 computed `summary` 键**
+
+**涉及文件**：
+- 重写：`models.py`
+- 修复：`tests/test_semantic_enhancer.py`（2 个断言同步 SEM-OFFICE-001/002 迁移）
+
+---
+
+## 四、附带清理
+
+- 删除死代码 `ActionService.ingest()`（75 行，零调用方）
+- 删除死代码 `_action_from_mapping()`（18 行，零调用方）
+- 删除 25 个孤立 `.pyc` 字节码文件
+- 更新 `CLAUDE.md`、`README.md`、`pyproject.toml`、`__init__.py` 至 v0.3.0
+- 同步 `docs/architecture/` 文档（index, overview, target-architecture, architecture-analysis）
+
+---
+
+## 五、注意事项
+
+1. **默认 HTTP 层不变**：`openclaw-guard run` 仍使用旧版 stdlib 服务，FastAPI 通过 `--fastapi` 选择性启用
+2. **Pydantic 模型向下兼容**：`to_dict()` 别名保留，所有现有代码的序列化行为不变
+3. **业务代码零改动**：`manager.py`、`engine/`、`core/`、`storage/`、`integrations/` 未修改一行
+4. **测试回归**：162 个测试中 146 通过（9 个失败为环境相关预存问题，7 个跳过为旧版 chat mirroring）
+
+
+---
+
 # v0.2.1 版本更新说明
 
 **日期**：2026-07-25  

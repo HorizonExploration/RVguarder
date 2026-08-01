@@ -1,6 +1,6 @@
 # 架构分析报告
 
-> 版本：v0.2.1 | 日期：2026-07-30 | 作者：架构评审组
+> 版本：v0.2.1（分析基线）→ v0.3.0（当前） | 日期：2026-07-30（分析）/ 2026-08-01（更新） | 作者：架构评审组
 
 ---
 
@@ -155,9 +155,9 @@ main.py (CLI 入口)
 
 | # | 痛点 | 位置 | 影响 | 说明 |
 |---|------|------|------|------|
-| A1 | **手动 HTTP 路由管理** | `web.py` + `_handlers.py` | 维护性 | 路由表需手动维护 `_GET_ROUTES`/`_POST_ROUTES` 字典，新增端点需改 3 个文件。URL 解析、参数提取、JSON 解析全部手动处理，无类型安全 |
-| A2 | **无请求验证** | `api/_handlers.py` | 安全性 | 所有 POST payload 通过 `json.loads()` 手动解析，无 schema 验证。非法 payload 静默失败。无自动类型检查 |
-| A3 | **手动序列化** | 全部 model | 维护性 | 每个 `@dataclass` 需手写 `to_dict()` 方法。语义分析结果、RV trace 等结构化输出在返回时手动构建 dict |
+| A1 | **手动 HTTP 路由管理** | `web.py` + `_handlers.py` | ~~维护性~~ → **已解决 (v0.3.0)** | ✅ FastAPI `web/` 包替代，旧版 `legacy_web.py` 保留 |
+| A2 | **无请求验证** | `api/_handlers.py` | 安全性 | 所有 POST payload 通过 `json.loads()` 手动解析，无 schema 验证。非法 payload 静默失败。无自动类型检查 | ~~P0~~ → **已解决 (v0.3.0)** |
+| A3 | **手动序列化** | 全部 model | ~~维护性~~ → **已解决 (v0.3.0)** | ✅ Pydantic v2 替代 `@dataclass`，`to_dict()` 保留为兼容别名 |
 | A4 | **无自动 API 文档** | 全部 | 效率 | 前端对接时需手动阅读 `_handlers.py` 函数签名才能知道 API 格式。无人能快速了解所有端点 |
 | A5 | **Manager 上帝对象** | `manager.py` | 扩展性 | 1200+ 行的上帝对象，12 个子组件全部由它创建和编排。新增组件需要修改 manager 的 `__init__` 和 `build_manager()` |
 

@@ -8,7 +8,7 @@
 ![OpenClaw](https://img.shields.io/badge/OpenClaw-Plugin%20SDK-111827)
 ![Hook](https://img.shields.io/badge/Hook-before__tool__call-0F766E)
 ![RV](https://img.shields.io/badge/RV-Sliding%20Window%20FSM-7C3AED)
-![Status](https://img.shields.io/badge/Status-v0.2.1-F59E0B)
+![Status](https://img.shields.io/badge/Status-v0.3.0-0F766E)
 
 ---
 
@@ -130,9 +130,14 @@ openclaw-guard uninstall-hook         # 移除 Hook 插件
 
 ```
 openclaw_guard/
-├── api/                  # HTTP API 处理器
+├── api/                  # HTTP API 处理器（旧版 handler，被两个 HTTP 层共用）
 │   ├── __init__.py        # 路由注册与导出
 │   └── _handlers.py       # 各 API 端点实现
+├── web/                  # FastAPI HTTP 层（v0.3.0 新增，--fastapi flag 启用）
+│   ├── app.py            # create_app() 工厂 + launch_web() 入口
+│   ├── dependencies.py   # 依赖注入 + Hook 鉴权
+│   ├── errors.py         # GuardError + 统一异常处理
+│   └── routes/           # 路由模块（health, baseline, audit, rv, actions, hook, static）
 ├── core/                 # 核心业务逻辑
 │   ├── action_service.py  # 动作审批服务
 │   ├── audit_service.py   # 审计查询服务
@@ -157,12 +162,12 @@ openclaw_guard/
 │   ├── ebpf_adapter.py    # eBPF 接口（预留）
 │   ├── hook_bridge.py     # Hook 桥接采集
 │   └── ptrace_adapter.py  # ptrace 接口（预留）
-├── main.py               # CLI 入口
+├── main.py               # CLI 入口（默认 legacy_web.py，--fastapi 切换）
 ├── manager.py            # 业务编排
-├── web.py                # HTTP 服务
+├── legacy_web.py         # 旧版 ThreadingHTTPServer（默认 HTTP 层）
 ├── ui.py                 # 前端资源管理
 ├── config.py             # 配置与上下文
-└── models.py             # 数据模型
+└── models.py             # Pydantic v2 数据模型
 ```
 
 ### 前端工程
