@@ -8,11 +8,11 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from openclaw_guard import api
-from openclaw_guard.manager import OpenclawGuardManager
+from openclaw_guard.services import GuardServices
 
 
 def launch_web(
-    manager: OpenclawGuardManager,
+    manager: GuardServices,
     host: str,
     port: int,
     *,
@@ -36,7 +36,7 @@ def launch_web(
     return server, thread, url
 
 
-def _build_handler(manager: OpenclawGuardManager, ui_dir: Path):
+def _build_handler(manager: GuardServices, ui_dir: Path):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             served = _serve_static(self, self.path, ui_dir)

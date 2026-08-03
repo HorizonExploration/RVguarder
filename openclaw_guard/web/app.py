@@ -15,12 +15,12 @@ import webbrowser
 import uvicorn
 from fastapi import FastAPI
 
-from openclaw_guard.manager import OpenclawGuardManager
+from openclaw_guard.services import GuardServices
 from openclaw_guard.web import errors
 from openclaw_guard.web.routes import actions, audit, baseline, health, hook, rv, static
 
 
-def create_app(manager: OpenclawGuardManager) -> FastAPI:
+def create_app(manager: GuardServices) -> FastAPI:
     """创建 FastAPI 应用（依赖注入 manager 到 app.state.manager）。
 
     路由注册顺序：API 路由先注册，静态 catch-all 最后挂载。
@@ -73,7 +73,7 @@ class UvicornServerHandle:
 
 
 def launch_web(
-    manager: OpenclawGuardManager,
+    manager: GuardServices,
     host: str,
     port: int,
     *,

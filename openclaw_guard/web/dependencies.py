@@ -7,11 +7,11 @@ from typing import Any
 from fastapi import Body, Depends, Header, Request
 
 from openclaw_guard.api import hook_authorized
-from openclaw_guard.manager import OpenclawGuardManager
+from openclaw_guard.services import GuardServices
 from openclaw_guard.web.errors import GuardError
 
 
-def get_manager(request: Request) -> OpenclawGuardManager:
+def get_manager(request: Request) -> GuardServices:
     """从 app.state.manager 获取全局 manager 单例。"""
     return request.app.state.manager  # type: ignore[attr-defined]
 
@@ -22,7 +22,7 @@ def body_payload(payload: dict[str, Any] | None = Body(default=None)) -> dict[st
 
 
 def require_hook_token(
-    manager: OpenclawGuardManager = Depends(get_manager),
+    manager: GuardServices = Depends(get_manager),
     token: str | None = Header(default=None, alias="x-openclaw-guard-token"),
 ) -> None:
     """Hook 鉴权依赖：调用 api.hook_authorized，失败抛 401 GuardError。

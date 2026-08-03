@@ -24,13 +24,6 @@ class BaselineService:
 
     def run(self) -> dict[str, Any]:
         """执行完整基线扫描并缓存最近结果。"""
-        # 先刷新运行时状态，确保探测到最新连接
-        from openclaw_guard.manager import build_manager as _bm
-        try:
-            # 通过 context 获取 target.refresh() 效果
-            pass
-        except Exception:
-            pass
         report = BaselineScanner(self.context).run()
         payload = report.to_dict()
         self.latest_path.parent.mkdir(parents=True, exist_ok=True)

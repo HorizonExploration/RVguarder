@@ -10,14 +10,14 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Callable
 
-from openclaw_guard.manager import OpenclawGuardManager
+from openclaw_guard.services import GuardServices
 from openclaw_guard.utils import json_dumps
 
 
 JsonResponse = tuple[dict[str, Any], int]
 
 
-def health(manager: OpenclawGuardManager) -> JsonResponse:
+def health(manager: GuardServices) -> JsonResponse:
     return (
         {
             "ok": True,
@@ -29,31 +29,31 @@ def health(manager: OpenclawGuardManager) -> JsonResponse:
     )
 
 
-def summary(manager: OpenclawGuardManager) -> JsonResponse:
+def summary(manager: GuardServices) -> JsonResponse:
     return manager.summary(), HTTPStatus.OK
 
 
-def baseline_latest(manager: OpenclawGuardManager) -> JsonResponse:
+def baseline_latest(manager: GuardServices) -> JsonResponse:
     return manager.ensure_baseline(), HTTPStatus.OK
 
 
-def baseline_run(manager: OpenclawGuardManager, payload: dict[str, Any] | None = None) -> JsonResponse:
+def baseline_run(manager: GuardServices, payload: dict[str, Any] | None = None) -> JsonResponse:
     return manager.run_baseline(), HTTPStatus.OK
 
 
-def list_actions(manager: OpenclawGuardManager) -> JsonResponse:
+def list_actions(manager: GuardServices) -> JsonResponse:
     return {"items": manager.list_actions()}, HTTPStatus.OK
 
 
-def clear_actions(manager: OpenclawGuardManager, payload: dict[str, Any] | None = None) -> JsonResponse:
+def clear_actions(manager: GuardServices, payload: dict[str, Any] | None = None) -> JsonResponse:
     return manager.clear_actions(), HTTPStatus.OK
 
 
-def approve_action(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+def approve_action(manager: GuardServices, payload: dict[str, Any]) -> JsonResponse:
     return _call_action(manager.approve_action, payload, "action_id", confirmation_text="confirmation_text")
 
 
-def reject_action(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+def reject_action(manager: GuardServices, payload: dict[str, Any]) -> JsonResponse:
     action_id = str(payload.get("action_id") or "")
     if not action_id:
         return _error("message_empty", HTTPStatus.BAD_REQUEST)
@@ -65,24 +65,24 @@ def reject_action(manager: OpenclawGuardManager, payload: dict[str, Any]) -> Jso
         return _error(str(exc), HTTPStatus.BAD_REQUEST)
 
 
-def ingest_event(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+def ingest_event(manager: GuardServices, payload: dict[str, Any]) -> JsonResponse:
     raw_intent = str(payload.get("raw_user_intent") or "")
     return manager.ingest_event(payload, raw_intent), HTTPStatus.OK
 
 
-def audit_export(manager: OpenclawGuardManager, payload: dict[str, Any] | None = None) -> JsonResponse:
+def audit_export(manager: GuardServices, payload: dict[str, Any] | None = None) -> JsonResponse:
     return manager.export_audit(), HTTPStatus.OK
 
 
-def hook_before_tool_call(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+def hook_before_tool_call(manager: GuardServices, payload: dict[str, Any]) -> JsonResponse:
     return manager.handle_before_tool_call(payload), HTTPStatus.OK
 
 
-def hook_after_tool_call(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+def hook_after_tool_call(manager: GuardServices, payload: dict[str, Any]) -> JsonResponse:
     return manager.handle_after_tool_call(payload), HTTPStatus.OK
 
 
-def resolve_hook_approval(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> JsonResponse:
     action_id = str(payload.get("actionId") or payload.get("action_id") or "")
     decision = str(payload.get("decision") or "")
     if not action_id or not decision:
@@ -107,23 +107,23 @@ def resolve_hook_approval(manager: OpenclawGuardManager, payload: dict[str, Any]
         return _error(str(e), HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
-def refresh_runtime(manager: OpenclawGuardManager) -> JsonResponse:
+def refresh_runtime(manager: GuardServices) -> JsonResponse:
     return manager.refresh_runtime_target(), HTTPStatus.OK
 
 
-def rv_status(manager: OpenclawGuardManager) -> JsonResponse:
+def rv_status(manager: GuardServices) -> JsonResponse:
     return manager.rv_status(), HTTPStatus.OK
 
 
-def rv_toggle(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+def rv_toggle(manager: GuardServices, payload: dict[str, Any]) -> JsonResponse:
     return manager.rv_toggle(payload), HTTPStatus.OK
 
 
-def debug_logs(manager: OpenclawGuardManager) -> JsonResponse:
+def debug_logs(manager: GuardServices) -> JsonResponse:
     return {"path": str(manager.log_path), "items": manager.recent_logs()}, HTTPStatus.OK
 
 
-def skill_upsert(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+def skill_upsert(manager: GuardServices, payload: dict[str, Any]) -> JsonResponse:
     name = str(payload.get("name") or "")
     if not name:
         return _error("message_empty", HTTPStatus.BAD_REQUEST)
@@ -135,7 +135,7 @@ def skill_upsert(manager: OpenclawGuardManager, payload: dict[str, Any]) -> Json
         return _error(str(exc), HTTPStatus.BAD_REQUEST)
 
 
-def skill_delete(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+def skill_delete(manager: GuardServices, payload: dict[str, Any]) -> JsonResponse:
     name = str(payload.get("name") or "")
     if not name:
         return _error("message_empty", HTTPStatus.BAD_REQUEST)
@@ -147,7 +147,7 @@ def skill_delete(manager: OpenclawGuardManager, payload: dict[str, Any]) -> Json
         return _error(str(exc), HTTPStatus.BAD_REQUEST)
 
 
-def channel_upsert(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+def channel_upsert(manager: GuardServices, payload: dict[str, Any]) -> JsonResponse:
     name = str(payload.get("name") or "")
     if not name:
         return _error("message_empty", HTTPStatus.BAD_REQUEST)
@@ -159,7 +159,7 @@ def channel_upsert(manager: OpenclawGuardManager, payload: dict[str, Any]) -> Js
         return _error(str(exc), HTTPStatus.BAD_REQUEST)
 
 
-def channel_delete(manager: OpenclawGuardManager, payload: dict[str, Any]) -> JsonResponse:
+def channel_delete(manager: GuardServices, payload: dict[str, Any]) -> JsonResponse:
     name = str(payload.get("name") or "")
     if not name:
         return _error("message_empty", HTTPStatus.BAD_REQUEST)
@@ -219,7 +219,7 @@ def read_json_body(raw: bytes) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
-def hook_authorized(manager: OpenclawGuardManager, token_header: str) -> bool:
+def hook_authorized(manager: GuardServices, token_header: str) -> bool:
     """校验来自 OpenClaw Hook 插件的鉴权 token。"""
     token = (token_header or "").strip()
     auth_path_str = manager.runtime_hook.get("auth_token_path") if manager.runtime_hook else None

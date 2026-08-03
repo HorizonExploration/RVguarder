@@ -8,6 +8,7 @@ import os
 import platform
 import socket
 import sys
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -147,3 +148,58 @@ def build_simple_pdf(path: Path, title: str, lines: list[str]) -> None:
         f"trailer << /Size {len(offsets)} /Root 1 0 R >>\nstartxref\n{xref_start}\n%%EOF\n".encode("utf-8")
     )
     path.write_bytes(bytes(buffer))
+
+
+class LazyProxy:
+    """线程安全的惰性代理 —— 用于延迟初始化非热路径组件。
+
+    首次访问属性时通过 factory 创建真实实例，之后缓存复用。
+    使用双重检查锁定保证多线程环境下的安全性和性能。
+
+    Usage::
+
+        rv_engine = LazyProxy(lambda: RuntimeVerificationEngine(window_size=10))
+        # 首次访问触发创建
+        result = rv_engine.evaluate(trace)
+    """
+
+    def __init__(self, factory):
+        self._factory = factory
+        self._instance = None
+        self._lock = threading.Lock()
+
+    def _get(self):
+        if self._instance is None:
+            with self._lock:
+                if self._instance is None:
+                    self._instance = self._factory()
+        return self._instance
+
+    def __getattr__(self, name):
+        return getattr(self._get(), name)
+
+    # ── 容器协议透传（dunder methods 在类型上查找，不走 __getattr__）──
+
+    def __iter__(self):
+        return iter(self._get())
+
+    def __getitem__(self, key):
+        return self._get()[key]
+
+    def __len__(self):
+        return len(self._get())
+
+    def __contains__(self, item):
+        return item in self._get()
+
+    def __bool__(self):
+        return bool(self._get())
+
+    def __setitem__(self, key, value):
+        self._get()[key] = value
+
+    def __delitem__(self, key):
+        del self._get()[key]
+
+    def __repr__(self):
+        return repr(self._get())
