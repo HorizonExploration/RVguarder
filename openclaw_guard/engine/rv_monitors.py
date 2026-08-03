@@ -399,6 +399,14 @@ class ReportMonitor(BaseMonitor):
         ev = step.get("event", "")
         current = self.current_state
 
+        # ── 单步完整攻击链：三要素同时满足 → 直接 block ──
+        # 必须放在 is_internal_source() 早期返回之前，
+        # 否则单步复合事件（同时含 internal_source + report_send + external_recipient）
+        # 会被 is_internal_source 吞掉返回 None，绕过 block 判定。
+        if self.is_blockable_send():
+            self.to_blocked()
+            return "block"
+
         # === 阶段 1: 状态追踪 ===
         if self.is_internal_source():
             if self.is_in_state("idle"):
