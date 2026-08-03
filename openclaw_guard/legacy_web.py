@@ -114,6 +114,16 @@ def _serve_static(handler: BaseHTTPRequestHandler, path: str, ui_dir: Path) -> b
         return True
 
     if not static_path.exists() or not static_path.is_file():
+        # SPA fallback: 客户端路由（/actions, /rules 等）不存在对应文件时返回 index.html
+        index_path = ui_dir / "index.html"
+        if index_path.exists() and index_path.is_file():
+            data = index_path.read_bytes()
+            handler.send_response(HTTPStatus.OK)
+            handler.send_header("Content-Type", "text/html; charset=utf-8")
+            handler.send_header("Content-Length", str(len(data)))
+            handler.end_headers()
+            handler.wfile.write(data)
+            return True
         return False
 
     suffix = static_path.suffix.lower()
