@@ -189,9 +189,10 @@ cd e2e && npm install && npm run install:browsers && npm test
 - **重构进度**: 
   - ✅ 阶段一（HTTP 层替换） — FastAPI，默认关闭，`--fastapi` 启用
   - ✅ 阶段二（Pydantic 模型迁移） — models.py 全部 Pydantic v2
-  - ⏳ 阶段三（Manager 拆分 + 懒加载） — 计划中
+  - ✅ 阶段三（Manager 拆分 + 懒加载） — GuardServices 容器 + LazyProxy + pipeline 模块
+  - ⏳ 阶段四（前端 Preact 迁移） — 计划中
 - **下一步计划**: 见 `CHANGELOG.md` 和 `docs/architecture/refactoring-plan.md`
 
 ---
 
-*CLAUDE.md 最后更新: 2026-08-01 · 由 Claude Code 在阶段一/二重构后更新*
+*CLAUDE.md 最后更新: 2026-08-03 · 由 Claude Code 在阶段三重构后更新*
