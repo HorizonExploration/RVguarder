@@ -115,6 +115,9 @@ def _serve_static(handler: BaseHTTPRequestHandler, path: str, ui_dir: Path) -> b
 
     if not static_path.exists() or not static_path.is_file():
         # SPA fallback: 客户端路由（/actions, /rules 等）不存在对应文件时返回 index.html
+        # 但 /api/* 路径不 fallback —— 由 API 路由处理
+        if raw_path.startswith("api/"):
+            return False
         index_path = ui_dir / "index.html"
         if index_path.exists() and index_path.is_file():
             data = index_path.read_bytes()
