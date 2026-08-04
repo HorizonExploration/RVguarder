@@ -39,16 +39,20 @@ def launch_web(
 def _build_handler(manager: GuardServices, ui_dir: Path):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
+            raw_path = (self.path or "/").split("?", 1)[0]
+            if raw_path.startswith("/api/"):
+                handler_fn = _GET_ROUTES.get(raw_path)
+                if handler_fn is None:
+                    self.send_error(HTTPStatus.NOT_FOUND, "Not found")
+                    return
+                payload, status = handler_fn(manager)
+                self._write_json(payload, status)
+                return
+
             served = _serve_static(self, self.path, ui_dir)
             if served:
                 return
-
-            handler_fn = _GET_ROUTES.get(self.path)
-            if handler_fn is None:
-                self.send_error(HTTPStatus.NOT_FOUND, "Not found")
-                return
-            payload, status = handler_fn(manager)
-            self._write_json(payload, status)
+            self.send_error(HTTPStatus.NOT_FOUND, "Not found")
 
         def do_POST(self) -> None:
             if self.path.startswith("/api/hook/") and not api.hook_authorized(
@@ -97,6 +101,13 @@ def _build_handler(manager: GuardServices, ui_dir: Path):
 
 
 def _serve_static(handler: BaseHTTPRequestHandler, path: str, ui_dir: Path) -> bool:
+    # #region debug-point A:legacy-static-branch
+    import json, urllib.request; _p=".dbg/frontend-openclaw-connect.env"; _u,_s="http://127.0.0.1:7777/event","frontend-openclaw-connect"; exec("try:\n with open(_p) as f: c=f.read(); _u=next((l.split('=',1)[1] for l in c.split('\\n') if l.startswith('DEBUG_SERVER_URL=')),_u); _s=next((l.split('=',1)[1] for l in c.split('\\n') if l.startswith('DEBUG_SESSION_ID=')),_s)\nexcept: pass"); urllib.request.urlopen(urllib.request.Request(_u, data=json.dumps({"sessionId":_s,"runId":"pre","hypothesisId":"A","location":"legacy_web.py:_serve_static","msg":"[DEBUG] legacy_web _serve_static branch check","data":{"path":path,"startswith_api":path.startswith('/api/')}}).encode(), headers={"Content-Type":"application/json"})).read()
+    # #endregion
+    # /api/* 路径全部跳过静态文件服务 —— 由 _GET_ROUTES 处理
+    if path.startswith("/api/"):
+        return False
+
     raw_path = unquote((path or "/").split("?", 1)[0])
     if raw_path == "/":
         rel = "index.html"
@@ -114,10 +125,7 @@ def _serve_static(handler: BaseHTTPRequestHandler, path: str, ui_dir: Path) -> b
         return True
 
     if not static_path.exists() or not static_path.is_file():
-        # SPA fallback: 客户端路由（/actions, /rules 等）不存在对应文件时返回 index.html
-        # 但 /api/* 路径不 fallback —— 由 API 路由处理
-        if raw_path.startswith("api/"):
-            return False
+        # SPA fallback: 客户端路由（/actions, /rules 等）返回 index.html
         index_path = ui_dir / "index.html"
         if index_path.exists() and index_path.is_file():
             data = index_path.read_bytes()

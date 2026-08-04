@@ -25,7 +25,7 @@ test.describe("OpenClaw Guard UI", () => {
   test("Skills 页可启停 skill（走后端 upsert 接口）", async ({ page }) => {
     const baseUrl = getBaseUrl();
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
-    await page.click('button.nav-btn[data-view="skills"]');
+    await page.click('a.nav-btn[href="/skills"]');
     await expect(page.getByText("技能管理")).toBeVisible();
 
     const btn = page.locator('button.skill-toggle[data-skill="demoSkill"]');

@@ -111,10 +111,11 @@ class SemanticEnhancerTests(unittest.TestCase):
             self.assertIn("external_recipient", metadata["rv_trace"][0]["props"])
 
     def test_create_chat_action_uses_semantic_decision_for_report_send(self) -> None:
-        """SEM-OFFICE-002 (report_send + external + internal_source → block) 已迁移至 ReportMonitor FSM。
+        """report_send + external_recipient + internal_source → block。
 
-        manager 全流程中，单步判定对 report_send 场景返回 ask，
-        RV 引擎的 ReportMonitor 在有历史上下文时负责链式 block。
+        "不要带内部 bug 细节" 明确提及内部源内容，语义增强器检测到
+        internal_source 标签。检测引擎的单步判定返回 block（三要素同时满足）。
+        ReportMonitor 顶部 is_blockable_send() 检查同样会触发 block。
         """
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp) / "OpenclawGuard"
@@ -125,8 +126,7 @@ class SemanticEnhancerTests(unittest.TestCase):
 
             payload = manager.create_chat_action("把今天的日报发给 alice@example.com，不要带内部 bug 细节")
 
-            # 单步判定：fallback 对 report_send 场景返回 ask（RV FSM 负责链式 block）
-            self.assertEqual(payload["decision"]["action"], "ask")
+            self.assertEqual(payload["decision"]["action"], "block")
             self.assertEqual(payload["event"]["metadata"]["semantic"]["scenario"], "report_send")
             self.assertIn("internal_source", payload["event"]["metadata"]["rv_trace"][0]["props"])
 

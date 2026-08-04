@@ -18,7 +18,7 @@
 | 层 | 技术 |
 |---|------|
 | 后端 | Python 3.13+（FastAPI + Pydantic v2） |
-| 前端 | Vite + Vanilla JS SPA（无框架，原生 DOM 操作） |
+| 前端 | Vite + Preact SPA（组件化，Zustand 状态管理，preact-router） |
 | 插件 | Node.js + OpenClaw Plugin SDK `>=2026.4.0`（自动生成） |
 | 检测引擎 | `transitions` FSM 库、Trie 前缀树白名单 |
 | 语义增强 | DeepSeek API（LLM 模式）或本地启发式规则（本地模式） |
@@ -69,9 +69,15 @@ openclaw_guard/          # Python 后端主包
 │   └── audit_store.py   # AuditStore — SHA-256 哈希链，DB + JSONL 双写
 └── collectors/          # 运行时采集器（预留）
 
-frontend/                # SPA 前端（Vite + 原生 JS）
-├── src/app.js           # 主逻辑：状态管理、fetch 轮询、DOM 渲染
-└── src/styles.css       # CSS 自定义属性现代化样式
+frontend/                # SPA 前端（Vite + Preact）
+├── src/main.jsx          # Preact 入口
+├── src/App.jsx           # 根组件 + preact-router (5 路由)
+├── src/store.js          # Zustand 状态管理
+├── src/api.js            # fetch 封装 + 后端 API
+├── src/i18n.js           # 国际化文本 (T/SCENE_ZH/STATUS_ZH)
+├── src/components/       # 10 个可复用 UI 组件
+├── src/pages/            # 5 个页面组件
+└── src/styles.css        # CSS 自定义属性现代化样式
 
 tests/                   # Python 单元测试（unittest）
 e2e/                     # Playwright E2E 测试
@@ -89,7 +95,7 @@ docs/                    # VuePress 文档站点
 pip install -e .
 
 # 构建前端
-cd frontend && pnpm install && pnpm run build
+cd frontend && npm install && npm run build
 
 # 启动 Guard 工作台（默认旧版 HTTP 层，http://127.0.0.1:8780）
 python -m openclaw_guard.main run
@@ -190,7 +196,7 @@ cd e2e && npm install && npm run install:browsers && npm test
   - ✅ 阶段一（HTTP 层替换） — FastAPI，默认关闭，`--fastapi` 启用
   - ✅ 阶段二（Pydantic 模型迁移） — models.py 全部 Pydantic v2
   - ✅ 阶段三（Manager 拆分 + 懒加载） — GuardServices 容器 + LazyProxy + pipeline 模块
-  - ⏳ 阶段四（前端 Preact 迁移） — 计划中
+  - ✅ 阶段四（前端 Preact 迁移） — 17 源文件，5 页面，10 组件，Zustand 状态管理
 - **下一步计划**: 见 `CHANGELOG.md` 和 `docs/architecture/refactoring-plan.md`
 
 ---

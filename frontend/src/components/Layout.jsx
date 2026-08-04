@@ -1,7 +1,16 @@
+import { Link } from 'preact-router';
 import { useStore } from '../store';
 import { t } from '../i18n';
 import { rvToggle } from '../api';
 import { Toast } from './Toast';
+
+/** 根据当前路径判断 nav 按钮是否 active */
+function useIsActive(view) {
+  if (typeof window === 'undefined') return false;
+  const p = window.location.pathname;
+  if (view === 'dashboard') return p === '/' || p === '';
+  return p === '/' + view;
+}
 
 export function Layout({ children }) {
   const rvMode = useStore((s) => s.rvMode);
@@ -42,10 +51,10 @@ export function Layout({ children }) {
         </div>
         <nav class="nav">
           {navItems.map(([view, icon, label]) => (
-            <a key={view} class="nav-btn" href={view === 'dashboard' ? '/' : '/' + view} native>
+            <Link key={view} class={'nav-btn' + (useIsActive(view) ? ' active' : '')} href={view === 'dashboard' ? '/' : '/' + view}>
               <span class="nav-icon">{icon}</span>
               {label}
-            </a>
+            </Link>
           ))}
         </nav>
       </aside>

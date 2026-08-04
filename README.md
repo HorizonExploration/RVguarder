@@ -178,11 +178,17 @@ frontend/
 ├── vite.config.js        # Vite 构建配置
 ├── package.json          # 依赖
 └── src/
-    ├── app.js            # 主逻辑（SPA 渲染 + API 调用）
+    ├── main.jsx          # Preact 入口
+    ├── App.jsx           # 根组件 + Router
+    ├── store.js          # Zustand 状态
+    ├── api.js            # API 请求层
+    ├── i18n.js           # 国际化
+    ├── components/       # 10 个 UI 组件
+    ├── pages/            # 5 个页面
     └── styles.css        # 样式
 ```
 
-前端为独立工程，构建产物输出到 `runtime/ui/` 由后端静态托管。
+前端为独立 Preact 工程，构建产物输出到 `runtime/ui/` 由后端静态托管。
 
 ---
 
