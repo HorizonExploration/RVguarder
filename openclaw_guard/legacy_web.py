@@ -101,9 +101,6 @@ def _build_handler(manager: GuardServices, ui_dir: Path):
 
 
 def _serve_static(handler: BaseHTTPRequestHandler, path: str, ui_dir: Path) -> bool:
-    # #region debug-point A:legacy-static-branch
-    import json, urllib.request; _p=".dbg/frontend-openclaw-connect.env"; _u,_s="http://127.0.0.1:7777/event","frontend-openclaw-connect"; exec("try:\n with open(_p) as f: c=f.read(); _u=next((l.split('=',1)[1] for l in c.split('\\n') if l.startswith('DEBUG_SERVER_URL=')),_u); _s=next((l.split('=',1)[1] for l in c.split('\\n') if l.startswith('DEBUG_SESSION_ID=')),_s)\nexcept: pass"); urllib.request.urlopen(urllib.request.Request(_u, data=json.dumps({"sessionId":_s,"runId":"pre","hypothesisId":"A","location":"legacy_web.py:_serve_static","msg":"[DEBUG] legacy_web _serve_static branch check","data":{"path":path,"startswith_api":path.startswith('/api/')}}).encode(), headers={"Content-Type":"application/json"})).read()
-    # #endregion
     # /api/* 路径全部跳过静态文件服务 —— 由 _GET_ROUTES 处理
     if path.startswith("/api/"):
         return False

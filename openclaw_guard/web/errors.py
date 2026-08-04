@@ -5,10 +5,10 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI, Request
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-from starlette.exceptions import HTTPException as StarletteHTTPException
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI, Request  # noqa: F401
 
 
 # ─── 错误消息映射 ────────────────────────────────────────────────
@@ -61,6 +61,10 @@ def register_exception_handlers(app: FastAPI) -> None:
     3. RequestValidationError — Query/Path 参数校验失败
     4. Exception — 兜底，复刻 do_POST 的 catch-all
     """
+    from fastapi import Request
+    from fastapi.exceptions import RequestValidationError
+    from fastapi.responses import JSONResponse
+    from starlette.exceptions import HTTPException as StarletteHTTPException
 
     @app.exception_handler(GuardError)
     async def _guard_error(request: Request, exc: GuardError) -> JSONResponse:

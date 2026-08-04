@@ -77,8 +77,8 @@ v0.2.1 is a **full course correction** — aligned with the official Plugin SDK 
 ## 技术栈 · Tech Stack
 
 ```
-Backend:   Python 3.13+ · HTTP 内建服务 · DeepSeek API · SQLite · transitions(FSM)
-Frontend:  Vanilla JS · 单页 SPA · 1.5s 轮询刷新
+Backend:   Python 3.13+ · legacy HTTP(默认) · FastAPI(可选) · DeepSeek API · SQLite · transitions(FSM)
+Frontend:  Preact · Vite · Zustand · 单页 SPA · 轮询刷新
 Plugin:    JavaScript · OpenClaw Plugin SDK (api.on) · registerGatewayMethod
 Core:      Runtime Verification (RV) · 滑动窗口 · FSM 监视器 · 白名单 Trie 树
 Safety:    Circuit Breaker · requireApproval · fail-open/fail-closed

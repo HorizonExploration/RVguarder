@@ -2,9 +2,21 @@
 
 > 版本：v0.2.1 → v0.3.0（当前） | 日期：2026-07-30（初版）/ 2026-08-01（更新） | 作者：架构评审组
 >
-> **进度**：阶段一 ✅ 阶段二 ✅ 阶段三 ✅ 阶段四 ✅ 阶段五 ⏳
+> **进度（按仓库现状核对）**：阶段一 ✅（FastAPI 并行实现，默认仍为 legacy） 阶段二 ✅ 阶段三 ✅（保留 manager.py 兼容层） 阶段四 ✅ 阶段五 ❌ 阶段六 ❌ 阶段七 ❌
 
 ---
+
+## 0. 执行情况快照（v0.3.0）
+
+| 阶段 | 状态 | 证据（代码/目录） | 备注 |
+|------|------|------------------|------|
+| 一：HTTP 层替换 | ✅（并行可用） | `openclaw_guard/web/` + `--fastapi`；legacy 仍在 `legacy_web.py` | FastAPI 依赖（fastapi/uvicorn）可按需安装；未安装时仍可运行 legacy；发布前确保移除/关闭调试插桩 |
+| 二：Pydantic 模型迁移 | ✅ | `openclaw_guard/models.py`（Pydantic v2） | `to_dict()` 保留为兼容别名 |
+| 三：Manager 拆分 + 懒加载 | ✅（已拆分） | `openclaw_guard/services.py` + `openclaw_guard/engine/pipeline.py` + `openclaw_guard/utils.py:LazyProxy` | `manager.py` 保留为向后兼容导入路径与测试打补丁入口 |
+| 四：前端 Preact 迁移 | ✅ | `frontend/`（Preact+Vite）→ 构建产物 `runtime/ui/` | 发生过一次 API 被静态 SPA 覆盖的回归，已修复并纳入回归用例 |
+| 五：存储层升级（SQLAlchemy） | ❌ | 当前仍为 `storage/db_store.py`（SQLiteStore/PostgreSQLStore） | 仅在可选依赖中声明 SQLAlchemy，尚未落地实现 |
+| 六：RV 规约驱动（ChainRule） | ❌ | 当前仍为 `engine/rv_monitors.py`（手写 FSM） | 规约/编译器尚未实现 |
+| 七：长期优化（CI/typing/metrics） | ❌ | 未发现 `.github/workflows`、mypy/ruff 配置、metrics 端点 | 建议优先补齐“回归门禁”后再做性能/监控 |
 
 ## 1. 基本原则
 
@@ -267,8 +279,8 @@ class OpenclawGuardManager:
 ### 5.3 目标结构
 
 ```python
-# manager.py 不再存在
-# 改为依赖注入 + 独立服务
+# services.py 作为新的编排入口
+# manager.py 保留为向后兼容适配层（新代码不应再从 manager.py 引用业务对象）
 
 @dataclass
 class GuardServices:
@@ -302,7 +314,7 @@ async def before_tool_call(req: Request, services: GuardServices = Depends(get_s
 | 1 | 提取 `GuardServices` 数据类，将 manager 的 `__init__` 变为聚合函数 | 🟢 |
 | 2 | 将 `summary()`、`hook_status()` 等状态查询方法拆分到各自的模块 | 🟢 |
 | 3 | 将 `ingest_event()`、`handle_before_tool_call()` 等协调方法抽取为独立流水线 | 🟡 |
-| 4 | 移除 `manager.py`，只保留 `build_services()` 工厂函数 | 🔴 |
+| 4 | 将 `manager.py` 降级为“兼容层”，确保旧导入路径与测试打补丁不受影响 | 🟡 |
 | 5 | 更新所有引用（`web.py`、`main.py` 等） | 🟡 |
 | 6 | 所有非热路径组件改为 `LazyProxy` 懒加载 | 🟢 |
 
@@ -350,7 +362,7 @@ class LazyProxy:
 
 ### 5.6 验收标准
 
-- [ ] Manager 不再存在，替换为 `GuardServices` + pipeline/
+- [ ] 新代码入口以 `GuardServices` + pipeline 为主（`manager.py` 仅保留兼容层，不新增逻辑）
 - [ ] 启动时只创建热路径组件（detector, semantic, controller, whitelist）
 - [ ] `openclaw-guard run` → 服务就绪 ≤ 2 秒
 - [ ] 现有 `before_tool_call` 流水线功能不变

@@ -46,3 +46,24 @@ npm run openclaw gateway
 ## 7. 可以直接给基层人员用吗
 
 可以先用 `normal` 模式。它就是为普通用户准备的简洁入口。
+
+## 8. `--fastapi` 启动时报缺少 fastapi/uvicorn
+
+FastAPI 模式是并行实现的可选传输层。若你希望启用它，请先安装依赖：
+
+```bash
+pip install fastapi uvicorn[standard]
+```
+
+如果你追求最小依赖与最快冷启动，可以先使用默认的 legacy 模式（不加 `--fastapi`）。
+
+## 9. 页面显示“未连接”，或接口返回 HTML 而不是 JSON
+
+先用 curl 验证后端是否在正确返回 JSON：
+
+```bash
+curl -i "http://127.0.0.1:8780/api/health?ts=1"
+curl -i "http://127.0.0.1:8780/api/summary?ts=1"
+```
+
+正常情况下应该返回 `Content-Type: application/json`，并能被 `jq` 解析。

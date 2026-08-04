@@ -11,14 +11,16 @@ from __future__ import annotations
 import threading
 import time
 import webbrowser
+from typing import Any, TYPE_CHECKING
 
-import uvicorn
 from fastapi import FastAPI
 
 from openclaw_guard.services import GuardServices
 from openclaw_guard.web import errors
 from openclaw_guard.web.routes import actions, audit, baseline, health, hook, rv, static
 
+if TYPE_CHECKING:
+    import uvicorn  # noqa: F401
 
 def create_app(manager: GuardServices) -> FastAPI:
     """创建 FastAPI 应用（依赖注入 manager 到 app.state.manager）。
@@ -58,7 +60,7 @@ class UvicornServerHandle:
     main.py 的 finally 块期望 server.shutdown() + server.server_close() 可用。
     """
 
-    def __init__(self, server: uvicorn.Server, thread: threading.Thread) -> None:
+    def __init__(self, server: Any, thread: threading.Thread) -> None:
         self._server = server
         self._thread = thread
 
@@ -85,6 +87,12 @@ def launch_web(
         (handle, thread, url) — handle 兼容 shutdown()/server_close()。
     """
     from openclaw_guard.ui import build_ui
+    try:
+        import uvicorn  # type: ignore[import-not-found]
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "FastAPI 模式依赖未安装：缺少 uvicorn。请执行：pip install uvicorn[standard]"
+        ) from exc
 
     # 确保前端构建物存在
     ui_dir = manager.context.paths.runtime_dir / "ui"

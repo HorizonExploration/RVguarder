@@ -235,7 +235,35 @@ done
 
 ---
 
-### 4.3 回退测试
+### 4.3 关键回归用例（已发生）
+
+以下用例来自近期一次真实回归：`/api/*` 请求被 SPA 静态 `index.html` 覆盖，导致前端解析 JSON 失败并表现为“无法连接/未连接”。
+
+```bash
+# /api 端点必须返回 JSON（且带 query 也不能失效）
+curl -i "http://127.0.0.1:8780/api/health?ts=1"
+curl -i "http://127.0.0.1:8780/api/summary?ts=1"
+
+# 断言要点：
+# - HTTP 200
+# - Content-Type 包含 application/json
+# - body 可被 jq 正常解析
+```
+
+建议补充到测试套件的最小断言（legacy 与 fastapi 都应覆盖）：
+
+```python
+def assert_json_response(resp):
+    assert resp.status_code == 200
+    assert "application/json" in resp.headers.get("content-type", "")
+    resp.json()
+```
+
+同时建议固定一个“依赖可选性”门禁：在未安装 fastapi/uvicorn 的环境中，仍可正常运行 legacy 模式并通过测试收集（避免 import-time 失败）。
+
+---
+
+### 4.4 回退测试
 
 每阶段完成后，必须在旧测试套件（unittest）上运行一次全量回归，确保无功能退化：
 

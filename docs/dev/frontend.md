@@ -11,13 +11,16 @@ frontend/                       # 前端源码（独立工程，可单独开发�
 ├── vite.config.js              # Vite 构建配置
 ├── pnpm-lock.yaml              # 锁文件
 └── src/
-    ├── app.js                  # 主逻辑：状态、渲染、API 调用
+    ├── main.jsx                # Preact 入口
+    ├── App.jsx                 # 路由与页面壳
+    ├── api.js                  # 后端 API 访问封装
+    ├── store.js                # Zustand 状态管理（含 RV 模式持久化）
+    ├── pages/                  # 页面
+    ├── components/             # 组件
     └── styles.css              # 全部样式
 
-runtime/ui/                     # 构建产物（.gitignore，由 pnpm build 生成）
-├── index.html
-├── app.js
-└── styles.css
+runtime/ui/                     # 构建产物（后端静态托管目录）
+└── assets/...
 ```
 
 - `frontend/` 是开发工作区，使用 Vite 做开发服务器和构建
@@ -78,8 +81,10 @@ openclaw-guard run
 ## 技术栈
 
 - **Vite** — 构建工具与开发服务器
-- **原生 JavaScript (ESM)** — 无框架依赖，纯 DOM 操作
-- **原生 CSS** — 无预处理器
+- **Preact** — 轻量级组件框架（兼容 React 心智，体积更小）
+- **preact-router** — 前端路由
+- **Zustand** — 状态管理（含 RV 模式持久化）
+- **CSS** — 原生 CSS（无预处理器）
 
 ## 页面结构
 
@@ -110,11 +115,14 @@ openclaw-guard run
 
 ## Python 侧托管
 
-`openclaw_guard/ui.py` 是一个薄层，仅在启动时确保 `runtime/ui/` 目录存在：
+`openclaw_guard/ui.py` 是一个薄层：启动时确保 `runtime/ui/` 目录存在，并在运行目录缺少 UI 时把仓库内的构建产物复制过去（避免首次启动空白页面）。
 
 ```python
 def build_ui(target_dir: Path, summary=None) -> None:
     target_dir.mkdir(parents=True, exist_ok=True)
+    if (target_dir / "index.html").exists():
+        return
+    # 若运行目录缺少 UI，则从仓库内 runtime/ui 复制一份
 ```
 
-`openclaw_guard/legacy_web.py`（旧版）和 `openclaw_guard/web/routes/static.py`（FastAPI）负责托管 `runtime/ui/` 下的静态文件（`/`、`/app.js`、`/styles.css`）。
+`openclaw_guard/legacy_web.py`（legacy）和 `openclaw_guard/web/routes/static.py`（FastAPI）负责托管 `runtime/ui/` 下的静态文件（`/`、`/assets/*`、前端路由的 SPA fallback）。

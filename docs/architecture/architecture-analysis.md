@@ -6,7 +6,7 @@
 
 ## 1. 概述
 
-OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw AI Agent 的**非侵入式运行时安全保护系统**。本文档对当前 v0.2.1 版本进行全面架构分析，识别技术痛点与扩展性瓶颈，为后续重构提供决策依据。
+OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw AI Agent 的**非侵入式运行时安全保护系统**。本文档以 v0.2.1 为分析基线，并同步标注 v0.3.0 的落地结果与仍待完成的阶段性目标。
 
 ---
 
@@ -17,14 +17,15 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw AI Agent 的**非�
 | 层次 | 技术选型 | 版本 | 状态 |
 |------|---------|------|------|
 | 编程语言 | Python | ≥3.13 | **确认** |
-| HTTP 服务 | `http.server.ThreadingHTTPServer`（标准库） | 内置 | ✅ 运行中 |
+| HTTP 服务 | legacy：`http.server.ThreadingHTTPServer`（标准库） | 内置 | ✅ 默认运行 |
+| HTTP 服务（可选） | FastAPI + uvicorn | 可选依赖 | ✅ 并行实现（未安装依赖时自动降级） |
 | 异步模型 | 同步（threading per request） | — | ⚠️ 有瓶颈 |
-| 序列化/验证 | `@dataclass` + 手动 `to_dict()` | 无框架 | ❌ 技术债务 |
+| 序列化/验证 | Pydantic v2（`BaseModel`） | — | ✅ 已迁移（`to_dict()` 保留兼容别名） |
 | 数据库 | SQLite（开发）/ PostgreSQL（生产预留） | — | ✅ 设计良好 |
 | 审计存储 | JSONL 双写 + SHA-256 哈希链 | — | ✅ |
 | 语义分析 | DeepSeek API / 本地规则降级 | — | ✅ |
 | FSM 状态机 | `transitions` 库 | — | ✅ |
-| 前端 | Vanilla JS SPA（Vite 构建） | — | ✅ |
+| 前端 | Preact SPA（Vite 构建） | — | ✅ |
 | JS 运行时插件 | OpenClaw Plugin SDK (`api.on()`) | — | ✅ |
 | 容器化 | Docker Compose（生产） | — | ⚠️ 未充分使用 |
 
@@ -49,29 +50,40 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw AI Agent 的**非�
 ```
 main.py (CLI 入口)
     │
-    └── manager.py (业务编排 · 1200+ 行 · 中枢)
-            ├── web.py (HTTP 服务 · BaseHTTPRequestHandler)
-            │       └── api/ (__init__ + _handlers · 路由 + 处理器)
-            ├── engine/ (安全检测核心)
-            │       ├── behavior.py (行为采集)
-            │       ├── semantic_enhancer.py (语义增强 · 2.8 万字符)
-            │       ├── detection.py (规则引擎 · 2 万字符)
-            │       ├── runtime_verification.py (RV 引擎)
-            │       ├── rv_monitors.py (6 个 FSM 监视器 · 3.2 万字符)
-            │       ├── control.py (决策控制)
-            │       └── whitelist.py (白名单匹配)
-            ├── core/ (业务服务)
-            │       ├── action_service.py (动作审批 · 8.7 万字符)
-            │       ├── audit_service.py (审计服务)
-            │       └── baseline_service.py (基线扫描)
-            ├── integrations/ (OpenClaw 集成)
-            │       ├── discovery.py (环境发现)
-            │       ├── hook_runtime.py (JS 插件生成 · 2 万字符)
-            │       ├── tool_hook_bridge.py (工具桥接)
-            │       └── openclaw_adapter.py (Gateway 适配 · 3.2 万字符)
-            └── storage/ (数据持久化)
-                    ├── db_store.py (DB 抽象 · 3.8 万字符)
-                    └── audit_store.py (审计存储)
+    ├── legacy_web.py (默认 HTTP 服务 · ThreadingHTTPServer)
+    │       └── api/ (_handlers · 路由处理器，仅做 HTTP 边界)
+    │
+    ├── web/ (可选 FastAPI 传输层 · 并行实现)
+    │       └── routes/*（API 路由 + 静态 SPA 托管）
+    │
+    ├── services.py (业务编排 · GuardServices 容器 + LazyProxy)
+    │       └── engine/pipeline.py（热路径流水线：ingest/before/after）
+    │
+    ├── engine/ (安全检测核心)
+    │       ├── behavior.py (行为采集)
+    │       ├── semantic_enhancer.py (语义增强)
+    │       ├── detection.py (规则引擎)
+    │       ├── runtime_verification.py (RV 引擎)
+    │       ├── rv_monitors.py (手写 FSM 监视器 · 规约驱动未落地)
+    │       ├── control.py (决策控制)
+    │       └── whitelist.py (白名单匹配)
+    │
+    ├── core/ (业务服务)
+    │       ├── action_service.py (动作审批)
+    │       ├── audit_service.py (审计服务)
+    │       └── baseline_service.py (基线扫描)
+    │
+    ├── integrations/ (OpenClaw 集成)
+    │       ├── discovery.py (环境发现)
+    │       ├── hook_runtime.py (JS 插件生成)
+    │       ├── tool_hook_bridge.py (工具桥接)
+    │       └── openclaw_adapter.py (Gateway 适配)
+    │
+    ├── storage/ (数据持久化)
+    │       ├── db_store.py (DB 抽象：SQLite/Postgres)
+    │       └── audit_store.py (审计存储)
+    │
+    └── manager.py（兼容层：用于旧导入路径与测试打补丁）
 ```
 
 ### 3.2 依赖关系类型分析
@@ -79,14 +91,14 @@ main.py (CLI 入口)
 | 关系 | 类型 | 说明 |
 |------|------|------|
 | `main` → `manager` | 强依赖（组合） | `build_manager()` 工厂函数，入口唯一 |
-| `manager` → `web` | 强依赖（组合） | `launch_web()` 启动 HTTP 服务 |
-| `manager` → `engine/*` | 强依赖（组合） | 初始化时创建所有引擎实例 |
-| `manager` → `core/*` | 强依赖（组合） | 初始化时创建所有业务服务 |
+| `services` → `legacy_web/web` | 强依赖（组合） | `launch_web()` 启动 HTTP 服务（legacy 或 FastAPI） |
+| `services` → `engine/*` | 强依赖（组合） | 热路径组件初始化 + 冷路径 LazyProxy |
+| `services` → `core/*` | 强依赖（组合） | 业务服务聚合（Action/Audit/Baseline） |
 | `engine/*` 内部 | 弱耦合（独立） | 各引擎通过 `evaluate()` 接口通信，不互相引用 |
-| `api/*` → `manager` | 强依赖（委托） | API 处理器直接调用 manager 实例，缺少 manager 无法响应 |
+| `api/*` → `services` | 强依赖（委托） | API 处理器直接调用 GuardServices 实例 |
 | `storage/*` → 外部 | 弱依赖（接口） | 通过 `DBStoreInterface` 抽象层隔离 |
 
-**关键发现**：`manager.py` 是单点瓶颈。所有组件通过 manager 串联，API 处理器、CLI 命令、Web 服务都依赖 manager 实例。这是典型的**上帝对象（God Object）**反模式。
+**关键发现（v0.3.0 已缓解）**：编排中枢从 `manager.py` 转移到 `services.py`（GuardServices + pipeline），`manager.py` 降级为兼容层。上帝对象风险已显著降低，但服务容器仍是扩展的主要入口，需要持续控制依赖方向与初始化成本。
 
 ---
 
@@ -99,7 +111,7 @@ main.py (CLI 入口)
     │
     ▼
 [1] BehaviorCollectorManager.ingest()        → BehaviorEvent
-    │                                          (dataclass → dict)
+    │                                          (Pydantic model → dict)
     ▼
 [2] SemanticEnhancer.evaluate()              → semantic + rv_trace
     ├─ LLM API 模式（DeepSeek，~500ms）
@@ -155,19 +167,19 @@ main.py (CLI 入口)
 
 | # | 痛点 | 位置 | 影响 | 说明 |
 |---|------|------|------|------|
-| A1 | **手动 HTTP 路由管理** | `web.py` + `_handlers.py` | ~~维护性~~ → **已解决 (v0.3.0)** | ✅ FastAPI `web/` 包替代，旧版 `legacy_web.py` 保留 |
-| A2 | **无请求验证** | `api/_handlers.py` | 安全性 | 所有 POST payload 通过 `json.loads()` 手动解析，无 schema 验证。非法 payload 静默失败。无自动类型检查 | ~~P0~~ → **已解决 (v0.3.0)** |
-| A3 | **手动序列化** | 全部 model | ~~维护性~~ → **已解决 (v0.3.0)** | ✅ Pydantic v2 替代 `@dataclass`，`to_dict()` 保留为兼容别名 |
+| A1 | **手动 HTTP 路由管理** | `legacy_web.py` | 维护性 | ✅ FastAPI `web/` 并行实现已落地；legacy 仍保留作默认/回退 |
+| A2 | **无请求验证** | legacy API | 安全性 | ✅ FastAPI 路由已具备请求体校验；legacy 路由仍为手工解析（迁移期保留） |
+| A3 | **手动序列化** | 全部 model | 维护性 | ✅ Pydantic v2 替代 `@dataclass`，`to_dict()` 保留为兼容别名 |
 | A4 | **无自动 API 文档** | 全部 | 效率 | 前端对接时需手动阅读 `_handlers.py` 函数签名才能知道 API 格式。无人能快速了解所有端点 |
-| A5 | **Manager 上帝对象** | `manager.py` | 扩展性 | 1200+ 行的上帝对象，12 个子组件全部由它创建和编排。新增组件需要修改 manager 的 `__init__` 和 `build_manager()` |
+| A5 | **Manager 上帝对象** | `services.py` / `manager.py` | 扩展性 | ✅ GuardServices + pipeline 已承担主要编排；`manager.py` 保留兼容层（不再作为新代码入口） |
 
 ### 5.2 P1 — 重要（建议解决）
 
 | # | 痛点 | 位置 | 影响 | 说明 |
 |---|------|------|------|------|
-| B1 | **同步阻塞** | `web.py` | 并发 | `ThreadingHTTPServer` 每个请求一个线程。OpenClaw 可能同时发送多个 `before_tool_call` 请求，线程池膨胀无上限 |
+| B1 | **同步阻塞** | `legacy_web.py` | 并发 | `ThreadingHTTPServer` 每个请求一个线程。OpenClaw 可能同时发送多个 `before_tool_call` 请求，线程池膨胀无上限 |
 | B2 | **JSON 文件作为主存储** | `action_service.py` | 可靠性 | 使用 JSON 文件存储动作列表（`_load()`/`_save_all()`），最大 1000 条。非事务性，并发写可能导致数据丢失 |
-| B3 | **硬编码路由路径** | `api/_handlers.py` | 维护性 | URL 路径字符串在 `web.py` 和 `_handlers.py` 之间重复，无集中路由定义 |
+| B3 | **硬编码路由路径** | `legacy_web.py` + `api/_handlers.py` | 维护性 | legacy 路由表与处理器分离，新增端点需手动同步；FastAPI 已缓解该问题（声明式路由） |
 | B4 | **错误处理不规范** | 全项目 | 可靠性 | 异常时返回 `(error_dict, 500)`，无统一异常处理中间件。调试信息可能泄漏到响应中 |
 | B5 | **ORM 未使用** | `db_store.py` | 维护性 | `SQLiteStore` 使用原生 SQL 查询字符串拼接，无类型安全。表结构变更需手动迁移 |
 
@@ -177,7 +189,7 @@ main.py (CLI 入口)
 |---|------|------|------|------|
 | C1 | **日志/监控缺失** | 全项目 | 运维 | 无结构化日志，无 metrics 暴露 |
 | C2 | **配置分散** | 多文件 | 维护性 | 配置散落在 `.env`、`runtime/guard-config.json`、`pyproject.toml` |
-| C3 | **前端无 TS** | `frontend/` | 维护性 | Vanilla JS 无类型系统 |
+| C3 | **前端无 TS** | `frontend/` | 维护性 | 已迁移到 Preact，但仍为 JavaScript（无 TS 类型约束） |
 | C4 | **测试覆盖率不足** | `tests/` | 质量 | 虽有测试文件，但缺乏集成测试覆盖完整流水线 |
 
 ---

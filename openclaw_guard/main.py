@@ -20,7 +20,20 @@ def _select_launch_web(args):
     默认使用旧版 legacy_web，--fastapi 切换到新 FastAPI 层。
     """
     if getattr(args, "fastapi", False):
-        from openclaw_guard.web import launch_web as _fastapi_launch
+        try:
+            from openclaw_guard.web import launch_web as _fastapi_launch
+        except ModuleNotFoundError as exc:
+            print(
+                json.dumps(
+                    {
+                        "error": "fastapi_deps_missing",
+                        "detail": str(exc),
+                        "hint": "请先安装依赖：pip install -e . 或 pip install fastapi uvicorn[standard]",
+                    },
+                    ensure_ascii=False,
+                )
+            )
+            return launch_web
         return _fastapi_launch
     return launch_web
 

@@ -372,7 +372,7 @@ class RuntimeVerificationEngine:
 | 框架 | 体积 | 选型理由 |
 |------|------|---------|
 | **Preact** | ~3KB gzip | 兼容 React API，生态丰富，Vite 官方插件，学习成本为零 |
-| ~~Vanilla JS~~ | 35k 行 app.js | 当前实现，难以维护 |
+| ~~Vanilla JS~~ | 35k 行 app.js | 历史实现（v0.2.x），已在 v0.3.0 迁移到 Preact |
 | ~~Vue~~ | ~16KB | 过于重量级，且与当前技术栈不匹配 |
 
 选择 Preact 的核心原因：
