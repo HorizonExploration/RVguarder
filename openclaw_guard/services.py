@@ -20,7 +20,7 @@ from openclaw_guard.core.baseline_service import BaselineService
 from openclaw_guard.core.audit_service import AuditService
 from openclaw_guard.baseline import BaselineScanner
 from openclaw_guard.engine.behavior import BehaviorCollectorManager
-from openclaw_guard.config import AppContext, GuardSettings, default_paths
+from openclaw_guard.config import AppContext, GuardSettings, apply_env_overrides, default_paths
 from openclaw_guard.engine.control import GuardController
 from openclaw_guard.conversation import assistant_reply_for_action, infer_event_from_text, new_message
 from openclaw_guard.engine.detection import DetectionEngine
@@ -384,11 +384,13 @@ class GuardServices:
                 sqlite_path=settings.sqlite_path,
                 json_backup_path=settings.json_backup_path,
                 connection_string=db_url,
+                store_mode=settings.db_store_mode,
             )
         else:
             self.audit_store = AuditStore(
                 sqlite_path=settings.sqlite_path,
                 json_backup_path=settings.json_backup_path,
+                store_mode=settings.db_store_mode,
             )
 
         self.actions_path = context.paths.runtime_dir / "controlled-actions.json"
@@ -398,7 +400,12 @@ class GuardServices:
         self.log_path = context.paths.runtime_dir / "guard.log"
 
         # ── 冷路径：LazyProxy 惰性加载 ──
-        self.rv_engine = LazyProxy(lambda: RuntimeVerificationEngine(window_size=10))  # type: ignore[assignment]
+        self.rv_engine = LazyProxy(
+            lambda: RuntimeVerificationEngine(
+                window_size=10,
+                rule_mode=str(self.preferences().get("rv_rule_mode") or "") or None,
+            )
+        )  # type: ignore[assignment]
         self.baseline_service = LazyProxy(lambda: BaselineService(context, self.latest_baseline_path))  # type: ignore[assignment]
         self.audit_service = LazyProxy(lambda: AuditService(self.audit_store))  # type: ignore[assignment]
         self.runtime_hook = LazyProxy(lambda: ensure_runtime_hook_plugin(self.context))  # type: ignore[assignment]
@@ -642,10 +649,18 @@ class GuardServices:
 
     def rv_toggle(self, payload: dict[str, Any]) -> dict[str, Any]:
         enabled = bool(payload.get("enabled", True))
+        rule_mode = payload.get("rule_mode")
         prefs = self.preferences()
         prefs["rv_mode"] = enabled
+        if isinstance(rule_mode, str) and rule_mode.strip():
+            prefs["rv_rule_mode"] = rule_mode.strip()
         write_json(self.preferences_path, prefs)
-        return {"ok": True, "rv_mode": enabled}
+        if isinstance(rule_mode, str) and rule_mode.strip():
+            try:
+                self.rv_engine.set_rule_mode(rule_mode.strip())
+            except Exception:
+                pass
+        return {"ok": True, "rv_mode": enabled, "rule_mode": prefs.get("rv_rule_mode")}
 
     def rv_status(self) -> dict[str, Any]:
         return {
@@ -1101,5 +1116,6 @@ def build_services(
     reset_db_store()
     paths = default_paths(project_dir)
     target = discover_openclaw(openclaw_root=openclaw_root, config_path=config_path, profile=profile, cwd=project_dir)
-    context = AppContext(paths=paths, target=target, settings=GuardSettings(host=host, port=port, ui_mode=ui_mode))
+    settings = apply_env_overrides(GuardSettings(host=host, port=port, ui_mode=ui_mode))
+    context = AppContext(paths=paths, target=target, settings=settings)
     return GuardServices(context)

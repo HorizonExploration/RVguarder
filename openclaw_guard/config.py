@@ -88,6 +88,7 @@ class GuardSettings:
     json_backup_path: Path | None = None
     # Database configuration (PostgreSQL or SQLite)
     database_url: str | None = None  # e.g., "postgresql://user:pass@host:5432/db" or "sqlite:///path/to/db"
+    db_store_mode: str = "native"
     # PostgreSQL specific
     db_host: str = "localhost"
     db_port: int = 5432
@@ -163,3 +164,18 @@ def default_paths(project_dir: Path) -> AppPaths:
         audit_dir=project_dir / "output" / "audit",
         fix_dir=project_dir / "output" / "fixes",
     )
+
+
+def apply_env_overrides(settings: GuardSettings) -> GuardSettings:
+    """把环境变量中的设置同步到 GuardSettings（不覆盖显式传入的字段）。"""
+    import os
+
+    database_url = os.environ.get("DATABASE_URL") or os.environ.get("OPENCLAW_GUARD_DATABASE_URL")
+    if database_url and not settings.database_url:
+        settings.database_url = database_url
+
+    db_store_mode = os.environ.get("DB_STORE_MODE") or os.environ.get("OPENCLAW_GUARD_DB_STORE_MODE")
+    if db_store_mode:
+        settings.db_store_mode = db_store_mode.strip().lower()
+
+    return settings

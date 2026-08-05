@@ -40,6 +40,7 @@ class AuditStore:
         *,
         connection_string: str | None = None,
         db_config: DBConfig | None = None,
+        store_mode: str | None = None,
     ) -> None:
         self.sqlite_path = sqlite_path or Path("output/audit/audit.db")
         self.json_backup_path = json_backup_path or self.sqlite_path.parent / "audit.jsonl"
@@ -48,12 +49,12 @@ class AuditStore:
 
         # Initialize database store
         if connection_string:
-            self._db = get_db_store(connection_string)
+            self._db = get_db_store(connection_string, mode=store_mode)
         elif db_config:
-            self._db = get_db_store(config=db_config)
+            self._db = get_db_store(config=db_config, mode=store_mode)
         else:
             # Default to SQLite
-            self._db = get_db_store(f"sqlite:///{self.sqlite_path}")
+            self._db = get_db_store(f"sqlite:///{self.sqlite_path}", mode=store_mode)
 
     def append(self, record_type: str, payload: dict[str, Any]) -> AuditRecord:
         """

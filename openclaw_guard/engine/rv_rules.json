@@ -1,0 +1,468 @@
+{
+  "version": 1,
+  "monitors": [
+    {
+      "name": "MailMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "mail_idle_to_external",
+          "from": "idle",
+          "to": "external_source_read",
+          "when": { "any_of": ["attachment_open", "channel_external", "external_source"] }
+        },
+        {
+          "id": "mail_external_to_sensitive",
+          "from": "external_source_read",
+          "to": "sensitive_data_extracted",
+          "when": { "any_of": ["contains_secret", "path_high_value", "hidden_content"] }
+        },
+        {
+          "id": "mail_idle_to_sensitive",
+          "from": "idle",
+          "to": "sensitive_data_extracted",
+          "when": { "any_of": ["contains_secret", "path_high_value", "hidden_content"] }
+        },
+        {
+          "id": "mail_sensitive_external_block",
+          "from": "sensitive_data_extracted",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "event": "mail_send", "all_of": ["external_recipient"] }
+        },
+        {
+          "id": "mail_external_send_ask",
+          "from": "external_source_read",
+          "to": null,
+          "verdict": "ask",
+          "when": { "event": "mail_send", "all_of": ["external_recipient"] }
+        },
+        {
+          "id": "mail_bulk_external_escalate",
+          "from": "idle",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": { "event": "mail_send", "all_of": ["bulk_send", "external_recipient"] }
+        },
+        {
+          "id": "mail_bulk_ask",
+          "from": "idle",
+          "to": "ask_approval",
+          "verdict": "ask",
+          "when": { "event": "mail_send", "all_of": ["bulk_send"] }
+        },
+        {
+          "id": "mail_ai_unreviewed_ask",
+          "from": "idle",
+          "to": "ask_approval",
+          "verdict": "ask",
+          "when": { "event": "mail_send", "all_of": ["ai_generated_content"], "none_of": ["requires_human_review"] }
+        },
+        {
+          "id": "mail_external_recipient_ask",
+          "from": "idle",
+          "to": "ask_approval",
+          "verdict": "ask",
+          "when": { "event": "mail_send", "all_of": ["external_recipient"] }
+        },
+        {
+          "id": "mail_terminal_block_repeat",
+          "from": "blocked",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "event": "mail_send" }
+        },
+        {
+          "id": "mail_terminal_escalate_repeat",
+          "from": "escalated",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": { "event": "mail_send" }
+        },
+        {
+          "id": "mail_terminal_ask_repeat",
+          "from": "ask_approval",
+          "to": "ask_approval",
+          "verdict": "ask",
+          "when": { "event": "mail_send" }
+        },
+        {
+          "id": "mail_file_delete_chain_block",
+          "from": "*",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": ["file_delete", "high_value_path"],
+            "window_any_of": { "labels": ["file_search", "file_read"], "window_size": 5 }
+          }
+        }
+      ]
+    },
+    {
+      "name": "ReportMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "report_idle_to_aggregating",
+          "from": "idle",
+          "to": "source_aggregating",
+          "when": { "all_of": ["internal_source"] }
+        },
+        {
+          "id": "report_to_ready_from_idle",
+          "from": "idle",
+          "to": "report_ready",
+          "when": { "any_of": ["report_generate", "report_ready"] }
+        },
+        {
+          "id": "report_to_ready_from_agg",
+          "from": "source_aggregating",
+          "to": "report_ready",
+          "when": { "any_of": ["report_generate", "report_ready"] }
+        },
+        {
+          "id": "report_missing_scope_ask",
+          "from": "*",
+          "to": "asking",
+          "verdict": "ask",
+          "when": { "all_of": ["report_generate", "missing_scope_constraint"] }
+        },
+        {
+          "id": "report_blockable_send_any_state",
+          "from": "*",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "event": "report_send", "all_of": ["external_recipient", "internal_source"] }
+        },
+        {
+          "id": "report_ready_external_escalate",
+          "from": "report_ready",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": { "event": "report_send", "all_of": ["external_recipient"] }
+        },
+        {
+          "id": "report_ready_send_ask",
+          "from": "report_ready",
+          "to": "asking",
+          "verdict": "ask",
+          "when": { "event": "report_send", "none_of": ["external_recipient"] }
+        },
+        {
+          "id": "report_block_repeat",
+          "from": "blocked",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "event": "report_send" }
+        }
+      ]
+    },
+    {
+      "name": "SecurityChainMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "sec_idle_to_high_value_search",
+          "from": "idle",
+          "to": "high_value_searched",
+          "when": { "all_of": ["high_value_path"], "any_of": ["file_search", "file_read"] }
+        },
+        {
+          "id": "sec_high_value_delete_block",
+          "from": "high_value_searched",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "all_of": ["file_delete", "high_value_path"] }
+        },
+        {
+          "id": "sec_idle_to_audit_disabled",
+          "from": "idle",
+          "to": "audit_disabled",
+          "when": { "all_of": ["config_audit_disable"] }
+        },
+        {
+          "id": "sec_audit_modify_block",
+          "from": "audit_disabled",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "all_of": ["config_modify"] }
+        },
+        {
+          "id": "sec_idle_to_sensitive_access_attachment",
+          "from": "idle",
+          "to": "sensitive_content_accessed",
+          "when": { "all_of": ["attachment_download"] }
+        },
+        {
+          "id": "sec_idle_to_sensitive_access_secret_read",
+          "from": "idle",
+          "to": "sensitive_content_accessed",
+          "when": { "all_of": ["file_read", "contains_secret"] }
+        },
+        {
+          "id": "sec_sensitive_access_egress_escalate",
+          "from": "sensitive_content_accessed",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": { "any_of": ["network_egress", "mail_send"] }
+        },
+        {
+          "id": "sec_idle_to_creds_access",
+          "from": "idle",
+          "to": "credentials_accessed",
+          "when": { "any_of": ["path_sensitive_creds", "command_read_secret"] }
+        },
+        {
+          "id": "sec_creds_egress_escalate",
+          "from": "credentials_accessed",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": { "any_of": ["network_egress", "ssh"] }
+        },
+        {
+          "id": "sec_batch_delete_escalate",
+          "from": "*",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": {
+            "all_of": ["file_delete"],
+            "count_gte": { "label": "file_delete", "threshold": 5, "window_size": 10 }
+          }
+        }
+      ]
+    },
+    {
+      "name": "BroadcastMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "broadcast_immediate_block_idle",
+          "from": "idle",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": ["channel_send", "bulk_send", "external_recipient"],
+            "any_of": ["contains_secret", "cross_org"]
+          }
+        },
+        {
+          "id": "broadcast_immediate_block_broadcasting",
+          "from": "broadcasting",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": ["channel_send", "bulk_send", "external_recipient"],
+            "any_of": ["contains_secret", "cross_org"]
+          }
+        },
+        {
+          "id": "broadcast_idle_to_broadcast",
+          "from": "idle",
+          "to": "broadcasting",
+          "verdict": "ask",
+          "when": { "all_of": ["channel_send", "bulk_send"] }
+        },
+        {
+          "id": "broadcast_idle_to_single",
+          "from": "idle",
+          "to": "single_chat",
+          "when": { "all_of": ["channel_send"], "none_of": ["bulk_send"] }
+        },
+        {
+          "id": "broadcasting_external_block",
+          "from": "broadcasting",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "all_of": ["channel_send"], "any_of": ["external_recipient", "cross_org", "contains_secret"] }
+        },
+        {
+          "id": "broadcasting_default_ask",
+          "from": "broadcasting",
+          "to": "broadcasting",
+          "verdict": "ask",
+          "when": { "all_of": ["channel_send"] }
+        },
+        {
+          "id": "broadcast_block_repeat",
+          "from": "blocked",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "all_of": ["channel_send"] }
+        }
+      ]
+    },
+    {
+      "name": "DataExportMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "export_batch_block_idle",
+          "from": "idle",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "any_of": ["batch_export", "large_export"] }
+        },
+        {
+          "id": "export_batch_block_sensitive",
+          "from": "query_sensitive",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "any_of": ["batch_export", "large_export"] }
+        },
+        {
+          "id": "export_idle_to_sensitive_query",
+          "from": "idle",
+          "to": "query_sensitive",
+          "verdict": "ask",
+          "when": {
+            "all_of": ["database_query"],
+            "any_of": ["user_table", "payment_data", "credential", "customer_pii", "user", "payment"]
+          }
+        },
+        {
+          "id": "export_dense_query_ask",
+          "from": "idle",
+          "to": "idle",
+          "verdict": "ask",
+          "when": {
+            "all_of": ["database_query"],
+            "count_gte": { "label": "database_query", "threshold": 3, "window_size": 20 }
+          }
+        },
+        {
+          "id": "export_any_query_then_export_escalate",
+          "from": "*",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": {
+            "all_of": ["file_write"],
+            "any_of": ["export_format", "csv_export"],
+            "window_any_of": { "labels": ["database_query"], "window_size": 5 }
+          }
+        },
+        {
+          "id": "export_sensitive_then_export_escalate",
+          "from": "query_sensitive",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": { "all_of": ["file_write"], "any_of": ["export_format", "csv_export"] }
+        },
+        {
+          "id": "export_block_sticky",
+          "from": "blocked",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {}
+        },
+        {
+          "id": "export_escalate_sticky",
+          "from": "escalated",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": {}
+        }
+      ]
+    },
+    {
+      "name": "BatchFileMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "batch_idle_to_searching",
+          "from": "idle",
+          "to": "searching",
+          "when": {
+            "any_of": ["file_search", "file_read"],
+            "none_of": ["file_compress", "file_package", "network_egress", "file_upload"]
+          }
+        },
+        {
+          "id": "batch_searching_to_packaging",
+          "from": "searching",
+          "to": "packaging",
+          "when": { "any_of": ["file_compress", "file_package"] }
+        },
+        {
+          "id": "batch_packaging_egress_block",
+          "from": "packaging",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "any_of": ["network_egress", "file_upload"] }
+        },
+        {
+          "id": "batch_window_fallback_egress_block",
+          "from": "*",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "any_of": ["network_egress", "file_upload"],
+            "sequence": {
+              "window_size": 10,
+              "steps": [
+                { "any_of": ["file_search", "file_read"] },
+                { "any_of": ["file_compress", "file_package"] }
+              ]
+            }
+          }
+        },
+        {
+          "id": "batch_delete_block",
+          "from": "*",
+          "to": null,
+          "verdict": "block",
+          "when": { "all_of": ["file_delete"], "count_gte": { "label": "file_delete", "threshold": 50 } }
+        },
+        {
+          "id": "batch_delete_ask",
+          "from": "*",
+          "to": null,
+          "verdict": "ask",
+          "when": { "all_of": ["file_delete"], "count_gte": { "label": "file_delete", "threshold": 10 } }
+        },
+        {
+          "id": "batch_upload_external_escalate",
+          "from": "*",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": { "any_of": ["file_upload", "batch_upload"], "all_of": ["bulk_send", "external_target"] }
+        },
+        {
+          "id": "batch_share_modify_ask",
+          "from": "*",
+          "to": "asking",
+          "verdict": "ask",
+          "when": { "all_of": ["share_link_update"], "any_of": ["public_access", "password_removed"] }
+        },
+        {
+          "id": "batch_cloud_cleanup_escalate",
+          "from": "*",
+          "to": null,
+          "verdict": "escalate",
+          "when": { "all_of": ["cloud_cleanup"], "count_gte": { "label": "file_delete", "threshold": 100, "window_size": 30 } }
+        },
+        {
+          "id": "batch_block_sticky",
+          "from": "blocked",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {}
+        },
+        {
+          "id": "batch_escalate_sticky",
+          "from": "escalated",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": {}
+        },
+        {
+          "id": "batch_ask_sticky",
+          "from": "asking",
+          "to": "asking",
+          "verdict": "ask",
+          "when": {}
+        }
+      ]
+    }
+  ]
+}
+

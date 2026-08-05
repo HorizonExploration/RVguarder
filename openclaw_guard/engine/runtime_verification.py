@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import os
 import time as _time
 from collections import deque
 from typing import Any
@@ -224,21 +225,54 @@ class RuntimeVerificationEngine:
         self,
         window_size: int = 10,
         window_ttl_seconds: int | None = 300,
+        rule_mode: str | None = None,
     ) -> None:
         self._window_size = window_size
         self._window_ttl = window_ttl_seconds
+        self._rule_mode = self._normalize_rule_mode(
+            rule_mode or os.getenv("OPENCLAW_RV_RULE_MODE")
+        )
         # 默认共享窗口（向后兼容）
         self.window = WindowManager(max_size=window_size, ttl_seconds=window_ttl_seconds)
         # Per-session 隔离存储
         self._session_windows: dict[str, WindowManager] = {}
         self._session_monitors: dict[str, list] = {}
-        # 监视器工厂引用
-        self._monitors_template: list | None = None
+        self._fsm_monitors_template: list | None = None
+        self._spec_monitors_template: list | None = None
+        self._spec_ruleset: Any | None = None
 
     # ── 懒加载初始化监视器模板 ──
 
+    def _normalize_rule_mode(self, value: str | None) -> str:
+        if not value:
+            return "dsl"
+        v = str(value).strip().lower()
+        if v in {"dsl", "spec", "spec-driven", "spec_driven"}:
+            return "dsl"
+        if v in {"fsm", "handwritten", "hand-written"}:
+            return "fsm"
+        return "dsl"
+
+    def rule_mode(self) -> str:
+        return self._rule_mode
+
+    def set_rule_mode(self, mode: str) -> None:
+        new_mode = self._normalize_rule_mode(mode)
+        if new_mode == self._rule_mode:
+            return
+        self._rule_mode = new_mode
+        self._session_monitors.clear()
+        self._fsm_monitors_template = None
+        self._spec_monitors_template = None
+
     def _lazy_init_monitors(self) -> None:
-        if self._monitors_template is not None:
+        if self._rule_mode == "fsm":
+            self._lazy_init_fsm_monitors()
+        else:
+            self._lazy_init_spec_monitors()
+
+    def _lazy_init_fsm_monitors(self) -> None:
+        if self._fsm_monitors_template is not None:
             return
         from openclaw_guard.engine.rv_monitors import (
             BatchFileMonitor,
@@ -248,7 +282,7 @@ class RuntimeVerificationEngine:
             ReportMonitor,
             SecurityChainMonitor,
         )
-        self._monitors_template = [
+        self._fsm_monitors_template = [
             MailMonitor(),
             ReportMonitor(),
             SecurityChainMonitor(),
@@ -257,25 +291,39 @@ class RuntimeVerificationEngine:
             BatchFileMonitor(),
         ]
 
+    def _lazy_init_spec_monitors(self) -> None:
+        if self._spec_monitors_template is not None:
+            return
+        from openclaw_guard.engine.rv_dsl import compile_monitors, load_ruleset
+
+        if self._spec_ruleset is None:
+            rules_path = os.getenv("OPENCLAW_RV_RULES_PATH")
+            self._spec_ruleset = load_ruleset(rules_path) if rules_path else load_ruleset()
+        self._spec_monitors_template = compile_monitors(self._spec_ruleset)
+
     def _create_monitors(self) -> list:
         """基于模板创建新的监视器实例。"""
         self._lazy_init_monitors()
-        from openclaw_guard.engine.rv_monitors import (
-            BatchFileMonitor,
-            BroadcastMonitor,
-            DataExportMonitor,
-            MailMonitor,
-            ReportMonitor,
-            SecurityChainMonitor,
-        )
-        return [
-            MailMonitor(),
-            ReportMonitor(),
-            SecurityChainMonitor(),
-            BroadcastMonitor(),
-            DataExportMonitor(),
-            BatchFileMonitor(),
-        ]
+        if self._rule_mode == "fsm":
+            from openclaw_guard.engine.rv_monitors import (
+                BatchFileMonitor,
+                BroadcastMonitor,
+                DataExportMonitor,
+                MailMonitor,
+                ReportMonitor,
+                SecurityChainMonitor,
+            )
+            return [
+                MailMonitor(),
+                ReportMonitor(),
+                SecurityChainMonitor(),
+                BroadcastMonitor(),
+                DataExportMonitor(),
+                BatchFileMonitor(),
+            ]
+        from openclaw_guard.engine.rv_dsl import compile_monitors
+
+        return compile_monitors(self._spec_ruleset)
 
     # ── 核心方法 ──
 
@@ -343,6 +391,7 @@ class RuntimeVerificationEngine:
             "reason": reason,
             "window_size": len(window),
             "session_key": session_key,
+            "rule_mode": self._rule_mode,
             "monitor_timings_ms": monitor_timings,
         }
 
@@ -363,7 +412,9 @@ class RuntimeVerificationEngine:
         """获取或创建 per-session 监视器实例。"""
         if session_key == "_default":
             self._lazy_init_monitors()
-            return self._monitors_template  # type: ignore[return-value]
+            if self._rule_mode == "fsm":
+                return self._fsm_monitors_template  # type: ignore[return-value]
+            return self._spec_monitors_template  # type: ignore[return-value]
         if session_key not in self._session_monitors:
             self._session_monitors[session_key] = self._create_monitors()
         return self._session_monitors[session_key]
@@ -410,6 +461,7 @@ class RuntimeVerificationEngine:
         return {
             "window_size": len(window),
             "monitor_count": len(monitors),
+            "rule_mode": self._rule_mode,
             "session_key": session_key,
             "monitor_states": {
                 m.__class__.__name__: m.state_summary()
@@ -442,8 +494,13 @@ class RuntimeVerificationEngine:
             # 重置所有
             self.window.clear()
             self._lazy_init_monitors()
-            if self._monitors_template:
-                for m in self._monitors_template:
+            monitors = (
+                self._fsm_monitors_template
+                if self._rule_mode == "fsm"
+                else self._spec_monitors_template
+            )
+            if monitors:
+                for m in monitors:
                     try:
                         m.reset()
                     except Exception:

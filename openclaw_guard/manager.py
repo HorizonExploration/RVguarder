@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openclaw_guard.config import AppContext, GuardSettings, default_paths
+from openclaw_guard.config import AppContext, GuardSettings, apply_env_overrides, default_paths
 from openclaw_guard.integrations.discovery import discover_openclaw
 from openclaw_guard.integrations.openclaw_adapter import (
     ChatMessage,
@@ -95,7 +95,8 @@ def build_manager(
     reset_db_store()
     paths = default_paths(project_dir)
     target = discover_openclaw(openclaw_root=openclaw_root, config_path=config_path, profile=profile, cwd=project_dir)
-    context = AppContext(paths=paths, target=target, settings=GuardSettings(host=host, port=port, ui_mode=ui_mode))
+    settings = apply_env_overrides(GuardSettings(host=host, port=port, ui_mode=ui_mode))
+    context = AppContext(paths=paths, target=target, settings=settings)
     return OpenclawGuardManager(context)
 
 

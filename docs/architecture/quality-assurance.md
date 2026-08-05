@@ -211,8 +211,9 @@ async def client(services):
 | 一：HTTP 层 | ✅ | ✅ 23 个端点 | ✅ | curl + 前端 |
 | 二：Pydantic | ✅ | ✅ | — | 数据结构校验 |
 | 三：Manager | ✅ | ✅ 流水线 | ✅ | 功能一致 |
-| 四：存储 | ✅ | ✅ | — | 数据一致性 |
-| 五：RV 规约 | ✅ | — | — | 规则输出对比 |
+| 四：前端 | ✅ | ✅ | ✅ | UI 关键路径 |
+| 五：存储（SQLAlchemy） | ✅（native/sqlalchemy） | ✅（关键端点） | — | 数据一致性与降级 |
+| 六：RV 规约驱动（ChainRule） | ✅（dsl/fsm） | ✅（rv_status/rv_toggle） | ✅（前端联动） | 规则输出对比 |
 
 ### 4.2 并行运行验证
 
@@ -262,6 +263,49 @@ def assert_json_response(resp):
 同时建议固定一个“依赖可选性”门禁：在未安装 fastapi/uvicorn 的环境中，仍可正常运行 legacy 模式并通过测试收集（避免 import-time 失败）。
 
 ---
+
+### 4.5 阶段五/六回归用例（新增）
+
+以下用例用于保障“存储层升级（阶段五）”与“RV 规约驱动（阶段六）”的回归门禁，确保默认行为不变、开关可控、矩阵覆盖完整。
+
+#### 4.5.1 存储后端切换（native ↔ sqlalchemy）
+
+目标：验证 `DB_STORE_MODE` / `OPENCLAW_GUARD_DB_STORE_MODE` 对存储实现的选择生效，且默认仍为 native。
+
+- 用例 A：默认（不设置 `DB_STORE_MODE`）启动并可写入审计
+  - 断言：服务可启动；产生审计记录；`/api/audit/export` 导出成功
+- 用例 B：`DB_STORE_MODE=native` 明确指定 native
+  - 断言：后端为 SQLiteStore/PostgreSQLStore 之一（取决于 `DATABASE_URL`）；关键端点输出正常
+- 用例 C：`DB_STORE_MODE=sqlalchemy` 且安装了 sqlalchemy
+  - 断言：后端为 SQLAlchemyStore；关键端点输出正常
+- 用例 D：`DB_STORE_MODE=sqlalchemy` 但未安装 sqlalchemy（降级/报错策略）
+  - 断言：默认模式仍可运行；仅在实际启用 sqlalchemy 模式时返回可读错误信息（避免 import-time 崩溃）
+
+对应测试（建议作为门禁最小集合）：
+
+- `tests/test_sqlalchemy_store.py`（SQLAlchemyStore 单测）
+- `tests/test_integration_storage_rv_matrix.py`（native/sqlalchemy × RV 模式矩阵）
+
+#### 4.5.2 RV 模式切换与规则模式切换（dsl ↔ fsm）
+
+目标：验证 RV 引擎在“规约驱动（dsl）/手写 FSM（fsm）”之间可切换，且 API 输出兼容、前端联动不回归。
+
+- 用例 A：`OPENCLAW_RV_RULE_MODE=dsl|fsm` 环境变量生效
+  - 断言：`/api/rv/status` 的 `engine.rule_mode` 与预期一致
+- 用例 B：`/api/rv/toggle` 支持新字段 `rule_mode`
+  - 请求：`{"enabled": true, "rule_mode": "dsl"}` 或 `{"enabled": true, "rule_mode": "fsm"}`
+  - 断言：返回包含 `rv_mode` 与 `rule_mode`；`/api/rv/status` 同步体现切换结果
+- 用例 C：`/api/rv/toggle` 的开关持久化
+  - 断言：写入 `preferences.json` 后重启仍生效；summary 中 `rv.mode` 与切换一致
+- 用例 D：前端契约不变（UI 能显示状态、切换模式不报错）
+  - 断言：前端使用的字段（`ok/mode/engine/window_size/monitor_count` 等）保持存在并符合类型预期
+
+对应测试（建议作为门禁最小集合）：
+
+- `tests/test_rv_dsl.py`（DSL 编译/执行单测）
+- `tests/test_rv_fsm.py`（FSM 监视器单测）
+- `tests/test_rv_frontend_integration.py`（rv_status/rv_toggle/summary 全流程）
+- `tests/test_integration_storage_rv_matrix.py`（切换 `rule_mode` 的 API 断言）
 
 ### 4.4 回退测试
 

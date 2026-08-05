@@ -2,6 +2,27 @@
 
 当前本地 Web 工作台使用内建 HTTP 服务，主要接口如下。
 
+## 配置入口（影响行为）
+
+以下配置用于控制存储后端与 RV 规则驱动模式，属于“启动期配置 + 运行时可切换”的范畴：
+
+### 存储后端选择：`DB_STORE_MODE`
+
+- 环境变量：`DB_STORE_MODE`（或 `OPENCLAW_GUARD_DB_STORE_MODE`）
+- 可选值：
+  - `native`（默认）：使用内建 `SQLiteStore/PostgreSQLStore`
+  - `sqlalchemy`：使用 `SQLAlchemyStore`（需要安装可选依赖 sqlalchemy）
+- 配合数据库连接：
+  - `DATABASE_URL`（或 `OPENCLAW_GUARD_DATABASE_URL`）可指定 `postgresql://...` 或 `sqlite:///...`
+
+### RV 规则模式默认值：`OPENCLAW_RV_RULE_MODE`
+
+- 环境变量：`OPENCLAW_RV_RULE_MODE`
+- 可选值：
+  - `dsl`（默认）：规约驱动（ChainRule/DSL → 编译 → 监视器）
+  - `fsm`：回退到手写 FSM 监视器
+- 运行时也可通过 `/api/rv/toggle` 的 `rule_mode` 字段覆盖（并持久化到 `preferences.json`）
+
 ## GET `/api/summary`
 
 返回聚合状态，包括：
@@ -54,6 +75,60 @@
 ## GET `/api/debug/logs`
 
 返回运行时日志记录。
+
+## GET `/api/rv/status`
+
+返回 RV 引擎当前状态（用于前端展示与回归断言）。
+
+响应体示例：
+
+```json
+{
+  "ok": true,
+  "mode": true,
+  "engine": {
+    "window_size": 0,
+    "monitor_count": 6,
+    "rule_mode": "dsl",
+    "session_key": "_default",
+    "monitor_states": {},
+    "window_snapshot": []
+  },
+  "session_count": 1
+}
+```
+
+字段说明：
+
+- `mode`：是否启用 RV（来自 `preferences.json`，默认 true）
+- `engine.rule_mode`：当前规则模式（`dsl`/`fsm`）
+- `engine.window_snapshot`：窗口快照（仅保留 props 的前 6 个用于 UI 展示）
+
+## POST `/api/rv/toggle`
+
+切换 RV 启用状态，并可选地切换规则模式。
+
+请求体：
+
+```json
+{
+  "enabled": true,
+  "rule_mode": "dsl"
+}
+```
+
+- `enabled`：是否启用 RV（缺省为 true）
+- `rule_mode`：可选；传入时会同时切换 RV 引擎规则模式并写入 `preferences.json`
+
+响应体：
+
+```json
+{
+  "ok": true,
+  "rv_mode": true,
+  "rule_mode": "dsl"
+}
+```
 
 ## POST `/api/baseline/run`
 

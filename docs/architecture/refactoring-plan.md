@@ -2,7 +2,7 @@
 
 > 版本：v0.2.1 → v0.3.0（当前） | 日期：2026-07-30（初版）/ 2026-08-01（更新） | 作者：架构评审组
 >
-> **进度（按仓库现状核对）**：阶段一 ✅（FastAPI 并行实现，默认仍为 legacy） 阶段二 ✅ 阶段三 ✅（保留 manager.py 兼容层） 阶段四 ✅ 阶段五 ❌ 阶段六 ❌ 阶段七 ❌
+> **进度（按仓库现状核对）**：阶段一 ✅（FastAPI 并行实现，默认仍为 legacy） 阶段二 ✅ 阶段三 ✅（保留 manager.py 兼容层） 阶段四 ✅ 阶段五 ✅ 阶段六 ✅ 阶段七 ❌
 
 ---
 
@@ -14,8 +14,8 @@
 | 二：Pydantic 模型迁移 | ✅ | `openclaw_guard/models.py`（Pydantic v2） | `to_dict()` 保留为兼容别名 |
 | 三：Manager 拆分 + 懒加载 | ✅（已拆分） | `openclaw_guard/services.py` + `openclaw_guard/engine/pipeline.py` + `openclaw_guard/utils.py:LazyProxy` | `manager.py` 保留为向后兼容导入路径与测试打补丁入口 |
 | 四：前端 Preact 迁移 | ✅ | `frontend/`（Preact+Vite）→ 构建产物 `runtime/ui/` | 发生过一次 API 被静态 SPA 覆盖的回归，已修复并纳入回归用例 |
-| 五：存储层升级（SQLAlchemy） | ❌ | 当前仍为 `storage/db_store.py`（SQLiteStore/PostgreSQLStore） | 仅在可选依赖中声明 SQLAlchemy，尚未落地实现 |
-| 六：RV 规约驱动（ChainRule） | ❌ | 当前仍为 `engine/rv_monitors.py`（手写 FSM） | 规约/编译器尚未实现 |
+| 五：存储层升级（SQLAlchemy） | ✅（可选依赖，可降级） | `openclaw_guard/storage/db_store.py:SQLAlchemyStore` + `GuardSettings.db_store_mode` + `AuditStore(store_mode=...)` | 默认仍为 native（SQLiteStore/PostgreSQLStore）；通过 `DB_STORE_MODE=sqlalchemy` 或 `OPENCLAW_GUARD_DB_STORE_MODE=sqlalchemy` 开启；未安装 sqlalchemy 时给出可读错误而非 import-time 崩溃 |
+| 六：RV 规约驱动（ChainRule） | ✅（可切换回退） | `openclaw_guard/engine/rv_dsl.py` + `openclaw_guard/engine/runtime_verification.py` + `openclaw_guard/engine/rv_rules.json` | 默认使用 DSL 规约驱动；通过 `OPENCLAW_RV_RULE_MODE=fsm` 或 `/api/rv/toggle` 的 `rule_mode` 字段回退到手写 FSM；保持 `/api/rv/status`、`/api/rv/toggle` 兼容输出 |
 | 七：长期优化（CI/typing/metrics） | ❌ | 未发现 `.github/workflows`、mypy/ruff 配置、metrics 端点 | 建议优先补齐“回归门禁”后再做性能/监控 |
 
 ## 1. 基本原则
@@ -500,25 +500,24 @@ frontend/src/
 
 ### 7.3 保留设计
 
-`DBStoreInterface` 抽象层不动，新增 `SQLAlchemyStore` 实现：
+`DBStoreInterface` 抽象层不动，新增 `SQLAlchemyStore` 实现，并在工厂 `get_db_store(..., mode=...)` 中通过 `mode="sqlalchemy"` 选择。
 
-```python
-class SQLAlchemyStore(DBStoreInterface):
-    def __init__(self, db_url: str):
-        self.engine = create_async_engine(db_url)
-        self.session = async_sessionmaker(self.engine)
-```
+配置入口：
 
-`get_db_store()` 工厂函数增加 `"sqlalchemy"` 模式：
-```python
-def get_db_store(connection_string: str, mode: str = "sqlite") -> DBStoreInterface:
-    if mode == "sqlalchemy":
-        return SQLAlchemyStore(connection_string)
-    elif mode == "postgres":
-        return PostgreSQLStore(connection_string)
-    else:
-        return SQLiteStore(connection_string)
-```
+- `DB_STORE_MODE=sqlalchemy`（或 `OPENCLAW_GUARD_DB_STORE_MODE=sqlalchemy`）启用 SQLAlchemyStore
+- 默认 `native`：继续使用 SQLiteStore/PostgreSQLStore（不改默认）
+
+行为约束：
+
+- SQLAlchemy 为可选依赖：未安装时在真正启用 `sqlalchemy` 模式才抛出可读错误
+- 初始化/建表不进入热路径：按需创建 engine，并带最小 schema 初始化
+
+### 7.4 验收标准（v0.3.0）
+
+- [x] `DBStoreInterface` 作为唯一调用边界（业务侧不直接依赖 SQLAlchemy）
+- [x] `DB_STORE_MODE`/`OPENCLAW_GUARD_DB_STORE_MODE` 可切换 native/sqlalchemy（默认 native 不变）
+- [x] 未安装 SQLAlchemy 时：默认模式可运行；启用 sqlalchemy 模式时给出可读错误
+- [x] 回归矩阵覆盖：native/sqlalchemy × RV(fsm/dsl) 的关键 API 通过（summary、audit_export、rv_status、rv_toggle）
 
 ---
 
@@ -530,32 +529,20 @@ def get_db_store(connection_string: str, mode: str = "sqlite") -> DBStoreInterfa
 
 ### 8.2 产出
 
-```python
-# rv_rules.py — 唯一的可变部分
-RULES = [
-    ChainRule(
-        id="mail-phishing",
-        sequence=[
-            StepRequirement(props_any={"external_source", "attachment_open"}),
-            StepRequirement(props_any={"contains_secret"}),
-            StepRequirement(props_all={"mail_send", "external_recipient"}),
-        ],
-        verdict="block",
-    ),
-    ChainRule(
-        id="search-delete",
-        sequence=[
-            StepRequirement(props_all={"file_search", "high_value_path"}),
-            StepRequirement(props_all={"file_delete", "high_value_path"}),
-        ],
-        verdict="block",
-        window_size=5,
-    ),
-    # ... 更多规则只需追加
-]
-```
+规约文件作为唯一可变入口（默认规则集提供与现有 6 个监视器等价的覆盖），由编译器加载并生成可执行监视器。
 
-详见 `rv-spec-driven-design.md`。
+配置/行为入口：
+
+- `OPENCLAW_RV_RULE_MODE=dsl|fsm`：指定 RV 引擎使用 DSL 规约驱动或手写 FSM（默认 dsl）
+- `/api/rv/toggle` 支持 `rule_mode` 字段：运行时切换并写入 `preferences.json`（重启后生效）
+- `/api/rv/status` 返回 `engine.rule_mode` 便于前端展示与回归断言
+
+### 8.3 验收标准（v0.3.0）
+
+- [x] 规约驱动模式（dsl）默认启用，且规则集可独立更新（不改代码）
+- [x] 提供回退开关：支持切换到手写 FSM（fsm），且切换不破坏既有 API 输出结构
+- [x] `/api/rv/status`、`/api/rv/toggle` 输出保持兼容，并补充 `rule_mode` 状态字段
+- [x] 回归矩阵覆盖：两种 RV 模式下关键端点输出符合预期（含前端联动）
 
 ---
 

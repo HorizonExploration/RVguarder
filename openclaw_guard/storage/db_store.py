@@ -44,6 +44,21 @@ except ImportError:
     REDIS_AVAILABLE = False
     redis = None
 
+try:
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.engine import Engine
+    from sqlalchemy.exc import SQLAlchemyError
+    from sqlalchemy.inspection import inspect as sqlalchemy_inspect
+
+    SQLALCHEMY_AVAILABLE = True
+except ImportError:
+    SQLALCHEMY_AVAILABLE = False
+    create_engine = None
+    text = None
+    Engine = None
+    SQLAlchemyError = Exception
+    sqlalchemy_inspect = None
+
 
 # =============================================================================
 # Database Configuration
@@ -672,6 +687,451 @@ class PostgreSQLStore(DBStoreInterface):
             pass
 
 
+class SQLAlchemyStore(DBStoreInterface):
+    """SQLAlchemy implementation of DBStoreInterface."""
+
+    def __init__(self, db_url: str) -> None:
+        if not SQLALCHEMY_AVAILABLE:
+            raise ImportError(
+                "sqlalchemy is required for SQLAlchemyStore. Install with: pip install sqlalchemy"
+            )
+        self.db_url = db_url
+        self._engine: Engine | None = None
+        self._lock = threading.RLock()
+        self._dialect_name: str | None = None
+        self._audit_has_payload_json: bool | None = None
+        self._audit_has_payload: bool | None = None
+        self._audit_has_payload_hash: bool | None = None
+        self._audit_has_log_id: bool | None = None
+
+    def _ensure_engine(self) -> Engine:
+        engine = self._engine
+        if engine is not None:
+            return engine
+        with self._lock:
+            engine = self._engine
+            if engine is not None:
+                return engine
+            connect_args: dict[str, Any] | None = None
+            if self.db_url.startswith("sqlite:"):
+                connect_args = {"check_same_thread": False}
+            engine = create_engine(self.db_url, pool_pre_ping=True, connect_args=connect_args or {})
+            self._engine = engine
+            self._dialect_name = engine.dialect.name
+            return engine
+
+    def _ensure_schema(self) -> None:
+        engine = self._ensure_engine()
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                "CREATE TABLE IF NOT EXISTS schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO schema_meta (key, value) VALUES ('schema_version', '1') "
+                "ON CONFLICT (key) DO NOTHING"
+            )
+
+            insp = sqlalchemy_inspect(engine)
+            audit_exists = insp.has_table("audit_log")
+            if not audit_exists:
+                conn.exec_driver_sql(
+                    "CREATE TABLE IF NOT EXISTS audit_log ("
+                    "record_id TEXT PRIMARY KEY, "
+                    "timestamp TEXT NOT NULL, "
+                    "record_type TEXT NOT NULL, "
+                    "payload_json TEXT NOT NULL, "
+                    "previous_hash TEXT NOT NULL, "
+                    "record_hash TEXT NOT NULL"
+                    ")"
+                )
+                conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)")
+                conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS idx_audit_type ON audit_log(record_type)")
+
+            columns = {c["name"] for c in insp.get_columns("audit_log")}
+            self._audit_has_payload_json = "payload_json" in columns
+            self._audit_has_payload = "payload" in columns
+            self._audit_has_payload_hash = "payload_hash" in columns
+            self._audit_has_log_id = "log_id" in columns
+
+            conn.exec_driver_sql(
+                "CREATE TABLE IF NOT EXISTS controlled_actions ("
+                "action_id TEXT PRIMARY KEY, "
+                "payload_json TEXT NOT NULL, "
+                "updated_at TEXT NOT NULL"
+                ")"
+            )
+            conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS idx_actions_updated_at ON controlled_actions(updated_at)")
+
+            conn.exec_driver_sql(
+                "CREATE TABLE IF NOT EXISTS runtime_logs ("
+                "log_id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "timestamp TEXT NOT NULL, "
+                "event TEXT NOT NULL, "
+                "profile TEXT NOT NULL, "
+                "payload_json TEXT NOT NULL"
+                ")"
+            )
+            conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON runtime_logs(timestamp)")
+
+            conn.exec_driver_sql(
+                "CREATE TABLE IF NOT EXISTS skills ("
+                "name TEXT PRIMARY KEY, "
+                "payload_json TEXT NOT NULL, "
+                "updated_at TEXT NOT NULL"
+                ")"
+            )
+            conn.exec_driver_sql(
+                "CREATE TABLE IF NOT EXISTS channels ("
+                "name TEXT PRIMARY KEY, "
+                "payload_json TEXT NOT NULL, "
+                "updated_at TEXT NOT NULL"
+                ")"
+            )
+
+    def _audit_order_clause(self) -> str:
+        if self._audit_has_log_id:
+            return "timestamp DESC, log_id DESC"
+        return "timestamp DESC"
+
+    def _audit_lock_clause(self) -> str:
+        if self._dialect_name == "postgresql":
+            return " FOR UPDATE"
+        return ""
+
+    def _compute_hash(self, previous_hash: str, payload_json: str) -> str:
+        return hashlib.sha256(f"{previous_hash}{payload_json}".encode()).hexdigest()
+
+    def _compute_payload_hash(self, payload_json: str) -> str:
+        return hashlib.sha256(payload_json.encode()).hexdigest()
+
+    def append_audit_record(self, record_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        self._ensure_schema()
+        payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        record_id = uuid4().hex[:16]
+        timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+        with self._lock:
+            engine = self._ensure_engine()
+            with engine.begin() as conn:
+                previous_sql = (
+                    f"SELECT record_hash FROM audit_log ORDER BY {self._audit_order_clause()} LIMIT 1"
+                    f"{self._audit_lock_clause()}"
+                )
+                row = conn.execute(text(previous_sql)).fetchone()
+                previous_hash = row[0] if row else "GENESIS"
+
+                record_hash = self._compute_hash(previous_hash, payload_json)
+                payload_hash = self._compute_payload_hash(payload_json)
+
+                columns: list[str] = ["record_id", "timestamp", "record_type", "previous_hash", "record_hash"]
+                values: dict[str, Any] = {
+                    "record_id": record_id,
+                    "timestamp": timestamp,
+                    "record_type": record_type,
+                    "previous_hash": previous_hash,
+                    "record_hash": record_hash,
+                }
+                if self._audit_has_payload_json:
+                    columns.append("payload_json")
+                    values["payload_json"] = payload_json
+                elif self._audit_has_payload:
+                    columns.append("payload")
+                    values["payload"] = payload
+                else:
+                    columns.append("payload_json")
+                    values["payload_json"] = payload_json
+                if self._audit_has_payload_hash:
+                    columns.append("payload_hash")
+                    values["payload_hash"] = payload_hash
+
+                placeholders = ", ".join([f":{c}" for c in columns])
+                sql = f"INSERT INTO audit_log ({', '.join(columns)}) VALUES ({placeholders})"
+                conn.execute(text(sql), values)
+
+        return {
+            "record_id": record_id,
+            "timestamp": timestamp,
+            "record_type": record_type,
+            "payload": payload,
+            "previous_hash": previous_hash,
+            "record_hash": record_hash,
+        }
+
+    def query_audit_records(
+        self,
+        record_type: str | None = None,
+        limit: int = 200,
+        offset: int | None = None,
+        since: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        self._ensure_schema()
+        engine = self._ensure_engine()
+        where = ["1=1"]
+        params: dict[str, Any] = {"limit": limit}
+        if record_type:
+            where.append("record_type = :record_type")
+            params["record_type"] = record_type
+        if since:
+            where.append("timestamp >= :since")
+            params["since"] = since.isoformat()
+        if offset:
+            params["offset"] = offset
+
+        payload_column = "payload_json" if self._audit_has_payload_json else ("payload" if self._audit_has_payload else "payload_json")
+        sql = (
+            "SELECT record_id, timestamp, record_type, "
+            f"{payload_column} AS payload_value, previous_hash, record_hash "
+            f"FROM audit_log WHERE {' AND '.join(where)} "
+            f"ORDER BY {self._audit_order_clause()} "
+            "LIMIT :limit"
+        )
+        if offset:
+            sql += " OFFSET :offset"
+
+        with engine.begin() as conn:
+            rows = conn.execute(text(sql), params).fetchall()
+
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            payload_value = row[3]
+            if payload_value is None:
+                payload_obj: Any = {}
+            elif isinstance(payload_value, str):
+                try:
+                    payload_obj = json.loads(payload_value)
+                except json.JSONDecodeError:
+                    payload_obj = {"_raw": payload_value}
+            else:
+                payload_obj = payload_value
+            result.append(
+                {
+                    "record_id": row[0],
+                    "timestamp": row[1],
+                    "record_type": row[2],
+                    "payload": payload_obj,
+                    "previous_hash": row[4],
+                    "record_hash": row[5],
+                }
+            )
+        return result
+
+    def verify_audit_chain(self) -> dict[str, Any]:
+        self._ensure_schema()
+        engine = self._ensure_engine()
+        payload_column = "payload_json" if self._audit_has_payload_json else ("payload" if self._audit_has_payload else "payload_json")
+        sql = (
+            "SELECT record_id, "
+            f"{payload_column} AS payload_value, previous_hash, record_hash "
+            "FROM audit_log ORDER BY timestamp ASC LIMIT 100000"
+        )
+        with engine.begin() as conn:
+            rows = conn.execute(text(sql)).fetchall()
+
+        previous = "GENESIS"
+        broken: list[str] = []
+        for row in rows:
+            payload_value = row[1]
+            if isinstance(payload_value, str):
+                payload_json = payload_value
+            else:
+                payload_json = json.dumps(payload_value, ensure_ascii=False, sort_keys=True)
+            expected_hash = self._compute_hash(previous, payload_json)
+            if row[2] != previous or row[3] != expected_hash:
+                broken.append(row[0])
+            previous = row[3]
+
+        return {"ok": not broken, "broken_records": broken}
+
+    def save_action(self, action_data: dict[str, Any]) -> bool:
+        self._ensure_schema()
+        action_id = action_data.get("action_id")
+        if not action_id:
+            return False
+        payload_json = json.dumps(action_data, ensure_ascii=False)
+        updated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        engine = self._ensure_engine()
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO controlled_actions (action_id, payload_json, updated_at) "
+                    "VALUES (:action_id, :payload_json, :updated_at) "
+                    "ON CONFLICT (action_id) DO UPDATE SET "
+                    "payload_json = EXCLUDED.payload_json, "
+                    "updated_at = EXCLUDED.updated_at"
+                ),
+                {"action_id": action_id, "payload_json": payload_json, "updated_at": updated_at},
+            )
+        return True
+
+    def get_action(self, action_id: str) -> dict[str, Any] | None:
+        self._ensure_schema()
+        engine = self._ensure_engine()
+        with engine.begin() as conn:
+            row = conn.execute(
+                text("SELECT payload_json FROM controlled_actions WHERE action_id = :action_id"),
+                {"action_id": action_id},
+            ).fetchone()
+        if not row:
+            return None
+        try:
+            return json.loads(row[0])
+        except json.JSONDecodeError:
+            return None
+
+    def list_actions(
+        self,
+        status: str | None = None,
+        limit: int = 1000,
+        offset: int | None = None,
+    ) -> list[dict[str, Any]]:
+        self._ensure_schema()
+        engine = self._ensure_engine()
+        params: dict[str, Any] = {"limit": limit}
+        if offset:
+            params["offset"] = offset
+        sql = "SELECT payload_json FROM controlled_actions ORDER BY updated_at DESC LIMIT :limit"
+        if offset:
+            sql += " OFFSET :offset"
+        with engine.begin() as conn:
+            rows = conn.execute(text(sql), params).fetchall()
+        items: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                item = json.loads(row[0])
+            except json.JSONDecodeError:
+                continue
+            if status and item.get("status") != status:
+                continue
+            items.append(item)
+        return items
+
+    def append_runtime_log(self, event: str, profile: str, **kwargs) -> bool:
+        self._ensure_schema()
+        payload_json = json.dumps(kwargs, ensure_ascii=False)
+        timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        engine = self._ensure_engine()
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO runtime_logs (timestamp, event, profile, payload_json) "
+                    "VALUES (:timestamp, :event, :profile, :payload_json)"
+                ),
+                {"timestamp": timestamp, "event": event, "profile": profile, "payload_json": payload_json},
+            )
+        return True
+
+    def get_recent_logs(self, limit: int = 80) -> list[dict[str, Any]]:
+        self._ensure_schema()
+        engine = self._ensure_engine()
+        with engine.begin() as conn:
+            rows = conn.execute(
+                text("SELECT timestamp, event, profile, payload_json FROM runtime_logs ORDER BY timestamp DESC LIMIT :limit"),
+                {"limit": limit},
+            ).fetchall()
+        items: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                payload = json.loads(row[3])
+            except json.JSONDecodeError:
+                payload = {}
+            items.append({"timestamp": row[0], "event": row[1], "profile": row[2], "payload": payload})
+        return items
+
+    def upsert_skill(self, name: str, data: dict[str, Any]) -> bool:
+        self._ensure_schema()
+        payload_json = json.dumps(data, ensure_ascii=False)
+        updated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        engine = self._ensure_engine()
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO skills (name, payload_json, updated_at) "
+                    "VALUES (:name, :payload_json, :updated_at) "
+                    "ON CONFLICT (name) DO UPDATE SET "
+                    "payload_json = EXCLUDED.payload_json, "
+                    "updated_at = EXCLUDED.updated_at"
+                ),
+                {"name": name, "payload_json": payload_json, "updated_at": updated_at},
+            )
+        return True
+
+    def delete_skill(self, name: str) -> bool:
+        self._ensure_schema()
+        engine = self._ensure_engine()
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM skills WHERE name = :name"), {"name": name})
+        return True
+
+    def list_skills(self) -> list[dict[str, Any]]:
+        self._ensure_schema()
+        engine = self._ensure_engine()
+        with engine.begin() as conn:
+            rows = conn.execute(text("SELECT name, payload_json FROM skills ORDER BY name")).fetchall()
+        items: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                payload = json.loads(row[1])
+            except json.JSONDecodeError:
+                payload = {}
+            items.append({"name": row[0], **payload})
+        return items
+
+    def upsert_channel(self, name: str, data: dict[str, Any]) -> bool:
+        self._ensure_schema()
+        payload_json = json.dumps(data, ensure_ascii=False)
+        updated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        engine = self._ensure_engine()
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO channels (name, payload_json, updated_at) "
+                    "VALUES (:name, :payload_json, :updated_at) "
+                    "ON CONFLICT (name) DO UPDATE SET "
+                    "payload_json = EXCLUDED.payload_json, "
+                    "updated_at = EXCLUDED.updated_at"
+                ),
+                {"name": name, "payload_json": payload_json, "updated_at": updated_at},
+            )
+        return True
+
+    def delete_channel(self, name: str) -> bool:
+        self._ensure_schema()
+        engine = self._ensure_engine()
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM channels WHERE name = :name"), {"name": name})
+        return True
+
+    def list_channels(self) -> list[dict[str, Any]]:
+        self._ensure_schema()
+        engine = self._ensure_engine()
+        with engine.begin() as conn:
+            rows = conn.execute(text("SELECT name, payload_json FROM channels ORDER BY name")).fetchall()
+        items: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                payload = json.loads(row[1])
+            except json.JSONDecodeError:
+                payload = {}
+            items.append({"name": row[0], **payload})
+        return items
+
+    def health_check(self) -> dict[str, Any]:
+        try:
+            self._ensure_schema()
+            engine = self._ensure_engine()
+            with engine.begin() as conn:
+                conn.execute(text("SELECT 1"))
+            return {"ok": True, "sqlalchemy": True}
+        except Exception as exc:
+            return {"ok": False, "sqlalchemy": str(exc)}
+
+    def close(self) -> None:
+        engine = self._engine
+        if engine is not None:
+            engine.dispose()
+        self._engine = None
+
+
 # =============================================================================
 # SQLite Fallback Implementation
 # =============================================================================
@@ -1012,20 +1472,31 @@ _db_store_cache: dict[str, DBStoreInterface] = {}
 _db_store_lock = threading.Lock()
 
 
-def _store_cache_key(connection_string: str | None, config: DBConfig | None) -> str:
+def _normalize_store_mode(mode: str | None) -> str:
+    normalized = (mode or "").strip().lower()
+    return normalized or "native"
+
+
+def _store_cache_key(connection_string: str | None, config: DBConfig | None, store_mode: str | None) -> str:
+    normalized_mode = _normalize_store_mode(store_mode)
     if connection_string:
-        return connection_string
+        return f"{normalized_mode}:{connection_string}"
     if not config:
-        return "sqlite:///output/audit/audit.db"
+        return f"{normalized_mode}:sqlite:///output/audit/audit.db"
     if config.db_type == "postgresql":
         return (
-            f"postgresql://{config.username}:{config.password}@"
+            f"{normalized_mode}:postgresql://{config.username}:{config.password}@"
             f"{config.host}:{config.port}/{config.database}"
         )
-    return f"sqlite:///{config.sqlite_path or Path('output/audit/audit.db')}"
+    return f"{normalized_mode}:sqlite:///{config.sqlite_path or Path('output/audit/audit.db')}"
 
 
-def get_db_store(connection_string: str | None = None, config: DBConfig | None = None) -> DBStoreInterface:
+def get_db_store(
+    connection_string: str | None = None,
+    config: DBConfig | None = None,
+    *,
+    mode: str | None = None,
+) -> DBStoreInterface:
     """
     Get or create the database store instance.
 
@@ -1044,12 +1515,15 @@ def get_db_store(connection_string: str | None = None, config: DBConfig | None =
         # SQLite
         db = get_db_store("sqlite:///path/to/output/audit/audit.db")
 
+        # SQLAlchemy
+        db = get_db_store("sqlite:///path/to/output/audit/audit.db", mode="sqlalchemy")
+
         # With config
         config = DBConfig(db_type="postgresql", host="localhost", database="openclaw_guard",
                          username="user", password="pass")
         db = get_db_store(config=config)
     """
-    cache_key = _store_cache_key(connection_string, config)
+    cache_key = _store_cache_key(connection_string, config, mode)
     cached = _db_store_cache.get(cache_key)
     if cached is not None:
         return cached
@@ -1062,12 +1536,25 @@ def get_db_store(connection_string: str | None = None, config: DBConfig | None =
         if config is None:
             config = _parse_connection_string(connection_string or "sqlite:///output/audit/audit.db")
 
-        if config.db_type == "postgresql":
-            store: DBStoreInterface = PostgreSQLStore(config)
+        normalized_mode = _normalize_store_mode(mode)
+        if normalized_mode == "sqlalchemy":
+            if not SQLALCHEMY_AVAILABLE:
+                raise ImportError(
+                    "sqlalchemy is required for SQLAlchemyStore. Install with: pip install sqlalchemy"
+                )
+            if connection_string:
+                db_url = connection_string
+            elif config.db_type == "postgresql":
+                db_url = config.get_postgresql_dsn()
+            else:
+                db_url = f"sqlite:///{config.sqlite_path or Path('output/audit/audit.db')}"
+            store = SQLAlchemyStore(db_url)
+        elif config.db_type == "postgresql":
+            store = PostgreSQLStore(config)
         else:
             store = SQLiteStore(config.sqlite_path or Path("output/audit/audit.db"))
 
-        cache_key = _store_cache_key(connection_string, config)
+        cache_key = _store_cache_key(connection_string, config, mode)
         _db_store_cache[cache_key] = store
         return store
 
