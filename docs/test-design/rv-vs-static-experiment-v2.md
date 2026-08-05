@@ -2,7 +2,7 @@
 
 > **核心问题**：为什么 Guardrails 拦不住的链式攻击，我们的 RV 引擎能自动阻断？  
 > **文档状态**：v2.0（适配 2026-07-29 RV 层 FSM 全面升级）  
-> **关联文档**：`openclaw-guard-test-design.md`（v1.0）、`phishing-rv-demo-test.md`（v1.0）
+> **关联文档**：`openclaw-guard-test-design.md`（v1.0）
 
 ---
 

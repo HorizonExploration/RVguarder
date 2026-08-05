@@ -83,16 +83,18 @@
 
 ---
 
-## 2. 目录结构（目标）
+## 2. 目录结构（实际实现 · v0.3.0）
+
+> 以下目录结构已按 v0.3.0 实际落地情况对齐：`services.py` 为扁平单文件、编排层内嵌 `engine/pipeline.py`、RV 规约采用 `rv_dsl.py` + `rv_rules.json`、SQLAlchemyStore 内嵌于 `db_store.py`、`api/` 与 `manager.py` 保留为兼容层。
 
 ```
 openclaw_guard/
-├── main.py                    # CLI 入口（argparse + 启动）
-├── config.py                  # 配置定义（基本不变）
+├── main.py                    # CLI 入口（argparse + 启动，--fastapi 切换 HTTP 层）
+├── config.py                  # 配置定义（读取 DB_STORE_MODE / OPENCLAW_RV_RULE_MODE）
 ├── models.py                  # Pydantic 数据模型
 │
-├── web/                       # [NEW] FastAPI 层
-│   ├── __init__.py            # app = FastAPI() + 全局中间件
+├── web/                       # FastAPI 层（可选，--fastapi 启用）
+│   ├── __init__.py            # app = FastAPI() + 全局中间件（关闭 OpenAPI docs）
 │   ├── app.py                 # create_app() 工厂函数
 │   ├── dependencies.py        # FastAPI 依赖注入
 │   ├── errors.py              # 统一异常处理
@@ -106,50 +108,44 @@ openclaw_guard/
 │       ├── baseline.py        # 基线扫描
 │       └── static.py          # 前端 SPA 静态文件
 │
-├── services/                  # [NEW] 服务容器
-│   ├── __init__.py            # GuardServices 数据类
-│   ├── builder.py             # build_services() 工厂函数（懒加载版）
-│   └── lazy.py                # [NEW] LazyProxy: 懒加载代理容器
-
-├── pipeline/                  # [NEW] 编排层（从 manager 拆分）
-│   ├── __init__.py
-│   ├── ingest.py             # ingest_event() 流水线
-│   ├── hook_handler.py       # before/after_tool_call 处理
-│   └── approval_sync.py      # 双端审批同步
+├── services.py                # GuardServices 服务容器 + build_services()（扁平单文件）
 │
-├── engine/                    # [MOVE] 安全检测引擎
-│   ├── __init__.py
-│   ├── behavior.py           # 行为事件建模
-│   ├── control.py            # 决策控制
-│   ├── detection.py          # 规则引擎
-│   ├── whitelist.py          # 白名单
-│   ├── semantic_enhancer.py  # 语义增强
-│   ├── runtime_verification.py  # RV 引擎 + 滑动窗口
-│   ├── rv_compiler.py        # [NEW] 从 ChainRule 编译 FSM
-│   ├── rv_rules.py           # [NEW] 声明式规约
-│   └── rv_monitors.py        # [REMOVE - 阶段六] 声明式规约上线后移除
+├── legacy_web.py              # stdlib http.server 实现（默认 HTTP 层，FastAPI 缺失时回退）
 │
-├── core/                      # [KEEP] 核心业务服务
+├── engine/                    # 安全检测引擎
+│   ├── __init__.py
+│   ├── behavior.py            # 行为事件建模
+│   ├── control.py             # 决策控制
+│   ├── detection.py           # 规则引擎
+│   ├── whitelist.py           # 白名单
+│   ├── semantic_enhancer.py   # 语义增强
+│   ├── pipeline.py            # 编排层（ingest / before / after 流水线，从 manager 拆分）
+│   ├── runtime_verification.py  # RV 引擎 + 滑动窗口（per-session 隔离 + 状态序列化）
+│   ├── rv_dsl.py              # ChainRule 声明式规约 DSL（compile_monitors 编译监视器）
+│   ├── rv_rules.json          # 声明式规约数据
+│   └── rv_monitors.py         # 手写 FSM 监视器（保留为规约关闭时的回退模式）
+│
+├── core/                      # 核心业务服务
 │   ├── __init__.py
 │   ├── action_service.py
 │   ├── audit_service.py
 │   └── baseline_service.py
 │
-├── integrations/              # [KEEP] OpenClaw 集成
+├── integrations/              # OpenClaw 集成
 │   ├── __init__.py
 │   ├── discovery.py
 │   ├── hook_runtime.py
 │   ├── tool_hook_bridge.py
 │   └── openclaw_adapter.py
 │
-├── storage/                   # [KEEP] 数据持久化
+├── storage/                   # 数据持久化
 │   ├── __init__.py
-│   ├── db_store.py
-│   ├── sqlalchemy_store.py   # [NEW] ORM 实现
+│   ├── db_store.py            # DBStore 接口族：SQLiteStore / PostgreSQLStore / SQLAlchemyStore
 │   └── audit_store.py
 │
-├── api/                       # [REMOVE] 替换为 web/
-└── manager.py                 # [REMOVE] 替换为 services/ + pipeline/
+├── api/                       # 保留：HTTP 处理函数边界层（legacy_web 与 web/routes 共用）
+├── manager.py                 # 向后兼容层（OpenclawGuardManager 子类化 GuardServices）
+└── utils.py                   # LazyProxy 懒加载代理等工具
 ```
 
 ---
@@ -381,35 +377,27 @@ class RuntimeVerificationEngine:
 3. **React 生态**：可复用 React 仪表盘组件（如 `recharts`、`tanstack-table`）
 4. **Vite 集成**：`@preact/preset-vite` 零配置接入
 
-### 7.2 前端目录结构（目标）
+### 7.2 前端目录结构（已落地 · v0.3.0）
 
 ```
 frontend/
-├── index.html                  # 入口 HTML（不变）
+├── index.html                  # 入口 HTML
 ├── vite.config.js              # Vite 配置 + @preact/preset-vite
 ├── package.json
 ├── src/
 │   ├── main.jsx                # Preact 入口
 │   ├── App.jsx                 # 根组件 + 路由
-│   ├── api/                    # API 请求层
-│   │   ├── client.js           # fetch 封装 + 认证头注入
-│   │   ├── hook.js             # /api/hook/* 调用
-│   │   └── summary.js          # /api/summary 调用
+│   ├── api.js                  # API 请求层（fetch 封装 + 认证头注入，单文件）
+│   ├── store.js                # zustand 状态管理（单文件）
+│   ├── i18n.js                 # 国际化文案
 │   ├── pages/                  # 页面组件
-│   │   ├── Overview.jsx        # 概览面板
+│   │   ├── Dashboard.jsx       # 概览面板
 │   │   ├── Actions.jsx         # 动作审批页
-│   │   ├── Audit.jsx           # 审计查询页
-│   │   ├── RvStatus.jsx        # RV 状态面板
-│   │   └── Baseline.jsx        # 基线扫描报告
-│   ├── components/             # 可复用组件
-│   │   ├── Layout.jsx          # 布局框架
-│   │   ├── Navbar.jsx          # 导航栏
-│   │   ├── ActionCard.jsx      # 审批卡片
-│   │   ├── StatusBadge.jsx     # 状态标签
-│   │   └── DataTable.jsx       # 数据表格
-│   ├── stores/                 # 状态管理
-│   │   └── useStore.js         # zustand store（~1KB）
-│   └── styles.css              # 全局样式（大幅精简）
+│   │   ├── Rules.jsx           # 安全规则页
+│   │   ├── Skills.jsx          # 技能页
+│   │   └── Settings.jsx        # 设置页
+│   ├── components/             # 可复用组件（Layout / ActionCard / RvStatusPanel / TraceTimeline 等）
+│   └── styles.css              # 全局样式
 ```
 
 ### 7.3 迁移策略
@@ -518,15 +506,15 @@ jobs:
 
 | 维度 | 重构前 (v0.2.1) | 当前 (v0.3.0) | 重构后 (v1.0) |
 |------|-----------------|----------------|---------------|
-| Web 框架 | `BaseHTTPRequestHandler` | **FastAPI + 旧版并存** | FastAPI |
+| Web 框架 | `BaseHTTPRequestHandler` | **legacy_web 默认 + FastAPI 可选（`--fastapi`）** | FastAPI |
 | 序列化 | 手动 `to_dict()` | **Pydantic v2（to_dict 别名）** | Pydantic 自动 |
-| 请求验证 | 无 | 手动（Phase 1 桥接） | Pydantic schema |
-| API 文档 | 无 | 无（Phase 1 关闭） | Swagger + ReDoc 自动生成 |
-| 启动速度 | ~3-5秒（同步初始化全部组件） | ~3-5秒 | ~150ms（懒加载，仅创建热路径） |
-| 编排层 | Manager 上帝对象 | Manager 上帝对象 | 独立 Pipeline + 依赖注入 + LazyProxy |
-| 前端框架 | Vanilla JS（35k 行 app.js） | Vanilla JS | Preact SPA（3KB gzip，组件化） |
-| 存储层 | SQLiteStore (原生 SQL) | SQLiteStore (原生 SQL) | SQLAlchemy (可选) |
-| RV 监视器 | 6 个手写 FSM | 6 个手写 FSM | ChainRule 声明式规约 |
+| 请求验证 | 无 | Pydantic schema（FastAPI 层）/ 手动（legacy） | Pydantic schema |
+| API 文档 | 无 | 无（web/app.py 关闭 OpenAPI：docs_url/redoc_url/openapi_url） | Swagger + ReDoc 自动生成 |
+| 启动速度 | ~3-5秒（同步初始化全部组件） | ~3-5秒（冷路径经 LazyProxy 惰性加载） | ~150ms（懒加载，仅创建热路径） |
+| 编排层 | Manager 上帝对象 | **GuardServices 容器 + engine/pipeline.py（manager.py 兼容子类）** | 独立 Pipeline + 依赖注入 + LazyProxy |
+| 前端框架 | Vanilla JS（35k 行 app.js） | **Preact SPA（Dashboard/Actions/Rules/Skills/Settings）** | Preact SPA（3KB gzip，组件化） |
+| 存储层 | SQLiteStore (原生 SQL) | **SQLiteStore 默认 + SQLAlchemyStore 可选（DB_STORE_MODE=sqlalchemy）** | SQLAlchemy (可选) |
+| RV 监视器 | 6 个手写 FSM | **ChainRule DSL 规约驱动（默认）+ FSM 回退** | ChainRule 声明式规约 |
 | 并发 | threading (无上限) | threading | uvicorn worker (可配置) |
 | 测试 | unittest | unittest | pytest + httpx |
 | 类型安全 | 无 | **Pydantic 类型约束** | mypy + Pydantic |

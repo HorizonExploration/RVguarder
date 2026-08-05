@@ -73,7 +73,7 @@
 
 ## 近期（1-2个月）
 - P0 场景全量覆盖：消息群发/广播、数据库导出、文件批量操作的业务规则完善与测试
-- 审计存储重构：将动作存储从独立 JSON 文件迁移到 SQLite 表，统一哈希链保护
+- 审计存储重构（已落地）：动作/审计存储已迁移到 SQLite 表（`openclaw_guard/storage/db_store.py` 的 `SQLiteStore`，可选 `SQLAlchemyStore`），统一哈希链保护
 - 前端页面补齐：安全规则管理页面 UI 开发、分页/无限滚动机制
 - P1 场景开发：文档外发、代提交审批、代码推送等 6 个场景的监视器开发
 - 依赖声明完善：在 pyproject.toml 中完整声明 Python 依赖
@@ -81,7 +81,7 @@
 ## 中期（3-6个月）
 - 用户自定义规则系统：自然语言规则 → LLM 结构化提取 → 用户确认 → 写入 policies/
 - Back-Translation 验证层：将 Trace 反向重写为自然语言，与原始输入对比，检测约束丢失
-- DSL 语法设计：从 JSON 规则模板过渡到轻量领域特定语言
+- DSL 语法设计（已落地）：JSON 规则模板已过渡到 `openclaw_guard/engine/rv_dsl.py`，即当前默认的 `dsl` 规则驱动模式
 - 离线增强 RV 引擎：接入 Spot 做 LTL 公式校验与自动机生成
 - 多 Agent 协作场景支持：跨 Agent Trace 的联合时序验证
 

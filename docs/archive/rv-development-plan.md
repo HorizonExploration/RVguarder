@@ -576,7 +576,7 @@ def handle_before_tool_call(self, payload, *, wait_timeout_ms=None):
 
 ### 5.2 P0 新增监视器代码
 
-详见 [office-scenario-matrix.md §7.1](file:///home/yosoro126/OpenClaw-RVGuarder/docs/Sematic/office-scenario-matrix.md)
+详见 [office-scenario-matrix.md §7.1](file:///home/yosoro126/OpenClaw-RVGuarder/docs/semantic/office-scenario-matrix.md)
 
 ```text
 单步规则（已有）：SEM-OFFICE-001~005 + 47 条 semantic predicates
@@ -654,8 +654,8 @@ def handle_before_tool_call(self, payload, *, wait_timeout_ms=None):
 
 | 文档 | 关系 |
 |:---|:---|
-| [rv-engine-selection-report.md](file:///home/yosoro126/OpenClaw-RVGuarder/docs/Sematic/rv-engine-selection-report.md) | 选型依据：本文档完全基于选型报告的 transitions 方案实施 |
-| [rv-feasibility-report.md](file:///home/yosoro126/OpenClaw-RVGuarder/docs/Sematic/rv-feasibility-report.md) | 场景依据：本文档实现的 6 类监视器覆盖可行性报告中全部 6 类场景 |
+| [rv-engine-comparison-v3.md](file:///home/yosoro126/OpenClaw-RVGuarder/docs/archive/rv-engine-comparison-v3.md) | 选型依据：本文档完全基于选型报告的 transitions 方案实施 |
+| [rv-feasibility-report.md](file:///home/yosoro126/OpenClaw-RVGuarder/docs/archive/rv-feasibility-report.md) | 场景依据：本文档实现的 6 类监视器覆盖可行性报告中全部 6 类场景 |
 | [semantic_enhancer.py](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/integrations/semantic_enhancer.py) | 输入来源：RV 引擎消费其 `rv_trace` 产出 |
 | [detection.py](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/integrations/detection.py) | 协同决策：RV 判定与单步规则取最高风险 |
 | [manager.py](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/manager.py) | 主链接入点 |

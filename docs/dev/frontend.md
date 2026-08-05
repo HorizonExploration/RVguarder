@@ -9,7 +9,7 @@ frontend/                       # 前端源码（独立工程，可单独开发�
 ├── index.html                  # 入口 HTML
 ├── package.json                # 依赖与脚本
 ├── vite.config.js              # Vite 构建配置
-├── pnpm-lock.yaml              # 锁文件
+├── package-lock.json          # 锁文件（npm；与 pnpm-workspace.yaml 并存）
 └── src/
     ├── main.jsx                # Preact 入口
     ├── App.jsx                 # 路由与页面壳
@@ -90,9 +90,13 @@ openclaw-guard run
 
 | 路由/视图 | 说明 |
 |-----------|------|
-| `dashboard` | 首页：连接状态 + "前往 OpenClaw 对话" 入口 + 待确认动作 + 最近动作 + Hook 状态 |
-| `actions` | 动作审批页：按状态筛选 + 分页浏览 + 确认继续/拒绝 |
-| `settings` | 安全扫描页：基线扫描 + 审计导出 |
+| `dashboard`（`/`） | 首页：连接状态 + "前往 OpenClaw 对话" 入口 + 待确认动作 + 最近动作 + Hook 状态 |
+| `actions`（`/actions`） | 动作审批页：按状态筛选 + 分页浏览 + 确认继续/拒绝 |
+| `rules`（`/rules`） | 安全规则页：规则列表与管理 |
+| `skills`（`/skills`） | 技能配置页：skill 启停与权限 |
+| `settings`（`/settings`） | 安全扫描页：基线扫描 + 审计导出 |
+
+共 5 个页面，对应 `App.jsx` 中的 `preact-router` 路由。
 
 ## API 依赖
 
@@ -101,10 +105,15 @@ openclaw-guard run
 | 端点 | 用途 |
 |------|------|
 | `GET /api/summary` | 获取全量摘要数据 |
+| `GET /api/rv/status` | 获取 RV 引擎当前状态 |
+| `POST /api/rv/toggle` | 切换 RV 启用状态 |
 | `POST /api/actions/approve` | 批准待确认动作 |
 | `POST /api/actions/reject` | 拒绝待确认动作 |
+| `POST /api/actions/clear` | 清空动作历史 |
+| `POST /api/actions/ingest` | 接收行为事件 |
 | `POST /api/baseline/run` | 触发基线扫描 |
 | `POST /api/audit/export` | 导出审计数据 |
+| `POST /api/skills/upsert` | 创建/更新 skill 配置 |
 
 ## 与后端的边界
 

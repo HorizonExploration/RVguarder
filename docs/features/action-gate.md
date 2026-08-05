@@ -10,6 +10,7 @@ Openclaw Guard 的价值不在“执行后解释”，而在“执行前决策�
 用户请求
   -> 事件推断 / 事件摄入
   -> 风险规则判断
+  -> RV 规约 overlay（detection 后、controller 前，升权不降权）
   -> 白名单校验
   -> 生成动作记录
   -> allow / ask / block / escalate
@@ -28,8 +29,9 @@ OpenClaw 准备调用工具
   -> after_tool_call 回写 executed / failed
 ```
 
-## 支持的动作类型
+## 支持的动作类型（9 种）
 
+- `chat_message`
 - `command_exec`
 - `file_delete`
 - `file_write`
@@ -37,6 +39,7 @@ OpenClaw 准备调用工具
 - `network_egress`
 - `channel_send`
 - `skill_run`
+- `unknown`（兜底：来自外部原始 payload 的未识别类型）
 
 ## 决策结果
 
@@ -55,6 +58,7 @@ OpenClaw 准备调用工具
 - `executing`
 - `executed`
 - `failed`
+- `allow`（兼容值：auto-allow 路径设置的运行时状态）
 
 ## 当前规则示例
 

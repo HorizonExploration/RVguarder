@@ -1,17 +1,17 @@
 # OpenClaw-RVGuarder 运行时验证（RV）层深度分析报告
 
-> **分析范围**：`openclaw_guard/engine/runtime_verification.py`、`rv_monitors.py`、`tests/test_rv.py`  
-> **关联文档**：`docs/test-design/phishing-rv-demo-test.md`、`docs/semantic/method.md`  
-> **撰写日期**：2026-07-29  
-> **分析目标**：评估 `transitions` 库的选用理由、FSM 监视器的架构价值、RV 层的整体必要性
+> **分析范围**：`openclaw_guard/engine/rv_dsl.py`、`engine/rv_rules.json`、`engine/runtime_verification.py`、`engine/rv_monitors.py`、`engine/pipeline.py`、`tests/test_rv.py`、`tests/test_rv_dsl.py`、`tests/test_pipeline.py`  
+> **关联文档**：`docs/test-design/rv-vs-static-experiment-v2.md`、`docs/semantic/method.md`  
+> **撰写日期**：2026-07-29（2026-08 更新：主线已切换为 DSL 规约驱动）  
+> **分析目标**：评估 DSL 规约驱动（`_SpecDrivenMonitor`）取代手写 FSM 监视器后的架构价值、RV 层的整体必要性
 
 ---
 
 ## 目录
 
 1. [RV 层架构回顾](#1-rv-层架构回顾)
-2. [transitions 库深度分析](#2-transitions-库深度分析)
-3. [transitions 在本项目中的实际作用评估](#3-transitions-在本项目中的实际作用评估)
+2. [DSL 规约驱动模式（主线）](#2-dsl-规约驱动模式主线)
+3. [legacy FSM 回退模式](#3-legacy-fsm-回退模式)
 4. [RV 层必要性论证](#4-rv-层必要性论证)
 5. [核心论证：为什么单步规则不足以防御链式攻击](#5-核心论证为什么单步规则不足以防御链式攻击)
 6. [RV 监视器的分类与价值评估](#6-rv-监视器的分类与价值评估)
@@ -27,20 +27,21 @@
 
 | 模块 | 文件 | 职责 |
 |------|------|------|
-| `WindowManager` | `runtime_verification.py` | 固定大小的滑动窗口，维护最近 N 步事件轨迹 |
-| `RuntimeVerificationEngine` | `runtime_verification.py` | 主引擎：窗口管理 + 多监视器编排 + 判定融合 |
-| 6 个 FSM 监视器 | `rv_monitors.py` | 按业务场景建模：邮件、日报、安全链、群发、数据导出、批量文件 |
+| `WindowManager` | `runtime_verification.py` | 固定大小的滑动窗口，维护最近 N 步事件轨迹（支持 TTL 时间过期） |
+| `RuntimeVerificationEngine` | `runtime_verification.py` | 主引擎：窗口管理 + 监视器编排 + 判定融合，按 `rule_mode` 选择 DSL 或 FSM |
+| DSL 规约监视器 | `rv_dsl.py` + `rv_rules.json` | 主线：`load_ruleset()` 加载规则，`compile_monitors()` 合成 `_SpecDrivenMonitor` |
+| 6 个手写 FSM 监视器 | `rv_monitors.py` | legacy 回退：仅 `rule_mode=fsm` 时启用 |
 
 ### 1.2 RV 在决策链中的位置
 
 ```
-事件摄入 → 语义标注 → DetectionEngine(单步规则) → RV引擎(多步窗口) → GuardController → 审计
+事件摄入 → 语义标注 → DetectionEngine(单步规则) → RV规约overlay(多步窗口) → GuardController → 审计
                                                     ↑
                                             RV可覆盖detection决策
                                             (仅当RV风险等级更高时)
 ```
 
-关键的 `_apply_rv_if_available()` 方法（`manager.py:834-876`）：
+关键的 `_apply_rv_if_available()` 方法（`engine/pipeline.py:110`，位于 `detector.evaluate()` 之后、`controller.decide()` 之前）：
 
 ```python
 rv_severity = {"block": 4, "escalate": 3, "ask": 2, "ok": 1}
@@ -51,192 +52,94 @@ if rv_level > det_level:
     decision.reason = f"[RV] {rv_result.get('reason', '')} (原有: {det_action})"
 ```
 
-**设计原则**：RV 是「升权不降权」——只会在检测到更严重风险时覆盖原有决策，不会把 block 降级为 allow。
-
-### 1.3 六个监视器一览
-
-| 监视器 | 状态数 | FSM 状态 | 核心规则 |
-|--------|--------|----------|---------|
-| **MailMonitor** | 4 | idle → mailing → blocked/ask_approval | 外部+敏感→block, 群发/AI生成→ask |
-| **ReportMonitor** | 4 | idle → generating → sending_external/blocked | 内部源+外部发送→block, 缺范围→ask |
-| **SecurityChainMonitor** | 无状态 (无状态机) | N/A | 5条纯窗口规则: B-01~B-05 |
-| **BroadcastMonitor** | 4 | idle → broadcast/single_chat → blocked | 群发+外部→block, 群发默认→ask |
-| **DataExportMonitor** | 无状态 (无状态机) | N/A | 3类规则: 查询敏感表/导出链/批量导出 |
-| **BatchFileMonitor** | 无状态 (无状态机) | N/A | 4类规则: 三步链/批量删除/共享链接/批量上传 |
-
-> ⚠️ **重要发现**：6 个监视器中仅 **3 个**（MailMonitor、ReportMonitor、BroadcastMonitor）真正使用了 `transitions` 库的 `Machine`。SecurityChainMonitor、DataExportMonitor、BatchFileMonitor **完全没有使用 FSM**，只使用了 `WindowManager` 的滑动窗口能力。
+**设计原则**：RV 是「升权不降权」——只会在检测到更严重风险时覆盖原有决策，不会把 block 降级为 allow。聊天路径（`ingest_event_pipeline`）与 Hook 路径（`handle_before_tool_call_pipeline`）两条流水线都在此处接入 RV，并支持 per-session 窗口隔离（不同 OpenClaw 会话拥有独立的 RV 窗口）。
 
 ---
 
-## 2. transitions 库深度分析
+## 2. DSL 规约驱动模式（主线）
 
-### 2.1 库概览
+### 2.1 默认启用
 
-[`transitions`](https://github.com/pytransitions/transitions) 是一个轻量级 Python 有限状态机库（v0.9+），核心特点：
+`RuntimeVerificationEngine` 构造时按以下优先级决定运行模式：`rule_mode` 参数 → `OPENCLAW_RV_RULE_MODE` 环境变量 → 默认 `dsl`。Dashboard `/api/rv/toggle` 可通过 `preferences.json` 的 `rv_rule_mode` 运行时切换。
 
-- **纯 Python 实现**，零 C 依赖
-- 状态定义、转移条件、回调机制完整
-- 支持层级状态机（Hierarchical）、并发状态机（Parallel）
-- 自动生成 Graphviz 状态图
-- 事件驱动：`model.trigger("event_name")` 触发状态转移
-- 条件守卫：`conditions=["condition_method"]` 控制转移是否发生
-- 通配符状态：`"*"` 表示任意当前状态
+| 取值 | 模式 |
+|------|------|
+| `dsl`（默认）/ `spec` / `spec-driven` | 规约驱动主线 |
+| `fsm` / `handwritten` | legacy 手写 FSM 回退 |
 
-### 2.2 在本项目中的使用模式
+### 2.2 规则结构与加载
 
-以 `MailMonitor` 为例：
+`engine/rv_rules.json` 是单一规则源，结构为 `Ruleset → MonitorSpec → ChainRule → StepRequirement`：
 
-```python
-class MailMonitor(BaseMonitor):
-    states = ["idle", "mailing", "blocked", "ask_approval"]
-
-    def __init__(self):
-        self.machine = Machine(model=self, states=self.states, initial="idle")
-        self.machine.add_transition("start_mail", "idle", "mailing")
-        self.machine.add_transition(
-            "block_send", "mailing", "blocked",
-            conditions=["has_external_secret"],      # 条件守卫
-        )
-        self.machine.add_transition(
-            "ask_send", "mailing", "ask_approval",
-            conditions=["needs_approval"],
-        )
-        self.machine.add_transition("reset_state", "*", "idle")
-
-    def feed(self, step, window):
-        if "mail_send" in self._current_props:
-            self.start_mail()                        # transition 调用
-            if self.has_external_secret():
-                self.block_send()                    # transition 调用
-                return "block"
-            if self.needs_approval():
-                self.ask_send()                      # transition 调用
-                return "ask"
-            return None
+```json
+{
+  "version": 1,
+  "monitors": [
+    {
+      "name": "MailMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "mail_sensitive_external_block",
+          "from": "sensitive_data_extracted",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "event": "mail_send", "all_of": ["external_recipient"] }
+        }
+      ]
+    }
+  ]
+}
 ```
 
-**转移图**：
+- `load_ruleset(path=None)`：读取规则文件（默认 `engine/rv_rules.json`，可用 `OPENCLAW_RV_RULES_PATH` 覆盖）并校验为 `Ruleset`
+- `compile_monitors(ruleset)`：把每个 `MonitorSpec` 动态编译为 `_SpecDrivenMonitor` 子类实例
 
-```
-        start_mail          block_send (条件: has_external_secret)
-idle ─────────────→ mailing ──────────────────────────────────────→ blocked
-                        │
-                        └── ask_send (条件: needs_approval) ──→ ask_approval
-                        
-reset_state: * ──→ idle（任意状态回到初始态）
-```
+### 2.3 匹配原语
 
-### 2.3 transitions 提供的核心价值
+`StepRequirement` 支持与 `WindowManager` 对齐的窗口匹配原语：
 
-| 能力 | 本项目是否使用 | 评价 |
-|------|:---:|------|
-| 状态合法性校验（不允许非定义的转移） | ✅ | 防止非法状态跃迁 |
-| 条件守卫（`conditions`） | ✅ | `has_external_secret()` 等守卫在触发转移前检查条件 |
-| 通配符重置（`* → idle`） | ✅ | `reset_state` 从任意状态回到 idle |
-| 自动回调（`before/after`） | ❌ | 未使用 |
-| 层级状态机 | ❌ | 本项目不需要 |
-| 并发状态机 | ❌ | 本项目不需要 |
-| 状态进入/退出回调 | ❌ | 未使用 |
-| Graphviz 可视化 | ❌ | 未使用（但对调试有价值） |
+| 原语 | 语义 | 底层窗口 API |
+|------|------|-------------|
+| `event` / `all_of` / `any_of` / `none_of` | 单步属性匹配 | — |
+| `count_gte` | 窗口内累积计数 | `cumulative_count()` |
+| `window_any_of` | 窗口内存在性检查 | `contains_any()` |
+| `sequence` | 有序序列匹配 | `sequence_matches()` |
+| `window_age_gt_seconds` | 窗口最老条目年龄门槛 | `age_of_oldest()` |
+
+`_SpecDrivenMonitor.feed()` 每步先执行无 `verdict` 的状态转移规则（`from → to`，`from` 支持 `*` 通配），再取命中规则中风险等级最高的 `verdict` 作为判定。
+
+### 2.4 配置方式
+
+| 配置项 | 来源 | 说明 |
+|--------|------|------|
+| `OPENCLAW_RV_RULE_MODE` | 环境变量 | `dsl`（默认）/ `fsm` |
+| `OPENCLAW_RV_RULES_PATH` | 环境变量 | 自定义规则文件路径 |
+| `preferences.json` `rv_mode` | Dashboard `/api/rv/toggle` | RV 总开关 |
+| `preferences.json` `rv_rule_mode` | Dashboard `/api/rv/toggle` | 运行时切换 `rule_mode` |
+| `window_size` / `window_ttl_seconds` | 引擎构造参数 | 窗口大小与过期时间（默认 10 / 300 秒） |
 
 ---
 
-## 3. transitions 在本项目中的实际作用评估
+## 3. legacy FSM 回退模式
 
-### 3.1 正面价值
+`rv_monitors.py` 的 6 个手写监视器（MailMonitor、ReportMonitor、SecurityChainMonitor、BroadcastMonitor、DataExportMonitor、BatchFileMonitor）在早期版本中是 RV 层主线，基于 `transitions` 库的 `Machine` 定义状态机。DSL 规约驱动落地后，它们降级为 **legacy 回退模式**：
 
-#### A. 契约化状态建模
+- 仅在 `rule_mode=fsm`（如 `OPENCLAW_RV_RULE_MODE=fsm`）时由 `_lazy_init_fsm_monitors()` 加载
+- 业务判定逻辑已等价迁移进 `rv_rules.json` 的规约（例如 MailMonitor 的「外部+敏感→block」对应 `mail_sensitive_external_block` 规则）
+- `transitions` 依赖不再被 DSL 主线使用
 
-`transitions` 强制开发者**显式声明**所有合法状态和转移路径。这带来的好处是：
+历史分析结论（保留参考）：
 
-- 不可能意外跳转到未定义的状态
-- 新增开发者在阅读代码时，能从 `states` 和 `add_transition` 立即理解监视器的状态逻辑
-- 相比于手写 `if state == "idle": state = "mailing"` 的代码，转移图一目了然
-
-#### B. 条件守卫的声明式表达
-
-```python
-self.machine.add_transition("block_send", "mailing", "blocked",
-    conditions=["has_external_secret"],
-)
-```
-
-这种声明式写法比手写 `if` 嵌套更容易维护和测试。条件方法可以独立单测（如 `monitor.has_external_secret()`），与状态转移逻辑解耦。
-
-#### C. 通配符重置
-
-`add_transition("reset_state", "*", "idle")` 提供了一个简洁的「一键重置」机制，从任意状态回到 idle。如果手写，需要在每个状态分支中处理 reset。
-
-### 3.2 局限与问题
-
-#### A. 使用率不足一半——「装饰性依赖」风险
-
-6 个监视器中，仅 3 个使用了 FSM。SecurityChainMonitor、DataExportMonitor、BatchFileMonitor 完全是通过 `WindowManager` 的滑动窗口 API 进行纯函数式判定，不涉及任何状态维护。
-
-这意味着 `transitions` 并非 RV 层的**架构基石**，而是**部分监视器的实现工具**。对于未使用 FSM 的 3 个监视器，`transitions` 是零贡献的依赖。
-
-#### B. FSM 状态从未被读取
-
-检查所有使用 FSM 的监视器：
-
-- `MailMonitor`：`start_mail()`、`block_send()`、`ask_send()` 被调用，但 **状态机的当前状态从未在 feed() 的返回逻辑中被读取**。判定完全基于 `self._current_props`（当前步的 props 集合），不依赖状态机当前在哪个状态。
-- `BroadcastMonitor`：同上，`to_broadcast()`/`to_single()`/`block_bc()` 被调用，但判定（返回 "block"/"ask"/None）基于 `self._props`，不基于状态机当前状态。
-- `ReportMonitor`：同上。
-
-**这意味着 FSM 的状态在当前实现中是纯记录性的（record-keeping），不参与实际的决策逻辑。** 状态转移被触发，但 `self.state` 的值从未影响 `feed()` 的返回。
-
-#### C. 没有利用「状态记忆」进行跨步判定
-
-FSM 的核心价值在于「状态记忆」——上一步的状态影响下一步能走的路径。但当前实现中：
-
-- 每个 `feed()` 调用都是独立的：设置 `self._current_props = set(step.get("props", []))`，然后基于当前 props 做判定
-- 跨步信息通过 `WindowManager` 的滑动窗口传递（`window.contains_any({...}, window_size=5)`），而不是通过 FSM 的状态记忆
-
-换句话说，**跨步风险检测由 WindowManager 完成，FSM 只做单步条件判定**。FSM 的 `mailing → blocked` 转移实际上只是「当前事件满足条件时的即时反应」，而非真正的「状态演化」。
-
-#### D. 静态状态定义与动态窗口不匹配
-
-`MailMonitor` 的 FSM 定义是：
-```
-idle → mailing（收到 mail_send）
-mailing → blocked（外部+敏感）
-mailing → ask_approval（群发或AI内容）
-```
-
-但真实场景中，攻击链通常是：
-```
-s1: file_read (外部附件) → s2: file_read (含敏感) → ... → s5: network_egress
-```
-
-`mailing` 状态只在 s5 被触发，而 s1-s4 的上下文通过 `WindowManager` 获取。**FSM 只覆盖了链的最后一步**，并没有建模完整的链式转移。
-
-### 3.3 代价评估
-
-| 代价维度 | 评估 |
-|----------|------|
-| **依赖体积** | `transitions` 是纯 Python 包，安装体积小（~300KB），无原生编译依赖 |
-| **学习曲线** | 中等。开发者需要理解 `Machine`、`add_transition`、`conditions`、通配符等概念 |
-| **调试复杂度** | 中高。状态转移失败时，`transitions` 抛 `MachineError`，错误信息对初学者不够友好 |
-| **与项目技术栈的兼容性** | 良好。纯 Python，无版本冲突 |
-| **未来迁移成本** | 低。实际使用有限，移除 FSM 改为纯条件判断改动量小 |
-
-### 3.4 小结：transitions 是「有好处但非必要」的选择
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                  transitions 价值矩阵                        │
-├─────────────────────┬───────────────────────────────────────┤
-│  实际贡献            │  边界清晰的状态定义 + 条件守卫          │
-│  未使用的能力         │  状态记忆、跨步转移、回调              │
-│  可替代性            │  高：if/elif 或 match/case 可完全替代   │
-│  移除影响            │  低：判定逻辑不受影响                   │
-│  保留建议            │  保留但需要让FSM真正参与决策            │
-└─────────────────────┴───────────────────────────────────────┘
-```
+- 6 个监视器中仅 3 个（MailMonitor、ReportMonitor、BroadcastMonitor）真正使用了 `transitions.Machine`，其余 3 个纯用 `WindowManager` 的滑动窗口 API
+- FSM 状态为纯记录性（record-keeping），判定实际基于当前步 props + 窗口分析，FSM 的状态记忆未参与决策
+- 窗口分析能力（`contains_any` / `cumulative_count` / `sequence_matches`）才是 RV 层真正不可替代的部分——这些能力现已在 DSL 中以 `StepRequirement` 原语保留
 
 ---
 
 ## 4. RV 层必要性论证
+
+> 以下论证与具体实现模式（DSL 规约 / legacy FSM）无关，对两者均适用；文中提到的监视器场景已等价迁移进 `rv_rules.json` 规约。
 
 ### 4.1 问题定义：为什么单步规则检测不够？
 
@@ -289,7 +192,7 @@ RV 窗口：   ┌────────────────────�
 ```
 
 RV 引擎在第⑤步到来时，通过 `WindowManager` 回看前 4 步：
-- `SecurityChainMonitor` 检测到「下载(attachment_download) → 外传(network_egress)」链 → `escalate`
+- SecurityChainMonitor 检测到「下载(attachment_download) → 外传(network_egress)」链 → `escalate`
 - 或检测到「敏感凭据读取 → 网络外传」链 → `escalate`
 - 判定权重高于单步检测的 `ask`，覆盖为 `block`
 
@@ -307,9 +210,9 @@ RV 引擎在第⑤步到来时，通过 `WindowManager` 回看前 4 步：
 - $\forall j \in \{1..4\}: D_{single}(e_j) = allow$ （前 4 步无规则命中）
 - $D_{single}(e_5) = ask$ （仅命中外发规则）
 
-RV 检测：
+RV 检测（以规约中的 `window_any_of` / `sequence` 原语表达）：
 - $contains\_any(\{attachment\_download, file\_read, contains\_secret\}, window\_size=8) \land event\_type \in \{network\_egress, mail\_send\}$
-- $\Rightarrow D_{rv} = escalate$（SecurityChainMonitor B-03）
+- $\Rightarrow D_{rv} = escalate$（SecurityChainMonitor 规约规则）
 - $escalate > ask \Rightarrow$ 覆盖为 block
 
 **证毕**：存在攻击序列使得 $D_{single}$ 对所有单步判定均为 allow/ask，但 $D_{rv}$ 判定为 block/escalate。因此 RV 层在单步检测之上提供了不可替代的增量保护。
@@ -371,66 +274,48 @@ RV 检测：
 | 维度 | 单步规则检测 (DetectionEngine) | RV 引擎 (RuntimeVerificationEngine) |
 |------|:---:|:---:|
 | **分析单元** | 单个 BehaviorEvent | 最近 N 个事件的滑动窗口 |
-| **时间感知** | 无（无状态） | 有（序列模式匹配、累积计数、存在性检查） |
+| **时间感知** | 无（无状态） | 有（序列模式匹配、累积计数、存在性检查、时间门槛） |
 | **链式攻击** | 盲区 | 核心覆盖目标 |
-| **状态记忆** | 无 | 通过 WindowManager + FSM 双重维护 |
+| **状态记忆** | 无 | 通过 WindowManager + 规约状态双重维护 |
 | **判定粒度** | 二元（命中/未命中） | 四级（ok/ask/escalate/block） |
 | **可解释性** | 规则 ID + 理由 | 触发监视器 + 窗口快照 + 理由 |
 | **误报风险** | 低（关键词精确匹配） | 中（窗口内误关联） |
 | **延迟** | <1ms | <5ms（含所有监视器评估） |
-| **规则扩展** | 需要新增 Rule ID + 标签 | 需要新增监视器或窗口规则 |
+| **规则扩展** | 需要新增 Rule ID + 标签 | 编辑 `rv_rules.json` 新增 MonitorSpec / ChainRule |
 
 ---
 
 ## 6. RV 监视器的分类与价值评估
 
-### 6.1 按实现模式分类
+### 6.1 按实现模式分类（DSL 视角）
 
-#### A 类：状态机监视器（使用 transitions）
-
-| 监视器 | FSM 核心逻辑 | 决策质量评估 |
-|--------|-------------|:---:|
-| **MailMonitor** | idle→mailing→blocked/ask_approval | ⭐⭐⭐ 状态模型清晰但仅覆盖单步 |
-| **ReportMonitor** | idle→generating→sending_external/blocked | ⭐⭐⭐ 同上 |
-| **BroadcastMonitor** | idle→broadcast/single_chat→blocked | ⭐⭐⭐ 同上 |
-
-**共同特征**：FSM 覆盖单步条件判定（如 `mail_send + external_recipient + contains_secret → block`），同时利用 `WindowManager` 做跨步检测（如 `file_search → file_delete`）。FSM 部分**在功能上与 `_office_decision()` 和 `_semantic_predicates()` 中的规则重叠**——两者的判定逻辑高度相似。
-
-#### B 类：纯窗口分析监视器（不使用 transitions）
-
-| 监视器 | 使用的能力 | 决策质量评估 |
-|--------|-----------|:---:|
-| **SecurityChainMonitor** | `contains_any()`, `cumulative_count()` | ⭐⭐⭐⭐⭐ 核心价值最高 |
-| **DataExportMonitor** | `cumulative_count()`, `contains_any()` | ⭐⭐⭐⭐ 场景聚焦，规则精准 |
-| **BatchFileMonitor** | `sequence_matches()`, `cumulative_count()` | ⭐⭐⭐⭐ 三步链检测是 RV 典型用例 |
-
-**共同特征**：完全依赖 `WindowManager` 的窗口 API。这些监视器才是 RV 层**真正不可替代**的部分——它们检测的是单步规则无法捕获的跨步模式。
+| 类型 | 实现 | 说明 |
+|------|------|------|
+| 规约监视器（主线） | `rv_rules.json` + `_SpecDrivenMonitor` | 全部业务场景以规则声明：状态转移（`from → to`）+ 风险判定（`verdict`） |
+| legacy FSM 监视器（回退） | `rv_monitors.py` | 仅 `rule_mode=fsm` 时启用，业务逻辑与规约等价 |
 
 ### 6.2 功能重叠分析
 
-一个关键问题是：**MailMonitor/ReportMonitor/BroadcastMonitor 的 FSM 判定与 `detection.py` 中的 `_office_decision()` 是否存在功能重叠？**
+规约化之后，原先「MailMonitor 的「外部+敏感→block」与 `detection.py` 的 `_office_decision()` 重复」的问题仍然存在（规则在 `rv_rules.json` 与 office policy 中各有声明），但规则源已集中为单一 JSON 文件，维护成本相比手写监视器显著降低。
 
-| 判定规则 | DetectionEngine (`_office_decision`) | RV 层 (监视器) |
+| 判定规则 | DetectionEngine (`_office_decision`) | RV 层 (规约) |
 |----------|:---:|:---:|
 | mail_send + external_recipient + contains_secret → block | ✅ SEM-OFFICE-001 | ✅ MailMonitor |
 | report_send + external_recipient + internal_source → block | ✅ SEM-OFFICE-002 | ✅ ReportMonitor |
-| mail_send + bulk_send → escalate | ✅ SEM-OFFICE-003 | — (MailMonitor 判定为 ask) |
 | channel_send + bulk_send → ask | — | ✅ BroadcastMonitor |
 | channel_send + bulk_send + external_recipient → block | — | ✅ BroadcastMonitor |
 
-**发现**：`MailMonitor` 的「外部+敏感→block」规则与 `SEM-OFFICE-001` **完全重叠**。这意味着同一事件会被检测两次。虽然这增加了防御纵深（defense in depth），但也带来维护成本——修改策略时需要同步两处。
-
-`BroadcastMonitor` 的 `channel_send` 场景在 `detection.py` 中**没有对应的 office policy**，因此它是唯一的覆盖者——这证明 RV 层确实有独立的覆盖价值。
+BroadcastMonitor 的 `channel_send` 场景在 `detection.py` 中**没有对应的 office policy**，因此它是唯一的覆盖者——这证明 RV 层确实有独立的覆盖价值。
 
 ### 6.3 真正不可替代的 RV 能力
 
-| 能力 | 提供者 | 为什么单步规则做不到 | 实际价值 |
-|------|--------|---------------------|:---:|
-| **序列模式匹配** | `WindowManager.sequence_matches()` | 需要维护有序事件历史 | ⭐⭐⭐⭐⭐ |
-| **累积计数** | `WindowManager.cumulative_count()` | 单条事件无法计数 | ⭐⭐⭐⭐ |
-| **存在性检查** | `WindowManager.contains_any()` | 需要跨事件关联 | ⭐⭐⭐⭐⭐ |
-| **批量阈值** | BatchFileMonitor (≥10 ask, ≥50 block) | 单事件不知道总量 | ⭐⭐⭐⭐ |
-| **三步链检测** | BatchFileMonitor (搜索→打包→外传) | 需要精确的时序模式匹配 | ⭐⭐⭐⭐⭐ |
+| 能力 | DSL 原语 | 为什么单步规则做不到 | 实际价值 |
+|------|----------|---------------------|:---:|
+| **序列模式匹配** | `sequence` → `sequence_matches()` | 需要维护有序事件历史 | ⭐⭐⭐⭐⭐ |
+| **累积计数** | `count_gte` → `cumulative_count()` | 单条事件无法计数 | ⭐⭐⭐⭐ |
+| **存在性检查** | `window_any_of` → `contains_any()` | 需要跨事件关联 | ⭐⭐⭐⭐⭐ |
+| **批量阈值** | `count_gte`（≥10 ask, ≥50 block） | 单事件不知道总量 | ⭐⭐⭐⭐ |
+| **时间门槛** | `window_age_gt_seconds` | 单步规则无时间维度 | ⭐⭐⭐ |
 
 ---
 
@@ -438,152 +323,84 @@ RV 检测：
 
 ### 7.1 测试文件总览
 
-| 测试文件 | 用例数 | 覆盖目标 |
-|----------|:-----:|---------|
-| `tests/test_rv.py` | 31 | WindowManager (8) + 6 Monitor 单步 (19) + Engine 集成 (4) |
-| `docs/test-design/phishing-rv-demo-test.md` | ~22 (设计阶段) | 钓鱼攻击链场景：Guardrails vs RV 对比、变体、抗干扰、性能 |
-| `docs/test-design/openclaw-guard-test-design.md` | ~130+ (设计阶段) | P0/P1 全场景：群发、数据导出、批量文件等 |
+| 测试文件 | 覆盖目标 |
+|----------|---------|
+| `tests/test_rv.py` | WindowManager + Monitor 单步 + Engine 集成 |
+| `tests/test_rv_dsl.py` | DSL 规约加载 / 编译 / 匹配原语 / 两种 `rule_mode` |
+| `tests/test_pipeline.py` | `_apply_rv_if_available`（RV 覆盖、无 rv_trace 回退、per-session 隔离）+ `ingest_event_pipeline` 完整链路 |
+| `tests/test_integration_storage_rv_matrix.py` | fsm / dsl 双模式的存储 + RV API 矩阵 |
+| `docs/test-design/rv-vs-static-experiment-v2.md` | 静态单步 vs RV 对比实证：必要性、变体鲁棒性、抗干扰、语义层加固、窗口 TTL（设计阶段） |
+| `docs/test-design/openclaw-guard-test-design.md` | P0/P1 全场景：群发、数据导出、批量文件等（设计阶段） |
 
 ### 7.2 已有测试覆盖评估
 
-**WindowManager 测试（8 个）**：✅ 覆盖良好
-- push/latest、snapshot 顺序、max_size 截断 ✓
+**WindowManager 测试**：✅ 覆盖良好
+- push/latest、snapshot 顺序、max_size 截断、TTL 过期 ✓
 - sequence_matches 正例/反例 ✓
 - cumulative_count 全窗口/子窗口 ✓
 - contains_any 正例/反例 ✓
-- clear ✓
+- clear、to_dict/from_dict 序列化 ✓
 
-**Monitor 测试（19 个）**：⚠️ 覆盖不均匀
-- MailMonitor: 5 个 — ✅ 覆盖 block/ask/normal/链式/无前序
-- ReportMonitor: 4 个 — ✅ 覆盖 block/ask/normal
-- SecurityChainMonitor: 4 个 — ✅ 覆盖 关审计→改配置/下载→外传/批量删除/单次正常
-- BroadcastMonitor: 3 个 — ⚠️ 覆盖 block/ask/normal，缺 `single_chat` 状态转移验证
-- DataExportMonitor: 4 个 — ✅ 覆盖 敏感表/导出链/批量导出/正常查询
-- BatchFileMonitor: 5 个 — ⚠️ 覆盖 三步链/批量ask/删除边界/共享链接/批量上传，但 `batch_delete_block` 测试因窗口限制实际只测到 ask
+**DSL 规约测试（test_rv_dsl.py）**：✅ 覆盖规则加载、编译与匹配原语，并对 `dsl` / `fsm` 两种模式做参数化验证
 
-**RV Engine 集成测试（4 个）**：⚠️ 覆盖偏少
-- 空 trace → ok ✓
-- 邮件阻断/日报阻断/群发 ask/正常放行 ✓
-- 数据导出链 → escalate ✓
-- reset ✓
-- result_summary ✓
+**Pipeline 集成测试（test_pipeline.py）**：✅ 已补齐 `_apply_rv_if_available()` 的覆盖逻辑测试（RV 升级 detection 决策、无 rv_trace 直接返回、per-session 窗口隔离）与 `ingest_event_pipeline` 完整聊天路径测试
 
-**缺失的关键测试**：
-- ❌ `_apply_rv_if_available()` 的覆盖逻辑测试（RV 升级 detection 决策）
-- ❌ Manager 主链中 RV 接入的端到端测试
-- ❌ 窗口大小边界对链式检测的影响测试（如攻击链起手事件被挤出窗口）
-- ❌ `batch_delete_block` 的正确性验证（当前测试断言 `ask` 而非 `block`，因窗口最大 20）
+**Monitor 测试（test_rv.py，针对 legacy FSM）**：⚠️ 覆盖不均匀
+- MailMonitor / ReportMonitor：覆盖 block/ask/normal/链式
+- SecurityChainMonitor / DataExportMonitor / BatchFileMonitor：窗口规则覆盖较好
+- `batch_delete_block` 测试因窗口限制实际只测到 ask
+
+**仍可补充**：
+- ⚠️ 窗口大小边界对链式检测的影响测试（如攻击链起手事件被挤出窗口）
+- ⚠️ 自定义 `OPENCLAW_RV_RULES_PATH` 加载的端到端测试
 
 ### 7.3 钓鱼攻击方案的启示
 
-`phishing-rv-demo-test.md` 提出了一个**极为关键的实验设计**：
+`rv-vs-static-experiment-v2.md` 提出了一个**极为关键的实验设计**：
 
 > **实验 A（必要性验证）**：对同一攻击链，分别用 Guardrails（单步检测）和 RV（窗口分析）判定。验证 Guardrails 全部放行（或仅 ask），而 RV 在最后一步检测到链式风险并阻断。
 
-这个实验如果实现，将是**RV 层必要性最有力的实证**。当前 `tests/test_rv.py` 已经包含了一些零散的链式检测测试（如 `test_search_then_delete`），但缺少一个完整攻击链的全链路对比实验。
+这个实验如果实现，将是**RV 层必要性最有力的实证**。当前 `tests/test_rv.py` 与 `tests/test_pipeline.py` 已经包含了一些零散的链式检测测试（如 `test_search_then_delete`），但缺少一个完整攻击链的全链路对比实验。
 
 ---
 
 ## 8. 架构反思与改进建议
 
-### 8.1 transitions 的取舍建议
+### 8.1 transitions 的取舍（已定论）
 
-**建议：保留 transitions，但赋予其真正的「跨步状态记忆」角色。**
+早期分析曾建议「保留 transitions，并让 FSM 状态驱动跨步决策」。随着 DSL 规约驱动落地，该议题已告一段落：
 
-当前 FSM 的状态不参与决策逻辑，这是最大的浪费。具体的改进方向：
+- 手写 FSM 监视器降级为 legacy 回退模式，仅 `rule_mode=fsm` 时启用
+- 业务逻辑以声明式规约（`rv_rules.json`）表达，状态转移与 verdict 规则统一在 `StepRequirement` 原语中声明
+- 原方案二「移除 transitions，统一为纯窗口分析」部分达成：主线不再依赖 `transitions`，窗口分析原语成为规约的匹配基础
 
-#### 方案一（推荐）：让 FSM 状态驱动跨步决策
+### 8.2 WindowManager 改进（已实现）
 
-以 `MailMonitor` 为例，改为利用 FSM 状态记忆：
+原建议的三项改进已在当前实现落地：
 
-```python
-def feed(self, step, window):
-    self._current_props = set(step.get("props", []))
-    ev = step.get("event", "")
-
-    if "mail_send" in self._current_props or ev == "mail_send":
-        # 检查是否从「已读取敏感数据」状态进入
-        if self.state == "sensitive_data_read":
-            self.block_send()  # FSM 转移: sensitive_data_read → blocked
-            return "block"
-        
-        self.start_mail()      # FSM 转移: idle → mailing
-        if self.has_external_secret():
-            self.block_send()
-            return "block"
-        ...
-
-    # 记录前序状态（利用 FSM 的状态记忆）
-    if "contains_secret" in self._current_props:
-        if self.state == "idle":
-            self.to_sensitive()  # FSM 转移: idle → sensitive_data_read
-```
-
-这样 FSM 的状态（`mailing`、`sensitive_data_read`）就真正记录了「Agent 已经做了什么」，而不仅仅是「当前这一步是什么」。
-
-#### 方案二：移除 transitions，统一为纯窗口分析
-
-将 A 类监视器的单步条件判定合并到 `detection.py` 的 `_office_decision()` 中（消除功能重叠），监视器层只保留窗口分析逻辑。这样：
-
-- 减少依赖（移除 `transitions`）
-- 消除规则重复（办公策略只在一处定义）
-- 监视器代码更简洁（不需要维护 FSM 状态定义）
-
-**推荐方案一**，因为方案二虽然简洁但丢失了状态记忆能力——而这正是 RV 区别于单步检测的核心。
-
-### 8.2 WindowManager 的改进建议
-
-#### A. 增加窗口过期机制
-
-当前窗口只按数量截断，不考虑时间。如果 Agent 在 2 小时前读取了一个文件，2 小时后才执行外传，不应触发链式检测。建议：
-
-```python
-def push(self, step):
-    step["_ts"] = utc_now_iso()  # 已有时间戳
-    self._buffer.append(step)
-    self._expire_old_entries(ttl_seconds=300)  # 5分钟过期
-```
-
-#### B. 增加窗口状态序列化
-
-当前窗口状态不持久化，Guard 重启后丢失所有历史。建议：
-
-```python
-def serialize(self) -> list[dict]:
-    return list(self._buffer)
-
-@classmethod
-def deserialize(cls, data, max_size=10):
-    wm = cls(max_size=max_size)
-    for item in data:
-        wm.push(item)
-    return wm
-```
-
-#### C. 公开窗口大小配置
-
-当前 `window_size` 仅在 `RuntimeVerificationEngine.__init__()` 中硬编码（默认 10），建议通过 `GuardSettings` 或 `preferences.json` 暴露给用户配置。
+- **窗口过期机制**：`WindowManager` 支持 `ttl_seconds`（默认 300 秒），`push()` 时按时间清理过期条目；`StepRequirement.window_age_gt_seconds` 可表达时间门槛
+- **窗口状态序列化**：`WindowManager.to_dict()` / `from_dict()` 已实现
+- **公开窗口配置**：`RuntimeVerificationEngine(window_size=..., window_ttl_seconds=...)` 构造参数已公开
 
 ### 8.3 监视器扩展规范化
 
-当新增一个办公场景时，应遵循统一的监视器开发模板：
+新增一个办公场景时，现在只需编辑规则文件：
 
 ```
-1. 确定场景类型 → 选择 A 类（需要 FSM）还是 B 类（纯窗口）
+1. 确定场景类型 → 在 rv_rules.json 中新增 MonitorSpec（状态转移 + verdict 规则）
 2. 定义原子命题标签（在 semantic_enhancer.py 中注册）
-3. 定义窗口规则（序列/累积/存在性）
-4. 实现监视器类
-5. 在 RuntimeVerificationEngine._lazy_init_monitors() 中注册
-6. 编写测试（单步 + 多步链 + 正常场景不误报）
+3. 用 StepRequirement 原语表达窗口规则（sequence / count_gte / window_any_of / window_age_gt_seconds）
+4. 在 RuntimeVerificationEngine（默认 dsl 模式）中自动编译为 _SpecDrivenMonitor
+5. 编写测试（单步 + 多步链 + 正常场景不误报）
 ```
 
 ### 8.4 性能优化建议
 
-当前 RV 引擎的 `evaluate()` 方法在每次调用时都执行 `_lazy_init_monitors()`（如果 monitors 为空），并有 O(n) 的监视器遍历。在 6 个监视器 + 窗口大小 10 的场景下，延迟 <5ms——这是可接受的。
+当前 RV 引擎的 `evaluate()` 方法在每次调用时都执行 `_lazy_init_monitors()`（如果监视器为空），并有 O(n) 的监视器遍历。在规约监视器（默认 6 个）+ 窗口大小 10 的场景下，延迟 <5ms——这是可接受的。
 
 但需要注意：
 - **不要在多监视器遍历中调用 LLM**：当前没有，但未来扩展时需警惕
-- **窗口序列化/反序列化可能有 I/O 开销**：如果实现建议 8.2.B，需要缓存
+- **窗口序列化/反序列化可能有 I/O 开销**：`to_dict`/`from_dict` 已实现，如需持久化需注意缓存
 - **`result_summary()` 的 `window_snapshot` 包含完整 `props`**：如果 props 数量增长，需要截断
 
 ---
@@ -592,38 +409,32 @@ def deserialize(cls, data, max_size=10):
 
 ### 9.1 RV 层的必要性判定：✅ 必要
 
-RV 层在架构上不是可选层。单步规则检测存在**根本性盲区**——无法关联跨事件的上下文，无法检测时序模式攻击。RV 层通过滑动窗口 + FSM 监视器填补了这一空白。
+RV 层在架构上不是可选层。单步规则检测存在**根本性盲区**——无法关联跨事件的上下文，无法检测时序模式攻击。RV 层通过滑动窗口 + 规约监视器填补了这一空白。
 
 **一个简单的测试就能证明**：对钓鱼邮件攻击链的每一步，`DetectionEngine.evaluate()` 分别返回 `[allow, allow, allow, allow, ask]`，而 RV 引擎在第五步检测到「不可信来源 → 敏感数据 → 外传」的链式模式后返回 `block`。
 
-### 9.2 transitions 的选用判定：⚠️ 有保留地保留
+### 9.2 实现路径的演进：DSL 规约驱动取代手写 FSM ✅
 
-`transitions` 是一个轻量、合适的工具，但其在当前实现中的潜力**远未发挥**：
-
-- ✅ 提供了清晰的状态声明和转移定义（文档价值）
-- ✅ 条件守卫与转移解耦（可测试性）
-- ❌ FSM 状态不参与实际决策（纯记录性）
-- ❌ 6 个监视器中仅 3 个使用了它
-- ❌ 与 `detection.py` 中的办公策略存在功能重叠
-
-**核心问题不是 `transitions` 不好，而是它没有被「真正使用」——FSM 的状态机没有参与跨步决策。**
+- ✅ 规则集中为单一 JSON 文件（`rv_rules.json`），加载 / 编译 / 校验自动化
+- ✅ 状态转移与 verdict 判定统一声明，窗口分析原语完整保留（序列、计数、存在性、时间门槛）
+- ✅ 支持 `OPENCLAW_RV_RULE_MODE` / `OPENCLAW_RV_RULES_PATH` 环境变量与 Dashboard 运行时切换
+- ✅ 手写 FSM（`transitions`）保留为 legacy 回退模式，兼容早期行为
 
 ### 9.3 核心发现总结
 
-| # | 发现 | 严重程度 | 建议 |
+| # | 发现 | 严重程度 | 状态 |
 |---|------|:---:|------|
 | 1 | RV 层提供了单步规则无法替代的多步链式检测能力 | — | 必须保留并持续扩展 |
-| 2 | transitions 的 FSM 状态不参与决策，仅为记录性 | ⚠️ 中 | 让 FSM 状态驱动跨步决策（详见 8.1） |
-| 3 | 3/6 监视器未使用 transitions，纯窗口分析反而是最核心的 RV 能力 | ⚠️ 中 | 承认窗口分析是核心，FSM 是辅助 |
-| 4 | MailMonitor/ReportMonitor 与 detection.py 的 office_decision 存在规则重复 | ⚠️ 低 | 统一规则源，消除维护负担 |
-| 5 | 测试覆盖不均匀：缺少 `_apply_rv_if_available` 覆盖测试和全链路对比实验 | ⚠️ 中 | 优先实现钓鱼攻击方案中的实验 A |
-| 6 | 窗口大小硬编码，缺少时间过期和序列化机制 | ℹ️ 低 | 作为 P1 改进项 |
-| 7 | SecurityChainMonitor + BatchFileMonitor 的窗口分析规则是 RV 层最核心的价值 | — | 扩展此类监视器优先于扩展 FSM 监视器 |
+| 2 | 手写 FSM 状态不参与决策，仅为记录性 | ⚠️ 中 | 已降级为 legacy 回退，主线切换为 DSL 规约 |
+| 3 | 窗口分析是 RV 层最核心的能力 | ⚠️ 中 | 已以 StepRequirement 原语完整保留 |
+| 4 | 规约规则与 detection.py office policy 存在重叠 | ⚠️ 低 | 规则源已集中为单一 JSON，维护成本降低 |
+| 5 | 窗口 TTL / 序列化 / 公开参数缺失 | ℹ️ 低 | 已实现（见 8.2） |
+| 6 | `_apply_rv_if_available` 覆盖测试缺失 | ⚠️ 中 | 已补齐（test_pipeline.py） |
 
 ### 9.4 一句话总结
 
-> **RV 层是必要的**，因为它解决了单步规则检测的「上下文盲区」。`transitions` 库是一个体面的状态机工具，但当前项目中只被用于单步条件建模（与 detection 层功能重叠），其真正价值——**跨步状态记忆驱动决策**——尚未被利用。建议保留 `transitions` 但重构 FSM 监视器，让状态机真正记录 Agent 的行为演变历程，而非仅记录当前步的瞬时快照。
+> **RV 层是必要的**，因为它解决了单步规则检测的「上下文盲区」。实现上已从「transitions 手写 FSM」演进为「DSL 规约驱动」：规则声明在 `rv_rules.json`，由 `_SpecDrivenMonitor` 编译执行，窗口分析原语（序列 / 累积 / 存在性 / 时间门槛）成为规约的匹配基础；手写 FSM 保留为 legacy 回退模式。
 
 ---
 
-*本报告基于对 `openclaw_guard/engine/runtime_verification.py`、`rv_monitors.py`、`tests/test_rv.py`、`docs/test-design/phishing-rv-demo-test.md`、`docs/test-design/openclaw-guard-test-design.md` 的完整阅读与分析。*
+*本报告基于对 `openclaw_guard/engine/rv_dsl.py`、`engine/rv_rules.json`、`engine/runtime_verification.py`、`engine/rv_monitors.py`、`engine/pipeline.py`、`tests/test_rv.py`、`tests/test_rv_dsl.py`、`tests/test_pipeline.py`、`docs/test-design/rv-vs-static-experiment-v2.md`、`docs/test-design/openclaw-guard-test-design.md` 的完整阅读与分析。*

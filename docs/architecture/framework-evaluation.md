@@ -2,7 +2,9 @@
 
 > 版本：v0.2.1 → v0.3.0（当前） | 日期：2026-07-30（初版）/ 2026-08-01（更新） | 作者：架构评审组
 >
-> **选型结论**：FastAPI 已采纳，阶段一完成 ✅
+> **选型结论**：FastAPI 已采纳，阶段一~六完成 ✅
+>
+> **落地说明（v0.3.0）**：FastAPI 实际以「可选依赖 + 运行时导入」方式落地——`main.py` 通过 `--fastapi` flag 启用 `web/` 包，依赖缺失时自动回退 stdlib `legacy_web`。此外 `web/app.py` 关闭了 OpenAPI 文档（`docs_url=None` / `redoc_url=None` / `openapi_url=None`），因此「自动 OpenAPI 文档」这一选型收益当前尚未生效。需要指出的是，`pyproject.toml` 仍将 `fastapi` / `uvicorn` 声明在必需 `dependencies` 中，与运行时可选行为存在一定张力，后续可考虑将其移入 optional-dependencies。
 
 ---
 

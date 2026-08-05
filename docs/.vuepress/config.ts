@@ -14,12 +14,10 @@ export default defineUserConfig({
   ],
   theme: defaultTheme({
     logo: "/mark.svg",
-    repo: "https://example.invalid/openclaw-guard",
     docsDir: "docs",
     navbar: [
       { text: "首页", link: "/" },
-      { text: "快速开始", link: "/guide/quick-start.html" },
-      { text: "简洁模式", link: "/guide/normal-mode.html" },
+      { text: "快速开始", link: "/deployment/local.html" },
       { text: "架构", link: "/architecture/overview.html" },
       { text: "核心功能", link: "/features/baseline.html" },
       { text: "运行时 Hook", link: "/features/runtime-hook.html" },
@@ -28,33 +26,16 @@ export default defineUserConfig({
       { text: "FAQ", link: "/ops/faq.html" },
     ],
     sidebar: {
-      "/guide/": [
-        {
-          text: "使用指南",
-          children: [
-            "/guide/README.md",
-            "/guide/quick-start.md",
-            "/guide/normal-mode.md",
-          ],
-        },
-        {
-          text: "项目梳理",
-          children: [
-            "/improve/README.md",
-            "/improve/normal-mode.md",
-            "/improve/plugin-positioning.md",
-            "/improve/restructure-plan.md",
-            "/improve/frontend.md",
-            "/improve/project-overview.md",
-            "/improve/project-structure.md",
-            "/improve/project-cleanup.md",
-          ],
-        },
-      ],
       "/architecture/": [
         {
           text: "架构设计",
-          children: ["/architecture/overview.md", "/architecture/modules.md"],
+          children: [
+            "/architecture/overview.md",
+            "/architecture/index.md",
+            "/architecture/target-architecture.md",
+            "/architecture/refactoring-plan.md",
+            "/architecture/quality-assurance.md",
+          ],
         },
       ],
       "/features/": [

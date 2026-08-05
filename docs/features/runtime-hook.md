@@ -10,11 +10,14 @@
 
 - 生成一个本地插件包（`runtime/openclaw-guard-plugin/`）
 - 写入 `plugins.load.paths` 和 `plugins.entries`
-- 在插件里注册（使用官方 `api.on()` API）：
+- 在插件里注册（使用官方 `api.on()` API 注册 5 个钩子）：
+  - `before_prompt_build` — 意图预警（非阻塞）
   - `before_tool_call` — 工具调用拦截主钩子
   - `after_tool_call` — 执行结果回写
-  - `before_prompt_build` — 意图预警（非阻塞）
-  - `openclaw_guard.hook_status` — Gateway 健康检查
+  - `gateway_start` — gateway 启动时初始化健康检查定时器
+  - `gateway_stop` — gateway 停止时清理健康检查定时器
+- 额外通过 `api.registerGatewayMethod()` 注册：
+  - `openclaw_guard.hook_status` — Gateway 健康检查方法
 
 ### API 说明
 
@@ -96,6 +99,8 @@ pluginConfig = {
 ```
 
 > **注意**：`failClosed: false` 时，后端不可达会直接放行所有工具调用（跳过优雅期和熔断），适用于不希望任何锁定的场景。
+>
+> **系统默认**：首次写入 `openclaw.json` 时，`_ensure_plugin_config()` 默认写入 `failClosed: false`（默认 fail-open，后端不可达直接放行），需要严格模式请显式改为 `true`。
 
 ## 双端同步机制
 
@@ -211,7 +216,7 @@ RV（Runtime Verification，运行时验证）模式是龙虾卫士的一项可�
 - **开启**（绿色高亮）：Dashboard 显示安全执行链路 Trace 时间线和 RV 引擎状态面板
 - **关闭**（灰色）：恢复标准视图，隐藏 Trace 和 RV 详情
 
-切换实时生效，状态持久化到浏览器本地存储。
+切换实时生效，采用**双持久化**：后端通过 `/api/rv/toggle` 把 `rv_mode` / `rv_rule_mode` 写入 `preferences.json`，前端通过 localStorage 键 `openclaw-guard-rv-mode` 保存 UI 开关状态。
 
 ### RV 模式激活后的 UI 变化
 

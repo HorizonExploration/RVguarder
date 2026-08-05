@@ -33,14 +33,14 @@
 
 ### 2.3 行为事件标准化
 
-`openclaw_guard/integrations/behavior.py`
+`openclaw_guard/engine/behavior.py`
 
 - `BehaviorCollectorManager.ingest(payload)` 把 payload 归一化为 `BehaviorEvent`
 - 当前 `BehaviorEvent` 只承载动作级字段，没有语义解析结果字段
 
 ### 2.4 单事件规则检测（已重构）
 
-`openclaw_guard/integrations/detection.py`
+`openclaw_guard/engine/detection.py`
 
 - `DetectionEngine.evaluate(event)` 已切换为语义优先模式
 - 优先消费 `event.metadata["semantic"]` 中的结构化标签和 `scenario` 做决策
@@ -50,7 +50,7 @@
 
 ### 2.5 审批与执行控制
 
-`openclaw_guard/integrations/control.py`
+`openclaw_guard/engine/control.py`
 
 - `GuardController.decide(...)` 在规则结果上叠加白名单和审批状态
 - 这里负责把 `DetectionDecision` 变成 `ControlledAction`
@@ -114,6 +114,9 @@
         ├─ GuardController.decide(...)
         │    └─ 叠加白名单与审批状态
         │
+        ├─ RuntimeVerificationEngine
+        │    └─ 跨步骤组合风险 + 不变量检测
+        │
         └─ ControlledAction 保存 + 审计写入
 ```
 
@@ -122,9 +125,6 @@
 ```text
         ├─ BackTranslationVerifier.verify()
         │    └─ 检查 trace 是否丢失原始约束
-        │
-        ├─ RuntimeVerificationEngine
-        │    └─ 跨步骤组合风险 + 不变量检测
         │
         └─ DecisionFusion（语义 + RV 联合）
 ```
@@ -165,7 +165,7 @@
 
 已实现模块：
 
-- `openclaw_guard/integrations/semantic_enhancer.py`
+- `openclaw_guard/engine/semantic_enhancer.py`
 
 当前支持两种模式：
 
@@ -223,7 +223,7 @@ class SemanticEnhancer:
 - 渠道/技能标签：`channel_external_send`、`skill_persistence`、`skill_system_admin` 等
 - 办公场景标签：`has_recipient`、`external_recipient`、`contains_attachment`、`contains_secret`、`ai_generated_content`、`internal_source`、`missing_scope_constraint` 等
 
-当前版本为纯本地规则化实现，不依赖外部 LLM。后续可在此基础上接入 LLM API 增强场景识别和约束提取能力。
+当前版本为 LLM-first 实现：默认调用 DeepSeek `deepseek-v4-flash` 模型进行语义理解，解析失败/超时/返回非 JSON 时自动回退到本地规则化降级实现。
 
 ### 6.3 LLM 结构化输出
 
@@ -351,9 +351,12 @@ LLM 不直接替代规则引擎，而是作为语义标签的增强来源参与�
 
 ### 7.2 3B 链式风险检测
 
+已实现：
+
+- `RuntimeVerificationEngine`（`engine/runtime_verification.py`）
+
 建议新增：
 
-- `RuntimeVerificationEngine`
 - `TraceRiskAnalyzer`
 
 职责：
@@ -436,7 +439,7 @@ G( file_delete(target in high_value_path) -> ask )
 
 #### 第一层：内置轻量 Runtime Monitor
 
-建议作为主运行引擎，直接集成到 `openclaw_guard/integrations/runtime_verification.py`。
+建议作为主运行引擎，直接集成到 `openclaw_guard/engine/runtime_verification.py`。
 
 实现方式：
 
@@ -585,16 +588,17 @@ G( file_delete(target in high_value_path) -> ask )
 
 当前已实现的模块与能力：
 
-1. `openclaw_guard/integrations/semantic_enhancer.py`
+1. `openclaw_guard/engine/semantic_enhancer.py`
    - 独立语义层模块，已实现 `SemanticEnhancer` 类
    - 支持 LLM API 模式（DeepSeek Chat）与本地规则化降级回退两种方式
    - API key 通过环境变量 `DEEPSEEK_API_KEY` 或构造函数注入
+   - 默认模型为 `deepseek-v4-flash`
    - LLM 调用失败/超时/返回非 JSON 时自动降级到本地规则化实现
    - 覆盖 7 个维度标签：基础、命令、路径、网络、配置、渠道/技能、办公场景
    - 识别 5 种办公场景：`mail_send`、`mail_read`、`report_send`、`report_generate`、`attachment_download`
    - 直接产出 `semantic` + `rv_trace`
 
-2. `openclaw_guard/integrations/detection.py`
+2. `openclaw_guard/engine/detection.py`
    - `DetectionEngine.evaluate()` 已改为语义优先模式
    - 优先执行办公场景策略（`_office_decision()`）
    - 再执行语义标签规则匹配（`_semantic_predicates()`）
@@ -608,7 +612,7 @@ G( file_delete(target in high_value_path) -> ask )
    - 回复回读 `reply_scan` 已补齐语义标注
    - 语义结果写入 `event.metadata["semantic"]` 和 `event.metadata["rv_trace"]`
 
-4. `openclaw_guard/integrations/__init__.py`
+4. `openclaw_guard/engine/__init__.py`
    - `SemanticEnhancer` 已加入统一导出
 
 5. `pyproject.toml`
@@ -618,8 +622,8 @@ G( file_delete(target in high_value_path) -> ask )
 
 建议新增：
 
-- `openclaw_guard/integrations/runtime_verification.py`
-- `openclaw_guard/integrations/trace_analyzer.py`
+- `openclaw_guard/engine/runtime_verification.py`
+- `openclaw_guard/engine/trace_analyzer.py`
 
 并在 `manager.handle_before_tool_call()` 和 `handle_after_tool_call()` 中维护最近动作窗口。
 

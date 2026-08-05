@@ -255,8 +255,8 @@ v0.1.0 的检测引擎依赖关键词、前缀和路径匹配进行风险判定�
 ### 5. 文档体系
 
 **新增文件**：
-- `docs/Sematic/method.md` — 语义理解增强方案，包含目标与问题、当前真实链路分析、方案设计
-- `docs/Sematic/development-plan.md` — 分阶段开发计划（阶段 0~4），阶段 1（语义层最小落地）已标记完成
+- `docs/semantic/method.md` — 语义理解增强方案，包含目标与问题、当前真实链路分析、方案设计
+- `docs/Sematic/development-plan.md` — 分阶段开发计划（阶段 0~4），阶段 1（语义层最小落地）已标记完成（已于 v0.3.0 文档整理时移除，方案并入 `docs/semantic/method.md`）
 
 **更新文件**：
 - `docs/improve/` 下多份文档随项目结构变化同步更新（project-structure.md、project-overview.md 等）
@@ -288,8 +288,8 @@ v0.1.0 的检测引擎依赖关键词、前缀和路径匹配进行风险判定�
 | 检测引擎 | `openclaw_guard/integrations/detection.py` | 重构 |
 | 主协调层 | `openclaw_guard/manager.py` | 修改 |
 | 打包配置 | `pyproject.toml` | 修改 |
-| 文档 | `docs/Sematic/method.md` | 新增 |
-| 文档 | `docs/Sematic/development-plan.md` | 新增 |
+| 文档 | `docs/semantic/method.md` | 新增 |
+| 文档 | `docs/Sematic/development-plan.md` | 新增（已于 v0.3.0 文档整理时移除） |
 | 文档 | `docs/improve/*.md` | 更新 |
 | 测试 | `tests/test_semantic_enhancer.py` | 新增 |
 | 测试 | `tests/test_detection.py` | 对齐 |

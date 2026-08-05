@@ -2,6 +2,11 @@
 
 当前本地 Web 工作台使用内建 HTTP 服务，主要接口如下。
 
+## 服务模式
+
+- 默认使用 stdlib `legacy_web`（`openclaw_guard/legacy_web.py`，`ThreadingHTTPServer`），零额外依赖
+- 传入 `--fastapi` 时切换到 FastAPI + uvicorn（`openclaw_guard/web/` 包）；若 FastAPI 缺失则自动回退到 legacy 模式
+
 ## 配置入口（影响行为）
 
 以下配置用于控制存储后端与 RV 规则驱动模式，属于“启动期配置 + 运行时可切换”的范畴：
@@ -11,7 +16,7 @@
 - 环境变量：`DB_STORE_MODE`（或 `OPENCLAW_GUARD_DB_STORE_MODE`）
 - 可选值：
   - `native`（默认）：使用内建 `SQLiteStore/PostgreSQLStore`
-  - `sqlalchemy`：使用 `SQLAlchemyStore`（需要安装可选依赖 sqlalchemy）
+  - `sqlalchemy`：使用 `SQLAlchemyStore`（需要安装 `[postgres]` extra，含 `psycopg2-binary` 与 `sqlalchemy[asyncio]>=2.0`）
 - 配合数据库连接：
   - `DATABASE_URL`（或 `OPENCLAW_GUARD_DATABASE_URL`）可指定 `postgresql://...` 或 `sqlite:///...`
 
@@ -23,24 +28,37 @@
   - `fsm`：回退到手写 FSM 监视器
 - 运行时也可通过 `/api/rv/toggle` 的 `rule_mode` 字段覆盖（并持久化到 `preferences.json`）
 
+### RV 规则文件路径：`OPENCLAW_RV_RULES_PATH`
+
+- 环境变量：`OPENCLAW_RV_RULES_PATH`
+- 用于覆盖 RV 规则文件路径（默认使用内建规则文件），RV 引擎在加载规则时读取
+
+## GET `/api/health`
+
+健康检查接口，返回服务存活状态。
+
 ## GET `/api/summary`
 
 返回聚合状态，包括：
 
-- 产品信息
-- 目标 OpenClaw 信息
-- 路径
-- settings
-- capabilities
-- baseline
-- actions
-- chat
-- hook
-- execution_guard
-- skills
-- channels
-- audit
-- policy
+- `generated_at`：生成时间（ISO 8601）
+- `product`：产品信息
+- `target`：目标 OpenClaw 信息
+- `paths`：路径
+- `settings`
+- `capabilities`
+- `baseline`
+- `actions`
+- `console`：控制台摘要
+- `chat`
+- `hook`
+- `execution_guard`
+- `skills`
+- `channels`
+- `preferences`：偏好设置（含 RV 模式等）
+- `audit`
+- `policy`
+- `rv`：RV 引擎状态（mode/engine）
 
 ## GET `/api/actions`
 
@@ -58,7 +76,7 @@
 
 ## GET `/api/audit/export`
 
-导出审计数据。
+导出审计数据到 `output/audit/`（生成 `audit-export.json` / `audit-export.csv`）。
 
 ## GET `/api/runtime/refresh`
 
@@ -133,6 +151,10 @@
 ## POST `/api/baseline/run`
 
 立即执行基线扫描。
+
+## POST `/api/actions/ingest`
+
+接收外部行为事件（聊天/语义增强入口），返回动作处理结果。
 
 ## POST `/api/actions/approve`
 
@@ -260,7 +282,7 @@ OpenClaw 原生审批卡片 `onResolution` 回调使用的接口。
 
 ## POST `/api/audit/export`
 
-导出审计数据到 `exports/`。
+导出审计数据到 `output/audit/`（生成 `audit-export.json` / `audit-export.csv`）。
 
 ## 错误返回
 
