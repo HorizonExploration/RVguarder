@@ -66,7 +66,7 @@
 
 ## 相关文档
 
-- [README.md](../../README.md)
-- [CLAUDE.md](../../CLAUDE.md)
+- `README.md`（仓库根）— 项目说明
+- `CLAUDE.md`（仓库根）— 开发协作约定
 - [architecture/overview.md](./overview.md) — 当前架构总览
 - [ops/roadmap.md](../ops/roadmap.md) — 产品路线图

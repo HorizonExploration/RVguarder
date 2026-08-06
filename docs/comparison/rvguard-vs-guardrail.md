@@ -82,7 +82,7 @@
 - 用户自定义规则系统：自然语言规则 → LLM 结构化提取 → 用户确认 → 写入 policies/
 - Back-Translation 验证层：将 Trace 反向重写为自然语言，与原始输入对比，检测约束丢失
 - DSL 语法设计（已落地）：JSON 规则模板已过渡到 `openclaw_guard/engine/rv_dsl.py`，即当前默认的 `dsl` 规则驱动模式
-- 离线增强 RV 引擎：接入 Spot 做 LTL 公式校验与自动机生成
+- RV 规约自动生成（已规划）：NL2Spec 管线（QA 分解 + ChainRule 合成 + 反例验证），详见 [nl-automata-rv-upgrade.md](../research/nl-automata-rv-upgrade.md)
 - 多 Agent 协作场景支持：跨 Agent Trace 的联合时序验证
 
 ## 远期（6-12个月）

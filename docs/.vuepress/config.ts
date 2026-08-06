@@ -24,6 +24,7 @@ export default defineUserConfig({
       { text: "部署运维", link: "/deployment/local.html" },
       { text: "API", link: "/api/http.html" },
       { text: "FAQ", link: "/ops/faq.html" },
+      { text: "调研", link: "/research/nl-automata-rv-upgrade.html" },
     ],
     sidebar: {
       "/architecture/": [
@@ -68,6 +69,59 @@ export default defineUserConfig({
         {
           text: "运维与 FAQ",
           children: ["/ops/faq.md", "/ops/roadmap.md"],
+        },
+      ],
+      "/comparison/": [
+        {
+          text: "对比分析",
+          children: [
+            "/comparison/rvguard-vs-agent-security-tools.md",
+            "/comparison/rvguard-vs-guardrail.md",
+          ],
+        },
+      ],
+      "/research/": [
+        {
+          text: "调研与规划",
+          children: [
+            "/research/nl-automata-rv-upgrade.md",
+          ],
+        },
+      ],
+      "/semantic/": [
+        {
+          text: "语义理解",
+          children: [
+            "/semantic/method.md",
+            "/semantic/office-scenario-matrix.md",
+          ],
+        },
+      ],
+      "/test-design/": [
+        {
+          text: "测试设计",
+          children: [
+            "/test-design/rv-vs-static-experiment-v2.md",
+            "/test-design/openclaw-guard-test-design.md",
+          ],
+        },
+      ],
+      "/dev/": [
+        {
+          text: "开发文档",
+          children: [
+            "/dev/frontend.md",
+          ],
+        },
+      ],
+      "/archive/": [
+        {
+          text: "归档文档",
+          children: [
+            "/archive/rv-development-plan.md",
+            "/archive/rv-engine-comparison-v3.md",
+            "/archive/rv-feasibility-report.md",
+          ],
         },
       ],
     },
