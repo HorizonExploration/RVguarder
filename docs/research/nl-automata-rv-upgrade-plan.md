@@ -1,6 +1,6 @@
 # NL 驱动自动机生成与运行时验证 · 分阶段实施升级计划
 
-> 版本：v0.1 | 日期：2026-08-05 | 状态：规划阶段  
+> 版本：v1.0 | 日期：2026-08-11 | 状态：**已完成**  
 > 关联文档：[nl-automata-rv-upgrade.md](./nl-automata-rv-upgrade.md)（方案）、[rvguard-vs-agent-security-tools.md](../comparison/rvguard-vs-agent-security-tools.md)（对比）、[roadmap.md](../ops/roadmap.md)（路线图）
 
 ---
@@ -35,14 +35,14 @@
 
 ## 二、分阶段实施计划总览
 
-| 阶段 | 版本 | 主题 | 核心交付 | 依赖 | 对标 |
-|---|---|---|---|---|---|
-| **A** | v0.4.0 | IR 结构化 | ToolCallIR + 语义层透传实体/约束/置信度 | 无 | NEXUS |
-| **B** | v0.4.0 | 约束推理引擎 | ConstraintRule DSL + 替换 47 条 lambda + 置信度门控 | A | G-SPEC |
-| **C** | v0.5.0 | RV 基线自动机 | BaselineLearner（φ抽象+前缀树+合并）+ 偏离检测 | A | ASG |
-| **D** | v0.5.0 | RV 参数化 | QEA 式 bind_vars + entity 守卫 + step_gap 时间原语 | A | MARQ / TAG |
-| **E** | v0.6.0 | NL2Spec 生成 | Nl2SpecGenerator + SpecValidator 反例闭环 | D | NL2Spec / AutoSafeLTL |
-| **F** | v0.6.0 | 干预升级 | revise 干预 + SessionSafetyState 会话追踪 | B | NEXUS / IntentionReasoner |
+| 阶段 | 版本 | 主题 | 核心交付 | 依赖 | 对标 | 状态 |
+|---|---|---|---|---|---|---|---|
+| **A** | v0.4.0 | IR 结构化 | ToolCallIR + 语义层透传实体/约束/置信度 | 无 | NEXUS | ✅ |
+| **B** | v0.4.0 | 约束推理引擎 | ConstraintRule DSL + 替换 47 条 lambda + 置信度门控 | A | G-SPEC | ✅ |
+| **C** | v0.5.0 | RV 基线自动机 | BaselineLearner（φ抽象+前缀树+合并）+ 偏离检测 | A | ASG | ✅ |
+| **D** | v0.5.0 | RV 参数化 | QEA 式 bind_vars + entity 守卫 + step_gap 时间原语 | A | MARQ / TAG | ✅ |
+| **E** | v0.6.0 | NL2Spec 生成 | Nl2SpecGenerator + SpecValidator 反例闭环 | D | NL2Spec / AutoSafeLTL | ✅ |
+| **F** | v0.6.0 | 干预升级 | revise 干预 + SessionSafetyState 会话追踪 | B | NEXUS / IntentionReasoner | ✅ |
 
 > 与 roadmap P0/P1 并行维护项：RV 状态持久化、熔断器告警、审计日志轮转 —— 穿插在各阶段间完成，不单独成阶段。
 
@@ -147,12 +147,10 @@
 ## 四、里程碑与版本规划
 
 ```
-v0.3.0（当前）═══════════▶  v0.4.0  ═══════════▶  v0.5.0  ═══════════▶  v0.6.0
+v0.3.0（当前）═══════════▶  v0.4.0 ✅  ═══════════▶  v0.5.0 ✅  ═══════════▶  v0.6.0 ✅
  ChainRule 规约驱动         IR 结构化            RV 基线 + 参数化       NL2Spec + 干预升级
                            + 约束推理引擎        （白模型 + QEA/TAG）   + 反例验证闭环
                            + 置信度门控          + 时间原语
-   │                        │                    │                    │
-   └── 并行维护 ────────────┴── RV 持久化 ───────┴── 熔断告警 ─────────┴── 审计轮转 ──▶
 ```
 
 | 版本 | 里程碑 | 可交付验收 |

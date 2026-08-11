@@ -49,8 +49,8 @@
   - [x] 6.4 新建 `tests/test_intervention.py`：风险评分、升级链、revision_hint
 
 - [x] Task 7：文档与验收同步
-  - [ ] 7.1 更新 `docs/research/nl-automata-rv-upgrade-plan.md`：A~F 阶段状态标记为已落地
-  - [ ] 7.2 更新 `docs/ops/roadmap.md`：新增 v0.4.0/v0.5.0/v0.6.0 里程碑完成项
+  - [x] 7.1 更新 `docs/research/nl-automata-rv-upgrade-plan.md`：A~F 阶段状态标记为已落地
+  - [x] 7.2 更新 `docs/ops/roadmap.md`：新增 v0.4.0/v0.5.0/v0.6.0 里程碑完成项
   - [ ] 7.3 运行全量测试（`python -m unittest discover`），确认无回归
 
 # Task Dependencies
