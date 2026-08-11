@@ -51,7 +51,7 @@
 - [x] Task 7：文档与验收同步
   - [x] 7.1 更新 `docs/research/nl-automata-rv-upgrade-plan.md`：A~F 阶段状态标记为已落地
   - [x] 7.2 更新 `docs/ops/roadmap.md`：新增 v0.4.0/v0.5.0/v0.6.0 里程碑完成项
-  - [ ] 7.3 运行全量测试（`python -m unittest discover`），确认无回归
+  - [x] 7.3 运行全量测试（`python -m unittest discover`），确认无回归
 
 # Task Dependencies
 - [Task 2] 依赖 [Task 1]（约束引擎消费 ToolCallIR）

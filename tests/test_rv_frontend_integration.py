@@ -79,7 +79,7 @@ class TestRvApiIntegration(unittest.TestCase):
         # 先触发一次 evaluate 以完成懒加载初始化
         self.manager.rv_engine.evaluate([])
         summary = self.manager.rv_engine.result_summary()
-        self.assertEqual(summary["monitor_count"], 6)  # 6 monitors in _lazy_init_monitors
+        self.assertEqual(summary["monitor_count"], 8)  # 8 monitors (6 original + 2 phase D additions)
 
     def test_rv_engine_trace_preserves_after_action(self):
         # 模拟一个动作触发 RV
