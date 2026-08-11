@@ -208,13 +208,20 @@ class SemanticEnhancer:
         semantic.setdefault("confidence", 0.5)
         semantic.setdefault("labels", [event.action_type])
 
-        # 确保 rv_trace 每条都有 step_id/event/props
+        # 从 semantic 中提取结构化实体和约束（供 rv_trace 透传）
+        semantic_entities = _build_entities(semantic.get("entities", {}))
+        semantic_constraints = _build_constraints(semantic.get("constraints", {}))
+
+        # 确保 rv_trace 每条都有 step_id/event/props + 结构化字段
         for item in rv_trace:
             if not isinstance(item, dict):
                 continue
             item.setdefault("step_id", "s1")
             item.setdefault("event", semantic.get("scenario", event.action_type))
             item.setdefault("props", [])
+            item.setdefault("entities", semantic_entities)
+            item.setdefault("constraints", semantic_constraints)
+            item.setdefault("confidence", semantic.get("confidence"))
 
         return {"semantic": semantic, "rv_trace": rv_trace}
 
@@ -385,6 +392,18 @@ class SemanticEnhancer:
                     "step_id": "s1",
                     "event": scenario or event.action_type,
                     "props": sorted(labels),
+                    "entities": [
+                        {"kind": "recipients", "values": recipients},
+                        {"kind": "paths", "values": list(event.target_paths)},
+                        {"kind": "urls", "values": list(event.network_targets)},
+                        {"kind": "tool_name", "values": [tool_name] if tool_name else []},
+                    ],
+                    "constraints": [
+                        {"kind": k, "value": v}
+                        for k, v in constraints.items()
+                        if v not in (None, [], False, "")
+                    ],
+                    "confidence": semantic["confidence"],
                 }
             ],
         }
@@ -733,3 +752,32 @@ def _is_low_risk_command(command: str | None) -> bool:
 def _is_external_recipient(address: str) -> bool:
     domain = address.rsplit("@", 1)[-1].lower()
     return domain not in _INTERNAL_DOMAINS
+
+
+def _build_entities(entities: dict[str, Any]) -> list[dict[str, Any]]:
+    """将 semantic.entities 字典转换为结构化实体列表。
+
+    每个实体格式：{"kind": str, "values": list[str]}
+    """
+    result: list[dict[str, Any]] = []
+    for kind in ("recipients", "paths", "urls"):
+        vals = entities.get(kind, [])
+        if vals and isinstance(vals, list):
+            result.append({"kind": kind, "values": [str(v) for v in vals if v is not None]})
+    tool_name = entities.get("tool_name")
+    if tool_name and isinstance(tool_name, str):
+        result.append({"kind": "tool_name", "values": [tool_name]})
+    return result
+
+
+def _build_constraints(constraints: dict[str, Any]) -> list[dict[str, Any]]:
+    """将 semantic.constraints 字典转换为结构化约束列表。
+
+    每条约束格式：{"kind": str, "value": str|bool}
+    过滤掉空值（None / 空列表 / False / 空字符串）。
+    """
+    result: list[dict[str, Any]] = []
+    for k, v in constraints.items():
+        if v not in (None, [], False, ""):
+            result.append({"kind": k, "value": v})
+    return result

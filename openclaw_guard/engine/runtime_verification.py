@@ -226,6 +226,7 @@ class RuntimeVerificationEngine:
         window_size: int = 10,
         window_ttl_seconds: int | None = 300,
         rule_mode: str | None = None,
+        baseline_dfa_path: str | None = None,
     ) -> None:
         self._window_size = window_size
         self._window_ttl = window_ttl_seconds
@@ -240,6 +241,9 @@ class RuntimeVerificationEngine:
         self._fsm_monitors_template: list | None = None
         self._spec_monitors_template: list | None = None
         self._spec_ruleset: Any | None = None
+        # 基线自动机监视器（阶段 C）
+        self._baseline_monitor: Any | None = None
+        self._init_baseline_monitor(baseline_dfa_path)
 
     # ── 懒加载初始化监视器模板 ──
 
@@ -252,6 +256,20 @@ class RuntimeVerificationEngine:
         if v in {"fsm", "handwritten", "hand-written"}:
             return "fsm"
         return "dsl"
+
+    def _init_baseline_monitor(self, dfa_path: str | None) -> None:
+        """懒加载基线 DFA 监视器。"""
+        path = dfa_path or os.getenv("OPENCLAW_RV_BASELINE_DFA_PATH")
+        if not path:
+            return
+        try:
+            from openclaw_guard.engine.baseline_learner import BaselineDFA
+            from openclaw_guard.engine.baseline_monitor import BaselineMonitor
+
+            dfa = BaselineDFA.load(path)
+            self._baseline_monitor = BaselineMonitor(dfa)
+        except Exception:
+            pass  # DFA 加载失败时静默跳过，不影响正常引擎功能
 
     def rule_mode(self) -> str:
         return self._rule_mode
@@ -393,6 +411,36 @@ class RuntimeVerificationEngine:
             "session_key": session_key,
             "rule_mode": self._rule_mode,
             "monitor_timings_ms": monitor_timings,
+            "baseline_result": self._run_baseline(rv_trace, severity_map, final),
+        }
+
+    def _run_baseline(
+        self,
+        rv_trace: list[dict[str, Any]],
+        severity_map: dict[str, int],
+        current_verdict: str,
+    ) -> dict[str, Any] | None:
+        """运行基线监视器并返回结果。
+
+        基线判定作为独立信号，不覆盖现有监视器的判定。
+        仅当基线检测到异常且 severity 高于当前 verdict 时才升级。
+        """
+        if self._baseline_monitor is None:
+            return None
+
+        bm = self._baseline_monitor
+        bm_result: str | None = None
+        for step in rv_trace:
+            r = bm.feed(step)
+            if r and severity_map.get(r, 0) > severity_map.get(bm_result or "ok", 0):
+                bm_result = r
+
+        return {
+            "anomaly_detected": bm_result is not None,
+            "verdict": bm_result or "ok",
+            "current_state": bm.current_state,
+            "anomaly_count": bm.anomaly_count,
+            "step_count": bm.step_count,
         }
 
     # ── Session 管理 ──

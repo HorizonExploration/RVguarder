@@ -181,6 +181,11 @@ class SemanticEnhancerTests(unittest.TestCase):
         self.assertEqual(payload["semantic"]["scenario"], "report_send")
         self.assertEqual(payload["rv_trace"][0]["event"], "report_send")
         self.assertIn("external_recipient", payload["rv_trace"][0]["props"])
+        # 阶段 A：LLM 路径应透传结构化字段
+        self.assertIn("entities", payload["rv_trace"][0])
+        self.assertIn("constraints", payload["rv_trace"][0])
+        self.assertIn("confidence", payload["rv_trace"][0])
+        self.assertEqual(payload["rv_trace"][0]["confidence"], 0.88)
 
     def test_llm_failure_falls_back_to_local_rules(self) -> None:
         """LLM 失败时自动降级到本地规则化实现。"""
@@ -204,6 +209,15 @@ class SemanticEnhancerTests(unittest.TestCase):
         self.assertEqual(payload["semantic"]["scenario"], "report_send")
         self.assertIn("external_recipient", payload["rv_trace"][0]["props"])
         self.assertIn("has_exclude_constraints", payload["rv_trace"][0]["props"])
+        # 阶段 A：本地路径应透传结构化字段
+        self.assertIn("entities", payload["rv_trace"][0])
+        self.assertIn("constraints", payload["rv_trace"][0])
+        self.assertIn("confidence", payload["rv_trace"][0])
+        # 本地路径应提取收件人实体
+        entities = payload["rv_trace"][0]["entities"]
+        recipients_entity = next((e for e in entities if e["kind"] == "recipients"), None)
+        self.assertIsNotNone(recipients_entity)
+        self.assertIn("alice@example.com", recipients_entity["values"])
 
 
 if __name__ == "__main__":

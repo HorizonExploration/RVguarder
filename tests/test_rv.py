@@ -10,6 +10,7 @@
 import json
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from openclaw_guard.engine.runtime_verification import (
     RuntimeVerificationEngine,
@@ -67,7 +68,7 @@ class TestWindowManager(unittest.TestCase):
             [{"file_search"}, {"file_delete"}]
         ))
 
-    def test_sequence_matches_with_window_size(self):
+    def test_contains_any_with_window_size(self):
         for i in range(10):
             self.wm.push({"event": "x", "props": [f"p{i}"]})
         self.wm.push({"event": "search", "props": ["file_search"]})
@@ -96,6 +97,41 @@ class TestWindowManager(unittest.TestCase):
         self.wm.push({"event": "a", "props": []})
         self.wm.clear()
         self.assertEqual(len(self.wm), 0)
+
+    def test_steps_with_label(self):
+        self.wm.push({"event": "a", "props": ["file_read"]})
+        self.wm.push({"event": "b", "props": ["file_write"]})
+        self.wm.push({"event": "c", "props": ["file_read", "contains_secret"]})
+        matches = self.wm.steps_with_label("file_read")
+        self.assertEqual(len(matches), 2)
+
+    def test_no_ttl_keeps_all(self):
+        wm = WindowManager(max_size=10)
+        wm.push({"event": "old", "props": ["old"]})
+        wm.push({"event": "new", "props": ["new"]})
+        self.assertEqual(len(wm), 2)
+
+    def test_ttl_expires_old_entries(self):
+        """TTL 过期应移除最老条目（mock 时间，避免真实 sleep）。"""
+        wm = WindowManager(max_size=10, ttl_seconds=1)
+        with patch("openclaw_guard.engine.runtime_verification._time.time") as mt:
+            # t=1000 写入 old（epoch=1000），cutoff=999 未过期
+            mt.return_value = 1000.0
+            wm.push({"event": "old", "props": ["old"]})
+            # t=1005 写入 new（epoch=1005），cutoff=1004 > 1000 → old 过期
+            mt.return_value = 1005.0
+            wm.push({"event": "new", "props": ["new"]})
+        self.assertEqual(len(wm), 1)
+        self.assertEqual(wm.latest()["event"], "new")
+
+    def test_serialization_roundtrip(self):
+        wm = WindowManager(max_size=10)
+        wm.push({"event": "read", "props": ["file_read"]})
+        wm.push({"event": "delete", "props": ["file_delete"]})
+        data = wm.to_dict()
+        restored = WindowManager.from_dict(data)
+        self.assertEqual(len(restored), 2)
+        self.assertEqual(restored.latest()["event"], "delete")
 
 
 # =============================================================================
@@ -481,6 +517,60 @@ class TestRuntimeVerificationEngine(unittest.TestCase):
         self.assertIn("window_size", summary)
         self.assertIn("monitor_count", summary)
         self.assertIn("window_snapshot", summary)
+
+    def test_session_isolation_prevents_cross_session_contamination(self):
+        """session_A 的攻击链不应影响 session_B 的正常操作。"""
+        self.engine.evaluate([{
+            "step_id": "s1",
+            "event": "file_read",
+            "props": ["file_read", "contains_secret"],
+        }], session_key="session_A")
+        r = self.engine.evaluate([{
+            "step_id": "s1",
+            "event": "mail_send",
+            "props": ["mail_send", "external_recipient"],
+        }], session_key="session_B")
+        self.assertNotEqual(r["verdict"], "block")
+
+    def test_same_session_maintains_chain_context(self):
+        """同一会话应保持攻击链上下文。"""
+        self.engine.evaluate([{
+            "step_id": "s1",
+            "event": "file_read",
+            "props": ["attachment_open", "channel_external"],
+        }], session_key="session_chain")
+        self.engine.evaluate([{
+            "step_id": "s2",
+            "event": "file_read",
+            "props": ["contains_secret"],
+        }], session_key="session_chain")
+        r = self.engine.evaluate([{
+            "step_id": "s3",
+            "event": "mail_send",
+            "props": ["mail_send", "external_recipient"],
+        }], session_key="session_chain")
+        self.assertEqual(r["verdict"], "block")
+
+    def test_result_summary_contains_monitor_states(self):
+        self.engine.evaluate([{
+            "step_id": "s1",
+            "event": "mail_send",
+            "props": ["mail_send"],
+        }])
+        summary = self.engine.result_summary()
+        self.assertIn("monitor_states", summary)
+        for name in ["MailMonitor", "ReportMonitor", "SecurityChainMonitor",
+                     "BroadcastMonitor", "DataExportMonitor", "BatchFileMonitor"]:
+            self.assertIn(name, summary["monitor_states"])
+
+    def test_engine_release_session(self):
+        self.engine.evaluate([{
+            "step_id": "s1",
+            "event": "mail_send",
+            "props": ["mail_send"],
+        }], session_key="temp_sess")
+        self.engine.release_session("temp_sess")
+        self.assertEqual(self.engine.session_count(), 0)
 
 
 # =============================================================================

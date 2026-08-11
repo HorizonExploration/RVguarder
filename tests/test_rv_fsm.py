@@ -5,9 +5,10 @@ RV 层 FSM 状态转移与跨步链式检测测试。
 - 6 个监视器的 FSM 状态转移正确性
 - 链式攻击检测（状态驱动决策）
 - 无链前序的单步判定（不应误报）
-- Per-session 窗口隔离
-- WindowManager TTL 过期
 - 监视器 reset
+
+说明：WindowManager 滑动窗口 / TTL 过期 / RuntimeVerificationEngine
+per-session 隔离等通用能力测试见 test_rv.py。
 """
 
 import unittest
@@ -19,10 +20,7 @@ from openclaw_guard.engine.rv_monitors import (
     ReportMonitor,
     SecurityChainMonitor,
 )
-from openclaw_guard.engine.runtime_verification import (
-    RuntimeVerificationEngine,
-    WindowManager,
-)
+from openclaw_guard.engine.runtime_verification import WindowManager
 
 
 # =============================================================================
@@ -75,7 +73,7 @@ class TestMailMonitorFSM(unittest.TestCase):
         r = m.feed(self._step("mail_send", ["mail_send", "internal_recipient"]), self.wm)
         self.assertIsNone(r)
 
-    def test_mail_with_sensitive_in_idle_asks(self):
+    def test_mail_with_sensitive_in_idle_blocks(self):
         """idle 状态下直接发含敏感邮件 → block（外部+敏感同在一步，FSM 状态追踪之后 Phase 2 判定）"""
         m = MailMonitor()
         r = m.feed(self._step("mail_send", ["mail_send", "contains_secret", "external_recipient"]), self.wm)
@@ -152,10 +150,10 @@ class TestReportMonitorFSM(unittest.TestCase):
         self.assertEqual(r, "ask")
 
     def test_no_chain_report_send(self):
-        """无链前序 → external 仅 escalate"""
+        """无链前序 → external 仅 escalate（无内部数据源，不构成阻断链）"""
         rm = ReportMonitor()
         r = rm.feed(self._step("report_send", ["report_send", "external_recipient"]), self.wm)
-        self.assertIn(r, ("escalate", "ask"))
+        self.assertEqual(r, "escalate")
 
     def test_valid_report_no_missing_scope(self):
         rm = ReportMonitor()
@@ -216,16 +214,25 @@ class TestSecurityChainMonitorFSM(unittest.TestCase):
         self.assertEqual(r, "escalate")
 
     def test_b05_batch_delete(self):
+        """B-05: 窗口内累积 file_delete ≥5 → escalate（基于窗口累积计数）。
+
+        必须在同一个窗口中累积计数，不能用独立窗口逐个 feed。
+        """
         sc = SecurityChainMonitor()
+        wm = WindowManager(max_size=10)
         for _ in range(5):
-            wm_local = WindowManager(max_size=10)
-            sc.feed(self._step("del", ["file_delete"]), wm_local)
-        # 累积足够时触发 escalate
-        wm_final = WindowManager(max_size=10)
-        for _ in range(6):
-            wm_final.push(self._step("del", ["file_delete"]))
-        r = sc.feed(self._step("del", ["file_delete"]), wm_final)
+            wm.push(self._step("del", ["file_delete"]))
+        r = sc.feed(self._step("del", ["file_delete"]), wm)
         self.assertEqual(r, "escalate")
+
+    def test_b05_below_threshold_no_alert(self):
+        """B-05: 窗口内 file_delete <5 → 不触发 escalate"""
+        sc = SecurityChainMonitor()
+        wm = WindowManager(max_size=10)
+        for _ in range(3):
+            wm.push(self._step("del", ["file_delete"]))
+        r = sc.feed(self._step("del", ["file_delete"]), wm)
+        self.assertIsNone(r)
 
     def test_single_delete_no_alert(self):
         sc = SecurityChainMonitor()
@@ -407,120 +414,6 @@ class TestBatchFileMonitorFSM(unittest.TestCase):
         bf.feed(self._step("search", ["file_search"]), self.wm)
         bf.reset()
         self.assertEqual(bf.current_state, "idle")
-
-
-# =============================================================================
-# RuntimeVerificationEngine — Per-session 隔离 + 摘要
-# =============================================================================
-
-
-class TestRuntimeVerificationEngine(unittest.TestCase):
-    def test_empty_trace_ok(self):
-        eng = RuntimeVerificationEngine()
-        r = eng.evaluate([])
-        self.assertEqual(r["verdict"], "ok")
-
-    def test_mail_block_trace(self):
-        eng = RuntimeVerificationEngine(window_size=10)
-        r = eng.evaluate([{
-            "step_id": "s1", "event": "mail_send",
-            "props": ["mail_send", "external_recipient", "contains_secret"],
-        }])
-        # RuntimeVerificationEngine 会遍历 6 个监视器——MailMonitor 应该判定 block
-        self.assertIn(r["verdict"], ("block", "escalate", "ask"))
-        self.assertNotEqual(r["verdict"], "ok")
-
-    def test_session_isolation_prevents_cross_session_contamination(self):
-        """session_A 的攻击链不应影响 session_B 的正常操作。"""
-        eng = RuntimeVerificationEngine(window_size=10)
-        eng.evaluate([{
-            "step_id": "s1", "event": "file_read",
-            "props": ["file_read", "contains_secret"],
-        }], session_key="session_A")
-        r = eng.evaluate([{
-            "step_id": "s1", "event": "mail_send",
-            "props": ["mail_send", "external_recipient"],
-        }], session_key="session_B")
-        self.assertNotEqual(r["verdict"], "block")
-
-    def test_same_session_maintains_chain_context(self):
-        """同一会话应保持攻击链上下文。"""
-        eng = RuntimeVerificationEngine(window_size=10)
-        eng.evaluate([{
-            "step_id": "s1", "event": "file_read",
-            "props": ["attachment_open", "channel_external"],
-        }], session_key="session_chain")
-        eng.evaluate([{
-            "step_id": "s2", "event": "file_read",
-            "props": ["contains_secret"],
-        }], session_key="session_chain")
-        r = eng.evaluate([{
-            "step_id": "s3", "event": "mail_send",
-            "props": ["mail_send", "external_recipient"],
-        }], session_key="session_chain")
-        self.assertEqual(r["verdict"], "block")
-
-    def test_result_summary_contains_monitor_states(self):
-        eng = RuntimeVerificationEngine(window_size=10)
-        eng.evaluate([{"step_id": "s1", "event": "mail_send", "props": ["mail_send"]}])
-        summary = eng.result_summary()
-        self.assertIn("monitor_states", summary)
-        for name in ["MailMonitor", "ReportMonitor", "SecurityChainMonitor",
-                     "BroadcastMonitor", "DataExportMonitor", "BatchFileMonitor"]:
-            self.assertIn(name, summary["monitor_states"])
-
-    def test_engine_release_session(self):
-        eng = RuntimeVerificationEngine(window_size=10)
-        eng.evaluate([{"step_id": "s1", "event": "mail_send", "props": ["mail_send"]}],
-                     session_key="temp_sess")
-        eng.release_session("temp_sess")
-        self.assertEqual(eng.session_count(), 0)
-
-    def test_engine_reset(self):
-        eng = RuntimeVerificationEngine(window_size=10)
-        eng.evaluate([{"step_id": "s1", "event": "mail_send", "props": ["mail_send", "external_recipient", "contains_secret"]}])
-        eng.reset()
-        r = eng.evaluate([{"step_id": "s1", "event": "chat_message", "props": ["chat_message"]}])
-        self.assertEqual(r["verdict"], "ok")
-
-
-# =============================================================================
-# WindowManager — TTL 过期
-# =============================================================================
-
-
-class TestWindowManager(unittest.TestCase):
-    def test_ttl_expires_old_entries(self):
-        wm = WindowManager(max_size=10, ttl_seconds=0.01)
-        wm.push({"event": "old", "props": ["old"]})
-        import time
-        time.sleep(0.05)
-        wm.push({"event": "new", "props": ["new"]})
-        for step in wm.snapshot():
-            self.assertNotEqual(step["event"], "old")
-
-    def test_no_ttl_keeps_all(self):
-        wm = WindowManager(max_size=10)
-        wm.push({"event": "old", "props": ["old"]})
-        wm.push({"event": "new", "props": ["new"]})
-        self.assertEqual(len(wm), 2)
-
-    def test_serialization_roundtrip(self):
-        wm = WindowManager(max_size=10)
-        wm.push({"event": "read", "props": ["file_read"]})
-        wm.push({"event": "delete", "props": ["file_delete"]})
-        data = wm.to_dict()
-        restored = WindowManager.from_dict(data)
-        self.assertEqual(len(restored), 2)
-        self.assertEqual(restored.latest()["event"], "delete")
-
-    def test_steps_with_label(self):
-        wm = WindowManager(max_size=10)
-        wm.push({"event": "a", "props": ["file_read"]})
-        wm.push({"event": "b", "props": ["file_write"]})
-        wm.push({"event": "c", "props": ["file_read", "contains_secret"]})
-        matches = wm.steps_with_label("file_read")
-        self.assertEqual(len(matches), 2)
 
 
 if __name__ == "__main__":

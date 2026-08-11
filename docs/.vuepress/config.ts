@@ -85,6 +85,7 @@ export default defineUserConfig({
           text: "调研与规划",
           children: [
             "/research/nl-automata-rv-upgrade.md",
+            "/research/nl-automata-rv-upgrade-plan.md",
           ],
         },
       ],
