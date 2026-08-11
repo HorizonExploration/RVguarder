@@ -25,6 +25,32 @@ from typing import Any
 from openclaw_guard.utils import utc_now_iso
 
 
+def _entity_matches(values: list[str], match_type: str, target_values: list[str]) -> bool:
+    """实体值匹配辅助函数。
+
+    支持三种 match_type:
+    - "value_in": values 中至少一个在 target_values 中
+    - "domain_in": 取值的域名部分，至少一个匹配
+    - "domain_not_in": 取值的域名部分，没有任何一个在列表中
+    """
+    if not values:
+        return False
+
+    def _domain(v: str) -> str:
+        return v.rsplit("@", 1)[-1].lower() if "@" in v else v.lower()
+
+    if match_type == "value_in":
+        targets = {v.lower() for v in target_values}
+        return any(v.lower() in targets for v in values)
+    if match_type == "domain_in":
+        domains = {d.lower() for d in target_values}
+        return any(_domain(v) in domains for v in values)
+    if match_type == "domain_not_in":
+        domains = {d.lower() for d in target_values}
+        return not any(_domain(v) in domains for v in values)
+    return False
+
+
 class WindowManager:
     """滑动窗口管理器。
 
@@ -108,6 +134,46 @@ class WindowManager:
         if window_size and window_size < len(recent):
             recent = recent[-window_size:]
         return [s for s in recent if label in set(s.get("props", []))]
+
+    # ── 阶段 D：实体与时间查询 ──
+
+    def steps_with_entity(self, kind: str, predicate: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        """返回窗口中包含指定 entity kind 的步骤列表。
+
+        Args:
+            kind: 实体类别（如 "recipients", "paths"）
+            predicate: 可选过滤条件，如 {"match_type": "value_in", "values": ["a@b.com"]}
+
+        Returns:
+            匹配步骤列表（从旧到新）
+        """
+        recent = self.snapshot()
+        results: list[dict[str, Any]] = []
+        for step in recent:
+            entities = step.get("entities") or []
+            for e in entities:
+                if isinstance(e, dict) and e.get("kind") == kind:
+                    if predicate is None:
+                        results.append(step)
+                        break
+                    else:
+                        if _entity_matches(e.get("values", []), predicate.get("match_type", ""), predicate.get("values", [])):
+                            results.append(step)
+                            break
+        return results
+
+    def step_gap(self, older_step: dict[str, Any] | None, newer_step: dict[str, Any] | None) -> float | None:
+        """计算两步之间的时间间隔（秒）。
+
+        若任一步骤为 None 或缺少 _ts_epoch，返回 None。
+        """
+        if older_step is None or newer_step is None:
+            return None
+        older_ts = older_step.get("_ts_epoch")
+        newer_ts = newer_step.get("_ts_epoch")
+        if older_ts is None or newer_ts is None:
+            return None
+        return abs(float(newer_ts) - float(older_ts))
 
     # ── 序列匹配 ──
 

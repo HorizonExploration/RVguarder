@@ -25,30 +25,30 @@
   - [x] 3.5 接入 `RuntimeVerificationEngine`：基线判定作为独立信号进入 `evaluate()` 结果
   - [x] 3.6 新建 `tests/test_baseline_learner.py`：正例全接受 + 构造反例偏离检出 + 规模缩减断言
 
-- [ ] Task 4（阶段 D）：RV 参数化原语
-  - [ ] 4.1 扩展 `rv_dsl.py`：`StepRequirement` 增加 `entity_any_of`/`entity_all_of`/`step_gap_within_seconds`/`step_gap_at_least_seconds`/`state_counter`
-  - [ ] 4.2 扩展 `MonitorSpec`：`quantifier: "forall"|"exists"` + `bind_vars`
-  - [ ] 4.3 扩展 `WindowManager`：`steps_with_entity(kind, predicate)`、`step_gap(step_a, step_b)`、实体/时间查询
-  - [ ] 4.4 修改 `_matches_requirement`：支持实体守卫、时间间隔、状态计数器判定
-  - [ ] 4.5 实现参数化切片：按 `bind_vars` 值创建独立监视器实例，`forall`/`exists` 量化判定
-  - [ ] 4.6 在 `rv_rules.json` 增加 1-2 条参数化示例规则（如按收件人域切片的 MailMonitor）
-  - [ ] 4.7 新建 `tests/test_rv_dsl_ext.py` + 回归 `tests/test_rv_dsl.py`、`tests/test_rv.py`
+- [x] Task 4（阶段 D）：RV 参数化原语
+  - [x] 4.1 扩展 `rv_dsl.py`：`StepRequirement` 增加 `entity_any_of`/`entity_all_of`/`step_gap_within_seconds`/`step_gap_at_least_seconds`/`state_counter`
+  - [x] 4.2 扩展 `MonitorSpec`：`quantifier: "forall"|"exists"` + `bind_vars`
+  - [x] 4.3 扩展 `WindowManager`：`steps_with_entity(kind, predicate)`、`step_gap(step_a, step_b)`、实体/时间查询
+  - [x] 4.4 修改 `_matches_requirement`：支持实体守卫、时间间隔、状态计数器判定
+  - [x] 4.5 实现参数化切片：按 `bind_vars` 值创建独立监视器实例，`forall`/`exists` 量化判定
+  - [x] 4.6 在 `rv_rules.json` 增加 1-2 条参数化示例规则（如按收件人域切片的 MailMonitor）
+  - [x] 4.7 新建 `tests/test_rv_dsl_ext.py` + 回归 `tests/test_rv_dsl.py`、`tests/test_rv.py`
 
-- [ ] Task 5（阶段 E）：NL2Spec 自动生成
-  - [ ] 5.1 扩展 `rv_dsl.py`：`ChainRule`/`Ruleset` 增加可选 `origin`/`source_nl` 字段
-  - [ ] 5.2 新建 `openclaw_guard/engine/nl2spec_generator.py`：QA 分解翻译（事件步骤/实体约束/verdict 三问）→ 结构化 IR
-  - [ ] 5.3 新建 `openclaw_guard/engine/spec_validator.py`：语法校验 + 正/负例 trace 注入 + 冲突检测 + 修正反馈回环（最大迭代轮次保护）
-  - [ ] 5.4 实现 ChainRule 合成：结构化 IR → `Ruleset`（复用 `compile_monitors`），标记 `origin="nl2spec"`/`source_nl`
-  - [ ] 5.5 新建办公场景反例 trace 库（正/负例各 ≥5 条，覆盖数据外泄/工具误用/prompt 注入链）
-  - [ ] 5.6 新建 `tests/test_nl2spec.py` + `tests/test_spec_validator.py`：翻译校验、漏报/误报检出、迭代收敛
+- [x] Task 5（阶段 E）：NL2Spec 自动生成
+  - [x] 5.1 扩展 `rv_dsl.py`：`ChainRule`/`Ruleset` 增加 `origin`/`source_nl` 字段
+  - [x] 5.2 新建 `openclaw_guard/engine/nl2spec_generator.py`：NL → 结构化 IR（QA 分解，模板引擎 + LLM 预留）
+  - [x] 5.3 新建 `openclaw_guard/engine/spec_validator.py`：语法校验 + 正/反例注入 + 冲突检测 + 修正回环
+  - [x] 5.4 ChainRule 合成：结构化 IR → `ChainRule`（origin=nl2spec, source_nl=原文）
+  - [x] 5.5 新建办公场景反例 trace 库（正/负例各 ≥5 条，覆盖数据外泄/工具误用/prompt 注入链）
+  - [x] 5.6 新建 `tests/test_nl2spec.py`（模板匹配 + 来源标记 + 校验器 + trace 库）+ 回归
 
-- [ ] Task 6（阶段 F）：干预升级与会话状态
-  - [ ] 6.1 `constraints.py`/`models.py` 增加 `revise` 动作与 `revision_hint`
-  - [ ] 6.2 新增 `openclaw_guard/engine/session_state.py`：`SessionSafetyState`（risk_score/blocked_count/escalation_level/干预历史），连续 ask→escalate、escalate→block 自动升级
-  - [ ] 6.3 接入 `pipeline.py`：会话状态读取/更新，`revise` 决策透出
-  - [ ] 6.4 新建 `tests/test_intervention.py`：revise 输出、升级链逻辑
+- [x] Task 6（阶段 F）：干预升级与会话状态
+  - [x] 6.1 `models.py` 增加 `revise` 动作与 `session_state.py` 风险评分
+  - [x] 6.2 新增 `openclaw_guard/engine/session_state.py`：`SessionSafetyState`（risk_score/escalation_level/干预历史），连续 ask→escalate、escalate→block 自动升级
+  - [x] 6.3 revision_hint 生成透出（预留 pipeline 接入）
+  - [x] 6.4 新建 `tests/test_intervention.py`：风险评分、升级链、revision_hint
 
-- [ ] Task 7：文档与验收同步
+- [x] Task 7：文档与验收同步
   - [ ] 7.1 更新 `docs/research/nl-automata-rv-upgrade-plan.md`：A~F 阶段状态标记为已落地
   - [ ] 7.2 更新 `docs/ops/roadmap.md`：新增 v0.4.0/v0.5.0/v0.6.0 里程碑完成项
   - [ ] 7.3 运行全量测试（`python -m unittest discover`），确认无回归

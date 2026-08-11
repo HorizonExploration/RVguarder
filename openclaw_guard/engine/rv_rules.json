@@ -462,6 +462,48 @@
           "when": {}
         }
       ]
+    },
+    {
+      "name": "PerRecipientMailMonitor",
+      "initial": "idle",
+      "quantifier": "forall",
+      "bind_vars": ["recipients"],
+      "rules": [
+        {
+          "id": "precip_read_to_send_warn",
+          "from": "idle",
+          "to": "idle",
+          "verdict": "ask",
+          "when": {
+            "event": "mail_send",
+            "entity_any_of": [
+              { "kind": "recipients", "match_type": "domain_not_in", "values": ["internal.com"] }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "StateCounterDemoMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "demo_warm_to_hot",
+          "from": "idle",
+          "to": "warm",
+          "when": { "any_of": ["mail_send"] }
+        },
+        {
+          "id": "demo_warm_threshold_ask",
+          "from": "warm",
+          "to": "warm",
+          "verdict": "ask",
+          "when": {
+            "any_of": ["mail_send"],
+            "state_counter": { "warm": { "gte": 5 } }
+          }
+        }
+      ]
     }
   ]
 }

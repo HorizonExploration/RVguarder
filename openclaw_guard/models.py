@@ -22,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 Severity = Literal["critical", "high", "medium", "low", "info"]
 RiskLevel = Literal["safe", "caution", "dangerous", "blocked"]
-DecisionAction = Literal["allow", "ask", "block", "escalate"]
+DecisionAction = Literal["allow", "ask", "block", "escalate", "revise"]
 ActionType = Literal[
     "chat_message", "command_exec", "file_delete", "file_write",
     "config_modify", "network_egress", "channel_send", "skill_run",
