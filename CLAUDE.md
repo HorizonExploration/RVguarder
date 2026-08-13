@@ -31,7 +31,8 @@
 ```
 openclaw_guard/          # Python 后端主包
 ├── main.py              # CLI 入口（argparse，子命令：run/install-hook/uninstall-hook/baseline/export-audit/doctor）
-├── manager.py           # 核心编排器 OpenclawGuardManager（1200+ 行，连接所有组件的中枢）
+├── manager.py           # [兼容层] OpenclawGuardManager 子类化 GuardServices，保留旧导入路径与 patch 锚点
+├── services.py          # GuardServices 容器 — 核心编排 + 组件懒加载 + 流水线委托（阶段三产物）
 ├── config.py            # AppContext / AppPaths / GuardSettings 数据类
 ├── models.py            # 核心数据模型（Pydantic BaseModel v2）
 ├── legacy_web.py        # [保留] 旧版 ThreadingHTTPServer + 路由表
@@ -40,13 +41,26 @@ openclaw_guard/          # Python 后端主包
 ├── conversation.py       # 对话交互辅助
 ├── utils.py             # 工具函数：utc_now_iso, sha256_text, append_jsonl, write_json 等
 ├── engine/              # 安全检测引擎（核心）
+│   ├── pipeline.py      # 热路径流水线（ingest / before-tool-call / after-tool-call）
 │   ├── detection.py     # DetectionEngine — 47 条内置规则（CMD-001~GEN-006），语义谓词匹配，<1ms
 │   ├── semantic_enhancer.py  # SemanticEnhancer — LLM/本地双模，7 维度标签，含工具名幻觉校验
-│   ├── runtime_verification.py  # RV 引擎 + WindowManager — 滑动窗口、会话隔离、序列匹配
-│   ├── rv_monitors.py   # 6 个 FSM 监视器（Mail/Report/SecurityChain/Broadcast/DataExport/BatchFile）
 │   ├── control.py       # GuardController — 决策 + 白名单 → 动作状态
 │   ├── whitelist.py     # WhitelistEngine — Trie 前缀匹配，含 default_police_whitelist()
 │   └── behavior.py      # BehaviorCollectorManager — 行为采集（Ptrace/eBPF/HookBridge 预留桩）
+├── rv/                  # 运行时验证引擎（拆分自 engine/，阶段 A-D）
+│   ├── runtime_verification.py  # RV 引擎 + WindowManager — 滑动窗口、会话隔离、序列匹配
+│   ├── rv_monitors.py   # 6 个 FSM 监视器（Mail/Report/SecurityChain/Broadcast/DataExport/BatchFile）
+│   ├── rv_dsl.py        # 参数化 RV DSL 原语（entity/时间间隔/quantifier）
+│   ├── constraints.py   # 约束推理引擎（阶段 B）
+│   ├── ir.py            # ToolCallIR 结构化中间表示（阶段 A）
+│   ├── baseline_learner.py     # 基线自动机学习（阶段 C）
+│   ├── baseline_monitor.py     # 基线自动机监视器（阶段 C）
+│   └── trace_abstractor.py     # 轨迹抽象（阶段 C）
+└── spec/                # 规约层（拆分自 engine/，阶段 E-F）
+    ├── nl2spec_generator.py  # NL2Spec 生成（阶段 E）
+    ├── spec_validator.py     # 规约校验 + 正反例 trace
+    ├── session_state.py      # 会话安全状态（阶段 F）
+    └── eval_traces.py        # 正反例 trace 库
 ├── web/                 # [NEW v0.3.0] FastAPI HTTP 层
 │   ├── __init__.py      # 兼容旧导出（launch_web, _error_message）
 │   ├── app.py           # create_app() 工厂 + launch_web() 入口
@@ -197,7 +211,10 @@ cd e2e && npm install && npm run install:browsers && npm test
   - ✅ 阶段二（Pydantic 模型迁移） — models.py 全部 Pydantic v2
   - ✅ 阶段三（Manager 拆分 + 懒加载） — GuardServices 容器 + LazyProxy + pipeline 模块
   - ✅ 阶段四（前端 Preact 迁移） — 17 源文件，5 页面，10 组件，Zustand 状态管理
-- **下一步计划**: 见 `CHANGELOG.md` 和 `docs/architecture/refactoring-plan.md`
+  - ✅ RV 层拆分 — engine/ 下 RV 相关拆分为 rv/ + spec/ 子包
+  - ✅ 阶段 A（ToolCallIR）/ B（约束推理引擎）/ C（基线自动机）/ D（RV 参数化原语）
+  - ✅ 阶段 E（NL2Spec 生成 + 规约校验）/ F（会话安全状态）
+- **下一步计划**: 见 `CHANGELOG.md`、`docs/architecture/refactoring-plan.md` 和 `docs/architecture/project-status-analysis.md`
 
 ---
 
