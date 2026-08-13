@@ -151,11 +151,9 @@ class DetectionRule(GuardBaseModel):
     severity: Severity
     risk_level: RiskLevel
     decision: DecisionAction
-    tags: list[str] = Field(default_factory=list)
-    keywords: list[str] = Field(default_factory=list)
-    path_prefixes: list[str] = Field(default_factory=list)
-    command_prefixes: list[str] = Field(default_factory=list)
-    network_patterns: list[str] = Field(default_factory=list)
+    # 单一数据源：规则匹配所需的语义标签（由 SemanticEnhancer 产出）。
+    # 匹配条件 = action_types 命中 且 match_labels 全部命中。
+    match_labels: list[str] = Field(default_factory=list)
 
 
 class DetectionDecision(GuardBaseModel):
