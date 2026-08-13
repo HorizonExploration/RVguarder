@@ -9,7 +9,7 @@
 
 import unittest
 
-from openclaw_guard.engine.ir import Constraint, Entity, ToolCallIR
+from openclaw_guard.rv.ir import Constraint, Entity, ToolCallIR
 
 
 class TestEntity(unittest.TestCase):

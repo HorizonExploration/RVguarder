@@ -4,7 +4,7 @@ import json
 import os
 import socket
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from openclaw_guard.config import OpenClawTarget
 from openclaw_guard.models import AssetRecord

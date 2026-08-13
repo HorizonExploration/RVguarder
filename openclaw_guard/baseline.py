@@ -5,12 +5,11 @@ import shlex
 import stat
 import time
 from pathlib import Path
-from typing import Any
 
 from openclaw_guard.config import AppContext
 from openclaw_guard.integrations.discovery import collect_assets
 from openclaw_guard.models import AssetRecord, BaselineCheck, BaselineFinding, ComplianceReport
-from openclaw_guard.utils import build_simple_pdf, json_dumps, utc_now_iso, write_json
+from openclaw_guard.utils import build_simple_pdf, utc_now_iso, write_json
 
 
 class BaselineScanner:

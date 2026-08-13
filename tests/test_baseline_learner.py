@@ -13,14 +13,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openclaw_guard.engine.baseline_learner import (
+from openclaw_guard.rv.baseline_learner import (
     BaselineDFA,
     BaselineLearner,
     learn_from_traces,
 )
-from openclaw_guard.engine.baseline_monitor import BaselineMonitor
-from openclaw_guard.engine.runtime_verification import RuntimeVerificationEngine
-from openclaw_guard.engine.trace_abstractor import abstract_step, abstract_trace
+from openclaw_guard.rv.baseline_monitor import BaselineMonitor
+from openclaw_guard.rv.runtime_verification import RuntimeVerificationEngine
+from openclaw_guard.rv.trace_abstractor import abstract_step, abstract_trace
 
 
 # =============================================================================

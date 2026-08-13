@@ -18,7 +18,6 @@ from openclaw_guard.engine.control import GuardController
 from openclaw_guard.engine.detection import DetectionEngine
 from openclaw_guard.engine.whitelist import WhitelistEngine
 from openclaw_guard.models import ControlledAction
-from openclaw_guard.utils import utc_now_iso
 
 MAX_ACTIONS_SIZE = 1000
 

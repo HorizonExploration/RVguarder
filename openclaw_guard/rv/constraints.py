@@ -16,7 +16,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from openclaw_guard.engine.ir import ToolCallIR
+from openclaw_guard.rv.ir import ToolCallIR
 
 
 # =============================================================================
@@ -163,6 +163,28 @@ class ConstraintEngine:
                 results.append((rule, best_score))
         results.sort(key=lambda x: x[1], reverse=True)
         return results
+
+    def evaluate_steps(
+        self,
+        rv_trace: list[dict[str, Any]],
+    ) -> list[tuple[ConstraintRule, float]]:
+        """评估语义层产出的 dict 格式 rv_trace（自动转换为 ToolCallIR）。
+
+        这是约束引擎在生产流水线中的入口：把 rv_trace 步骤（dict）
+        转换为阶段 A 的 ToolCallIR 结构化模型后再评估。
+        """
+        ir_steps: list[ToolCallIR] = []
+        for step in rv_trace:
+            if isinstance(step, ToolCallIR):
+                ir_steps.append(step)
+                continue
+            if not isinstance(step, dict):
+                continue
+            try:
+                ir_steps.append(ToolCallIR.model_validate(step))
+            except Exception:
+                continue  # 跳过无法结构化的步骤，保持向后兼容
+        return self.evaluate(ir_steps)
 
     def _match_score(self, rule: ConstraintRule, step: ToolCallIR) -> float:
         """计算单条规则对单个 IR 步骤的加权匹配分数。

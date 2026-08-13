@@ -5,10 +5,10 @@
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from fastapi import FastAPI, Request  # noqa: F401
+    from fastapi import FastAPI  # noqa: F401
 
 
 # ─── 错误消息映射 ────────────────────────────────────────────────

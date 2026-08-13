@@ -56,7 +56,7 @@
 
 | 任务 | 说明 | 验收标准 |
 |---|---|---|
-| A1. 定义 ToolCallIR 数据模型 | `engine/ir.py`：tool_name/arguments/permission_level/side_effect/sensitivity/irreversibility/entities/constraints/intent/confidence + 兼容 `labels`/`rv_props` | Pydantic/`@dataclass` 模型可实例化，字段齐全 |
+| A1. 定义 ToolCallIR 数据模型 | `rv/ir.py`：tool_name/arguments/permission_level/side_effect/sensitivity/irreversibility/entities/constraints/intent/confidence + 兼容 `labels`/`rv_props` | Pydantic/`@dataclass` 模型可实例化，字段齐全 |
 | A2. 改造 semantic_enhancer prompt | 要求 LLM 输出结构化 JSON（而非仅 labels），few-shot 示例保证一致 | LLM 模式输出通过 schema 校验，失败回退本地规则 |
 | A3. 透传 rv_trace 实体/约束 | `_build_rv_trace()` 输出 `RvTraceStep`（含 entities/constraints/confidence） | 现有 6 个监视器兼容（props 保留），新增字段可用 |
 | A4. 单元测试 | `tests/test_ir.py` + 现有 semantic 测试回归 | 全部通过，无新增失败 |
@@ -71,7 +71,7 @@
 
 | 任务 | 说明 | 验收标准 |
 |---|---|---|
-| B1. 定义 ConstraintRule/EntityConstraint/SensitivityConstraint/TemporalConstraint | `engine/constraints.py`，对应 G-SPEC 四类约束 | 模型可解析 JSON/直接实例化 |
+| B1. 定义 ConstraintRule/EntityConstraint/SensitivityConstraint/TemporalConstraint | `rv/constraints.py`，对应 G-SPEC 四类约束 | 模型可解析 JSON/直接实例化 |
 | B2. 实现 ConstraintEngine | `_match_score` 加权计算 + `confidence_threshold` 门控 | 命中规则返回 (rule, score)，低于阈值不命中 |
 | B3. 迁移高频规则 | 先迁移 10 条高频规则（CMD/FILE/NET），剩余 37 条渐进 | 迁移规则行为与旧 lambda 一致（对既有测试集） |
 | B4. 置信度门控决策 | confidence≥0.8 正常判定 / 0.5-0.8 降级 / <0.5 保守回退 | 门控逻辑单测覆盖三档 |
@@ -87,9 +87,9 @@
 
 | 任务 | 说明 | 验收标准 |
 |---|---|---|
-| C1. trace 抽象器 | `engine/trace_abstractor.py`：RvTraceStep → `(event_type, entity_kind, label_class)` 三元组 | 抽象函数单测覆盖各场景 |
-| C2. 前缀树 + 状态合并 | `engine/baseline_learner.py`：前缀树构建 + 频率驱动合并（EDSM 备选） | 输出紧凑 DFA，比原始 trace 小 1 个数量级 |
-| C3. 运行时偏离检测 | `engine/baseline_monitor.py`：DFA 判定当前 trace 合法/偏离 | 偏离时返回 (is_anomaly, current_state) |
+| C1. trace 抽象器 | `rv/trace_abstractor.py`：RvTraceStep → `(event_type, entity_kind, label_class)` 三元组 | 抽象函数单测覆盖各场景 |
+| C2. 前缀树 + 状态合并 | `rv/baseline_learner.py`：前缀树构建 + 频率驱动合并（EDSM 备选） | 输出紧凑 DFA，比原始 trace 小 1 个数量级 |
+| C3. 运行时偏离检测 | `rv/baseline_monitor.py`：DFA 判定当前 trace 合法/偏离 | 偏离时返回 (is_anomaly, current_state) |
 | C4. 离线训练脚本 | `scripts/train_baseline.py`：审计日志 → 基线自动机序列化 | 训练/加载/序列化闭环可用 |
 | C5. 测试 | `tests/test_baseline_learner.py` | 正例 trace 全接受，构造反例偏离被检出 |
 
@@ -119,7 +119,7 @@
 
 | 任务 | 说明 | 验收标准 |
 |---|---|---|
-| E1. QA 分解翻译器 | `engine/nl2spec_generator.py`：Q1 事件步骤 / Q2 实体约束 / Q3 verdict → 结构化 IR | 输出 IR 通过 Pydantic 校验 |
+| E1. QA 分解翻译器 | `spec/nl2spec_generator.py`：Q1 事件步骤 / Q2 实体约束 / Q3 verdict → 结构化 IR | 输出 IR 通过 Pydantic 校验 |
 | E2. ChainRule 合成器 | IR → Ruleset 编译（复用 `compile_monitors`） | 生成规则可被现有引擎执行 |
 | E3. SpecValidator | 语法校验 + 反例注入（正/负例 trace 库） + 冲突检测 | 漏报/误报自动识别并生成修正 prompt |
 | E4. 反例循环修正 | 反例 → 回喂 LLM → 再验证，直至 0 错或人工介入 | 迭代收敛，有最大轮次保护 |

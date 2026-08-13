@@ -329,8 +329,8 @@ class RuntimeVerificationEngine:
         if not path:
             return
         try:
-            from openclaw_guard.engine.baseline_learner import BaselineDFA
-            from openclaw_guard.engine.baseline_monitor import BaselineMonitor
+            from openclaw_guard.rv.baseline_learner import BaselineDFA
+            from openclaw_guard.rv.baseline_monitor import BaselineMonitor
 
             dfa = BaselineDFA.load(path)
             self._baseline_monitor = BaselineMonitor(dfa)
@@ -349,6 +349,15 @@ class RuntimeVerificationEngine:
         self._fsm_monitors_template = None
         self._spec_monitors_template = None
 
+    def reset_rules(self) -> None:
+        """重置规约缓存，下次 evaluate 重新加载 rv_rules.json。
+
+        供 NL2Spec 编译（阶段 E）合并新规则到 rv_rules.json 后调用。
+        """
+        self._spec_ruleset = None
+        self._spec_monitors_template = None
+        self._session_monitors.clear()
+
     def _lazy_init_monitors(self) -> None:
         if self._rule_mode == "fsm":
             self._lazy_init_fsm_monitors()
@@ -358,7 +367,7 @@ class RuntimeVerificationEngine:
     def _lazy_init_fsm_monitors(self) -> None:
         if self._fsm_monitors_template is not None:
             return
-        from openclaw_guard.engine.rv_monitors import (
+        from openclaw_guard.rv.rv_monitors import (
             BatchFileMonitor,
             BroadcastMonitor,
             DataExportMonitor,
@@ -378,7 +387,7 @@ class RuntimeVerificationEngine:
     def _lazy_init_spec_monitors(self) -> None:
         if self._spec_monitors_template is not None:
             return
-        from openclaw_guard.engine.rv_dsl import compile_monitors, load_ruleset
+        from openclaw_guard.rv.rv_dsl import compile_monitors, load_ruleset
 
         if self._spec_ruleset is None:
             rules_path = os.getenv("OPENCLAW_RV_RULES_PATH")
@@ -389,7 +398,7 @@ class RuntimeVerificationEngine:
         """基于模板创建新的监视器实例。"""
         self._lazy_init_monitors()
         if self._rule_mode == "fsm":
-            from openclaw_guard.engine.rv_monitors import (
+            from openclaw_guard.rv.rv_monitors import (
                 BatchFileMonitor,
                 BroadcastMonitor,
                 DataExportMonitor,
@@ -405,7 +414,7 @@ class RuntimeVerificationEngine:
                 DataExportMonitor(),
                 BatchFileMonitor(),
             ]
-        from openclaw_guard.engine.rv_dsl import compile_monitors
+        from openclaw_guard.rv.rv_dsl import compile_monitors
 
         return compile_monitors(self._spec_ruleset)
 

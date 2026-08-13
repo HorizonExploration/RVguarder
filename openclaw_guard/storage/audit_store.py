@@ -16,14 +16,13 @@ Configuration:
 from __future__ import annotations
 
 import json
-import threading
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
 from openclaw_guard.storage.db_store import DBConfig, get_db_store, reset_db_store
 from openclaw_guard.models import AuditRecord
-from openclaw_guard.utils import append_jsonl, sha256_text, utc_now_iso, write_csv, write_json
+from openclaw_guard.utils import append_jsonl, utc_now_iso, write_csv, write_json
 
 
 class AuditStore:

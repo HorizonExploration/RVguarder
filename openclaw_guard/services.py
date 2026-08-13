@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import json
-import time
+import os
 from datetime import datetime, timedelta, timezone
 from dataclasses import asdict
 from pathlib import Path
@@ -18,7 +18,6 @@ from typing import Any, TYPE_CHECKING
 from openclaw_guard.core.action_service import ActionService
 from openclaw_guard.core.baseline_service import BaselineService
 from openclaw_guard.core.audit_service import AuditService
-from openclaw_guard.baseline import BaselineScanner
 from openclaw_guard.engine.behavior import BehaviorCollectorManager
 from openclaw_guard.config import AppContext, GuardSettings, apply_env_overrides, default_paths
 from openclaw_guard.engine.control import GuardController
@@ -28,7 +27,9 @@ from openclaw_guard.integrations.discovery import discover_openclaw
 from openclaw_guard.storage.audit_store import AuditStore
 from openclaw_guard.integrations.hook_runtime import ensure_runtime_hook_plugin
 from openclaw_guard.engine.semantic_enhancer import SemanticEnhancer
-from openclaw_guard.engine.runtime_verification import RuntimeVerificationEngine
+from openclaw_guard.rv.runtime_verification import RuntimeVerificationEngine
+from openclaw_guard.rv.constraints import ConstraintEngine, migrated_constraint_rules
+from openclaw_guard.spec.session_state import SessionSafetyState
 from openclaw_guard.models import ControlledAction
 from openclaw_guard.integrations.openclaw_adapter import (
     ChatMessage,
@@ -40,12 +41,10 @@ from openclaw_guard.integrations.openclaw_adapter import (
     list_available_models,
     reset_chat_session,
     resolve_plugin_approval,
-    send_chat_message,
     start_chat_message,
     switch_model,
     wait_for_run,
 )
-from openclaw_guard.integrations.tool_hook_bridge import build_hook_event, build_hook_source_message, hook_key_from_payload
 from openclaw_guard.utils import LazyProxy, append_jsonl, read_json, utc_now_iso, write_json
 from openclaw_guard.engine.whitelist import WhitelistEngine, default_police_whitelist
 
@@ -168,7 +167,7 @@ def _hook_status_impl(services, *, inspect_guard_plugin_fn, get_guard_hook_statu
         )
         payload["state"] = "active" if payload["active"] else "runtime_unreachable"
         return payload
-    except OpenClawRelayError as exc:
+    except OpenClawRelayError:
         payload.update(
             {
                 "active": False,
@@ -311,7 +310,6 @@ def _poll_chat_action_impl(services, action_id, *, timeout_ms=1000, wait_for_run
             services._log("history_fetch_failed", action_id=action.action_id, error_code=exc.code, detail=exc.detail)
         raise
 
-    messages = [services._message_from_chat(item) for item in history_after]
     suffix = history_after[history_before_count:] if history_before_count < len(history_after) else []
     reply_text = next((item.text for item in reversed(suffix) if item.role == "assistant" and item.text.strip()), None)
 
@@ -406,6 +404,12 @@ class GuardServices:
                 rule_mode=str(self.preferences().get("rv_rule_mode") or "") or None,
             )
         )  # type: ignore[assignment]
+        # 阶段 B：约束推理引擎（懒加载，避免拖慢启动）
+        self.constraint_engine = LazyProxy(
+            lambda: ConstraintEngine(migrated_constraint_rules())
+        )  # type: ignore[assignment]
+        # 阶段 F：per-session 安全状态（会话级风险升级）
+        self._session_states: dict[str, SessionSafetyState] = {}
         self.baseline_service = LazyProxy(lambda: BaselineService(context, self.latest_baseline_path))  # type: ignore[assignment]
         self.audit_service = LazyProxy(lambda: AuditService(self.audit_store))  # type: ignore[assignment]
         self.runtime_hook = LazyProxy(lambda: ensure_runtime_hook_plugin(self.context))  # type: ignore[assignment]
@@ -676,6 +680,106 @@ class GuardServices:
     def cleanup_rv_session(self, session_key: str) -> dict[str, Any]:
         self.rv_engine.release_session(session_key)
         return {"ok": True, "session_key": session_key}
+
+    # ------------------------------------------------------------------
+    # 阶段 B：约束推理引擎
+    # ------------------------------------------------------------------
+
+    def constraint_engine_enabled(self) -> bool:
+        """约束推理引擎开关（`OPENCLAW_RV_CONSTRAINT_MODE`，默认 on）。"""
+        return os.getenv("OPENCLAW_RV_CONSTRAINT_MODE", "on").strip().lower() not in {"0", "off", "false"}
+
+    def constraint_engine_status(self) -> dict[str, Any]:
+        return {
+            "enabled": self.constraint_engine_enabled(),
+            "rule_count": len(self.constraint_engine.rules),
+            "rule_ids": [rule.rule_id for rule in self.constraint_engine.rules],
+        }
+
+    # ------------------------------------------------------------------
+    # 阶段 F：会话安全状态
+    # ------------------------------------------------------------------
+
+    def session_state_enabled(self) -> bool:
+        """会话级风险升级开关（`OPENCLAW_RV_SESSION_STATE`，默认 on）。"""
+        return os.getenv("OPENCLAW_RV_SESSION_STATE", "on").strip().lower() not in {"0", "off", "false"}
+
+    def session_state_for(self, session_key: str) -> SessionSafetyState:
+        key = session_key or "_default"
+        if key not in self._session_states:
+            self._session_states[key] = SessionSafetyState(key)
+        return self._session_states[key]
+
+    def reset_session_state(self, session_key: str) -> dict[str, Any]:
+        removed = self._session_states.pop(session_key, None)
+        return {"ok": True, "reset": removed is not None, "session_key": session_key}
+
+    def session_states_summary(self) -> dict[str, Any]:
+        return {
+            "enabled": self.session_state_enabled(),
+            "sessions": [
+                state.status() for state in self._session_states.values()
+            ],
+        }
+
+    # ------------------------------------------------------------------
+    # 阶段 E：NL2Spec 规约编译
+    # ------------------------------------------------------------------
+
+    def nl2spec_compile(self, nl_policy: str) -> dict[str, Any]:
+        """自然语言安全策略 → 规则生成 → 反例校验 → 合并 rv_rules.json。
+
+        生成规约经 SpecValidator 正/反例校验后合并进默认规约文件，
+        并重置 RV 引擎缓存，使新规则在下一次评估中生效。
+        """
+        if not nl_policy or not nl_policy.strip():
+            raise ValueError("policy_empty")
+        from openclaw_guard.spec.nl2spec_generator import generate_ruleset
+        from openclaw_guard.spec.spec_validator import SpecValidator
+        from openclaw_guard.spec.eval_traces import NEGATIVE_TRACES, POSITIVE_TRACES
+        from openclaw_guard.rv.rv_dsl import _default_rules_path, load_ruleset
+
+        ruleset = generate_ruleset(nl_policy)
+        if ruleset is None:
+            return {
+                "ok": False,
+                "error": "no_template_matched",
+                "detail": "未能匹配任何内置安全策略模板，请调整描述或接入 LLM 生成（use_llm）。",
+                "source_nl": nl_policy,
+            }
+
+        validator = SpecValidator(
+            positive_traces=POSITIVE_TRACES,
+            negative_traces=NEGATIVE_TRACES,
+        )
+        ruleset, report = validator.validate_and_fix(ruleset)
+
+        path = _default_rules_path()
+        existing = load_ruleset(path)
+        existing_names = {m.name for m in existing.monitors}
+        added: list[str] = []
+        for monitor in ruleset.monitors:
+            if monitor.name in existing_names:
+                monitor.name = f"{monitor.name}_nl2spec"
+            existing.monitors.append(monitor)
+            added.append(monitor.name)
+        path.write_text(existing.model_dump_json(by_alias=True, indent=2), encoding="utf-8")
+
+        # 重置 RV 引擎规则缓存，下次评估自动加载合并后的规约
+        self.rv_engine.reset_rules()
+        self._log("nl2spec_compiled", monitor_names=added, source_nl=nl_policy)
+        return {
+            "ok": True,
+            "added_monitors": added,
+            "report": {
+                "is_valid": report.is_valid,
+                "errors": report.errors,
+                "warnings": report.warnings,
+                "false_negatives": report.false_negatives,
+                "false_positives": report.false_positives,
+            },
+            "source_nl": nl_policy,
+        }
 
     def upsert_skill(self, name: str, payload: dict[str, Any]) -> dict[str, Any]:
         if not name.strip():

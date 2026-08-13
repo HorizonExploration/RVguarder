@@ -19,8 +19,6 @@ from pathlib import Path
 from openclaw_guard.config import AppContext, GuardSettings, apply_env_overrides, default_paths
 from openclaw_guard.integrations.discovery import discover_openclaw
 from openclaw_guard.integrations.openclaw_adapter import (
-    ChatMessage,
-    OpenClawRelayError,
     get_chat_history,
     get_chat_status,
     get_guard_hook_status,
@@ -28,7 +26,6 @@ from openclaw_guard.integrations.openclaw_adapter import (
     list_available_models,
     reset_chat_session,
     start_chat_message,
-    switch_model,
     wait_for_run,
 )
 from openclaw_guard.services import (
@@ -39,7 +36,6 @@ from openclaw_guard.services import (
     _new_chat_impl,
     _poll_chat_action_impl,
     _start_chat_action_impl,
-    build_services,
 )
 
 

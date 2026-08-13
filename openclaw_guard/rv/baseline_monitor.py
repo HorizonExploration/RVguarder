@@ -15,8 +15,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from openclaw_guard.engine.baseline_learner import BaselineDFA
-from openclaw_guard.engine.trace_abstractor import abstract_step
+from openclaw_guard.rv.baseline_learner import BaselineDFA
+from openclaw_guard.rv.trace_abstractor import abstract_step
 
 
 class BaselineMonitor:

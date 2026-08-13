@@ -2,7 +2,7 @@
 
 ## 摘要
 
-在 `openclaw_guard/engine/ir.py` 新增 Pydantic 数据模型（`Entity`/`Constraint`/`ToolCallIR`），修改 `semantic_enhancer.py` 的 LLM 和本地两条路径，使 `rv_trace` 每个步骤透传结构化实体、约束与置信度字段，同时保持原有 `props` 标签不变以确保向后兼容。
+在 `openclaw_guard/rv/ir.py` 新增 Pydantic 数据模型（`Entity`/`Constraint`/`ToolCallIR`），修改 `semantic_enhancer.py` 的 LLM 和本地两条路径，使 `rv_trace` 每个步骤透传结构化实体、约束与置信度字段，同时保持原有 `props` 标签不变以确保向后兼容。
 
 ## 当前状态分析
 
@@ -13,14 +13,14 @@
 - 下游消费者（`pipeline.py` 的 `_annotate_event_context`、`_apply_rv_if_available`）只使用 `rv_trace` 列表，不消费额外结构
 
 ### 目标
-- 新增 `engine/ir.py`：定义 `Entity`、`Constraint`、`ToolCallIR` 三个 Pydantic 模型
+- 新增 `rv/ir.py`：定义 `Entity`、`Constraint`、`ToolCallIR` 三个 Pydantic 模型
 - `_call_llm`：从 LLM 返回的 `semantic.entities`/`semantic.constraints`/`semantic.confidence` 提取结构化字段写入每条 `rv_trace` 步骤
 - `_local_evaluate`：将本地已提取的 `recipients`/`paths`/`urls`/`constraints`/`confidence` 写入 `rv_trace` 步骤
 - `props` 字段原样保留，zero break change
 
 ## 详细变更
 
-### 1. 新建 `openclaw_guard/engine/ir.py`
+### 1. 新建 `openclaw_guard/rv/ir.py`
 
 **内容**：三个 Pydantic 模型
 

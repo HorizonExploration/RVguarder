@@ -64,7 +64,6 @@ class SessionSafetyState:
         })
 
         # 状态桶变更
-        old_state = self._state
         new_state = self._compute_state()
         self._state = new_state
 

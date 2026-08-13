@@ -11,7 +11,7 @@
 
 import unittest
 
-from openclaw_guard.engine.session_state import SessionSafetyState
+from openclaw_guard.spec.session_state import SessionSafetyState
 
 
 class TestSessionSafetyState(unittest.TestCase):

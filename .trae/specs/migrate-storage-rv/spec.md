@@ -14,7 +14,7 @@
 - Affected code:
   - `openclaw_guard/storage/db_store.py`（新增 SQLAlchemyStore 与工厂选择）
   - `openclaw_guard/core/*`（若使用 DBStoreInterface 的查询/写入接口）
-  - `openclaw_guard/engine/runtime_verification.py`、`openclaw_guard/engine/rv_monitors.py`（新增规约驱动生成路径并逐步替换手写监视器）
+  - `openclaw_guard/rv/runtime_verification.py`、`openclaw_guard/engine/rv_monitors.py`（新增规约驱动生成路径并逐步替换手写监视器）
   - `docs/architecture/*`（计划/验收/QA 更新）
 
 ## ADDED Requirements

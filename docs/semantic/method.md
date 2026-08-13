@@ -353,7 +353,7 @@ LLM 不直接替代规则引擎，而是作为语义标签的增强来源参与�
 
 已实现：
 
-- `RuntimeVerificationEngine`（`engine/runtime_verification.py`）
+- `RuntimeVerificationEngine`（`rv/runtime_verification.py`）
 
 建议新增：
 
@@ -439,7 +439,7 @@ G( file_delete(target in high_value_path) -> ask )
 
 #### 第一层：内置轻量 Runtime Monitor
 
-建议作为主运行引擎，直接集成到 `openclaw_guard/engine/runtime_verification.py`。
+建议作为主运行引擎，直接集成到 `openclaw_guard/rv/runtime_verification.py`。
 
 实现方式：
 
@@ -622,7 +622,7 @@ G( file_delete(target in high_value_path) -> ask )
 
 建议新增：
 
-- `openclaw_guard/engine/runtime_verification.py`
+- `openclaw_guard/rv/runtime_verification.py`
 - `openclaw_guard/engine/trace_analyzer.py`
 
 并在 `manager.handle_before_tool_call()` 和 `handle_after_tool_call()` 中维护最近动作窗口。

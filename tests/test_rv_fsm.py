@@ -12,7 +12,7 @@ per-session 隔离等通用能力测试见 test_rv.py。
 """
 
 import unittest
-from openclaw_guard.engine.rv_monitors import (
+from openclaw_guard.rv.rv_monitors import (
     BatchFileMonitor,
     BroadcastMonitor,
     DataExportMonitor,
@@ -20,7 +20,7 @@ from openclaw_guard.engine.rv_monitors import (
     ReportMonitor,
     SecurityChainMonitor,
 )
-from openclaw_guard.engine.runtime_verification import WindowManager
+from openclaw_guard.rv.runtime_verification import WindowManager
 
 
 # =============================================================================

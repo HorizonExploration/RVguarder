@@ -4,11 +4,11 @@
 当前 v0.3.0 的安全判定链路存在三处结构短板：语义层已提取的实体/约束/置信度在 `rv_trace` 中被丢弃（仅传扁平 `props` 标签）；规则匹配为 47 条 `tag in labels` 布尔 lambda，无法表达实体条件与置信度门控；RV 规约全部手写 `rv_rules.json`，无法从自然语言策略自动生成，且无参数化切片与反例验证闭环。目标是以「自然语言输入 → 语义理解（NL2Spec）→ 受限规则匹配 → 自动生成自动机 → 运行时验证」为主线，分六个阶段（A~F）落地升级。
 
 ## What Changes
-- **阶段 A（IR 结构化）**：新增 `engine/ir.py` 定义 `ToolCallIR`/`Entity`/`Constraint`；`semantic_enhancer` 的 `rv_trace` 透传 entities/constraints/confidence；保留 `props`/`labels` 向后兼容。
-- **阶段 B（约束推理引擎）**：新增 `engine/constraints.py` 定义四类约束（Entity/Sensitivity/Temporal/Action）+ `ConstraintEngine` 加权评分 + 置信度门控；渐进迁移高频规则。
-- **阶段 C（RV 基线自动机）**：新增 `engine/trace_abstractor.py`（φ 抽象）、`engine/baseline_learner.py`（前缀树+状态合并）、`engine/baseline_monitor.py`（DFA 偏离检测）；离线训练脚本。
+- **阶段 A（IR 结构化）**：新增 `rv/ir.py` 定义 `ToolCallIR`/`Entity`/`Constraint`；`semantic_enhancer` 的 `rv_trace` 透传 entities/constraints/confidence；保留 `props`/`labels` 向后兼容。
+- **阶段 B（约束推理引擎）**：新增 `rv/constraints.py` 定义四类约束（Entity/Sensitivity/Temporal/Action）+ `ConstraintEngine` 加权评分 + 置信度门控；渐进迁移高频规则。
+- **阶段 C（RV 基线自动机）**：新增 `rv/trace_abstractor.py`（φ 抽象）、`rv/baseline_learner.py`（前缀树+状态合并）、`rv/baseline_monitor.py`（DFA 偏离检测）；离线训练脚本。
 - **阶段 D（RV 参数化）**：扩展 `rv_dsl.py` 的 `StepRequirement`（`entity_*` 守卫、`step_gap_*` 时间原语、`state_counter` 计数器）与 `MonitorSpec`（`quantifier`/`bind_vars`）；`WindowManager` 增加实体/时间查询。
-- **阶段 E（NL2Spec 生成）**：新增 `engine/nl2spec_generator.py`（QA 分解→ChainRule 合成）与 `engine/spec_validator.py`（语法校验+反例注入+冲突检测），生成规则标记 `origin`/`source_nl`。
+- **阶段 E（NL2Spec 生成）**：新增 `spec/nl2spec_generator.py`（QA 分解→ChainRule 合成）与 `spec/spec_validator.py`（语法校验+反例注入+冲突检测），生成规则标记 `origin`/`source_nl`。
 - **阶段 F（干预升级）**：`Verdict` 增加 `revise`；新增会话级 `SessionSafetyState`（风险分累积+自动升级）。
 - **BREAKING（无）**：全部阶段向后兼容，`props`/`labels`/`OPENCLAW_RV_RULE_MODE` 语义保持不变，新旧引擎并存过渡。
 
@@ -16,11 +16,11 @@
 - Affected specs: 语义理解（SemanticEnhancer）、检测引擎（DetectionEngine）、RV 引擎（RuntimeVerificationEngine / WindowManager / rv_dsl）、干预决策（Controller）、审计链（AuditStore）。
 - Affected code:
   - `openclaw_guard/engine/semantic_enhancer.py`（rv_trace 透传 + prompt 结构化）
-  - `openclaw_guard/engine/rv_dsl.py`（原语扩展 + quantifier/bind_vars + origin/source_nl）
-  - `openclaw_guard/engine/runtime_verification.py`（实体/时间查询 + 参数化切片 + 基线监视器接入）
+  - `openclaw_guard/rv/rv_dsl.py`（原语扩展 + quantifier/bind_vars + origin/source_nl）
+  - `openclaw_guard/rv/runtime_verification.py`（实体/时间查询 + 参数化切片 + 基线监视器接入）
   - `openclaw_guard/engine/detection.py`（约束引擎接入与规则迁移）
   - `openclaw_guard/engine/pipeline.py`（IR 消费 + 会话状态传递）
-  - `openclaw_guard/engine/rv_rules.json`（示例参数化规则 + 生成规则来源标记）
+  - `openclaw_guard/rv/rv_rules.json`（示例参数化规则 + 生成规则来源标记）
   - `docs/architecture/*`、`docs/research/*`（状态与验收更新）
 
 ## ADDED Requirements

@@ -23,8 +23,8 @@ _PROJECT_ROOT = _SCRIPT_DIR.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from openclaw_guard.engine.trace_abstractor import abstract_trace
-from openclaw_guard.engine.baseline_learner import BaselineLearner
+from openclaw_guard.rv.trace_abstractor import abstract_trace
+from openclaw_guard.rv.baseline_learner import BaselineLearner
 
 
 def load_audit_traces(path: str | Path) -> list[list[dict]]:

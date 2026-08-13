@@ -1,6 +1,6 @@
 # OpenClaw-RVGuarder 运行时验证（RV）层深度分析报告
 
-> **分析范围**：`openclaw_guard/engine/rv_dsl.py`、`engine/rv_rules.json`、`engine/runtime_verification.py`、`engine/rv_monitors.py`、`engine/pipeline.py`、`tests/test_rv.py`、`tests/test_rv_dsl.py`、`tests/test_pipeline.py`  
+> **分析范围**：`openclaw_guard/rv/rv_dsl.py`、`rv/rv_rules.json`、`rv/runtime_verification.py`、`rv/rv_monitors.py`、`engine/pipeline.py`、`tests/test_rv.py`、`tests/test_rv_dsl.py`、`tests/test_pipeline.py`  
 > **关联文档**：`docs/test-design/rv-vs-static-experiment-v2.md`、`docs/semantic/method.md`  
 > **撰写日期**：2026-07-29（2026-08 更新：主线已切换为 DSL 规约驱动）  
 > **分析目标**：评估 DSL 规约驱动（`_SpecDrivenMonitor`）取代手写 FSM 监视器后的架构价值、RV 层的整体必要性
@@ -69,7 +69,7 @@ if rv_level > det_level:
 
 ### 2.2 规则结构与加载
 
-`engine/rv_rules.json` 是单一规则源，结构为 `Ruleset → MonitorSpec → ChainRule → StepRequirement`：
+`rv/rv_rules.json` 是单一规则源，结构为 `Ruleset → MonitorSpec → ChainRule → StepRequirement`：
 
 ```json
 {
@@ -92,7 +92,7 @@ if rv_level > det_level:
 }
 ```
 
-- `load_ruleset(path=None)`：读取规则文件（默认 `engine/rv_rules.json`，可用 `OPENCLAW_RV_RULES_PATH` 覆盖）并校验为 `Ruleset`
+- `load_ruleset(path=None)`：读取规则文件（默认 `rv/rv_rules.json`，可用 `OPENCLAW_RV_RULES_PATH` 覆盖）并校验为 `Ruleset`
 - `compile_monitors(ruleset)`：把每个 `MonitorSpec` 动态编译为 `_SpecDrivenMonitor` 子类实例
 
 ### 2.3 匹配原语
@@ -437,4 +437,4 @@ RV 层在架构上不是可选层。单步规则检测存在**根本性盲区**�
 
 ---
 
-*本报告基于对 `openclaw_guard/engine/rv_dsl.py`、`engine/rv_rules.json`、`engine/runtime_verification.py`、`engine/rv_monitors.py`、`engine/pipeline.py`、`tests/test_rv.py`、`tests/test_rv_dsl.py`、`tests/test_pipeline.py`、`docs/test-design/rv-vs-static-experiment-v2.md`、`docs/test-design/openclaw-guard-test-design.md` 的完整阅读与分析。*
+*本报告基于对 `openclaw_guard/rv/rv_dsl.py`、`rv/rv_rules.json`、`rv/runtime_verification.py`、`rv/rv_monitors.py`、`engine/pipeline.py`、`tests/test_rv.py`、`tests/test_rv_dsl.py`、`tests/test_pipeline.py`、`docs/test-design/rv-vs-static-experiment-v2.md`、`docs/test-design/openclaw-guard-test-design.md` 的完整阅读与分析。*

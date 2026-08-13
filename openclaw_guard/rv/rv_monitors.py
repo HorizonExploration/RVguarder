@@ -21,13 +21,12 @@
 
 from __future__ import annotations
 
-import time as _time
 from abc import ABC, abstractmethod
 from typing import Any
 
 from transitions import Machine
 
-from openclaw_guard.engine.runtime_verification import WindowManager
+from openclaw_guard.rv.runtime_verification import WindowManager
 
 
 # =============================================================================
@@ -397,7 +396,6 @@ class ReportMonitor(BaseMonitor):
     def feed(self, step: dict[str, Any], window: WindowManager) -> str | None:
         self._props = set(step.get("props", []))
         ev = step.get("event", "")
-        current = self.current_state
 
         # ── 单步完整攻击链：三要素同时满足 → 直接 block ──
         # 必须放在 is_internal_source() 早期返回之前，

@@ -19,7 +19,7 @@
 | **Pydantic v2 模型** | **v0.3.0** | models.py 全部迁移至 BaseModel，自动验证 + 序列化，`to_dict()` 兼容别名 |
 | **旧版 HTTP 层保留** | **v0.3.0** | `legacy_web.py` 为默认 HTTP 服务，与 FastAPI 双轨并行 |
 | **SQLAlchemyStore 可选存储** | **v0.3.0** | `storage/db_store.py` 内嵌 SQLAlchemyStore，`DB_STORE_MODE=sqlalchemy` 启用 ORM 存储 |
-| **RV 规约驱动** | **v0.3.0** | ChainRule DSL（`engine/rv_dsl.py` + `rv_rules.json`）编译监视器，默认 dsl 模式，FSM 为回退 |
+| **RV 规约驱动** | **v0.3.0** | ChainRule DSL（`rv/rv_dsl.py` + `rv_rules.json`）编译监视器，默认 dsl 模式，FSM 为回退 |
 | **IR 结构化透传** | **v0.4.0** | ToolCallIR + 语义层实体/约束/置信度透传，约束推理引擎替换 47 条 lambda，置信度门控 |
 | **基线自动机 + 参数化** | **v0.5.0** | BaselineLearner 偏离检测 + QEA 式 bind_vars + 实体守卫 + 时间原语 + 状态计数器 |
 | **NL2Spec + 干预闭环** | **v0.6.0** | Nl2SpecGenerator + SpecValidator 反例验证 + revise 干预 + SessionSafetyState 会话追踪 |
@@ -30,8 +30,8 @@
 
 ### P0（当前迭代优先）
 
-- [x] **会话级作用域**（已完成）：RV 引擎按 `session_id` 隔离，不同 Agent 会话使用独立的滑动窗口和 FSM 状态（`engine/runtime_verification.py` `_session_windows`）
-- [ ] **RV 引擎持久化**：允许跨 Guard 重启保留 RV 窗口状态 —— 引擎已实现 `serialize_state` / `deserialize_state`（`engine/runtime_verification.py`），尚未接线到持久化
+- [x] **会话级作用域**（已完成）：RV 引擎按 `session_id` 隔离，不同 Agent 会话使用独立的滑动窗口和 FSM 状态（`rv/runtime_verification.py` `_session_windows`）
+- [ ] **RV 引擎持久化**：允许跨 Guard 重启保留 RV 窗口状态 —— 引擎已实现 `serialize_state` / `deserialize_state`（`rv/runtime_verification.py`），尚未接线到持久化
 - [ ] **熔断器告警**：熔断状态变更时通过 Webhook 或邮件通知运维
 
 ### P1（下一阶段）

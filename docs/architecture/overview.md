@@ -39,9 +39,9 @@ Openclaw Guard 采用分层、非侵入、模块化设计，核心原则是：**
 - `engine/detection.py`：内置安全规则与检测引擎
 - `engine/whitelist.py`：Trie / Radix Tree 白名单匹配
 - `engine/control.py`：动作决策、审批状态流
-- `engine/runtime_verification.py`：RV 运行时验证引擎（规约驱动 DSL（默认）+ FSM 回退 + 滑动窗口，per-session 隔离，支持状态序列化）
-- `engine/rv_dsl.py` + `engine/rv_rules.json`：ChainRule 声明式规约与编译监视器（`OPENCLAW_RV_RULE_MODE=dsl` 为默认模式）
-- `engine/rv_monitors.py`：手写 FSM 监视器（规约模式关闭时的回退实现）
+- `rv/runtime_verification.py`：RV 运行时验证引擎（规约驱动 DSL（默认）+ FSM 回退 + 滑动窗口，per-session 隔离，支持状态序列化）
+- `rv/rv_dsl.py` + `rv/rv_rules.json`：ChainRule 声明式规约与编译监视器（`OPENCLAW_RV_RULE_MODE=dsl` 为默认模式）
+- `rv/rv_monitors.py`：手写 FSM 监视器（规约模式关闭时的回退实现）
 - `engine/semantic_enhancer.py`：语义分析与上下文标注 (DeepSeek 驱动)
 - `core/audit_service.py`：SQLite + JSON 审计与哈希链
 - `storage/db_store.py`：DBStore 接口族（SQLiteStore / PostgreSQLStore / SQLAlchemyStore，`DB_STORE_MODE=sqlalchemy` 启用 ORM 存储）

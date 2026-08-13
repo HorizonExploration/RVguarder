@@ -13,8 +13,8 @@
 
 import unittest
 
-from openclaw_guard.engine.runtime_verification import RuntimeVerificationEngine, WindowManager
-from openclaw_guard.engine.rv_dsl import (
+from openclaw_guard.rv.runtime_verification import RuntimeVerificationEngine, WindowManager
+from openclaw_guard.rv.rv_dsl import (
     ChainRule,
     EntityMatcher,
     MonitorSpec,

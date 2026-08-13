@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from uuid import uuid4
 
 from openclaw_guard.models import BehaviorEvent, ControlledAction, DetectionDecision

@@ -14,12 +14,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from openclaw_guard.engine.rv_dsl import (
+from openclaw_guard.rv.rv_dsl import (
     ChainRule,
-    EntityMatcher,
     MonitorSpec,
     Ruleset,
-    StepRequirement,
 )
 
 
@@ -186,7 +184,6 @@ def _generate_from_templates(
     if not monitors:
         return None
 
-    name = monitor_name or "NL2SpecGenerated"
     return Ruleset(
         monitors=monitors,
         source_nl=nl_policy,

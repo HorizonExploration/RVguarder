@@ -15,7 +15,7 @@
 | 三：Manager 拆分 + 懒加载 | ✅（已拆分） | `openclaw_guard/services.py` + `openclaw_guard/engine/pipeline.py` + `openclaw_guard/utils.py:LazyProxy` | `manager.py` 保留为向后兼容导入路径与测试打补丁入口 |
 | 四：前端 Preact 迁移 | ✅ | `frontend/`（Preact+Vite）→ 构建产物 `runtime/ui/` | 发生过一次 API 被静态 SPA 覆盖的回归，已修复并纳入回归用例 |
 | 五：存储层升级（SQLAlchemy） | ✅（可选依赖，可降级） | `openclaw_guard/storage/db_store.py:SQLAlchemyStore` + `GuardSettings.db_store_mode` + `AuditStore(store_mode=...)` | 默认仍为 native（SQLiteStore/PostgreSQLStore）；通过 `DB_STORE_MODE=sqlalchemy` 或 `OPENCLAW_GUARD_DB_STORE_MODE=sqlalchemy` 开启；未安装 sqlalchemy 时给出可读错误而非 import-time 崩溃 |
-| 六：RV 规约驱动（ChainRule） | ✅（可切换回退） | `openclaw_guard/engine/rv_dsl.py` + `openclaw_guard/engine/runtime_verification.py` + `openclaw_guard/engine/rv_rules.json` | 默认使用 DSL 规约驱动；通过 `OPENCLAW_RV_RULE_MODE=fsm` 或 `/api/rv/toggle` 的 `rule_mode` 字段回退到手写 FSM；保持 `/api/rv/status`、`/api/rv/toggle` 兼容输出 |
+| 六：RV 规约驱动（ChainRule） | ✅（可切换回退） | `openclaw_guard/rv/rv_dsl.py` + `openclaw_guard/rv/runtime_verification.py` + `openclaw_guard/rv/rv_rules.json` | 默认使用 DSL 规约驱动；通过 `OPENCLAW_RV_RULE_MODE=fsm` 或 `/api/rv/toggle` 的 `rule_mode` 字段回退到手写 FSM；保持 `/api/rv/status`、`/api/rv/toggle` 兼容输出 |
 | 七：长期优化（CI/typing/metrics） | ❌ | 未发现 `.github/workflows`、mypy/ruff 配置、metrics 端点 | 建议优先补齐“回归门禁”后再做性能/监控 |
 
 ## 1. 基本原则
@@ -658,7 +658,7 @@ openclaw-guard run --fastapi --port 8781
 | 四 | `vite.config.js` 更新（@preact/preset-vite） | 配置 |
 | 四 | 前端测试文件 | 源码 |
 | 五 | `storage/sqlalchemy_store.py` | 源码 |
-| 六 | `engine/rv_rules.py`（声明式规约） | 源码 |
+| 六 | `rv/rv_rules.json`（声明式规约） | 源码 |
 | 六 | `engine/rv_compiler.py`（规约编译器） | 源码 |
 | 全 | 更新后的架构文档 | `.md` |
 

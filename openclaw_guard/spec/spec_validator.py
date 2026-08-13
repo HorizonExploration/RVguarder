@@ -13,13 +13,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from openclaw_guard.engine.runtime_verification import RuntimeVerificationEngine
-from openclaw_guard.engine.rv_dsl import (
-    ChainRule,
-    MonitorSpec,
-    Ruleset,
-    compile_monitors,
-)
+from openclaw_guard.rv.runtime_verification import RuntimeVerificationEngine
+from openclaw_guard.rv.rv_dsl import Ruleset
 
 
 class ValidationReport:

@@ -92,7 +92,7 @@ def assistant_reply_for_action(action: dict[str, Any]) -> str:
         return f"我已经拦截了这个请求：{target}。原因是：{reason}"
     if decision in {"ask", "escalate"}:
         return f"我已经把这个请求加入待审批队列：{target}。原因是：{reason}。在你批准之前，它不会继续执行。"
-    return f"这条消息看起来没有明显高风险，已继续发送到 OpenClaw。"
+    return "这条消息看起来没有明显高风险，已继续发送到 OpenClaw。"
 
 
 def _normalize_path_match(value: str) -> str:

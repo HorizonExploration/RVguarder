@@ -1,7 +1,7 @@
 # Checklist
 
 ## 阶段 A：rv_trace 结构化透传
-- [ ] `openclaw_guard/engine/ir.py` 定义 `Entity`/`Constraint`/`ToolCallIR`，字段类型受 Pydantic 约束
+- [ ] `openclaw_guard/rv/ir.py` 定义 `Entity`/`Constraint`/`ToolCallIR`，字段类型受 Pydantic 约束
 - [ ] LLM 模式：`rv_trace` 步骤含 `entities`/`constraints`/`confidence`，`props` 不变
 - [ ] 本地模式：`rv_trace` 步骤透传 recipients/paths/constraints/confidence
 - [ ] `tests/test_ir.py` 通过；`tests/test_semantic_enhancer.py` 无回归

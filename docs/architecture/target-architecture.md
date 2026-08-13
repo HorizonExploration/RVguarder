@@ -350,7 +350,7 @@ async def lifespan(app: FastAPI):
 RV 引擎的 `per-session 窗口` 仍保持在内存中：
 
 ```python
-# engine/runtime_verification.py
+# rv/runtime_verification.py
 class RuntimeVerificationEngine:
     def __init__(self):
         self._windows: dict[str, WindowManager] = {}
@@ -486,8 +486,8 @@ jobs:
 
 ```text
 1. (a) 如果是单步规则 → 在 detection.py 添加语义谓词
-   (b) 如果是链式规则 → 在 engine/rv_rules.py 追加 ChainRule
-2. 在 engine/rv_rules.py 中追加声明
+   (b) 如果是链式规则 → 在 rv/rv_rules.json 追加 ChainRule
+2. 在 rv/rv_rules.json 中追加声明
 3. (可选) 如果监视器逻辑特殊 → 实现 BaseMonitor 子类
 4. 在 tests/test_rv.py 添加测试用例
 ```

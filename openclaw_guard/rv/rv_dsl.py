@@ -282,7 +282,6 @@ class _SpecDrivenMonitor:
                 current_step=step, state_counts=self._state_counts,
             ):
                 if rule.to_state is not None:
-                    old_state = self._state
                     self._state = rule.to_state
                     # 更新状态计数器（仅限非终端状态）
                     if rule.to_state not in ("blocked", "escalated"):
@@ -300,7 +299,6 @@ class _SpecDrivenMonitor:
                 current_step=step, state_counts=self._state_counts,
             ):
                 if rule.to_state is not None:
-                    old_state = self._state
                     self._state = rule.to_state
                     if rule.to_state not in ("blocked", "escalated"):
                         self._state_counts[rule.to_state] = self._state_counts.get(rule.to_state, 0) + 1
@@ -380,18 +378,9 @@ class _ParameterizedMonitor:
 
         if self._spec.quantifier == "forall":
             # forall: 任一子监视器触发 → 整体触发
-            worst: Verdict | None = None
-            for c in self._children.values():
-                # 为所有子监视器检查裁决
-                pass
             # 仅当前子监视器的判定
             if child_verdict:
                 return child_verdict
-            # 检查所有其他子监视器是否也安全
-            for c in self._children.values():
-                if c is child:
-                    continue
-                # 只检查当前子监视器的状态即可
             return None
         else:
             # exists: 存在任一触发 → 触发

@@ -34,7 +34,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from openclaw_guard.engine.detection import DetectionEngine
-from openclaw_guard.engine.runtime_verification import RuntimeVerificationEngine
+from openclaw_guard.rv.runtime_verification import RuntimeVerificationEngine
 from openclaw_guard.models import BehaviorEvent
 
 

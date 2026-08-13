@@ -12,11 +12,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openclaw_guard.engine.runtime_verification import (
+from openclaw_guard.rv.runtime_verification import (
     RuntimeVerificationEngine,
     WindowManager,
 )
-from openclaw_guard.engine.rv_monitors import (
+from openclaw_guard.rv.rv_monitors import (
     BatchFileMonitor,
     BroadcastMonitor,
     DataExportMonitor,
@@ -114,7 +114,7 @@ class TestWindowManager(unittest.TestCase):
     def test_ttl_expires_old_entries(self):
         """TTL 过期应移除最老条目（mock 时间，避免真实 sleep）。"""
         wm = WindowManager(max_size=10, ttl_seconds=1)
-        with patch("openclaw_guard.engine.runtime_verification._time.time") as mt:
+        with patch("openclaw_guard.rv.runtime_verification._time.time") as mt:
             # t=1000 写入 old（epoch=1000），cutoff=999 未过期
             mt.return_value = 1000.0
             wm.push({"event": "old", "props": ["old"]})

@@ -155,6 +155,69 @@ def _apply_rv_if_available(
     return decision
 
 
+def _apply_constraint_engine(
+    services: GuardServices,
+    event: Any,
+    decision: Any,
+) -> Any:
+    """在 detection 判定后叠加约束推理引擎判定（升权不降权，阶段 B）。
+
+    约束引擎消费 rv_trace 中的结构化字段（entities/constraints/confidence），
+    与 detection 的标签布尔匹配并行。仅在命中更高风险等级时覆盖决策，
+    可通过 `OPENCLAW_RV_CONSTRAINT_MODE=off` 关闭。
+    """
+    engine = getattr(services, "constraint_engine", None)
+    if engine is None or not services.constraint_engine_enabled():
+        return decision
+    rv_trace = event.metadata.get("rv_trace", [])
+    if not rv_trace:
+        return decision
+
+    c_started = time.perf_counter()
+    results = engine.evaluate_steps(rv_trace)
+    timings = _ensure_pipeline_timings(event)
+    timings["constraint_ms"] = round((time.perf_counter() - c_started) * 1000.0, 3)
+    if not results:
+        return decision
+
+    rule, score = results[0]
+    severity = {"block": 4, "escalate": 3, "ask": 2, "ok": 1}
+    det_action = getattr(decision, "action", "allow")
+    if severity.get(rule.decision, 0) > severity.get(det_action, 1):
+        decision.action = rule.decision
+        decision.reason = f"[Constraint] {rule.title} (score={score:.2f}) 原有: {det_action}"
+        decision.rule_ids = list(decision.rule_ids) + [rule.rule_id]
+    return decision
+
+
+def _apply_session_escalation(
+    services: GuardServices,
+    event: Any,
+    decision: Any,
+) -> Any:
+    """应用会话级风险升级（阶段 F）。
+
+    按 session_key 维护 SessionSafetyState：记录每次判定累计风险，
+    连续 escalate 或累计风险升级裁决（escalate→block），并附修正建议。
+    可通过 `OPENCLAW_RV_SESSION_STATE=off` 关闭。
+    """
+    if not services.session_state_enabled():
+        return decision
+    session_key = _resolve_rv_session_key(event)
+    state = services.session_state_for(session_key)
+    upgrade = state.record(getattr(decision, "action", "ok"), decision.reason)
+    event.metadata["session_state"] = state.status()
+    if upgrade:
+        hint = state.revision_hint()
+        decision.action = upgrade
+        decision.reason = (
+            f"[Session] 会话风险升级为 {upgrade}（累计风险 {state.total_score}）"
+            f"{('; ' + hint) if hint else ''}"
+        )
+        decision.rule_ids = list(decision.rule_ids) + [f"SESSION-{session_key}"]
+    return decision
+
+
 # ---------------------------------------------------------------------------
 # 公共流水线入口
 # ---------------------------------------------------------------------------
@@ -178,9 +241,11 @@ def ingest_event_pipeline(
     decision = services.detector.evaluate(event)
     timings = _ensure_pipeline_timings(event)
     timings["detection_ms"] = round((time.perf_counter() - detect_started) * 1000.0, 3)
+    decision = _apply_constraint_engine(services, event, decision)
     decision = _apply_rv_if_available(services, event, decision)
     timings = _ensure_pipeline_timings(event)
     timings.setdefault("rv_ms", 0.0)
+    decision = _apply_session_escalation(services, event, decision)
     controller_started = time.perf_counter()
     controlled = services.controller.decide(event, decision, source_message or payload.get("raw_user_intent", ""))
     timings = _ensure_pipeline_timings(event)
@@ -218,9 +283,11 @@ def handle_before_tool_call_pipeline(
     decision = services.detector.evaluate(event)
     timings = _ensure_pipeline_timings(event)
     timings["detection_ms"] = round((time.perf_counter() - detect_started) * 1000.0, 3)
+    decision = _apply_constraint_engine(services, event, decision)
     decision = _apply_rv_if_available(services, event, decision)
     timings = _ensure_pipeline_timings(event)
     timings.setdefault("rv_ms", 0.0)
+    decision = _apply_session_escalation(services, event, decision)
     controller_started = time.perf_counter()
     controlled = services.controller.decide(event, decision, hook_source_message)
     timings = _ensure_pipeline_timings(event)

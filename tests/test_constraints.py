@@ -11,7 +11,7 @@
 
 import unittest
 
-from openclaw_guard.engine.constraints import (
+from openclaw_guard.rv.constraints import (
     ActionConstraint,
     ConstraintEngine,
     ConstraintRule,
@@ -19,7 +19,7 @@ from openclaw_guard.engine.constraints import (
     TagConstraint,
     migrated_constraint_rules,
 )
-from openclaw_guard.engine.ir import Entity, ToolCallIR
+from openclaw_guard.rv.ir import Entity, ToolCallIR
 
 
 # =============================================================================

@@ -12,10 +12,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sqlite3
 import threading
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
@@ -1140,8 +1141,6 @@ class SQLiteStore(DBStoreInterface):
     """SQLite fallback implementation (original behavior)"""
 
     def __init__(self, sqlite_path: Path) -> None:
-        import sqlite3
-
         self.sqlite_path = sqlite_path
         self.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
@@ -1149,7 +1148,6 @@ class SQLiteStore(DBStoreInterface):
         self._init_db()
 
     def _init_db(self) -> None:
-        import sqlite3
         with self._lock:
             conn = sqlite3.connect(self.sqlite_path, timeout=30.0)
             conn.execute("PRAGMA journal_mode=WAL")
@@ -1173,26 +1171,8 @@ class SQLiteStore(DBStoreInterface):
 
     @contextmanager
     def _get_connection(self) -> Iterator[sqlite3.Connection]:
-        import sqlite3
         self.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.sqlite_path, timeout=30.0)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS audit_log (
-                record_id TEXT PRIMARY KEY,
-                timestamp TEXT NOT NULL,
-                record_type TEXT NOT NULL,
-                payload_json TEXT NOT NULL,
-                previous_hash TEXT NOT NULL,
-                record_hash TEXT NOT NULL
-            )
-            """
-        )
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_type ON audit_log(record_type)")
-        conn.commit()
         try:
             yield conn
         finally:
@@ -1293,8 +1273,6 @@ class SQLiteStore(DBStoreInterface):
 
     def save_action(self, action_data: dict[str, Any]) -> bool:
         # SQLite doesn't support ON CONFLICT with JSON, simplified implementation
-        import sqlite3
-
         action_id = action_data.get("action_id")
         if not action_id:
             return False
