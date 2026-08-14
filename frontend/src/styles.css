@@ -377,3 +377,16 @@ details summary { cursor: pointer; color: #344054; font-size: .84rem; }
 .rv-badge.escalate { background: rgba(124,58,237,.1); color: #6d28d9; }
 .rv-badge.ask { background: rgba(247,144,9,.12); color: #9a5d0c; }
 .rv-badge.ok { background: rgba(18,183,106,.1); color: #0c6a42; }
+
+/* ── Revise / session state ─────────────────────── */
+.revision-hint {
+  margin: 4px 0 8px; padding: 8px 10px; border-radius: 8px;
+  background: rgba(124,58,237,.08); color: #5b21b6; font-size: .84rem;
+}
+.session-state {
+  margin: 4px 0 8px; padding: 6px 10px; border-radius: 8px;
+  background: #f2f4f7; color: #475467; font-size: .78rem;
+}
+.status-chip.revise { background: rgba(124,58,237,.12); color: #6d28d9; }
+.btn.adopt-action { background: #f4ebff; color: #6d28d9; border-color: #d8b4fe; }
+.btn.adopt-action:hover:not(:disabled) { background: #ede0ff; }

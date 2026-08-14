@@ -212,4 +212,20 @@
 
 ---
 
+## 八、整改执行结果（2026-08-14）
+
+| 整改项 | 关联异常 | 结果 |
+|---|---|---|
+| 修复置信度门控 | E3 | ✅ 已改为语义置信度门控（默认阈值 0.5），单测覆盖 |
+| 补 ask→escalate 升级链 | E2 | ✅ 已补，连续 3 次 ask → escalate |
+| 落地 revise 干预 | E1 | ✅ `_apply_session_escalation` 达阈值返回 `revise` 并透出 `revision_hint`；`controller` 映射 revise→`pending_approval`；Hook 返回 `revision_hint` |
+| 补齐 Sensitivity/Temporal 约束 | E4 | ✅ 新增两类约束并挂载 `ConstraintEngine`，单测覆盖 |
+| 补齐 ToolCallIR 字段 | E5 | ✅ 补齐 A1 七字段（tool_name/arguments/permission_level/side_effect/sensitivity/irreversibility/intent，全部可选） |
+| 前端 revise + 会话状态展示 | E6 | ✅ 前端展示修正建议 + 「采用建议」按钮 + 会话状态展示 |
+| 清理过时注释 | E7 | ✅ `constraints.py` 死引用已修正 |
+
+**整改后全量回归：340 passed / 18 skipped / 0 failed。**
+
+---
+
 *本报告基于代码静态核验 + git 历史 + 全量测试基线生成。*

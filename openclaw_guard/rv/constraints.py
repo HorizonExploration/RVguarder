@@ -2,7 +2,7 @@
 约束推理引擎 —— 阶段 B。
 
 基于 IR 结构化中间表示（ToolCallIR）的规则匹配引擎，替代纯标签布尔交集。
-支持四类约束（动作/标签/实体/置信度），加权评分并支持置信度门控。
+支持动作/标签/实体/敏感度/时序五类约束，加权评分并支持语义置信度门控。
 
 设计原则：
 - 消费阶段 A 产出的 ToolCallIR，利用 entities/constraints/confidence 结构化字段
@@ -84,6 +84,54 @@ class EntityConstraint(BaseModel):
         return False
 
 
+class SensitivityConstraint(BaseModel):
+    """敏感度约束：步骤 sensitivity 字段必须在/不在给定级别中。
+
+    敏感度级别由语义层提取（如 high / critical），用于表达「涉及机密/凭据」
+    这类不与具体实体绑定的风险条件。
+
+    Example:
+        SensitivityConstraint(levels=["high", "critical"])
+        SensitivityConstraint(levels=["none"], match_type="not_in")
+    """
+
+    levels: list[str] = Field(default_factory=list)
+    match_type: str = "in"  # "in" | "not_in"
+
+    def matches(self, sensitivity: str | None) -> bool:
+        if not sensitivity or not self.levels:
+            return False
+        value = sensitivity.lower()
+        targets = {level.lower() for level in self.levels}
+        if self.match_type == "not_in":
+            return value not in targets
+        return value in targets
+
+
+class TemporalConstraint(BaseModel):
+    """时序约束：步骤 constraints 中 kind="time_range" 的值匹配。
+
+    时序约束来自语义层提取的时间范围（today / yesterday / this_week），
+    用于表达「仅限今日」「仅限本周」这类时间边界。
+
+    Example:
+        TemporalConstraint(values=["today", "this_week"])
+    """
+
+    values: list[str] = Field(default_factory=list)
+
+    def matches(self, step_constraints: list[Any]) -> bool:
+        if not self.values:
+            return False
+        targets = {v.lower() for v in self.values}
+        for item in step_constraints:
+            kind = item.get("kind") if isinstance(item, dict) else getattr(item, "kind", None)
+            value = item.get("value") if isinstance(item, dict) else getattr(item, "value", None)
+            if kind == "time_range" and isinstance(value, str) and value.lower() in targets:
+                return True
+        return False
+
+
 # =============================================================================
 # 约束规则
 # =============================================================================
@@ -92,10 +140,10 @@ class EntityConstraint(BaseModel):
 class ConstraintRule(BaseModel):
     """由约束条件组成的规则，替代旧的 lambda 谓词。
 
-    一条规则可组合 action/tags/entity 三种约束，
+    一条规则可组合 action/tags/entity/sensitivity/temporal 五类约束，
     全部匹配时得分为各约束加权和。
 
-    confidence_threshold: 当总评分低于此值时，规则不参与最终判定
+    confidence_threshold: 当步骤语义置信度低于此值时，规则不参与最终判定
     """
 
     rule_id: str
@@ -107,6 +155,8 @@ class ConstraintRule(BaseModel):
     action: ActionConstraint | None = None
     tags: TagConstraint | None = None
     entity: EntityConstraint | None = None
+    sensitivity: SensitivityConstraint | None = None
+    temporal: TemporalConstraint | None = None
     # 语义置信度门控阈值（spec B4）：步骤 confidence < 阈值时不参与判定。
     # 默认 0.5，对应「<0.5 保守回退」；旧数据无 confidence 按中性 0.5 处理。
     confidence_threshold: float = 0.5
@@ -121,6 +171,8 @@ _WEIGHTS: dict[str, float] = {
     "action": 0.25,
     "tags": 0.40,
     "entity": 0.35,
+    "sensitivity": 0.25,
+    "temporal": 0.25,
 }
 
 
@@ -219,6 +271,16 @@ class ConstraintEngine:
             if not rule.entity.matches(entity_values):
                 return 0.0
 
+        # 敏感度约束：若声明则必须命中
+        if rule.sensitivity is not None:
+            if not rule.sensitivity.matches(step.sensitivity):
+                return 0.0
+
+        # 时序约束：若声明则必须命中
+        if rule.temporal is not None:
+            if not rule.temporal.matches(step.constraints):
+                return 0.0
+
         # 所有已声明约束全部命中 → 计算加权得分
         score = 0.0
         total_weight = 0.0
@@ -231,6 +293,12 @@ class ConstraintEngine:
         if rule.entity is not None:
             total_weight += _WEIGHTS["entity"]
             score += _WEIGHTS["entity"]
+        if rule.sensitivity is not None:
+            total_weight += _WEIGHTS["sensitivity"]
+            score += _WEIGHTS["sensitivity"]
+        if rule.temporal is not None:
+            total_weight += _WEIGHTS["temporal"]
+            score += _WEIGHTS["temporal"]
 
         if total_weight == 0:
             return 0.0
@@ -267,7 +335,7 @@ class ConstraintEngine:
 def migrated_constraint_rules() -> list[ConstraintRule]:
     """返回已迁移为 ConstraintRule 的 10 条高频规则。
 
-    每条规则行为与 detection.py 的 _semantic_predicates 中对应 lambda 一致。
+    每条规则行为与 detection.py 的 `builtin_rules()` 中对应 match_labels 规则一致。
     """
     return [
         ConstraintRule(

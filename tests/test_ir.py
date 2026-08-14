@@ -89,6 +89,35 @@ class TestToolCallIR(unittest.TestCase):
         self.assertIn("entities", d)
         self.assertIn("constraints", d)
         self.assertIn("confidence", d)
+        # 阶段 A1 语义模型字段（向后兼容，全部可选）
+        for field in (
+            "tool_name", "arguments", "permission_level", "side_effect",
+            "sensitivity", "irreversibility", "intent",
+        ):
+            self.assertIn(field, d)
+
+    def test_a1_semantic_fields_populated(self):
+        """阶段 A1：ToolCallIR 语义模型字段可实例化并序列化。"""
+        ir = ToolCallIR(
+            step_id="s1",
+            event="command_exec",
+            props=["command_exec", "command_sudo"],
+            tool_name="exec",
+            arguments={"command": "sudo rm -rf /etc/x"},
+            permission_level="root",
+            side_effect="mutating",
+            sensitivity="high",
+            irreversibility="irreversible",
+            intent="删除系统配置",
+            confidence=0.9,
+        )
+        self.assertEqual(ir.tool_name, "exec")
+        self.assertEqual(ir.arguments["command"], "sudo rm -rf /etc/x")
+        self.assertEqual(ir.permission_level, "root")
+        self.assertEqual(ir.sensitivity, "high")
+        self.assertEqual(ir.intent, "删除系统配置")
+        d = ir.model_dump()
+        self.assertEqual(d["irreversibility"], "irreversible")
 
     def test_ir_list_as_rv_trace(self):
         """验证 ToolCallIR 列表可模拟完整的 rv_trace。"""

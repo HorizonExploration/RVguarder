@@ -45,17 +45,47 @@ export function ActionCard({ item }) {
     }
   };
 
+  const handleAdopt = async () => {
+    setActionLoading(item.action_id, true);
+    try {
+      await rejectAction(item.action_id);
+      optimisticUpdate(item.action_id, 'rejected');
+      showToast('✅ 已采用修正建议');
+      const s = await fetchSummary();
+      setSummary(s);
+    } catch (error) {
+      setActionLoading(item.action_id, false);
+      showToast(error.payload?.message || t('error_default'));
+      const s = await fetchSummary();
+      setSummary(s);
+    }
+  };
+
+  const revisionHint = d.revision_hint;
+  const sessionState = item.event?.metadata?.session_state;
+
   return (
     <article class={'approval-card tone-' + esc(d.risk_level || 'safe') + (il ? ' card-loading' : '')}>
       <div class="approval-head">
         <span class="risk-chip">{esc(d.risk_level || 'safe')}</span>
         <span class="status-chip">{t('status_' + (item.status || 'unknown'))}</span>
+        {d.action === 'revise' && <span class="status-chip revise">{t('revisionHint')}</span>}
       </div>
       <h4>{esc(item.target_summary || item.source_message || '')}</h4>
       <p>{esc(d.reason || '')}</p>
+      {revisionHint && (
+        <div class="revision-hint">
+          <strong>{t('revisionHint')}：</strong>{esc(revisionHint)}
+        </div>
+      )}
       {rvMode && item.event?.metadata?.rv_result?.verdict && (
         <div class={'rv-badge ' + esc(item.event.metadata.rv_result.verdict)}>
           RV: {esc(item.event.metadata.rv_result.verdict.toUpperCase())}
+        </div>
+      )}
+      {sessionState && (
+        <div class="session-state">
+          {t('sessionState')}：{esc(sessionState.state || 'safe')}（{t('score')} {esc(sessionState.total_score ?? 0)}）
         </div>
       )}
       {ip && (
@@ -68,6 +98,16 @@ export function ActionCard({ item }) {
           >
             {il ? t('approving') : t('approve')}
           </button>
+          {revisionHint && (
+            <button
+              class="btn adopt-action"
+              data-id={esc(item.action_id)}
+              disabled={il}
+              onClick={handleAdopt}
+            >
+              {il ? t('rejecting') : t('adoptSuggestion')}
+            </button>
+          )}
           <button
             class="btn danger reject-action"
             data-id={esc(item.action_id)}

@@ -16,10 +16,12 @@ from openclaw_guard.rv.constraints import (
     ConstraintEngine,
     ConstraintRule,
     EntityConstraint,
+    SensitivityConstraint,
     TagConstraint,
+    TemporalConstraint,
     migrated_constraint_rules,
 )
-from openclaw_guard.rv.ir import Entity, ToolCallIR
+from openclaw_guard.rv.ir import Constraint, Entity, ToolCallIR
 
 
 # =============================================================================
@@ -278,6 +280,121 @@ class TestConstraintEngine(unittest.TestCase):
             entities=[
                 Entity(kind="recipients", values=["alice@internal.com"]),
             ],
+        )
+        results = engine.evaluate([ir])
+        self.assertEqual(results, [])
+
+    def test_sensitivity_constraint_matches_high(self):
+        """敏感度约束：high 命中 levels=["high", "critical"]。"""
+        engine = ConstraintEngine([
+            ConstraintRule(
+                rule_id="SENS-001",
+                title="sensitive data egress",
+                description="blocks high sensitivity",
+                severity="critical",
+                risk_level="blocked",
+                decision="block",
+                sensitivity=SensitivityConstraint(levels=["high", "critical"]),
+            ),
+        ])
+        ir = ToolCallIR(
+            step_id="s1",
+            event="network_egress",
+            props=["network_egress"],
+            sensitivity="high",
+        )
+        results = engine.evaluate([ir])
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0][0].rule_id, "SENS-001")
+
+    def test_sensitivity_constraint_not_in(self):
+        """敏感度约束：none 不在敏感列表 → match_type="not_in" 命中。"""
+        engine = ConstraintEngine([
+            ConstraintRule(
+                rule_id="SENS-002",
+                title="non-sensitive only",
+                description="allow non-sensitive",
+                severity="low",
+                risk_level="safe",
+                decision="allow",
+                sensitivity=SensitivityConstraint(
+                    levels=["high", "critical"], match_type="not_in"
+                ),
+            ),
+        ])
+        ir = ToolCallIR(
+            step_id="s1",
+            event="file_read",
+            props=["file_read"],
+            sensitivity="none",
+        )
+        results = engine.evaluate([ir])
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0][0].rule_id, "SENS-002")
+
+    def test_sensitivity_constraint_no_match(self):
+        """敏感度约束：low 不在 levels=["high", "critical"] → 不命中。"""
+        engine = ConstraintEngine([
+            ConstraintRule(
+                rule_id="SENS-003",
+                title="high only",
+                description="blocks high sensitivity",
+                severity="critical",
+                risk_level="blocked",
+                decision="block",
+                sensitivity=SensitivityConstraint(levels=["high", "critical"]),
+            ),
+        ])
+        ir = ToolCallIR(
+            step_id="s1",
+            event="network_egress",
+            props=["network_egress"],
+            sensitivity="low",
+        )
+        results = engine.evaluate([ir])
+        self.assertEqual(results, [])
+
+    def test_temporal_constraint_matches(self):
+        """时序约束：time_range=today 命中 values=["today", "this_week"]。"""
+        engine = ConstraintEngine([
+            ConstraintRule(
+                rule_id="TMP-001",
+                title="today-only scope",
+                description="requires today scope",
+                severity="medium",
+                risk_level="caution",
+                decision="ask",
+                temporal=TemporalConstraint(values=["today", "this_week"]),
+            ),
+        ])
+        ir = ToolCallIR(
+            step_id="s1",
+            event="report_send",
+            props=["report_send"],
+            constraints=[Constraint(kind="time_range", value="today")],
+        )
+        results = engine.evaluate([ir])
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0][0].rule_id, "TMP-001")
+
+    def test_temporal_constraint_no_match(self):
+        """时序约束：time_range=yesterday 不在 values → 不命中。"""
+        engine = ConstraintEngine([
+            ConstraintRule(
+                rule_id="TMP-002",
+                title="today-only scope",
+                description="requires today scope",
+                severity="medium",
+                risk_level="caution",
+                decision="ask",
+                temporal=TemporalConstraint(values=["today", "this_week"]),
+            ),
+        ])
+        ir = ToolCallIR(
+            step_id="s1",
+            event="report_send",
+            props=["report_send"],
+            constraints=[Constraint(kind="time_range", value="yesterday")],
         )
         results = engine.evaluate([ir])
         self.assertEqual(results, [])

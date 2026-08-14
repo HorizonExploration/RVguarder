@@ -167,6 +167,8 @@ class DetectionDecision(GuardBaseModel):
     trace: list[dict[str, Any]] = Field(default_factory=list)
     requires_second_confirmation: bool = False
     confirmation_word: str | None = None
+    # 阶段 F：revise 干预携带的修正建议文本（session 风险升级时透出）
+    revision_hint: str | None = None
 
 
 class ControlledAction(GuardBaseModel):

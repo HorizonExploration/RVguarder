@@ -207,12 +207,22 @@ def _apply_session_escalation(
     state = services.session_state_for(session_key)
     upgrade = state.record(getattr(decision, "action", "ok"), decision.reason)
     event.metadata["session_state"] = state.status()
+
+    # revise 干预（spec F1）：会话风险达到修正建议阈值时，返回带建议的 revise 拒绝
+    hint = state.revision_hint()
+    if hint is not None:
+        decision.action = "revise"
+        decision.revision_hint = hint
+        decision.reason = (
+            f"[Session] 建议修订后重试：{hint}（累计风险 {state.total_score}）"
+        )
+        decision.rule_ids = list(decision.rule_ids) + [f"SESSION-{session_key}"]
+        return decision
+
     if upgrade:
-        hint = state.revision_hint()
         decision.action = upgrade
         decision.reason = (
             f"[Session] 会话风险升级为 {upgrade}（累计风险 {state.total_score}）"
-            f"{('; ' + hint) if hint else ''}"
         )
         decision.rule_ids = list(decision.rule_ids) + [f"SESSION-{session_key}"]
     return decision
@@ -339,7 +349,8 @@ def handle_before_tool_call_pipeline(
         return {
             "action": "require_approval",
             "message": controlled.decision.reason,
-            "severity": "critical" if controlled.decision.action == "escalate" else "warning",
+            "severity": "critical" if controlled.decision.action in {"escalate", "revise"} else "warning",
+            "revision_hint": controlled.decision.revision_hint,
             "action_record": controlled.to_dict(),
         }
 

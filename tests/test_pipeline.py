@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 from openclaw_guard.engine.pipeline import (
     _annotate_event_context,
     _apply_rv_if_available,
+    _apply_session_escalation,
     _ensure_pipeline_timings,
     _resolve_rv_session_key,
     handle_after_tool_call_pipeline,
@@ -152,6 +153,49 @@ class ApplyRvIfAvailableTests(unittest.TestCase):
 
         result = _apply_rv_if_available(self.services, event, decision)
         self.assertEqual(result.action, "block")
+
+
+class ApplySessionEscalationTests(unittest.TestCase):
+    """_apply_session_escalation 测试（阶段 F 会话升级 + revise 干预）。"""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        project = Path(self.tmp.name) / "OpenclawGuard"
+        project.mkdir()
+        config_path = project / "openclaw.json"
+        config_path.write_text(json.dumps({"models": {"providers": {}}}), encoding="utf-8")
+        self.services = build_services(project, config_path=config_path)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _event(self) -> MagicMock:
+        event = MagicMock()
+        event.metadata = {}
+        event.raw_payload = {}
+        return event
+
+    def test_repeated_escalation_emits_revise(self) -> None:
+        """连续 2 次 escalate → 第 2 次返回 revise 并携带修正建议。"""
+        from openclaw_guard.utils import utc_now_iso
+
+        def make_decision() -> DetectionDecision:
+            return DetectionDecision(
+                event_id="evt-revise",
+                timestamp=utc_now_iso(),
+                action_type="command_exec",
+                risk_level="dangerous",
+                action="escalate",
+                reason="repeated escalation",
+            )
+
+        first = _apply_session_escalation(self.services, self._event(), make_decision())
+        self.assertEqual(first.action, "escalate")
+
+        second = _apply_session_escalation(self.services, self._event(), make_decision())
+        self.assertEqual(second.action, "revise")
+        self.assertIsNotNone(second.revision_hint)
+        self.assertIn("repeated escalation", second.revision_hint)
 
 
 class HandleBeforeToolCallPipelineTests(unittest.TestCase):

@@ -7,10 +7,10 @@
 - [x] LLM 模式：`rv_trace` 步骤含 `entities`/`constraints`/`confidence`，`props` 不变
 - [x] 本地模式：`rv_trace` 步骤透传 recipients/paths/constraints/confidence
 - [x] `tests/test_ir.py` 通过；`tests/test_semantic_enhancer.py` 无回归
-- [ ] ⚠️ E5：`ToolCallIR` 字段仅 6 项（step_id/event/props/entities/constraints/confidence），缺 spec 承诺的 tool_name/arguments/permission_level/side_effect/sensitivity/irreversibility/intent
+- [x] `ToolCallIR` 补齐 A1 语义模型字段（tool_name/arguments/permission_level/side_effect/sensitivity/irreversibility/intent，全部可选，向后兼容）
 
 ## 阶段 B：约束推理引擎
-- [ ] ⚠️ E4：`constraints.py` 仅三类约束（Action/Tag/Entity），缺 `SensitivityConstraint`/`TemporalConstraint`
+- [x] `constraints.py` 五类约束齐备（Action/Tag/Entity/Sensitivity/Temporal），`ConstraintEngine` 挂载 Sensitivity/Temporal 判定
 - [x] 置信度门控：语义置信度（`ToolCallIR.confidence`）低于 `confidence_threshold`（默认 0.5）的规则不参与判定
 - [x] ≥10 条高频规则迁移为 `ConstraintRule`，行为与旧 lambda 对齐
 - [x] `tests/test_constraints.py` 通过；`tests/test_detection.py` 无回归
@@ -36,11 +36,11 @@
 - [x] `tests/test_nl2spec.py` 通过（SpecValidator 测试位于 `TestSpecValidator` 类，无独立 `test_spec_validator.py` 文件）
 
 ## 阶段 F：干预升级与会话状态
-- [ ] ❌ E1：`revise` 动作未真正落地，无代码路径返回 revise 裁决（仅 Literal 预声明 + `revision_hint()` 方法）
+- [x] `revise` 干预落地：`_apply_session_escalation` 在会话风险达修正阈值时返回 `revise` 并透出 `revision_hint`；`controller` 映射 revise→`pending_approval`
 - [x] `SessionSafetyState` 连续 ask→escalate、escalate→block 升级逻辑正确（ask→escalate 已补）
 - [x] `pipeline.py` 会话状态读写（`_apply_session_escalation`）
 - [x] `tests/test_intervention.py` 通过
-- [ ] ❌ E6：前端 revise 交互与会话状态展示未实现
+- [x] 前端 revise 交互（修正建议展示 + 采用建议按钮）与会话状态展示已实现
 
 ## 全局
 - [x] 全部阶段向后兼容：`props`/`labels`/`OPENCLAW_RV_RULE_MODE` 语义不变

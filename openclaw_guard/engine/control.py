@@ -29,7 +29,7 @@ class GuardController:
                 confirmation_word=None,
             )
         status = "proposed"
-        if final.action in {"ask", "escalate"}:
+        if final.action in {"ask", "escalate", "revise"}:
             status = "pending_approval"
         elif final.action == "block":
             status = "blocked"

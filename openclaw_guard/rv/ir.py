@@ -12,6 +12,8 @@ IR 结构化中间表示 —— 阶段 A 数据模型。
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -41,7 +43,8 @@ class ToolCallIR(BaseModel):
     对应语义层产出的一条 RV trace 步骤，在原有 step_id/event/props
     基础上新增 entities/constraints/confidence 结构化字段。
 
-    所有新增字段默认空列表/None，确保与旧 rv_trace 完全向后兼容。
+    阶段 A1 语义模型字段（tool_name/arguments/permission_level/side_effect/
+    sensitivity/irreversibility/intent）均为可选，确保与旧 rv_trace 完全向后兼容。
     """
     step_id: str
     event: str
@@ -49,3 +52,10 @@ class ToolCallIR(BaseModel):
     entities: list[Entity] = Field(default_factory=list)
     constraints: list[Constraint] = Field(default_factory=list)
     confidence: float | None = None
+    tool_name: str | None = None
+    arguments: dict[str, Any] | None = None
+    permission_level: str | None = None
+    side_effect: str | None = None
+    sensitivity: str | None = None
+    irreversibility: str | None = None
+    intent: str | None = None
