@@ -1,3 +1,59 @@
+# 修复记录：RV 落地优化（P0→P1→P2）
+
+**日期**：2026-08-14  
+**关联版本**：v0.3.0
+
+---
+
+## 一、更新背景
+
+v0.3.0 落地了「NL→Automata RV 升级方案」（阶段 A–F），但审计发现存在 7 处「验收标准打折」，其中置信度门控失效、revise 干预未落地、ask→escalate 升级链缺失属 High 级异常。本次按审计报告整改方案（P0→P1→P2）完成全部修复，确保升级项真实落地。
+
+---
+
+## 二、修复内容
+
+### P0（高危修复）
+
+- **E3 置信度门控失效**：`constraints.py` 的 `confidence_threshold` 默认值 `0.0→0.5`，`evaluate()` 改为基于 `ToolCallIR.confidence` 语义置信度门控（旧数据无 confidence 按中性 0.5 处理）
+- **E2 ask→escalate 升级链缺失**：`SessionSafetyState.record()` 新增连续 3 次 ask 自动升级为 escalate
+
+### P1（规格补齐）
+
+- **E1 revise 干预落地**：`_apply_session_escalation()` 达阈值返回 `revise` 并透出 `revision_hint`；`DetectionDecision` 新增 `revision_hint` 字段；`controller` 映射 revise→`pending_approval`；Hook 返回 `revision_hint`
+- **E4 补齐约束类型**：新增 `SensitivityConstraint` / `TemporalConstraint` 并挂载 `ConstraintEngine`，五类约束齐备
+- **E5 补齐 ToolCallIR 字段**：补齐 A1 语义模型七字段（tool_name/arguments/permission_level/side_effect/sensitivity/irreversibility/intent，全部可选，向后兼容）
+- **E6 前端 revise 交互 + 会话状态展示**：工作台展示修正建议 + 「采用建议」按钮 + 会话状态展示
+
+### P2（清理）
+
+- **E7 过时注释**：清理 `constraints.py` 中引用已删函数的死注释
+
+---
+
+## 三、影响范围
+
+| 模块 | 文件 | 变更类型 |
+|------|------|----------|
+| 约束推理引擎 | `openclaw_guard/rv/constraints.py` | 修复 + 新增约束 |
+| IR 模型 | `openclaw_guard/rv/ir.py` | 字段补齐 |
+| 会话状态 | `openclaw_guard/spec/session_state.py` | 升级链补齐 |
+| 决策模型 | `openclaw_guard/models.py` | 新增字段 |
+| 编排层 | `openclaw_guard/engine/pipeline.py` | revise 干预 |
+| 管控层 | `openclaw_guard/engine/control.py` | revise 映射 |
+| 前端 | `frontend/src/components/ActionCard.jsx` / `i18n.js` / `styles.css` | revise 交互 + 会话状态 |
+| 文档 | `docs/architecture/nl-automata-rv-landing-report.md` / `.trae/specs/nl-automata-rv/checklist.md` | 审计报告 + 核验清单 |
+
+---
+
+## 四、注意事项
+
+1. **revise 为新增干预动作**：`DecisionAction` 由四级（allow/ask/escalate/block）扩展为五级（含 revise），revise 裁决进入 `pending_approval` 状态，前端可一键采用修正建议
+2. **ToolCallIR 新字段全部可选**：`tool_name/arguments/permission_level/side_effect/sensitivity/irreversibility/intent` 均默认 None，旧 rv_trace 完全向后兼容
+3. **测试回归**：340 passed / 18 skipped / 0 failed（较 v0.3.0 基线 331 增加 9 个用例）
+
+---
+
 # v0.3.0 版本更新说明
 
 **日期**：2026-08-01  

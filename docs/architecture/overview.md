@@ -13,7 +13,7 @@ Openclaw Guard 采用分层、非侵入、模块化设计，核心原则是：**
 管控层
   ├─ 白名单
   ├─ 审批流
-  ├─ allow / ask / block / escalate
+  ├─ allow / ask / block / escalate / revise
   └─ 二次确认
 
 检测层

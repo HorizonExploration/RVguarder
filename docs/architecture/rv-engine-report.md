@@ -228,10 +228,10 @@ Ruleset
 |----|----|
 | 风险评分累计 | block=5 / escalate=3 / ask=1 |
 | 状态桶 | safe(0) / warning(3) / elevated(7) / critical(15) |
-| 自动升级 | 连续 3 次 escalate → 自动升级 block |
-| 修正建议 | `revision_hint()` 生成 revise 干预的修改建议 |
+| 自动升级 | 连续 3 次 ask → escalate；连续 3 次 escalate → block |
+| revise 干预 | 达修正阈值返回 `revise` 并透出 `revision_hint()`（已落地） |
 
-> 已接入 `pipeline.py` 主流程：`_apply_session_escalation()` 在 RV 判定后对每个会话维护 `SessionSafetyState`，累计风险并自动升级；`event.metadata["session_state"]` 透出会话状态。
+> 已接入 `pipeline.py` 主流程：`_apply_session_escalation()` 在 RV 判定后对每个会话维护 `SessionSafetyState`，累计风险、连续 ask→escalate→block 自动升级，并在达修正阈值时返回 `revise` 并透出 `revision_hint`；`event.metadata["session_state"]` 透出会话状态。
 
 ---
 
@@ -262,7 +262,7 @@ Ruleset
 | `tests/test_intervention.py` | 会话状态/升级链/revision_hint |
 | `tests/test_pipeline.py` | RV overlay / per-session 隔离 / 完整链路 |
 
-全量测试：**331 passed, 18 skipped, 0 failed**（2026-08-11）。
+全量测试：**340 passed, 18 skipped, 0 failed**（2026-08-14）。
 
 ---
 

@@ -13,8 +13,8 @@ Openclaw Guard 的价值不在“执行后解释”，而在“执行前决策�
   -> RV 规约 overlay（detection 后、controller 前，升权不降权）
   -> 白名单校验
   -> 生成动作记录
-  -> allow / ask / block / escalate
-  -> ask / escalate 进入待审批
+  -> allow / ask / block / escalate / revise
+  -> ask / escalate / revise 进入待审批
   -> 批准后才执行
 ```
 
@@ -47,6 +47,7 @@ OpenClaw 准备调用工具
 - `ask`：等待审批
 - `block`：直接阻断
 - `escalate`：需要更高等级确认
+- `revise`：拒绝并附带修正建议（进入待审批，前端可一键采用）
 
 ## 动作状态机
 

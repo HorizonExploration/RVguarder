@@ -38,7 +38,7 @@ OpenClaw 进入工具调用
   -> 调用 Guard 本地 API (/api/hook/before-tool-call)
   -> Guard 转成行为事件
   -> 风险判定
-  -> allow / ask (require_approval) / block / escalate
+  -> allow / ask (require_approval) / block / escalate / revise (require_approval + revision_hint)
   -> require_approval 时 OpenClaw 挂起 agent，展示审批卡片
   -> 用户在 OpenClaw 原生 UI 或 Guard Dashboard 批准
   -> 双端同步：onResolution 推送 / Gateway 远程调用
