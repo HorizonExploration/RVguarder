@@ -34,6 +34,20 @@ class TestSessionSafetyState(unittest.TestCase):
         # 3 asks = 3, threshold for warning is 3
         self.assertEqual(self.ss.current_state, "warning")
 
+    def test_three_asks_upgrade_to_escalate(self):
+        """连续 3 次 ask → 自动升级为 escalate。"""
+        self.ss.record("ask")
+        self.ss.record("ask")
+        result = self.ss.record("ask")
+        self.assertEqual(result, "escalate")
+        self.assertEqual(self.ss.status()["ask_to_escalate_count"], 0)
+
+    def test_single_ask_no_upgrade(self):
+        """单次 ask 不应升级为 escalate。"""
+        result = self.ss.record("ask")
+        self.assertIsNone(result)
+        self.assertEqual(self.ss.status()["ask_to_escalate_count"], 1)
+
     def test_escalate_bumps_score(self):
         self.ss.record("escalate")
         # escalate = 3, safe < 3, not >= 3? Actually 3 >= 3 for warning

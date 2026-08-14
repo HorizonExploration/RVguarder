@@ -283,7 +283,7 @@ class TestConstraintEngine(unittest.TestCase):
         self.assertEqual(results, [])
 
     def test_confidence_threshold_gating(self):
-        """规则的 confidence_threshold 过滤低评分命中。"""
+        """高语义置信度（≥阈值）命中规则。"""
         engine = ConstraintEngine([
             ConstraintRule(
                 rule_id="HIGH-CONF",
@@ -297,18 +297,19 @@ class TestConstraintEngine(unittest.TestCase):
                 confidence_threshold=0.9,
             ),
         ])
-        # 满分命中：action + tag both match → score 1.0
+        # 约束满分命中 + 语义置信度 0.95 ≥ 0.9 → 命中
         ir = ToolCallIR(
             step_id="s1",
             event="command_exec",
             props=["command_rm_rf", "command_exec"],
+            confidence=0.95,
         )
         results = engine.evaluate([ir])
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0][0].rule_id, "HIGH-CONF")
 
-    def test_confidence_threshold_filters_low_score(self):
-        """低评分命中被置信度阈值过滤。"""
+    def test_confidence_threshold_filters_low_confidence(self):
+        """低语义置信度（<阈值）即使约束命中也被过滤。"""
         engine = ConstraintEngine([
             ConstraintRule(
                 rule_id="HIGH-CONF",
@@ -322,11 +323,12 @@ class TestConstraintEngine(unittest.TestCase):
                 confidence_threshold=0.9,
             ),
         ])
-        # 标签未命中，只有 action 匹配 → score ≈ 0.25/0.65 ≈ 0.385 → 低于 0.9
+        # 约束满分命中，但语义置信度 0.3 < 0.9 → 保守回退，不命中
         ir = ToolCallIR(
             step_id="s1",
             event="command_exec",
-            props=["command_exec", "some_other_tag"],
+            props=["command_rm_rf", "command_exec"],
+            confidence=0.3,
         )
         results = engine.evaluate([ir])
         self.assertEqual(results, [])

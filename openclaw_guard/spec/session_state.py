@@ -39,6 +39,7 @@ class SessionSafetyState:
         self._state: str = "safe"
         self._escalation_history: list[dict[str, Any]] = []
         self._escalate_to_block_count: int = 0
+        self._ask_to_escalate_count: int = 0
 
     @property
     def current_state(self) -> str:
@@ -66,6 +67,15 @@ class SessionSafetyState:
         # 状态桶变更
         new_state = self._compute_state()
         self._state = new_state
+
+        # 连续 ask → escalate（spec F2）
+        if verdict == "ask":
+            self._ask_to_escalate_count += 1
+            if self._ask_to_escalate_count >= 3:
+                self._ask_to_escalate_count = 0
+                return "escalate"
+        else:
+            self._ask_to_escalate_count = max(0, self._ask_to_escalate_count - 1)
 
         # 连续 escalate → 升级为 block
         if verdict == "escalate":
@@ -109,6 +119,7 @@ class SessionSafetyState:
         self._state = "safe"
         self._escalation_history.clear()
         self._escalate_to_block_count = 0
+        self._ask_to_escalate_count = 0
 
     def status(self) -> dict[str, Any]:
         return {
@@ -116,5 +127,6 @@ class SessionSafetyState:
             "state": self._state,
             "total_score": self.total_score,
             "escalate_to_block_count": self._escalate_to_block_count,
+            "ask_to_escalate_count": self._ask_to_escalate_count,
             "history_length": len(self._escalation_history),
         }

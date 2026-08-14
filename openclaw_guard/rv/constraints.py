@@ -107,7 +107,9 @@ class ConstraintRule(BaseModel):
     action: ActionConstraint | None = None
     tags: TagConstraint | None = None
     entity: EntityConstraint | None = None
-    confidence_threshold: float = 0.0
+    # 语义置信度门控阈值（spec B4）：步骤 confidence < 阈值时不参与判定。
+    # 默认 0.5，对应「<0.5 保守回退」；旧数据无 confidence 按中性 0.5 处理。
+    confidence_threshold: float = 0.5
 
 
 # =============================================================================
@@ -155,11 +157,17 @@ class ConstraintEngine:
             return []
         results: list[tuple[ConstraintRule, float]] = []
         for rule in self._rules:
-            best_score = max(
-                (self._match_score(rule, step) for step in ir_steps),
-                default=0.0,
-            )
-            if best_score > 0.0 and best_score >= rule.confidence_threshold:
+            best_score = 0.0
+            best_confidence = 0.0
+            for step in ir_steps:
+                score = self._match_score(rule, step)
+                if score > best_score:
+                    best_score = score
+                    confidence = step.confidence
+                    # 旧数据无 confidence 时按中性 0.5 处理，保持向后兼容
+                    best_confidence = 0.5 if confidence is None else float(confidence)
+            # 语义置信度门控（spec B4）：confidence < 阈值 → 保守回退，不参与判定
+            if best_score > 0.0 and best_confidence >= rule.confidence_threshold:
                 results.append((rule, best_score))
         results.sort(key=lambda x: x[1], reverse=True)
         return results
