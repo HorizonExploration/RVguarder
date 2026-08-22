@@ -40,8 +40,8 @@ features:
   </div>
   <div class="custom-card">
     <h3>📦 当前状态</h3>
-    <p>v0.3.0 — 六阶段架构重构完成：FastAPI HTTP 层（可选依赖，`--fastapi` 启用，缺失时自动回退 legacy）、Pydantic v2 模型迁移、Manager 拆分（GuardServices 容器）、Preact 前端、SQLAlchemyStore（可选存储）、RV 规约驱动（ChainRule DSL）。双端同步、熔断器、语义增强均已落地。</p>
-    <p><em>v0.3.0 — Six-phase refactor complete: FastAPI HTTP layer (optional dep, opt-in via `--fastapi`, auto-fallback to legacy), Pydantic v2 models, Manager split (GuardServices), Preact frontend, SQLAlchemyStore (optional storage), spec-driven RV (ChainRule DSL). Bidirectional sync, circuit breaker, semantic enhancer live.</em></p>
+    <p>v0.6.0 — 六阶段架构重构 + RV 阶段 A–F 全部落地：IR 结构化（ToolCallIR 11 字段）、约束推理引擎（五类约束 + 置信度门控）、RV 基线自动机、参数化原语（entity/step_gap/state_counter）、NL2Spec 生成 + 反例验证闭环、revise 干预 + 会话状态追踪。全量测试 344 passed / 18 skipped。</p>
+    <p><em>v0.6.0 — Six-phase refactor + RV phases A–F complete: ToolCallIR, constraint engine (5 constraint types + confidence gating), baseline automaton, parameterized primitives, NL2Spec + counter-example loop, revise intervention + session state. 344 passed / 18 skipped.</em></p>
   </div>
 </div>
 
@@ -53,13 +53,13 @@ features:
 
 OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式安全增强客户端与本地控制面。我们不做替代品，做的是**安全补位**。
 
-v0.3.0 完成了六阶段架构重构：① FastAPI HTTP 层（可选依赖，`--fastapi` flag 启用，缺失时自动回退 stdlib `legacy_web`）；② 全部数据模型从 `@dataclass` 迁移至 **Pydantic v2**；③ Manager 拆分（`services.py` GuardServices 服务容器 + `engine/pipeline.py` 编排层，`manager.py` 保留为兼容子类）；④ 前端迁移至 **Preact** SPA（Dashboard/Actions/Rules/Skills/Settings）；⑤ 可选 **SQLAlchemyStore** 存储层（`DB_STORE_MODE=sqlalchemy`）；⑥ RV 规约驱动（ChainRule DSL 编译监视器，`OPENCLAW_RV_RULE_MODE=dsl` 为默认，FSM 为回退模式）。同时删除了死代码 `ActionService.ingest` 和 `_action_from_mapping`，清理了重复文件和孤立字节码。
+v0.6.0 完成了六阶段架构重构与 RV 升级阶段 A–F 全部落地：① FastAPI HTTP 层（可选依赖，`--fastapi` flag 启用，缺失时自动回退 stdlib `legacy_web`）；② 全部数据模型迁移至 **Pydantic v2**；③ Manager 拆分（`services.py` GuardServices 服务容器 + `engine/pipeline.py` 编排层，`manager.py` 保留为兼容子类）；④ 前端迁移至 **Preact** SPA（Dashboard/Actions/Rules/Skills/Settings）；⑤ 可选 **SQLAlchemyStore** 存储层（`DB_STORE_MODE=sqlalchemy`）；⑥ RV 规约驱动（ChainRule DSL 编译监视器，`OPENCLAW_RV_RULE_MODE=dsl` 为默认，FSM 为回退模式）。RV 阶段 A–F 进一步落地：ToolCallIR 结构化透传（阶段 A）、约束推理引擎（五类约束 + 置信度门控，阶段 B）、RV 基线自动机（阶段 C）、参数化原语（阶段 D）、NL2Spec 生成 + 反例验证闭环（阶段 E）、revise 干预 + 会话状态（阶段 F）。详见 [rv-engine-report.md](./architecture/rv-engine-report.md) 与 [nl-automata-rv-landing-report.md](./architecture/nl-automata-rv-landing-report.md)。
 
 **English**
 
 OpenClaw-RVGuarder ("Lobster Guard") is a non-invasive security enhancement client and local control plane for OpenClaw. We don't replace OpenClaw — we **backfill the safety gap**.
 
-v0.3.0 completes a six-phase architecture refactor: ① optional FastAPI HTTP layer (opt-in via `--fastapi`, auto-fallback to stdlib `legacy_web` when missing); ② all data models migrated from `@dataclass` to **Pydantic v2**; ③ Manager split into the GuardServices container (`services.py`) + pipeline orchestration (`engine/pipeline.py`), with `manager.py` kept as a compatibility subclass; ④ frontend migrated to a **Preact** SPA (Dashboard/Actions/Rules/Skills/Settings); ⑤ optional **SQLAlchemyStore** storage (`DB_STORE_MODE=sqlalchemy`); ⑥ spec-driven RV (ChainRule DSL compiling monitors, `OPENCLAW_RV_RULE_MODE=dsl` by default, FSM as fallback).
+v0.6.0 completes the six-phase architecture refactor plus all RV upgrade phases A–F: ① optional FastAPI HTTP layer (opt-in via `--fastapi`, auto-fallback to stdlib `legacy_web` when missing); ② all data models migrated to **Pydantic v2**; ③ Manager split into the GuardServices container (`services.py`) + pipeline orchestration (`engine/pipeline.py`), with `manager.py` kept as a compatibility subclass; ④ frontend migrated to a **Preact** SPA (Dashboard/Actions/Rules/Skills/Settings); ⑤ optional **SQLAlchemyStore** storage (`DB_STORE_MODE=sqlalchemy`); ⑥ spec-driven RV (ChainRule DSL compiling monitors, `OPENCLAW_RV_RULE_MODE=dsl` by default, FSM as fallback). RV phases A–F add: ToolCallIR structured passthrough (A), constraint engine — 5 constraint types + confidence gating (B), baseline automaton (C), parameterized primitives (D), NL2Spec + counter-example validation loop (E), revise intervention + session state (F).
 
 ## 核心特性 · Core Features
 
@@ -108,6 +108,9 @@ openclaw-guard run
 | ⚙️ [动作审批链](/features/action-gate.html) | 决策流程与规则引擎 | Decision pipeline & rule engine |
 | 🌐 [HTTP 接口清单](/api/http.html) | 所有后端 API 文档 | Complete API reference |
 | 🏗️ [架构总览](/architecture/overview.html) | 分层设计与代码映射 | Architecture & code map |
+| 🔬 [RV 层技术报告](/architecture/rv-engine-report.html) | 运行时验证：规约 DSL、FSM、约束引擎、基线自动机 | RV layer tech report |
+| ✅ [RV 落地审计报告](/architecture/nl-automata-rv-landing-report.html) | 阶段 A–F 落地核验与整改闭环 | RV landing audit report |
+| 📊 [项目现状分析](/architecture/project-status-analysis.html) | 三类系统性问题与推进顺序 | Project status analysis |
 | 📋 [基线扫描](/features/baseline.html) | 安全扫描与报告 | Security scanning & reports |
 | 📝 [审计](/features/audit.html) | 审计链与导出 | Audit trail & export |
 | 🧠 [语义增强方案](/semantic/method.html) | 语义理解架构设计 | Semantic enhancement design |

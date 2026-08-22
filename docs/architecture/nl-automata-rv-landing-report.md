@@ -3,7 +3,7 @@
 > **审计日期**：2026-08-14
 > **审计范围**：`nl-automata-rv-upgrade-plan.md`（v1.0，2026-08-11 标记「已完成」）阶段 A–F 全量落地情况
 > **配套规格**：`.trae/specs/nl-automata-rv/{spec.md, tasks.md, checklist.md}`
-> **审计基准**：`git` master（最新 `e30879f`），全量测试基线 **331 passed / 18 skipped / 0 failed**
+> **审计基准**：`git` master（审计时 `e30879f`），全量测试基线 **331 passed / 18 skipped / 0 failed**（整改后基准 `2a4bccd` / **340 passed**，见第八节）
 
 ---
 
@@ -223,8 +223,12 @@
 | 补齐 ToolCallIR 字段 | E5 | ✅ 补齐 A1 七字段（tool_name/arguments/permission_level/side_effect/sensitivity/irreversibility/intent，全部可选） |
 | 前端 revise + 会话状态展示 | E6 | ✅ 前端展示修正建议 + 「采用建议」按钮 + 会话状态展示 |
 | 清理过时注释 | E7 | ✅ `constraints.py` 死引用已修正 |
+| `test_spec_validator.py` 文件名 | E7 | ✅ checklist 已注明：SpecValidator 测试位于 `tests/test_nl2spec.py` 的 `TestSpecValidator` 类，无独立文件 |
+| 规则双轨（10 条两处定义） | 5.3 风险 | ✅ 保留双定义，新增一致性测试兜底：`tests/test_constraints.py::test_migrated_rules_align_with_detection` 断言两处定义逐字段对齐，任一漂移即失败，同步维护成本由 CI 承担 |
+| 性能基准缺失 | 4.2 | ✅ 新增 `tests/test_perf_smoke.py` 冒烟基准（宽松阈值 50ms）：约束引擎 0.07ms/次、RV 引擎 0.08ms/次、会话状态 1000 次 0.75ms（本机实测） |
+| 基线异常检测默认关闭 | 阶段 C 说明 | ✅ 已在 `project-status-analysis.md` C-6 与 `rv-engine-report.md` 已知边界 2 明确「默认不加载 DFA，需显式配置 `OPENCLAW_RV_BASELINE_DFA_PATH`」 |
 
-**整改后全量回归：340 passed / 18 skipped / 0 failed。**
+**整改后全量回归：340 passed / 18 skipped / 0 failed + 新增性能冒烟 3 用例。**
 
 ---
 

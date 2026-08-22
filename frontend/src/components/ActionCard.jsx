@@ -50,7 +50,10 @@ export function ActionCard({ item }) {
     try {
       await rejectAction(item.action_id);
       optimisticUpdate(item.action_id, 'rejected');
-      showToast('✅ 已采用修正建议');
+      if (revisionHint && typeof navigator !== 'undefined' && navigator.clipboard) {
+        try { await navigator.clipboard.writeText(revisionHint); } catch (_) { /* 剪贴板不可用则忽略 */ }
+      }
+      showToast('✅ 已采用修正建议，建议已复制到剪贴板');
       const s = await fetchSummary();
       setSummary(s);
     } catch (error) {
@@ -63,6 +66,8 @@ export function ActionCard({ item }) {
 
   const revisionHint = d.revision_hint;
   const sessionState = item.event?.metadata?.session_state;
+  const constraint = item.event?.metadata?.constraint_result;
+  const rvResult = item.event?.metadata?.rv_result;
 
   return (
     <article class={'approval-card tone-' + esc(d.risk_level || 'safe') + (il ? ' card-loading' : '')}>
@@ -78,9 +83,14 @@ export function ActionCard({ item }) {
           <strong>{t('revisionHint')}：</strong>{esc(revisionHint)}
         </div>
       )}
-      {rvMode && item.event?.metadata?.rv_result?.verdict && (
-        <div class={'rv-badge ' + esc(item.event.metadata.rv_result.verdict)}>
-          RV: {esc(item.event.metadata.rv_result.verdict.toUpperCase())}
+      {rvMode && rvResult?.verdict && (
+        <div class={'rv-badge ' + esc(rvResult.verdict)}>
+          RV: {esc(rvResult.verdict.toUpperCase())}
+        </div>
+      )}
+      {constraint && (
+        <div class="constraint-badge">
+          约束引擎: {esc(constraint.title)} · score {esc(constraint.score)}{constraint.matched ? '' : '（未覆盖）'}
         </div>
       )}
       {sessionState && (

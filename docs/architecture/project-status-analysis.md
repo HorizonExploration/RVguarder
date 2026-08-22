@@ -1,9 +1,9 @@
 # OpenClaw-RVGuarder 项目现状分析报告
 
-> **版本**：v0.3.0（含未发布 RV 层拆分 + 阶段 A–F 落地）
-> **分析日期**：2026-08-13
+> **版本**：v0.6.0（含 RV 层拆分 + 阶段 A–F 落地 + P0/P1/P2 整改闭环）
+> **分析日期**：2026-08-13（2026-08-14 整改后基线同步）
 > **分析基准**：`git commit 77b0489`（master）
-> **测试基线**：331 passed / 18 skipped / 0 failed
+> **测试基线**：344 passed / 18 skipped / 0 failed（2026-08-14 整改后）
 
 ---
 
@@ -23,8 +23,8 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 | 后端 | Python 3.13+ / Pydantic v2 / FastAPI（可选依赖）/ transitions FSM |
 | 前端 | Vite 6 + Preact 10 + Zustand 5 + preact-router |
 | 存储 | SQLite（开发）/ PostgreSQL + Redis（生产，可选依赖） |
-| 测试 | 21 个 Python 测试文件，331 用例通过 |
-| 当前 git | `77b0489 feat(rv): 拆分 RV 层为 rv/spec 子包并落地阶段 A-F 全功能` |
+| 测试 | 21+ 个 Python 测试文件，344 用例通过 |
+| 当前 git | `2a4bccd docs: 同步 RV 落地优化整改结果` |
 
 **后端模块布局**（`openclaw_guard/`）：
 
@@ -178,4 +178,4 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 
 ---
 
-*本报告基于代码静态分析生成，测试数据取自全量回归基线（331 passed / 18 skipped）。*
+*本报告基于代码静态分析生成，测试数据取自全量回归基线（344 passed / 18 skipped，2026-08-14 整改后）。*

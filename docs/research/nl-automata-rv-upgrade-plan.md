@@ -1,7 +1,7 @@
 # NL 驱动自动机生成与运行时验证 · 分阶段实施升级计划
 
 > 版本：v1.0 | 日期：2026-08-11 | 状态：**已完成**  
-> 关联文档：[nl-automata-rv-upgrade.md](./nl-automata-rv-upgrade.md)（方案）、[rvguard-vs-agent-security-tools.md](../comparison/rvguard-vs-agent-security-tools.md)（对比）、[roadmap.md](../ops/roadmap.md)（路线图）
+> 关联文档：[rvguard-vs-agent-security-tools.md](../comparison/rvguard-vs-agent-security-tools.md)（对比）、[rv-engine-report.md](../architecture/rv-engine-report.md)（技术报告）、[roadmap.md](../ops/roadmap.md)（路线图）
 
 ---
 

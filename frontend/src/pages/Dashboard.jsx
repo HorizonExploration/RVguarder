@@ -7,6 +7,7 @@ import { ActionCard } from '../components/ActionCard';
 import { HookStatus } from '../components/HookStatus';
 import { TraceTimeline } from '../components/TraceTimeline';
 import { RvStatusPanel } from '../components/RvStatusPanel';
+import { InsightsCard } from '../components/Charts';
 
 /* ── Polling hook ── */
 function usePolling() {
@@ -139,6 +140,7 @@ export function Dashboard() {
     <div class="dashboard">
       <HeroCard />
       <StatRow />
+      <InsightsCard />
       {rvMode && <TraceTimeline />}
       {rvMode && <RvStatusPanel />}
       <PendingSection />

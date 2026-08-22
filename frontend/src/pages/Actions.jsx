@@ -5,6 +5,7 @@ import { ActionCard } from '../components/ActionCard';
 const STATUSES = [
   'pending_approval', 'approved', 'executing',
   'executed', 'rejected', 'blocked', 'failed',
+  'proposed', 'allow',
 ];
 
 export function Actions() {
@@ -23,6 +24,11 @@ export function Actions() {
 
   return (
     <div class="stack-view">
+      <div class="rules-header">
+        <h3>
+          {t('actions')} <span class="rule-count">{filtered.length}</span>
+        </h3>
+      </div>
       <div class="action-filters">
         {STATUSES.map((s) => (
           <button

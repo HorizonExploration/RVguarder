@@ -14,6 +14,7 @@
 - [x] 置信度门控：语义置信度（`ToolCallIR.confidence`）低于 `confidence_threshold`（默认 0.5）的规则不参与判定
 - [x] ≥10 条高频规则迁移为 `ConstraintRule`，行为与旧 lambda 对齐
 - [x] `tests/test_constraints.py` 通过；`tests/test_detection.py` 无回归
+- [x] 规则双轨一致性：`test_migrated_rules_align_with_detection` 断言 10 条迁移规则与 `detection.builtin_rules()` 逐字段对齐（保留双定义，CI 兜底）
 
 ## 阶段 C：RV 基线自动机
 - [x] `trace_abstractor.py` φ 抽象正确（RvTraceStep → 三元组）
@@ -44,6 +45,6 @@
 
 ## 全局
 - [x] 全部阶段向后兼容：`props`/`labels`/`OPENCLAW_RV_RULE_MODE` 语义不变
-- [x] 全量测试通过，无回归
+- [x] 全量测试通过，无回归（344 passed / 18 skipped，含性能冒烟基准 `tests/test_perf_smoke.py`）
 - [x] `docs/research/nl-automata-rv-upgrade-plan.md` A~F 状态标记已落地
 - [x] `docs/ops/roadmap.md` v0.4.0/v0.5.0/v0.6.0 里程碑已更新

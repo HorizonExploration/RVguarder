@@ -125,6 +125,12 @@ def _apply_rv_if_available(
         timings.setdefault("rv_ms", 0.0)
         return decision
 
+    # RV 总开关（preferences.rv_mode）：关闭后跳过 RV overlay 判定
+    if not services.rv_enabled():
+        timings = _ensure_pipeline_timings(event)
+        timings.setdefault("rv_ms", 0.0)
+        return decision
+
     # Per-session 窗口隔离
     session_key = _resolve_rv_session_key(event)
 
@@ -183,7 +189,15 @@ def _apply_constraint_engine(
     rule, score = results[0]
     severity = {"block": 4, "escalate": 3, "ask": 2, "ok": 1}
     det_action = getattr(decision, "action", "allow")
-    if severity.get(rule.decision, 0) > severity.get(det_action, 1):
+    matched = severity.get(rule.decision, 0) > severity.get(det_action, 1)
+    event.metadata["constraint_result"] = {
+        "rule_id": rule.rule_id,
+        "title": rule.title,
+        "decision": rule.decision,
+        "score": round(score, 4),
+        "matched": matched,
+    }
+    if matched:
         decision.action = rule.decision
         decision.reason = f"[Constraint] {rule.title} (score={score:.2f}) 原有: {det_action}"
         decision.rule_ids = list(decision.rule_ids) + [rule.rule_id]

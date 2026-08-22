@@ -24,7 +24,7 @@ export default defineUserConfig({
       { text: "部署运维", link: "/deployment/local.html" },
       { text: "API", link: "/api/http.html" },
       { text: "FAQ", link: "/ops/faq.html" },
-      { text: "调研", link: "/research/nl-automata-rv-upgrade.html" },
+      { text: "调研", link: "/research/nl-automata-rv-upgrade-plan.html" },
     ],
     sidebar: {
       "/architecture/": [
@@ -33,6 +33,9 @@ export default defineUserConfig({
           children: [
             "/architecture/overview.md",
             "/architecture/index.md",
+            "/architecture/rv-engine-report.md",
+            "/architecture/nl-automata-rv-landing-report.md",
+            "/architecture/project-status-analysis.md",
             "/architecture/target-architecture.md",
             "/architecture/refactoring-plan.md",
             "/architecture/quality-assurance.md",
@@ -76,7 +79,6 @@ export default defineUserConfig({
           text: "对比分析",
           children: [
             "/comparison/rvguard-vs-agent-security-tools.md",
-            "/comparison/rvguard-vs-guardrail.md",
           ],
         },
       ],
@@ -84,7 +86,6 @@ export default defineUserConfig({
         {
           text: "调研与规划",
           children: [
-            "/research/nl-automata-rv-upgrade.md",
             "/research/nl-automata-rv-upgrade-plan.md",
           ],
         },
@@ -112,16 +113,6 @@ export default defineUserConfig({
           text: "开发文档",
           children: [
             "/dev/frontend.md",
-          ],
-        },
-      ],
-      "/archive/": [
-        {
-          text: "归档文档",
-          children: [
-            "/archive/rv-development-plan.md",
-            "/archive/rv-engine-comparison-v3.md",
-            "/archive/rv-feasibility-report.md",
           ],
         },
       ],

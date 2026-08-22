@@ -5,16 +5,18 @@ import { rvToggle } from '../api';
 import { Toast } from './Toast';
 
 /** 根据当前路径判断 nav 按钮是否 active */
-function useIsActive(view) {
-  if (typeof window === 'undefined') return false;
-  const p = window.location.pathname;
+function useIsActive(view, currentPath) {
+  const p = currentPath || '/';
   if (view === 'dashboard') return p === '/' || p === '';
-  return p === '/' + view;
+  const target = '/' + view;
+  return p === target || p.startsWith(target + '/');
 }
 
-export function Layout({ children }) {
+export function Layout({ children, currentPath }) {
   const rvMode = useStore((s) => s.rvMode);
   const setRvMode = useStore((s) => s.setRvMode);
+  const theme = useStore((s) => s.theme);
+  const toggleTheme = useStore((s) => s.toggleTheme);
   const showToast = useStore((s) => s.showToast);
   const setSummary = useStore((s) => s.setSummary);
 
@@ -51,7 +53,12 @@ export function Layout({ children }) {
         </div>
         <nav class="nav">
           {navItems.map(([view, icon, label]) => (
-            <Link key={view} class={'nav-btn' + (useIsActive(view) ? ' active' : '')} href={view === 'dashboard' ? '/' : '/' + view}>
+            <Link
+              key={view}
+              class={'nav-btn' + (useIsActive(view, currentPath) ? ' active' : '')}
+              href={view === 'dashboard' ? '/' : '/' + view}
+              aria-current={useIsActive(view, currentPath) ? 'page' : undefined}
+            >
               <span class="nav-icon">{icon}</span>
               {label}
             </Link>
@@ -60,6 +67,14 @@ export function Layout({ children }) {
       </aside>
       <main class="main">
         <div class="topbar">
+          <button
+            class="topbar-btn theme-btn"
+            id="theme-toggle"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? '切换亮色主题' : '切换暗色主题'}
+          >
+            {theme === 'dark' ? '☀️ 亮色' : '🌙 暗色'}
+          </button>
           <div class="rv-toggle">
             <span>{t('rvMode')}</span>
             <button id="rv-toggle" class={'rv-btn ' + (rvMode ? 'on' : 'off')} onClick={handleRvToggle}>

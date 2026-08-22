@@ -1,12 +1,27 @@
 import { create } from 'zustand';
 
 const RV_MODE_KEY = 'openclaw-guard-rv-mode';
+const THEME_KEY = 'openclaw-guard-theme';
+
+const _initialTheme = () => {
+  if (typeof localStorage !== 'undefined') {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === 'dark' || saved === 'light') return saved;
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+  }
+  return 'light';
+};
 
 export const useStore = create((set, get) => ({
   // ── Summary data ──
   summary: {},
   loading: true,
   _summaryHash: '',
+
+  // ── Theme ──
+  theme: _initialTheme(),
 
   // ── View state (replaces state.view — now handled by preact-router) ──
   actionFilter: 'pending_approval',
@@ -67,6 +82,28 @@ export const useStore = create((set, get) => ({
     }
     set({ rvMode: v });
   },
+
+  setTheme: (t) => {
+    const v = t === 'dark' ? 'dark' : 'light';
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(THEME_KEY, v);
+    }
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', v);
+    }
+    set({ theme: v });
+  },
+
+  toggleTheme: () => set((s) => {
+    const v = s.theme === 'dark' ? 'light' : 'dark';
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(THEME_KEY, v);
+    }
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', v);
+    }
+    return { theme: v };
+  }),
 
   setRvStatus: (rvStatus) => set({ rvStatus }),
 

@@ -19,6 +19,9 @@ dependencies = [
   "pydantic>=2.0",
 ]
 
+[project.scripts]
+openclaw-guard = "openclaw_guard.main:main"
+
 [project.optional-dependencies]
 web = ["fastapi>=0.115.0", "uvicorn[standard]>=0.30.0"]
 postgres = ["psycopg2-binary", "sqlalchemy[asyncio]>=2.0"]

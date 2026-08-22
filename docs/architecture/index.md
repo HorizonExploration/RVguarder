@@ -1,22 +1,47 @@
-# 架构重构方案 · 文档索引
+# 架构文档索引
 
-> 版本：v1.0 | 日期：2026-08-01 | 状态：阶段一~六 ✅ 阶段七 ⏳
+> 版本：v1.1 | 日期：2026-08-14 | 状态：阶段一~六 ✅ 阶段七 ⏳ ｜ RV 阶段 A–F ✅
 
 ---
 
-本文档集全面涵盖 OpenClaw-RVGuarder 从 v0.2.1 到目标 v1.0 的架构分析、框架选型、分阶段实施计划、目标架构设计及质量保障措施。当前已完成前六个阶段（FastAPI HTTP 层、Pydantic 模型迁移、Manager 拆分、Preact 前端、SQLAlchemyStore 可选存储、RV 规约驱动），阶段七（长期优化：CI、typing、metrics）为下一目标。
+本文档集全面涵盖 OpenClaw-RVGuarder 从 v0.2.1 到目标 v1.0 的架构分析、框架选型、分阶段实施计划、目标架构设计及质量保障措施。当前已完成前六个阶段（FastAPI HTTP 层、Pydantic 模型迁移、Manager 拆分、Preact 前端、SQLAlchemyStore 可选存储、RV 规约驱动）与 RV 升级阶段 A–F（IR 结构化、约束推理引擎、基线自动机、参数化原语、NL2Spec 生成、干预升级），阶段七（长期优化：CI、typing、metrics）为下一目标。
 
 ---
 
 ## 文档清单
 
+### 核心文档（现行）
+
 | 文档 | 摘要 | 阅读顺序 |
 |------|------|---------|
-| [architecture-analysis.md](./architecture-analysis.md) | **架构分析报告**：技术栈全景、模块依赖关系、数据流、技术痛点矩阵（P0/P1/P2）、扩展性瓶颈 | **1** |
-| [framework-evaluation.md](./framework-evaluation.md) | **框架选型评估**：FastAPI vs Flask vs Litestar 深度对比，适配性/重构成本/长期维护三维评估 | **2** |
-| [refactoring-plan.md](./refactoring-plan.md) | **渐进式重构计划**：6 个阶段的划分、每阶段实施步骤、验收标准、时间线（Gantt 图）、回退策略 | **3** |
-| [target-architecture.md](./target-architecture.md) | **目标架构设计**：重构后目录结构、前后端交互规范（响应格式/错误码/分页）、依赖注入方案、工程化配置 | **4** |
-| [quality-assurance.md](./quality-assurance.md) | **质量保障方案**：测试金字塔、API 测试策略、回归验证矩阵、代码质量门禁、性能基准、熔断器测试 | **5** |
+| [overview.md](./overview.md) | **架构总览**：分层设计（管理层/管控层/检测层/监控层）与决策流 | **1** |
+| [rv-engine-report.md](./rv-engine-report.md) | **RV 层技术报告**：规约 DSL、监视器编译、约束引擎、基线自动机、已知边界 | **2** |
+| [nl-automata-rv-landing-report.md](./nl-automata-rv-landing-report.md) | **RV 落地审计报告**：阶段 A–F 逐项核验 + 异常整改闭环 | **3** |
+| [project-status-analysis.md](./project-status-analysis.md) | **项目现状分析**：前端/后端/核心功能三类问题清单与推进顺序 | **4** |
+| [quality-assurance.md](./quality-assurance.md) | **质量保障方案**：测试金字塔、API 测试策略、回归验证矩阵、代码质量门禁、性能基准 | **5** |
+
+### 历史重构文档（阶段一~六，已执行完毕）
+
+| 文档 | 摘要 | 状态 |
+|------|------|------|
+| [architecture-analysis.md](./architecture-analysis.md) | 架构分析报告：技术栈全景、模块依赖、技术痛点矩阵 | ✅ 已完成（历史参考） |
+| [framework-evaluation.md](./framework-evaluation.md) | 框架选型评估：FastAPI vs Flask vs Litestar | ✅ 已完成（历史参考） |
+| [refactoring-plan.md](./refactoring-plan.md) | 渐进式重构计划：6 阶段划分与验收标准 | ✅ 已完成（历史参考） |
+| [target-architecture.md](./target-architecture.md) | 目标架构设计：目录结构、前后端交互规范 | ✅ 已完成（历史参考） |
+
+---
+
+## 文档健康状态（2026-08-14 体检）
+
+| 文档 | 状态 | 处理建议 |
+|------|------|---------|
+| `archive/rv-development-plan.md`、`archive/rv-feasibility-report.md`、`archive/rv-engine-comparison-v3.md` | 🗑️ **已删除**（2026-08-14） | transitions FSM 时代文档，已被 `rv-engine-report.md` 取代 |
+| `research/nl-automata-rv-upgrade.md` | 🗑️ **已删除**（2026-08-14） | 调研方案 v0.1，已被 `research/nl-automata-rv-upgrade-plan.md` 取代 |
+| `comparison/rvguard-vs-guardrail.md` | 🗑️ **已删除**（2026-08-14） | 早期对比，已被 `comparison/rvguard-vs-agent-security-tools.md` 取代 |
+| `features/rv-layer-analysis.md` | 🗑️ **已删除**（2026-08-14） | RV 层历史分析，已被 `architecture/rv-engine-report.md` 取代 |
+| 其余 `features/`、`deployment/`、`api/`、`semantic/`、`dev/`、`ops/` 文档 | ✅ 现行 | 保持 |
+
+> 上述 6 个文档已删除，`docs/` 内部交叉引用与 `.vuepress/config.ts` 导航均已同步清理，无死链。
 
 ---
 

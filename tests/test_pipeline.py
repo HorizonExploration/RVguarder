@@ -154,6 +154,19 @@ class ApplyRvIfAvailableTests(unittest.TestCase):
         result = _apply_rv_if_available(self.services, event, decision)
         self.assertEqual(result.action, "block")
 
+    def test_rv_disabled_skips_overlay(self) -> None:
+        """RV 总开关（rv_mode=false）关闭后，RV overlay 不覆盖检测判定。"""
+        event = MagicMock()
+        event.metadata = {"rv_trace": [{"step_id": "s1", "event": "mail_send",
+                         "props": ["mail_send", "external_recipient", "contains_secret"]}]}
+        decision = self._make_decision(action="ask", reason="semantic")
+
+        with patch.object(self.services, "rv_enabled", return_value=False):
+            result = _apply_rv_if_available(self.services, event, decision)
+
+        self.assertEqual(result.action, "ask")
+        self.assertNotIn("[RV]", result.reason)
+
 
 class ApplySessionEscalationTests(unittest.TestCase):
     """_apply_session_escalation 测试（阶段 F 会话升级 + revise 干预）。"""

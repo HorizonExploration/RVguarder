@@ -465,6 +465,45 @@ class TestConstraintEngine(unittest.TestCase):
         results = engine.evaluate([ir])
         self.assertTrue(any(r.rule_id == "CMD-001" for r, _ in results))
 
+    def test_migrated_rules_align_with_detection(self):
+        """规则双轨一致性：迁移规则与 detection.builtin_rules() 同 rule_id 定义对齐。
+
+        10 条迁移规则在 constraints.py 与 detection.py 两处定义（保留双定义），
+        本测试兜底两处漂移：任一规则任一字段不一致即失败。
+        """
+        from openclaw_guard.engine.detection import builtin_rules
+
+        detection_by_id = {rule.rule_id: rule for rule in builtin_rules()}
+        self.assertGreaterEqual(len(detection_by_id), 10)
+
+        for c_rule in migrated_constraint_rules():
+            d_rule = detection_by_id.get(c_rule.rule_id)
+            self.assertIsNotNone(
+                d_rule,
+                f"迁移规则 {c_rule.rule_id} 在 detection.builtin_rules() 中不存在",
+            )
+            # 元数据一致
+            self.assertEqual(c_rule.title, d_rule.title, f"{c_rule.rule_id} title 漂移")
+            self.assertEqual(c_rule.description, d_rule.description, f"{c_rule.rule_id} description 漂移")
+            self.assertEqual(c_rule.decision, d_rule.decision, f"{c_rule.rule_id} decision 漂移")
+            self.assertEqual(c_rule.severity, d_rule.severity, f"{c_rule.rule_id} severity 漂移")
+            self.assertEqual(c_rule.risk_level, d_rule.risk_level, f"{c_rule.rule_id} risk_level 漂移")
+            # 动作约束 ↔ action_types（归一化为 str 比较）
+            expected_actions = [str(a) for a in d_rule.action_types]
+            actual_actions = list(c_rule.action.action_types) if c_rule.action else []
+            self.assertEqual(actual_actions, expected_actions, f"{c_rule.rule_id} action_types 漂移")
+            # 标签约束 ↔ match_labels
+            self.assertIsNotNone(c_rule.tags, f"{c_rule.rule_id} 缺少 tags 约束")
+            self.assertEqual(
+                list(c_rule.tags.require_all), list(d_rule.match_labels),
+                f"{c_rule.rule_id} match_labels 漂移",
+            )
+            self.assertEqual(list(c_rule.tags.require_any), [], f"{c_rule.rule_id} require_any 应为空")
+            # 迁移规则不应携带实体/敏感度/时序约束（与 detection 标签规则语义等价）
+            self.assertIsNone(c_rule.entity, f"{c_rule.rule_id} 不应有 entity 约束")
+            self.assertIsNone(c_rule.sensitivity, f"{c_rule.rule_id} 不应有 sensitivity 约束")
+            self.assertIsNone(c_rule.temporal, f"{c_rule.rule_id} 不应有 temporal 约束")
+
 
 if __name__ == "__main__":
     unittest.main()

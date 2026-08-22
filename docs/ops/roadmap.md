@@ -1,6 +1,6 @@
 # 发展路线图 · Roadmap
 
-当前版本：**v0.3.0** — FastAPI HTTP 层就绪，Pydantic v2 模型迁移完成。
+当前版本：**v0.6.0** — FastAPI HTTP 层就绪，Pydantic v2 模型迁移完成，RV 阶段 A–F（IR 结构化 / 约束推理 / 基线自动机 / 参数化原语 / NL2Spec / 干预升级）全部落地。全量测试 344 passed / 18 skipped。
 
 ---
 
@@ -20,7 +20,7 @@
 | **旧版 HTTP 层保留** | **v0.3.0** | `legacy_web.py` 为默认 HTTP 服务，与 FastAPI 双轨并行 |
 | **SQLAlchemyStore 可选存储** | **v0.3.0** | `storage/db_store.py` 内嵌 SQLAlchemyStore，`DB_STORE_MODE=sqlalchemy` 启用 ORM 存储 |
 | **RV 规约驱动** | **v0.3.0** | ChainRule DSL（`rv/rv_dsl.py` + `rv_rules.json`）编译监视器，默认 dsl 模式，FSM 为回退 |
-| **IR 结构化透传** | **v0.4.0** | ToolCallIR + 语义层实体/约束/置信度透传，约束推理引擎替换 47 条 lambda，置信度门控 |
+| **IR 结构化透传** | **v0.4.0** | ToolCallIR（11 字段）+ 语义层实体/约束/置信度透传，约束推理引擎（五类约束 + 加权评分 + 置信度门控），10 条高频规则已迁移（渐进） |
 | **基线自动机 + 参数化** | **v0.5.0** | BaselineLearner 偏离检测 + QEA 式 bind_vars + 实体守卫 + 时间原语 + 状态计数器 |
 | **NL2Spec + 干预闭环** | **v0.6.0** | Nl2SpecGenerator + SpecValidator 反例验证 + revise 干预 + SessionSafetyState 会话追踪 |
 

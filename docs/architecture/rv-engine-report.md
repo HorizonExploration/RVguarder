@@ -2,7 +2,7 @@
 
 > 版本：v1.0 | 日期：2026-08-11
 > 范围：`openclaw_guard/rv/`（运行时验证）+ `openclaw_guard/spec/`（规约生成与校验）两个子包
-> 关联文档：[rv-layer-analysis.md](../features/rv-layer-analysis.md)（拆分前历史分析）、[nl-automata-rv-upgrade-plan.md](../research/nl-automata-rv-upgrade-plan.md)（升级计划）、[roadmap.md](../ops/roadmap.md)（路线图）
+> 关联文档：[nl-automata-rv-upgrade-plan.md](../research/nl-automata-rv-upgrade-plan.md)（升级计划）、[rvguard-work-intro.md](../research/rvguard-work-intro.md)（项目介绍）、[roadmap.md](../ops/roadmap.md)（路线图）
 
 ---
 
@@ -257,12 +257,13 @@ Ruleset
 | `tests/test_rv_fsm.py` | legacy FSM 监视器 |
 | `tests/test_baseline_learner.py` | 基线 DFA 学习/偏离检测/规模缩减 |
 | `tests/test_ir.py` | ToolCallIR 模型与透传 |
-| `tests/test_constraints.py` | 约束引擎/置信度门控 |
+| `tests/test_constraints.py` | 约束引擎/置信度门控/规则双轨一致性（10 条迁移规则与 detection 逐字段对齐） |
 | `tests/test_nl2spec.py` | 模板匹配/来源标记/校验器/trace 库 |
 | `tests/test_intervention.py` | 会话状态/升级链/revision_hint |
 | `tests/test_pipeline.py` | RV overlay / per-session 隔离 / 完整链路 |
+| `tests/test_perf_smoke.py` | 性能冒烟基准：约束引擎 0.07ms/次、RV 引擎 0.08ms/次、会话状态 1000 次 0.75ms（本机实测） |
 
-全量测试：**340 passed, 18 skipped, 0 failed**（2026-08-14）。
+全量测试：**344 passed, 18 skipped, 0 failed**（2026-08-14）。
 
 ---
 
@@ -270,7 +271,7 @@ Ruleset
 
 1. **LLM 自动生成未落地**：`nl2spec_generator.py` 的 `use_llm=True` 仅预留接口，当前「自然语言 → 规约」只有模板关键词匹配。
 2. **基线自动机默认不启用**：`BaselineMonitor` 需显式配置 `OPENCLAW_RV_BASELINE_DFA_PATH` 加载 DFA，默认引擎不加载。
-3. **约束推理引擎已接入，lambda 规则并存**：`ConstraintEngine` 已接入 `pipeline.py`（`_apply_constraint_engine`，按 `OPENCLAW_RV_CONSTRAINT_MODE` 开关），与 `detection.py` 的 lambda 规则并存，尚未完全替换（渐进迁移）。
+3. **约束推理引擎已接入，lambda 规则并存**：`ConstraintEngine` 已接入 `pipeline.py`（`_apply_constraint_engine`，按 `OPENCLAW_RV_CONSTRAINT_MODE` 开关），与 `detection.py` 的 lambda 规则并存，尚未完全替换（渐进迁移）。10 条迁移规则在两处保留定义，已由 `tests/test_constraints.py::test_migrated_rules_align_with_detection` 一致性测试兜底，任一字段漂移即失败。
 4. **规约与 office policy 存在重叠**：`rv_rules.json` 的 MailMonitor/ReportMonitor 与 `detection.py` 的 `_office_decision()` 有规则重复（已集中为单一 JSON，但双源并存）。
 5. **窗口大小边界**：默认 10 步，攻击链起手事件可能被挤出窗口，需按场景调优。
 

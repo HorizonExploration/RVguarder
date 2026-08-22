@@ -651,6 +651,14 @@ class GuardServices:
         write_json(self.preferences_path, prefs)
         return prefs
 
+    def rv_enabled(self) -> bool:
+        """RV 引擎总开关（`preferences.rv_mode`，默认 on）。
+
+        由前端「RV 模式」开关控制，关闭后 RV overlay 判定（升权不降权）
+        停止生效，与约束引擎/会话升级的独立环境变量开关解耦。
+        """
+        return bool(self.preferences().get("rv_mode", True))
+
     def rv_toggle(self, payload: dict[str, Any]) -> dict[str, Any]:
         enabled = bool(payload.get("enabled", True))
         rule_mode = payload.get("rule_mode")

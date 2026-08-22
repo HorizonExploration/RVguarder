@@ -29,6 +29,11 @@ v0.3.0 落地了「NL→Automata RV 升级方案」（阶段 A–F），但审�
 
 - **E7 过时注释**：清理 `constraints.py` 中引用已删函数的死注释
 
+### 收尾整改（审计报告遗留项）
+
+- **规则双轨一致性测试**：`migrated_constraint_rules()`（10 条）与 `detection.builtin_rules()` 对应规则保留双定义，新增 `tests/test_constraints.py::test_migrated_rules_align_with_detection` 逐字段对齐断言，任一漂移即失败，同步维护成本由 CI 兜底
+- **性能冒烟基准**：新增 `tests/test_perf_smoke.py`，覆盖约束引擎/RV 引擎/会话状态三个纯内存热路径（宽松阈值 50ms）。本机实测：约束引擎 0.07ms/次、RV 引擎 0.08ms/次、会话状态 1000 次 0.75ms
+
 ---
 
 ## 三、影响范围
@@ -42,6 +47,7 @@ v0.3.0 落地了「NL→Automata RV 升级方案」（阶段 A–F），但审�
 | 编排层 | `openclaw_guard/engine/pipeline.py` | revise 干预 |
 | 管控层 | `openclaw_guard/engine/control.py` | revise 映射 |
 | 前端 | `frontend/src/components/ActionCard.jsx` / `i18n.js` / `styles.css` | revise 交互 + 会话状态 |
+| 测试 | `tests/test_constraints.py` / `tests/test_perf_smoke.py` | 规则双轨一致性 + 性能冒烟基准 |
 | 文档 | `docs/architecture/nl-automata-rv-landing-report.md` / `.trae/specs/nl-automata-rv/checklist.md` | 审计报告 + 核验清单 |
 
 ---
@@ -50,7 +56,8 @@ v0.3.0 落地了「NL→Automata RV 升级方案」（阶段 A–F），但审�
 
 1. **revise 为新增干预动作**：`DecisionAction` 由四级（allow/ask/escalate/block）扩展为五级（含 revise），revise 裁决进入 `pending_approval` 状态，前端可一键采用修正建议
 2. **ToolCallIR 新字段全部可选**：`tool_name/arguments/permission_level/side_effect/sensitivity/irreversibility/intent` 均默认 None，旧 rv_trace 完全向后兼容
-3. **测试回归**：340 passed / 18 skipped / 0 failed（较 v0.3.0 基线 331 增加 9 个用例）
+3. **规则双轨由 CI 兜底**：10 条迁移规则保留两处定义，一致性测试保证任何一侧改动另一侧未同步时立即失败
+4. **测试回归**：344 passed / 18 skipped / 0 failed（较 v0.3.0 基线 331 增加 13 个用例）
 
 ---
 
