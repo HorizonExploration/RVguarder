@@ -40,8 +40,8 @@ features:
   </div>
   <div class="custom-card">
     <h3>📦 当前状态</h3>
-    <p>v0.6.0 — 六阶段架构重构 + RV 阶段 A–F 全部落地：IR 结构化（ToolCallIR 11 字段）、约束推理引擎（五类约束 + 置信度门控）、RV 基线自动机、参数化原语（entity/step_gap/state_counter）、NL2Spec 生成 + 反例验证闭环、revise 干预 + 会话状态追踪。全量测试 344 passed / 18 skipped。</p>
-    <p><em>v0.6.0 — Six-phase refactor + RV phases A–F complete: ToolCallIR, constraint engine (5 constraint types + confidence gating), baseline automaton, parameterized primitives, NL2Spec + counter-example loop, revise intervention + session state. 344 passed / 18 skipped.</em></p>
+    <p>v0.6.0 — 六阶段架构重构 + RV 阶段 A–F 全部落地：IR 结构化（ToolCallIR 11 字段）、约束推理引擎（五类约束 + 置信度门控）、RV 基线自动机、参数化原语（entity/step_gap/state_counter）、NL2Spec 生成 + 反例验证闭环、revise 干预 + 会话状态追踪。当前回归基线为 345 passed / 18 skipped（2026-08-23）。</p>
+    <p><em>v0.6.0 — Six-phase refactor + RV phases A–F complete: ToolCallIR, constraint engine (5 constraint types + confidence gating), baseline automaton, parameterized primitives, NL2Spec + counter-example loop, revise intervention + session state. Current regression baseline: 345 passed / 18 skipped (2026-08-23).</em></p>
   </div>
 </div>
 
@@ -114,5 +114,6 @@ openclaw-guard run
 | 📋 [基线扫描](/features/baseline.html) | 安全扫描与报告 | Security scanning & reports |
 | 📝 [审计](/features/audit.html) | 审计链与导出 | Audit trail & export |
 | 🧠 [语义增强方案](/semantic/method.html) | 语义理解架构设计 | Semantic enhancement design |
+| 🧭 [项目理解与当前记忆](/architecture/project-memory.html) | 当前代码边界、已落地能力、已知边界与维护规则 | Current project facts and maintenance memory |
 | 🩺 [运维 FAQ](/ops/faq.html) | 常见问题 | Frequently asked questions |
 | 🗺️ [路线图](/ops/roadmap.html) | 开发计划 | Development roadmap |

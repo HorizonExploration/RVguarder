@@ -1,9 +1,9 @@
 # OpenClaw-RVGuarder 项目现状分析报告
 
 > **版本**：v0.6.0（含 RV 层拆分 + 阶段 A–F 落地 + P0/P1/P2 整改闭环）
-> **分析日期**：2026-08-13（2026-08-14 整改后基线同步）
-> **分析基准**：`git commit 77b0489`（master）
-> **测试基线**：344 passed / 18 skipped / 0 failed（2026-08-14 整改后）
+> **分析日期**：2026-08-23
+> **分析基准**：`git commit 114502e`（当前 HEAD）
+> **测试基线**：345 passed / 18 skipped / 0 failed（`python -m pytest -q`）
 
 ---
 
@@ -11,7 +11,7 @@
 
 OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运行时安全保护系统。当前项目已跨过 v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆分懒加载、Preact 前端迁移），并在此基础上完成 RV 层拆分（`engine/` → `rv/` + `spec/`）与规约驱动能力（阶段 A–F）的落地。
 
-项目整体处于**架构转型后期、功能能力早期**的阶段：核心检测/RV 链路已具备生产雏形，但存在三类系统性问题需要正视——**前端资源体积超标与测试缺失**、**双轨 HTTP 层维护成本**、**检测规则多源并存导致的规则治理风险**。本报告按三大维度逐一展开，并给出可落地的后续推进顺序。
+项目整体处于**架构转型后期、功能能力早期**的阶段：核心检测/RV 链路已具备生产雏形，但仍存在三类系统性问题——**前端自动化测试与构建门禁不足**、**双轨 HTTP 层维护成本**、**约束规则与标签规则并行导致的治理风险**。本报告按三大维度展开，并给出后续推进顺序。当前事实与维护口径见 [项目理解与当前记忆](./project-memory.md)。
 
 ---
 
@@ -23,8 +23,8 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 | 后端 | Python 3.13+ / Pydantic v2 / FastAPI（可选依赖）/ transitions FSM |
 | 前端 | Vite 6 + Preact 10 + Zustand 5 + preact-router |
 | 存储 | SQLite（开发）/ PostgreSQL + Redis（生产，可选依赖） |
-| 测试 | 21+ 个 Python 测试文件，344 用例通过 |
-| 当前 git | `2a4bccd docs: 同步 RV 落地优化整改结果` |
+| 测试 | 22 个 Python 测试文件，345 通过 / 18 跳过 |
+| 当前 git | `114502e feat(release,rv,frontend,docs,build): 发布v0.6.0正式版` |
 
 **后端模块布局**（`openclaw_guard/`）：
 
@@ -178,4 +178,4 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 
 ---
 
-*本报告基于代码静态分析生成，测试数据取自全量回归基线（344 passed / 18 skipped，2026-08-14 整改后）。*
+*本报告已于 2026-08-23 复核；当前全量回归为 345 passed / 18 skipped。文中 2026-08-14 的问题快照保留其历史语境。*

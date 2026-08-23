@@ -83,9 +83,9 @@
 
 ---
 
-## 2. 目录结构（实际实现 · v0.3.0）
+## 2. 目录结构（实际实现 · v0.6.0）
 
-> 以下目录结构已按 v0.3.0 实际落地情况对齐：`services.py` 为扁平单文件、编排层内嵌 `engine/pipeline.py`、RV 规约采用 `rv_dsl.py` + `rv_rules.json`、SQLAlchemyStore 内嵌于 `db_store.py`、`api/` 与 `manager.py` 保留为兼容层。
+> 以下目录结构已按 v0.6.0 当前实现对齐：`services.py` 为扁平单文件、编排层内嵌 `engine/pipeline.py`、RV 规约采用 `rv_dsl.py` + `rv_rules.json`，并新增 `rv/` 与 `spec/` 的阶段 A–F 能力；SQLAlchemyStore 内嵌于 `db_store.py`，`api/` 与 `manager.py` 保留为兼容层。
 
 ```
 openclaw_guard/
@@ -377,7 +377,7 @@ class RuntimeVerificationEngine:
 3. **React 生态**：可复用 React 仪表盘组件（如 `recharts`、`tanstack-table`）
 4. **Vite 集成**：`@preact/preset-vite` 零配置接入
 
-### 7.2 前端目录结构（已落地 · v0.3.0）
+### 7.2 前端目录结构（已落地 · v0.6.0）
 
 ```
 frontend/
@@ -504,7 +504,7 @@ jobs:
 
 ## 10. 迁移后对比
 
-| 维度 | 重构前 (v0.2.1) | 当前 (v0.3.0) | 重构后 (v1.0) |
+| 维度 | 重构前 (v0.2.1) | 当前 (v0.6.0) | 重构后 (v1.0) |
 |------|-----------------|----------------|---------------|
 | Web 框架 | `BaseHTTPRequestHandler` | **legacy_web 默认 + FastAPI 可选（`--fastapi`）** | FastAPI |
 | 序列化 | 手动 `to_dict()` | **Pydantic v2（to_dict 别名）** | Pydantic 自动 |

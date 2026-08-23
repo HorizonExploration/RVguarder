@@ -1,6 +1,6 @@
 # 架构文档索引
 
-> 版本：v1.1 | 日期：2026-08-14 | 状态：阶段一~六 ✅ 阶段七 ⏳ ｜ RV 阶段 A–F ✅
+> 版本：v1.2 | 日期：2026-08-23 | 状态：阶段一~六 ✅ 阶段七 ⏳ ｜ RV 阶段 A–F ✅
 
 ---
 
@@ -15,6 +15,7 @@
 | 文档 | 摘要 | 阅读顺序 |
 |------|------|---------|
 | [overview.md](./overview.md) | **架构总览**：分层设计（管理层/管控层/检测层/监控层）与决策流 | **1** |
+| [project-memory.md](./project-memory.md) | **项目理解与当前记忆**：当前代码边界、测试基线、已知边界与维护规则 | **0（先读）** |
 | [rv-engine-report.md](./rv-engine-report.md) | **RV 层技术报告**：规约 DSL、监视器编译、约束引擎、基线自动机、已知边界 | **2** |
 | [nl-automata-rv-landing-report.md](./nl-automata-rv-landing-report.md) | **RV 落地审计报告**：阶段 A–F 逐项核验 + 异常整改闭环 | **3** |
 | [project-status-analysis.md](./project-status-analysis.md) | **项目现状分析**：前端/后端/核心功能三类问题清单与推进顺序 | **4** |
@@ -31,7 +32,7 @@
 
 ---
 
-## 文档健康状态（2026-08-14 体检）
+## 文档健康状态（2026-08-23 复核）
 
 | 文档 | 状态 | 处理建议 |
 |------|------|---------|
@@ -42,6 +43,8 @@
 | 其余 `features/`、`deployment/`、`api/`、`semantic/`、`dev/`、`ops/` 文档 | ✅ 现行 | 保持 |
 
 > 上述 6 个文档已删除，`docs/` 内部交叉引用与 `.vuepress/config.ts` 导航均已同步清理，无死链。
+
+> 版本说明：`architecture-analysis.md`、`framework-evaluation.md`、`refactoring-plan.md`、`quality-assurance.md` 保留 v0.3.0 的历史评审语境；当前实现、测试基线与未完成项以 [项目理解与当前记忆](./project-memory.md) 和 [项目现状分析](./project-status-analysis.md) 为准。
 
 ---
 

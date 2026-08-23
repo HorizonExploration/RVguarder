@@ -32,6 +32,7 @@ export default defineUserConfig({
           text: "架构设计",
           children: [
             "/architecture/overview.md",
+            "/architecture/project-memory.md",
             "/architecture/index.md",
             "/architecture/rv-engine-report.md",
             "/architecture/nl-automata-rv-landing-report.md",

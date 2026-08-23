@@ -1,6 +1,6 @@
 # 发展路线图 · Roadmap
 
-当前版本：**v0.6.0** — FastAPI HTTP 层就绪，Pydantic v2 模型迁移完成，RV 阶段 A–F（IR 结构化 / 约束推理 / 基线自动机 / 参数化原语 / NL2Spec / 干预升级）全部落地。全量测试 344 passed / 18 skipped。
+当前版本：**v0.6.0** — FastAPI HTTP 层就绪，Pydantic v2 模型迁移完成，RV 阶段 A–F（IR 结构化 / 约束推理 / 基线自动机 / 参数化原语 / NL2Spec / 干预升级）全部落地。当前回归基线：345 passed / 18 skipped（2026-08-23）。
 
 ---
 
