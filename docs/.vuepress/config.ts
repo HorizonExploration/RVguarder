@@ -7,6 +7,7 @@ export default defineUserConfig({
   title: "Openclaw Guard",
   description: "龙虾卫士文档站，覆盖快速开始、架构说明、部署、安全能力与运维说明。",
   base: "/",
+  pagePatterns: ["**/*.md", "!superpowers/**"],
   bundler: viteBundler(),
   head: [
     ["meta", { name: "theme-color", content: "#111827" }],
@@ -33,6 +34,7 @@ export default defineUserConfig({
           children: [
             "/architecture/overview.md",
             "/architecture/project-memory.md",
+            "/architecture/frontend-handoff-redesign-report.md",
             "/architecture/index.md",
             "/architecture/rv-engine-report.md",
             "/architecture/nl-automata-rv-landing-report.md",

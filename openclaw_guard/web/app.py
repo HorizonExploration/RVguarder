@@ -17,7 +17,7 @@ from fastapi import FastAPI
 
 from openclaw_guard.services import GuardServices
 from openclaw_guard.web import errors
-from openclaw_guard.web.routes import actions, audit, baseline, health, hook, rv, static
+from openclaw_guard.web.routes import actions, audit, baseline, events, health, hook, rv, static
 
 if TYPE_CHECKING:
     import uvicorn  # noqa: F401
@@ -46,6 +46,7 @@ def create_app(manager: GuardServices) -> FastAPI:
     app.include_router(audit.router)
     app.include_router(rv.router)
     app.include_router(actions.router)
+    app.include_router(events.router)
     app.include_router(hook.router)
 
     # 静态文件 catch-all —— 必须最后注册

@@ -5,7 +5,8 @@ import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote
+from urllib.parse import parse_qs, unquote, urlsplit
+import json
 
 from openclaw_guard import api
 from openclaw_guard.services import GuardServices
@@ -40,12 +41,32 @@ def _build_handler(manager: GuardServices, ui_dir: Path):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             raw_path = (self.path or "/").split("?", 1)[0]
+            if raw_path == "/api/events":
+                self._write_events(manager)
+                return
+            if raw_path.startswith("/api/actions/"):
+                action_id = unquote(raw_path.rsplit("/", 1)[-1])
+                payload, status = api.get_action(manager, action_id)
+                self._write_json(payload, status)
+                return
             if raw_path.startswith("/api/"):
                 handler_fn = _GET_ROUTES.get(raw_path)
                 if handler_fn is None:
                     self.send_error(HTTPStatus.NOT_FOUND, "Not found")
                     return
-                payload, status = handler_fn(manager)
+                query = parse_qs(urlsplit(self.path).query)
+                if raw_path == "/api/actions":
+                    payload, status = api.list_actions(
+                        manager,
+                        status=(query.get("status") or [None])[0],
+                        source=(query.get("source") or [None])[0],
+                        limit=int((query.get("limit") or [1000])[0]),
+                    )
+                elif raw_path == "/api/summary":
+                    query = parse_qs(urlsplit(self.path).query)
+                    payload, status = api.summary(manager, compact=(query.get("view") or [None])[0] == "compact")
+                else:
+                    payload, status = handler_fn(manager)
                 self._write_json(payload, status)
                 return
 
@@ -95,6 +116,28 @@ def _build_handler(manager: GuardServices, ui_dir: Path):
                 self.wfile.write(body)
             except (BrokenPipeError, ConnectionResetError):
                 # 客户端（浏览器）提前关闭了连接，忽略此错误以保持日志清洁
+                pass
+
+        def _write_events(self, services) -> None:
+            query = parse_qs(urlsplit(self.path).query)
+            try:
+                cursor = int((query.get("after_seq") or [self.headers.get("Last-Event-ID", "0")])[0] or 0)
+            except ValueError:
+                cursor = 0
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("X-Accel-Buffering", "no")
+            self.end_headers()
+            try:
+                for event in services.events.wait_since(cursor, timeout=15.0):
+                    body = json.dumps(event, ensure_ascii=False)
+                    self.wfile.write(f"id: {event['seq']}\nevent: {event['type']}\ndata: {body}\n\n".encode("utf-8"))
+                    self.wfile.flush()
+                self.wfile.write(b": heartbeat\n\n")
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
                 pass
 
     return Handler

@@ -1,11 +1,19 @@
+import { useEffect } from 'preact/hooks';
 import { useStore } from '../store';
 import { t, esc } from '../i18n';
 import { SkillCard } from '../components/SkillCard';
+import { fetchSummary, apiErrorMessage } from '../api';
 
 export function Skills() {
   const summary = useStore((s) => s.summary);
   const rulesSearch = useStore((s) => s.rulesSearch);
   const setRulesSearch = useStore((s) => s.setRulesSearch);
+  const setSummary = useStore((s) => s.setSummary);
+  const showToast = useStore((s) => s.showToast);
+
+  useEffect(() => {
+    fetchSummary().then(setSummary).catch((error) => showToast(apiErrorMessage(error, t('error_default'))));
+  }, []);
 
   const items = (summary.skills || {}).items || [];
   const q = (rulesSearch || '').trim().toLowerCase();

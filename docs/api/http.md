@@ -41,6 +41,8 @@
 
 返回聚合状态，包括：
 
+使用 `?view=compact` 时返回首页所需的轻量摘要；不带参数时返回完整详情。
+
 - `generated_at`：生成时间（ISO 8601）
 - `product`：产品信息
 - `target`：目标 OpenClaw 信息
@@ -69,6 +71,12 @@
   "items": []
 }
 ```
+
+可选查询参数：`status`、`source`（`hook_bridge`/`chat_relay`）和 `limit`。
+
+## GET `/api/actions/{action_id}`
+
+返回单个动作的最新状态，用于 SSE 事件后的增量刷新。
 
 ## GET `/api/baseline/latest`
 
@@ -167,7 +175,7 @@
 }
 ```
 
-如果动作来自运行时 Hook，这个接口会通过 Gateway 远程调用同步审批结果到 OpenClaw，让原工具调用继续执行。
+Hook 动作不能通过 Guard 页面审批，会返回 `409 hook_approval_owned_by_openclaw`。Hook 的唯一审批入口是 OpenClaw 原生审批卡片；该接口仅兼容 `chat_relay` 等本地动作。
 
 ## POST `/api/actions/reject`
 
@@ -179,7 +187,7 @@
 }
 ```
 
-如果动作来自运行时 Hook，这个接口会通过 Gateway 远程调用同步拒绝结果到 OpenClaw，让原工具调用收到拒绝。
+Hook 动作不能通过 Guard 页面拒绝，会返回 `409 hook_approval_owned_by_openclaw`。Hook 拒绝结果由 OpenClaw 原生审批卡片产生并回调 Guard。
 
 ## POST `/api/actions/clear`
 
@@ -226,6 +234,16 @@ OpenClaw 原生审批卡片 `onResolution` 回调使用的接口。
 
 - `actionId` 也兼容 `action_id` 字段名
 - `decision` 支持 `allow-once` / `allow-always` / `deny` / `timeout` / `cancelled`（同时兼容 `allow_once` / `allow_always` 旧格式）
+- 相同决策重复回调幂等返回；相反决策会返回 `409 resolution_conflict`
+- 响应包含 `decision_state`、`sync_state`、`event_seq` 和 `received_at`
+
+## GET `/api/events`
+
+Guard 前端使用的 Server-Sent Events（SSE）单向事件流。
+
+- 支持 `after_seq` 查询参数和 `Last-Event-ID` 断线补偿
+- 事件类型包括 `action.created`、`action.resolved`、`action.updated`、`action.conflict`
+- SSE 不可用时，前端使用轻量摘要和单动作查询进行降级对账
 
 ## POST `/api/skills/upsert`
 

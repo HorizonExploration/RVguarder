@@ -276,6 +276,13 @@ def ingest_event_pipeline(
     timings["controller_ms"] = round((time.perf_counter() - controller_started) * 1000.0, 3)
     timings["total_ms"] = round((time.perf_counter() - started) * 1000.0, 3)
     services._save_action(controlled)
+    event_record = services.events.publish("action.created", {
+        "action_id": controlled.action_id,
+        "source": controlled.source,
+        "status": controlled.status,
+    })
+    controlled.last_event_seq = event_record["seq"]
+    services._save_all(services._replace_action(controlled))
     services.audit_store.append("detection_decision", controlled.to_dict())
     services._log("detection_decision", action_id=controlled.action_id, status=controlled.status, decision=controlled.decision.action)
     if auto_execute and controlled.status == "proposed":
@@ -324,7 +331,18 @@ def handle_before_tool_call_pipeline(
         "mode": "openclaw-before-tool-call",
         "tool_name": event.metadata.get("tool_name"),
     }
+    controlled.source = "hook_bridge"
+    controlled.decision_state = "pending" if controlled.status == "pending_approval" else ("denied" if controlled.status == "blocked" else "allowed")
+    controlled.execution_state = "not_started" if controlled.status in {"pending_approval", "blocked"} else "running"
+    controlled.sync_state = "local_only"
     services._save_action(controlled)
+    event_record = services.events.publish("action.created", {
+        "action_id": controlled.action_id,
+        "source": "hook_bridge",
+        "status": controlled.status,
+    })
+    controlled.last_event_seq = event_record["seq"]
+    services._save_all(services._replace_action(controlled))
     services.audit_store.append("hook_before_tool_call", controlled.to_dict())
     services._log(
         "hook_before_tool_call",
@@ -399,6 +417,7 @@ def handle_after_tool_call_pipeline(
     )
     if error:
         action.status = "failed"
+        action.execution_state = "failed"
         action.execution_result.update(
             {
                 "error_code": "tool_execution_failed",
@@ -408,6 +427,7 @@ def handle_after_tool_call_pipeline(
         )
     elif action.status not in {"blocked", "rejected"}:
         action.status = "executed"
+        action.execution_state = "executed"
         action.execution_result.update({"status": "completed"})
 
     # 如果动作已经被拦截或拒绝，但仍然收到了 after_tool_call
@@ -417,6 +437,13 @@ def handle_after_tool_call_pipeline(
 
     services._save_all(services._replace_action(action))
     services.audit_store.append("hook_after_tool_call", action.to_dict())
+    event_record = services.events.publish("action.updated", {
+        "action_id": action.action_id,
+        "status": action.status,
+        "execution_state": action.execution_state,
+    })
+    action.last_event_seq = event_record["seq"]
+    services._save_all(services._replace_action(action))
     services._log(
         "hook_after_tool_call",
         action_id=action.action_id,

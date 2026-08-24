@@ -6,7 +6,7 @@
 
 规划中：
 
-- ~~[Dockerfile](../../docker/Dockerfile)~~（文件不存在，尚未实现）
+- `docker/Dockerfile`（文件不存在，尚未实现）
 
 适合（规划目标）：
 
@@ -18,7 +18,7 @@
 
 规划中：
 
-- ~~[openclaw-guard-sidecar.yaml](../../k8s/openclaw-guard-sidecar.yaml)~~（文件不存在，尚未实现）
+- `k8s/openclaw-guard-sidecar.yaml`（文件不存在，尚未实现）
 
 推荐用作（规划目标）：
 

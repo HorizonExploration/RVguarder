@@ -7,8 +7,8 @@
 ![Python](https://img.shields.io/badge/Python-3.13%2B-3776AB?logo=python&logoColor=white)
 ![OpenClaw](https://img.shields.io/badge/OpenClaw-Plugin%20SDK-111827)
 ![Hook](https://img.shields.io/badge/Hook-before__tool__call-0F766E)
-![RV](https://img.shields.io/badge/RV-Sliding%20Window%20FSM-7C3AED)
-![Status](https://img.shields.io/badge/Status-v0.3.0-0F766E)
+![RV](https://img.shields.io/badge/RV-ChainRule%20DSL%20%2B%20FSM-7C3AED)
+![Status](https://img.shields.io/badge/Status-v0.6.0-0F766E)
 
 ---
 
@@ -31,13 +31,13 @@ Openclaw-RVGuarder（龙虾卫士）是一个面向 [OpenClaw](https://openclaw.
 |------|------|--------|
 | **原生钩子拦截** | `api.on("before_tool_call")` 官方 API，工具执行前物理挂起 Agent | ✅ |
 | **requireApproval 挂起** | 返回 BeforeToolCallResult 类型，Agent 线程真正挂起等待审批 | ✅ |
-| **双端状态同步** | OpenClaw 原生审批卡片 ↔ Guard Dashboard 双向实时同步 | ✅ |
+| **审批结果同步** | OpenClaw 原生审批卡片唯一决策，Guard Dashboard SSE 只读同步 | ✅ |
 | **电路熔断器** | 后端不可达时自动开启熔断，优雅降级 fail-open，不封锁 OpenClaw | ✅ |
 | **语义理解增强** | DeepSeek LLM 驱动语义分析，7 维度 50+ 标签，理解自然语言意图 | ✅ |
-| **运行时验证 RV** | 滑动窗口 + FSM 监视器，检测链式攻击模式（搜索→删除→外发） | ✅ |
+| **运行时验证 RV** | 滑动窗口 + ChainRule DSL（FSM 回退），检测链式攻击模式（搜索→删除→外发） | ✅ |
 | **基线安全扫描** | 配置、端口、用户、依赖全量扫描，输出 JSON/HTML/PDF 报告 | ✅ |
 | **审计链** | SQLite + JSONL 双写，哈希链防篡改，支持 JSON/CSV 导出 | ✅ |
-| **Web 工作台** | 轻量 SPA 前端，集成审批、Trace 可视化、RV 状态面板 | ✅ |
+| **Web 工作台** | 轻量 SPA 前端，集成动作状态、Trace 可视化、RV 状态面板 | ✅ |
 
 ---
 
@@ -46,7 +46,7 @@ Openclaw-RVGuarder（龙虾卫士）是一个面向 [OpenClaw](https://openclaw.
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                   Dashboard (前端 SPA)                    │
-│         概览 · 动作审批 · 安全规则 · 基线扫描 · RV 面板      │
+│         概览 · 动作状态 · 安全规则 · 基线扫描 · RV 面板      │
 └──────────────────────┬──────────────────────────────────┘
                        │ HTTP REST API
 ┌──────────────────────▼──────────────────────────────────┐
@@ -80,7 +80,7 @@ OpenClaw 准备调用工具
   → Guard: 语义分析 → 规则检测 → RV 验证 → 白名单 → 决策
   → 返回 requireApproval | block | allow
   → requireApproval 时 Agent 挂起，弹出审批卡片
-  → 用户审批 → onResolution 回调 → 双端同步
+  → OpenClaw 原生审批 → onResolution 回调 → Guard SSE 只读同步
   → Agent 继续或终止工具调用
   → after_tool_call 回写审计
 ```
@@ -133,27 +133,28 @@ openclaw_guard/
 ├── api/                  # HTTP API 处理器（旧版 handler，被两个 HTTP 层共用）
 │   ├── __init__.py        # 路由注册与导出
 │   └── _handlers.py       # 各 API 端点实现
-├── web/                  # FastAPI HTTP 层（v0.3.0 新增，--fastapi flag 启用）
+├── web/                  # 可选 FastAPI HTTP 层（--fastapi flag 启用）
 │   ├── app.py            # create_app() 工厂 + launch_web() 入口
 │   ├── dependencies.py   # 依赖注入 + Hook 鉴权
 │   ├── errors.py         # GuardError + 统一异常处理
 │   └── routes/           # 路由模块（health, baseline, audit, rv, actions, hook, static）
 ├── core/                 # 核心业务逻辑
-│   ├── action_service.py  # 动作审批服务
+│   ├── action_service.py  # 动作生命周期服务
 │   ├── audit_service.py   # 审计查询服务
 │   └── baseline_service.py# 基线扫描服务
 ├── engine/               # 安全检测引擎
 │   ├── behavior.py        # 行为事件建模
 │   ├── control.py         # 决策与控制
 │   ├── detection.py       # 规则引擎（语义优先）
-│   ├── runtime_verification.py  # RV 引擎 + 滑动窗口
-│   ├── rv_monitors.py     # FSM 监视器（Mail/Report/Chain/DataBatch）
 │   ├── semantic_enhancer.py     # 语义分析增强
 │   └── whitelist.py       # 白名单匹配引擎
+├── rv/                   # 运行时验证（ChainRule DSL 默认，FSM 回退）
+│   ├── runtime_verification.py  # RV 引擎 + 滑动窗口
+│   └── rv_monitors.py     # FSM 监视器（Mail/Report/Chain/DataBatch）
 ├── integrations/         # OpenClaw 集成层
 │   ├── discovery.py       # 环境发现
 │   ├── hook_runtime.py    # Hook 插件生成与管理
-│   ├── openclaw_adapter.py# Gateway 远程调用适配
+│   ├── openclaw_adapter.py# Gateway 状态探测适配
 │   └── tool_hook_bridge.py# 工具事件桥接
 ├── storage/              # 数据持久化
 │   ├── audit_store.py     # 审计存储 + 哈希链
@@ -272,8 +273,10 @@ SecurityChainMonitor 触发:
 ## 测试 · Testing
 
 ```bash
-python -m unittest discover -s tests -v
+python -m pytest -q
 ```
+
+当前回归基线（2026-08-23）：`349 passed / 18 skipped`。
 
 测试覆盖：
 

@@ -14,8 +14,8 @@ actions:
 features:
   - title: 🛡️ 原生审批拦截
     details: 基于 OpenClaw 官方 `api.on("before_tool_call")` API，工具执行前挂起 agent，通过 `requireApproval` 实现物理拦截。不再有「先执行后审批」的尴尬。
-  - title: 🔄 双端状态同步
-    details: OpenClaw 原生审批卡片 ↔ Guard Dashboard 双向同步。任一端确认，两端同时更新。`onResolution` 回调 + Gateway 远程调用实时流转。
+  - title: 🔄 审批结果同步
+    details: OpenClaw 原生审批卡片是唯一 Hook 审批入口，Guard Dashboard 通过 `onResolution`、SSE 和增量查询及时同步结果。
   - title: ⚡ 电路熔断降级
     details: 后端不可达时自动进入熔断 fail-open 模式，所有工具调用自动放行。后端恢复后自动闭合。再不担心「停服即封锁」。
   - title: 🧠 语义理解增强
@@ -35,13 +35,13 @@ features:
   </div>
   <div class="custom-card">
     <h3>🧱 架构概览</h3>
-    <p>插件层 (api.on) → 桥接层 (HTTP POST) → 检测层 (规则+语义+RV) → 决策层 (requireApproval/block) → 同步层 (onResolution + Gateway call)</p>
-    <p><em>Plugin hooks → Bridge API → Detection (Rule+Semantic+RV) → Decision (requireApproval/Block) → Sync (Bidirectional)</em></p>
+    <p>插件层 (api.on) → 桥接层 (HTTP POST) → 检测层 (规则+语义+RV) → 决策层 (requireApproval/block) → Guard 状态同步 (onResolution + SSE)</p>
+    <p><em>Plugin hooks → Bridge API → Detection (Rule+Semantic+RV) → Decision (requireApproval/Block) → Read-only Guard sync (onResolution + SSE)</em></p>
   </div>
   <div class="custom-card">
     <h3>📦 当前状态</h3>
-    <p>v0.6.0 — 六阶段架构重构 + RV 阶段 A–F 全部落地：IR 结构化（ToolCallIR 11 字段）、约束推理引擎（五类约束 + 置信度门控）、RV 基线自动机、参数化原语（entity/step_gap/state_counter）、NL2Spec 生成 + 反例验证闭环、revise 干预 + 会话状态追踪。当前回归基线为 345 passed / 18 skipped（2026-08-23）。</p>
-    <p><em>v0.6.0 — Six-phase refactor + RV phases A–F complete: ToolCallIR, constraint engine (5 constraint types + confidence gating), baseline automaton, parameterized primitives, NL2Spec + counter-example loop, revise intervention + session state. Current regression baseline: 345 passed / 18 skipped (2026-08-23).</em></p>
+    <p>v0.6.0 — 六阶段架构重构 + RV 阶段 A–F 全部落地，并完成 Hook 单一审批入口与 SSE 状态同步。当前回归基线为 349 passed / 18 skipped（2026-08-23）。</p>
+    <p><em>v0.6.0 — Six-phase refactor + RV phases A–F complete, with OpenClaw-only Hook approval and SSE state synchronization. Current regression baseline: 349 passed / 18 skipped (2026-08-23).</em></p>
   </div>
 </div>
 
@@ -66,7 +66,7 @@ v0.6.0 completes the six-phase architecture refactor plus all RV upgrade phases 
 | 特性 | 说明 | Highlights |
 |------|------|------------|
 | **原生钩子拦截** | `api.on("before_tool_call")`，工具执行前物理挂起 | Official hook API, physically pauses agent before tool execution |
-| **双端审批同步** | Guard ↔ OpenClaw 实时双向同步 | Bidirectional sync — approve from either side, both update instantly |
+| **审批结果同步** | OpenClaw 负责 Hook 审批，Guard 只读同步与审计 | OpenClaw owns Hook approval; Guard provides read-only sync and audit |
 | **电路熔断器** | 自动熔断 fail-open，不封锁 OpenClaw | Circuit breaker — graceful degradation, never block when backend is down |
 | **语义理解** | DeepSeek LLM + 7 维度标签体系 | Understands natural language intent, 50+ labels across 7 dimensions |
 | **运行时验证 RV** | 滑动窗口 + 规约驱动（默认 ChainRule DSL，FSM 为回退模式）检测链式攻击 | Sliding window + spec-driven monitors (ChainRule DSL default, FSM fallback) for chain-attack detection |
@@ -78,7 +78,7 @@ v0.6.0 completes the six-phase architecture refactor plus all RV upgrade phases 
 
 ```
 Backend:   Python 3.13+ · legacy HTTP(默认) · FastAPI(可选) · DeepSeek API · SQLite · SQLAlchemy(可选) · transitions(FSM) · RV 规约驱动(ChainRule DSL) · DB_STORE_MODE / OPENCLAW_RV_RULE_MODE
-Frontend:  Preact · Vite · Zustand · 单页 SPA · 轮询刷新
+Frontend:  Preact · Vite · Zustand · 单页 SPA · SSE + 增量轮询降级
 Plugin:    JavaScript · OpenClaw Plugin SDK (api.on) · registerGatewayMethod
 Core:      Runtime Verification (RV) · 滑动窗口 · 规约驱动 ChainRule DSL(默认) + FSM 回退 · 白名单 Trie 树
 Safety:    Circuit Breaker · requireApproval · fail-open/fail-closed
@@ -104,7 +104,7 @@ openclaw-guard run
 | 章节 | 内容 | Section |
 |------|------|---------|
 | 🚀 [本地部署](/deployment/local.html) | 安装与首次启动 | Installation & first run |
-| 🛡️ [运行时 Hook 拦截](/features/runtime-hook.html) | 插件机制与双端同步详解 | Hook mechanism & bidirectional sync |
+| 🛡️ [运行时 Hook 拦截](/features/runtime-hook.html) | 插件机制与审批结果同步详解 | Hook mechanism & approval-result sync |
 | ⚙️ [动作审批链](/features/action-gate.html) | 决策流程与规则引擎 | Decision pipeline & rule engine |
 | 🌐 [HTTP 接口清单](/api/http.html) | 所有后端 API 文档 | Complete API reference |
 | 🏗️ [架构总览](/architecture/overview.html) | 分层设计与代码映射 | Architecture & code map |

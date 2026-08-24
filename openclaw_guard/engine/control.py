@@ -45,6 +45,10 @@ class GuardController:
             decision_trace=final.trace,
             matched_whitelists=matches,
             matched_rules=final.rule_ids,
+            source="hook_bridge" if event.metadata.get("hook_bridge") else "chat_relay",
+            decision_state="pending" if status == "pending_approval" else ("denied" if status == "blocked" else "allowed"),
+            execution_state="not_started" if status in {"pending_approval", "blocked"} else "running",
+            sync_state="local_only",
         )
 
 

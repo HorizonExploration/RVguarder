@@ -61,7 +61,7 @@ openclaw_guard/          # Python 后端主包
     ├── spec_validator.py     # 规约校验 + 正反例 trace
     ├── session_state.py      # 会话安全状态（阶段 F）
     └── eval_traces.py        # 正反例 trace 库
-├── web/                 # [NEW v0.3.0] FastAPI HTTP 层
+├── web/                 # 可选 FastAPI HTTP 层（--fastapi flag 启用）
 │   ├── __init__.py      # 兼容旧导出（launch_web, _error_message）
 │   ├── app.py           # create_app() 工厂 + launch_web() 入口
 │   ├── dependencies.py  # DI: get_manager, body_payload, require_hook_token
@@ -76,7 +76,7 @@ openclaw_guard/          # Python 后端主包
 ├── integrations/        # OpenClaw 集成层
 │   ├── hook_runtime.py       # 插件 JS 生成器
 │   ├── tool_hook_bridge.py   # Hook 载荷 → BehaviorEvent 转换器
-│   ├── openclaw_adapter.py   # Gateway 远程调用适配
+│   ├── openclaw_adapter.py   # Gateway 状态探测适配
 │   └── discovery.py          # 自动发现 OpenClaw 安装
 ├── storage/             # 数据持久层
 │   ├── db_store.py      # DBStoreInterface ABC → PostgreSQLStore / SQLiteStore
@@ -147,13 +147,13 @@ python -m openclaw_guard.main doctor --json
 ### 测试
 
 ```bash
-# 运行全部单元测试
-python -m unittest discover -s tests -v
+# 运行全部回归测试
+python -m pytest -q
 
 # 运行单个测试文件
-python -m unittest tests.test_detection -v
-python -m unittest tests.test_rv -v
-python -m unittest tests.test_rv_fsm -v
+python -m pytest tests/test_detection.py -q
+python -m pytest tests/test_rv.py -q
+python -m pytest tests/test_rv_fsm.py -q
 
 # 运行 E2E 测试
 cd e2e && npm install && npm run install:browsers && npm test
@@ -178,7 +178,7 @@ cd e2e && npm install && npm run install:browsers && npm test
 - 数据模型使用 **Pydantic v2 BaseModel** 定义在 `models.py`（`to_dict()` 保留为兼容别名）
 - 服务层遵循「管理器协调，服务执行」模式：`Manager` 编排流程，`Service` 封装业务
 - 检测规则中文注释（规则 ID 英文：`CMD-001`, `FILE-001`, `NET-001` 等）
-- 文件顶部用 docstring 声明模块职责边界（如 detection.py vs rv_monitors.py 的分工约定）
+- 文件顶部用 docstring 声明模块职责边界（如 `engine/detection.py` vs `rv/rv_monitors.py` 的分工约定）
 
 - 数据模型使用 **Pydantic v2 BaseModel** 定义在 `models.py`（`to_dict()` 保留为兼容别名）
 
@@ -187,7 +187,7 @@ cd e2e && npm install && npm run install:browsers && npm test
 - **非侵入式**：不修改 OpenClaw 源码，通过生成的 JS 插件 + HTTP 桥接通信
 - **双 HTTP 层**：默认 `legacy_web.py`（旧版 stdlib），`--fastapi` flag 切换到 `web/` 包（FastAPI）
 - **熔断器**：JS 插件内置，连续失败 N 次 → OPEN（放行所有），正常 → CLOSED
-- **审批同步**：OpenClaw 原生审批卡片 ↔ Guard Dashboard 双向实时同步
+- **审批同步**：OpenClaw 原生审批卡片是唯一决策入口，Guard Dashboard 通过 SSE/增量查询只读同步
 - **审计哈希链**：每条记录含 `previous_hash` + `record_hash = SHA-256(prev_hash + payload)`
 - **数据库抽象**：`DBStoreInterface` ABC → PostgreSQLStore（生产，含 Redis 缓存）/ SQLiteStore（开发）自动切换
 - **白名单 Trie 树**：前缀匹配路径/命令/网络/API/Skill，O(n) 匹配效率

@@ -12,6 +12,7 @@ from typing import Any, Callable
 
 from openclaw_guard.services import GuardServices
 from openclaw_guard.utils import json_dumps
+from openclaw_guard.utils import utc_now_iso
 
 
 JsonResponse = tuple[dict[str, Any], int]
@@ -29,8 +30,8 @@ def health(manager: GuardServices) -> JsonResponse:
     )
 
 
-def summary(manager: GuardServices) -> JsonResponse:
-    return manager.summary(), HTTPStatus.OK
+def summary(manager: GuardServices, *, compact: bool = False) -> JsonResponse:
+    return manager.summary(compact=compact), HTTPStatus.OK
 
 
 def baseline_latest(manager: GuardServices) -> JsonResponse:
@@ -41,8 +42,18 @@ def baseline_run(manager: GuardServices, payload: dict[str, Any] | None = None) 
     return manager.run_baseline(), HTTPStatus.OK
 
 
-def list_actions(manager: GuardServices) -> JsonResponse:
-    return {"items": manager.list_actions()}, HTTPStatus.OK
+def list_actions(manager: GuardServices, *, status: str | None = None, source: str | None = None, limit: int = 1000) -> JsonResponse:
+    items = manager.action_service.list_actions(status=status, limit=limit)
+    if source:
+        items = [item for item in items if item.get("source") == source or item.get("event", {}).get("metadata", {}).get("hook_bridge") == (source == "hook_bridge")]
+    return {"items": items}, HTTPStatus.OK
+
+
+def get_action(manager: GuardServices, action_id: str) -> JsonResponse:
+    action = manager.action_service.get_action(action_id)
+    if action is None:
+        return _error("action_not_found", HTTPStatus.NOT_FOUND)
+    return {"action": action}, HTTPStatus.OK
 
 
 def clear_actions(manager: GuardServices, payload: dict[str, Any] | None = None) -> JsonResponse:
@@ -88,19 +99,70 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
     if not action_id or not decision:
         return _error("Missing actionId or decision", HTTPStatus.BAD_REQUEST)
     try:
-        # get_action returns dict
         action = manager.action_service.get_action(action_id)
         if action is None:
+            manager.events.publish("hook.orphan_resolution", {"action_id": action_id, "decision": decision})
             return _error("action_not_found", HTTPStatus.NOT_FOUND)
-        # action is a dict, check status field
+        if action.get("source") != "hook_bridge" and not action.get("event", {}).get("metadata", {}).get("hook_bridge"):
+            return _error("hook_action_required", HTTPStatus.CONFLICT)
+        allowed = decision in ("allow-once", "allow-always", "allow_once", "allow_always")
+        desired_state = "allowed" if allowed else "denied"
+        existing = action.get("resolution") or {}
+        if existing:
+            if existing.get("decision_state") == desired_state:
+                return {
+                    "ok": True,
+                    "accepted": True,
+                    "idempotent": True,
+                    "action_id": action_id,
+                    "decision_state": action.get("decision_state", desired_state),
+                    "sync_state": action.get("sync_state", "callback_received"),
+                    "event_seq": action.get("last_event_seq"),
+                    "received_at": existing.get("received_at"),
+                }, HTTPStatus.OK
+            action_model = manager._find_action(action_id)
+            action_model.sync_state = "conflict"
+            manager._save_all(manager._replace_action(action_model))
+            manager.audit_store.append("hook_resolution_conflict", {
+                "action_id": action_id,
+                "existing": existing,
+                "incoming_decision": decision,
+            })
+            manager.events.publish("action.conflict", {"action_id": action_id, "decision": decision})
+            return _error("resolution_conflict", HTTPStatus.CONFLICT)
+
         if action.get("status") == "pending_approval":
-            # Allow decisions (including dash format from official spec and underscore from legacy)
-            if decision in ("allow-once", "allow-always", "allow_once", "allow_always"):
+            if allowed:
                 manager.action_service.approve(action_id, None)
             else:
-                # deny, timeout, cancelled are all reject
                 manager.action_service.reject(action_id)
-        return {"ok": True}, HTTPStatus.OK
+        action_model = manager._find_action(action_id)
+        received_at = utc_now_iso()
+        action_model.decision_state = desired_state
+        action_model.execution_state = "not_started"
+        action_model.sync_state = "callback_received"
+        action_model.resolution = {
+            "decision": decision,
+            "source": "openclaw",
+            "received_at": received_at,
+            "decision_state": desired_state,
+        }
+        event = manager.events.publish("action.resolved", {
+            "action_id": action_id,
+            "decision": decision,
+            "source": "openclaw",
+        })
+        action_model.last_event_seq = event["seq"]
+        manager._save_all(manager._replace_action(action_model))
+        return {
+            "ok": True,
+            "accepted": True,
+            "action_id": action_id,
+            "decision_state": desired_state,
+            "sync_state": "callback_received",
+            "event_seq": event["seq"],
+            "received_at": received_at,
+        }, HTTPStatus.OK
     except (KeyError, ValueError) as e:
         return _error(str(e), HTTPStatus.BAD_REQUEST)
     except Exception as e:
@@ -188,6 +250,8 @@ def _call_action(
         return _error("action_not_found", HTTPStatus.NOT_FOUND)
     except ValueError as exc:
         return _error(str(exc), HTTPStatus.BAD_REQUEST)
+    except PermissionError as exc:
+        return _error(str(exc), HTTPStatus.CONFLICT)
     except Exception as exc:  # pragma: no cover - defensive
         code = getattr(exc, "code", "send_failed")
         status = HTTPStatus(getattr(exc, "status_code", 503))

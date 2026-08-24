@@ -48,7 +48,7 @@ Openclaw Guard 采用分层、非侵入、模块化设计，核心原则是：**
 - `manager.py`：向后兼容子类（OpenclawGuardManager 继承 GuardServices，方法委托 `_*_impl`）
 - `integrations/hook_runtime.py`：生成并安装 OpenClaw Guard 本地 Hook 插件（使用官方 `api.on()` API）
 - `integrations/tool_hook_bridge.py`：把 `before_tool_call` / `after_tool_call` 转成 Guard 行为事件
-- `integrations/openclaw_adapter.py`：Gateway 远程调用适配层（含 `resolve_plugin_approval` 双端同步）
+- `integrations/openclaw_adapter.py`：OpenClaw Gateway 状态探测适配层；Hook 审批结果由原生 `onResolution` 回调同步到 Guard
 - `web/` / `legacy_web.py` / `ui.py`：本地 Web 工作台 API 与前端资源管理（`--fastapi` 启用 FastAPI 层，默认回退 legacy_web；`api/` 为共享 HTTP 处理函数边界层）
 
 ## 关键设计原则

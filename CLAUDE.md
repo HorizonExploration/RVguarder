@@ -2,6 +2,50 @@
 
 > 面向 OpenClaw 的非侵入式运行时安全保护系统 | v0.3.0
 
+## 通用执行准则
+
+以下准则适用于本项目中的编码、调试、重构和文档任务；与本文件后续的项目专属约定合并执行。
+
+### 1. 编码前先思考
+
+- 明确陈述假设；不确定时先提出问题。
+- 存在多种解释时列出差异，不要静默选择。
+- 发现更简单的方案时说明，并在必要时对当前方案提出质疑。
+- 信息不完整或存在歧义时暂停，明确说明疑点并请求确认。
+
+### 2. 简单性优先
+
+- 只实现用户请求的内容，不添加推测性功能。
+- 单次使用的逻辑不额外抽象。
+- 不为未提出的需求增加灵活性或可配置项。
+- 不为不可能发生的情况增加复杂错误处理。
+- 如果实现明显超出问题规模，重新审视并尽量简化。
+
+### 3. 外科式修改
+
+- 只修改完成当前请求所必需的内容。
+- 不顺手改进相邻代码、注释或格式。
+- 不重构未损坏且不影响当前任务的代码。
+- 遵循现有项目风格，即使个人偏好不同。
+- 只清理由本次修改产生的未使用导入、变量或函数；发现既有死代码时只报告，不主动删除。
+- 修改的每一行都应能直接追溯到用户请求。
+
+### 4. 目标驱动执行
+
+- 将任务转换为可验证的成功标准。
+- 修复问题时先编写能够复现问题的测试，再实现修复。
+- 添加校验时覆盖无效输入测试，并确认测试通过。
+- 重构前后都执行对应测试。
+- 多步骤任务先给出简短计划，并为每一步指定验证方式：
+
+```text
+1. [步骤] → 验证：[检查方式]
+2. [步骤] → 验证：[检查方式]
+3. [步骤] → 验证：[检查方式]
+```
+
+这些准则的目标是减少不必要的 diff、避免过度设计，并让澄清问题发生在实现之前，而不是错误发生之后。
+
 ## 项目定位
 
 龙虾卫士通过 OpenClaw Plugin SDK 的钩子系统，在不修改 OpenClaw 源码的前提下，为 AI Agent 增加：
@@ -61,7 +105,7 @@ openclaw_guard/          # Python 后端主包
     ├── spec_validator.py     # 规约校验 + 正反例 trace
     ├── session_state.py      # 会话安全状态（阶段 F）
     └── eval_traces.py        # 正反例 trace 库
-├── web/                 # [NEW v0.3.0] FastAPI HTTP 层
+├── web/                 # 可选 FastAPI HTTP 层（--fastapi flag 启用）
 │   ├── __init__.py      # 兼容旧导出（launch_web, _error_message）
 │   ├── app.py           # create_app() 工厂 + launch_web() 入口
 │   ├── dependencies.py  # DI: get_manager, body_payload, require_hook_token
@@ -76,7 +120,7 @@ openclaw_guard/          # Python 后端主包
 ├── integrations/        # OpenClaw 集成层
 │   ├── hook_runtime.py       # 插件 JS 生成器
 │   ├── tool_hook_bridge.py   # Hook 载荷 → BehaviorEvent 转换器
-│   ├── openclaw_adapter.py   # Gateway 远程调用适配
+│   ├── openclaw_adapter.py   # Gateway 状态探测适配
 │   └── discovery.py          # 自动发现 OpenClaw 安装
 ├── storage/             # 数据持久层
 │   ├── db_store.py      # DBStoreInterface ABC → PostgreSQLStore / SQLiteStore
@@ -147,13 +191,13 @@ python -m openclaw_guard.main doctor --json
 ### 测试
 
 ```bash
-# 运行全部单元测试
-python -m unittest discover -s tests -v
+# 运行全部回归测试
+python -m pytest -q
 
 # 运行单个测试文件
-python -m unittest tests.test_detection -v
-python -m unittest tests.test_rv -v
-python -m unittest tests.test_rv_fsm -v
+python -m pytest tests/test_detection.py -q
+python -m pytest tests/test_rv.py -q
+python -m pytest tests/test_rv_fsm.py -q
 
 # 运行 E2E 测试
 cd e2e && npm install && npm run install:browsers && npm test
@@ -178,7 +222,7 @@ cd e2e && npm install && npm run install:browsers && npm test
 - 数据模型使用 **Pydantic v2 BaseModel** 定义在 `models.py`（`to_dict()` 保留为兼容别名）
 - 服务层遵循「管理器协调，服务执行」模式：`Manager` 编排流程，`Service` 封装业务
 - 检测规则中文注释（规则 ID 英文：`CMD-001`, `FILE-001`, `NET-001` 等）
-- 文件顶部用 docstring 声明模块职责边界（如 detection.py vs rv_monitors.py 的分工约定）
+- 文件顶部用 docstring 声明模块职责边界（如 `engine/detection.py` vs `rv/rv_monitors.py` 的分工约定）
 
 - 数据模型使用 **Pydantic v2 BaseModel** 定义在 `models.py`（`to_dict()` 保留为兼容别名）
 
@@ -187,7 +231,7 @@ cd e2e && npm install && npm run install:browsers && npm test
 - **非侵入式**：不修改 OpenClaw 源码，通过生成的 JS 插件 + HTTP 桥接通信
 - **双 HTTP 层**：默认 `legacy_web.py`（旧版 stdlib），`--fastapi` flag 切换到 `web/` 包（FastAPI）
 - **熔断器**：JS 插件内置，连续失败 N 次 → OPEN（放行所有），正常 → CLOSED
-- **审批同步**：OpenClaw 原生审批卡片 ↔ Guard Dashboard 双向实时同步
+- **审批同步**：OpenClaw 原生审批卡片是唯一决策入口，Guard Dashboard 通过 SSE/增量查询只读同步
 - **审计哈希链**：每条记录含 `previous_hash` + `record_hash = SHA-256(prev_hash + payload)`
 - **数据库抽象**：`DBStoreInterface` ABC → PostgreSQLStore（生产，含 Redis 缓存）/ SQLiteStore（开发）自动切换
 - **白名单 Trie 树**：前缀匹配路径/命令/网络/API/Skill，O(n) 匹配效率

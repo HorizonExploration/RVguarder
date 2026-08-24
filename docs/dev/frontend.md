@@ -9,7 +9,7 @@ frontend/                       # 前端源码（独立工程，可单独开发�
 ├── index.html                  # 入口 HTML
 ├── package.json                # 依赖与脚本
 ├── vite.config.js              # Vite 构建配置
-├── package-lock.json          # 锁文件（npm；与 pnpm-workspace.yaml 并存）
+├── package-lock.json          # npm 锁文件
 └── src/
     ├── main.jsx                # Preact 入口
     ├── App.jsx                 # 路由与页面壳
@@ -33,13 +33,13 @@ runtime/ui/                     # 构建产物（后端静态托管目录）
 
 ```bash
 cd frontend
-pnpm install
+npm install
 ```
 
 ### 2. 启动开发服务器
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 Vite 开发服务器运行在 `localhost:5173`，`/api/*` 请求会自动代理到后端 `127.0.0.1:8780`。
@@ -56,7 +56,7 @@ openclaw-guard run --no-browser
 ### 3. 构建产出
 
 ```bash
-pnpm build
+npm run build
 ```
 
 构建后的文件直接输出到 `../runtime/ui/`（由 `vite.config.js` 中 `outDir` 指定）。
@@ -74,9 +74,9 @@ openclaw-guard run
 
 | 命令 | 说明 |
 |------|------|
-| `pnpm dev` | 启动 Vite 开发服务器（热更新，代理 /api） |
-| `pnpm build` | 构建到 `../runtime/ui/` |
-| `pnpm preview` | 预览构建结果 |
+| `npm run dev` | 启动 Vite 开发服务器（热更新，代理 /api） |
+| `npm run build` | 构建到 `../runtime/ui/` |
+| `npm run preview` | 预览构建结果 |
 
 ## 技术栈
 
@@ -90,8 +90,8 @@ openclaw-guard run
 
 | 路由/视图 | 说明 |
 |-----------|------|
-| `dashboard`（`/`） | 首页：连接状态 + "前往 OpenClaw 对话" 入口 + 待确认动作 + 最近动作 + Hook 状态 |
-| `actions`（`/actions`） | 动作审批页：按状态筛选 + 分页浏览 + 确认继续/拒绝 |
+| `dashboard`（`/`） | 首页：连接状态 + 待 OpenClaw 处理动作 + 最近动作 + Hook 状态 |
+| `actions`（`/actions`） | 动作状态页：按状态筛选 + 分页浏览；Hook 动作只读 |
 | `rules`（`/rules`） | 安全规则页：规则列表与管理 |
 | `skills`（`/skills`） | 技能配置页：skill 启停与权限 |
 | `settings`（`/settings`） | 安全扫描页：基线扫描 + 审计导出 |
@@ -104,11 +104,13 @@ openclaw-guard run
 
 | 端点 | 用途 |
 |------|------|
-| `GET /api/summary` | 获取全量摘要数据 |
+| `GET /api/summary?view=compact` | 获取首页轻量摘要 |
+| `GET /api/actions/{action_id}` | 获取单动作最新状态 |
+| `GET /api/events` | SSE 实时动作事件流 |
 | `GET /api/rv/status` | 获取 RV 引擎当前状态 |
 | `POST /api/rv/toggle` | 切换 RV 启用状态 |
-| `POST /api/actions/approve` | 批准待确认动作 |
-| `POST /api/actions/reject` | 拒绝待确认动作 |
+| `POST /api/actions/approve` | 仅批准非 Hook 本地动作；Hook 返回 409 |
+| `POST /api/actions/reject` | 仅拒绝非 Hook 本地动作；Hook 返回 409 |
 | `POST /api/actions/clear` | 清空动作历史 |
 | `POST /api/actions/ingest` | 接收行为事件 |
 | `POST /api/baseline/run` | 触发基线扫描 |
@@ -118,6 +120,7 @@ openclaw-guard run
 ## 与后端的边界
 
 - 前端**不**直接调用 OpenClaw Gateway
+- Hook 审批只在 OpenClaw 原生页面完成，Guard 前端通过 SSE/增量查询同步结果
 - 前端**不**维护对话/消息/会话状态
 - 所有业务决策（拦截、审批、基线、审计）由 Python 后端完成
 - 前端仅作为展示与操作界面

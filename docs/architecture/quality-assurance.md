@@ -148,7 +148,7 @@ async def test_hook_contract_before_tool_call(client, services):
         assert "title" in data       # JS 渲染审批卡片标题
         assert "message" in data     # JS 渲染审批卡片描述
         assert "severity" in data    # JS 决定卡片颜色
-        assert "action_record" in data  # JS 解析动作记录用于双端同步
+        assert "action_record" in data  # JS 解析动作记录用于状态同步
     if data["action"] == "block":
         assert "blockReason" in data  # JS 展示阻断理由
 
@@ -309,11 +309,11 @@ def assert_json_response(resp):
 
 ### 4.4 回退测试
 
-每阶段完成后，必须在旧测试套件（unittest）上运行一次全量回归，确保无功能退化：
+每阶段完成后，必须运行一次全量 pytest 回归，确保无功能退化：
 
 ```bash
 # 每阶段完成后的标准回归命令
-python -m unittest discover -s tests -v  2>&1 | tee phase-N-regression.log
+python -m pytest -q 2>&1 | tee phase-N-regression.log
 
 # 与基线（重构前）对比
 diff <(grep -E "^(OK|FAILED|ERROR)" baseline-regression.log) \

@@ -25,7 +25,8 @@ OpenClaw 准备调用工具
   -> before_tool_call
   -> Guard 同步判定
   -> block / pending_approval / allow
-  -> 用户批准后继续原始工具调用
+  -> OpenClaw 原生审批卡片完成唯一用户决策
+  -> Guard 只读同步 resolution 后继续原始工具调用
   -> after_tool_call 回写 executed / failed
 ```
 

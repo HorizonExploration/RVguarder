@@ -61,6 +61,15 @@ export const useStore = create((set, get) => ({
         : {};
     }),
 
+  upsertAction: (action) => set((s) => {
+    const current = s.summary.actions || {};
+    const items = [...(current.items || [])];
+    const index = items.findIndex((item) => item.action_id === action.action_id);
+    if (index >= 0) items[index] = { ...items[index], ...action };
+    else items.unshift(action);
+    return { loading: false, summary: { ...s.summary, actions: { ...current, items } } };
+  }),
+
   setLoading: (loading) => set({ loading }),
 
   setActionFilter: (f) => set({ actionFilter: f, pages: { ...get().pages, actions: 1 } }),

@@ -147,7 +147,7 @@ v0.2.0 的 Hook 插件使用了已废弃的 `api.registerHook()` API，`requireA
 
 ### 1. 钩子 API 迁移：`api.registerHook()` → `api.on()`
 
-**修改文件**：[`openclaw_guard/integrations/hook_runtime.py`](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/integrations/hook_runtime.py)
+**修改文件**：[`openclaw_guard/integrations/hook_runtime.py`](openclaw_guard/integrations/hook_runtime.py)
 
 - 插件中全部 3 个钩子（`before_prompt_build`、`before_tool_call`、`after_tool_call`）从已废弃的 `api.registerHook("event", handler, opts)` 迁移为官方 `api.on("event", handler, opts)` API
 - 生成的插件 JS 通过 `node --check` 语法验证
@@ -158,7 +158,7 @@ v0.2.0 的 Hook 插件使用了已废弃的 `api.registerHook()` API，`requireA
 
 ### 2. `requireApproval` 格式对齐官方规范
 
-**修改文件**：[`openclaw_guard/integrations/hook_runtime.py`](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/integrations/hook_runtime.py)
+**修改文件**：[`openclaw_guard/integrations/hook_runtime.py`](openclaw_guard/integrations/hook_runtime.py)
 
 - 移除 `allowedDecisions`（非官方字段），添加 `timeoutBehavior: "deny"`（官方字段：`"allow"` | `"deny"`）
 - `onResolution` 回调使用官方类型化决策值：`"allow-once"` | `"allow-always"` | `"deny"` | `"timeout"` | `"cancelled"`
@@ -173,8 +173,8 @@ v0.2.0 的 Hook 插件使用了已废弃的 `api.registerHook()` API，`requireA
 ### 3. 双端状态同步机制
 
 **新增/修改文件**：
-- [`openclaw_guard/integrations/openclaw_adapter.py`](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/integrations/openclaw_adapter.py) — 新增 `resolve_plugin_approval()` 函数
-- [`openclaw_guard/manager.py`](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/manager.py) — `approve_action` / `reject_action` 中调用同步
+- [`openclaw_guard/integrations/openclaw_adapter.py`](openclaw_guard/integrations/openclaw_adapter.py) — 新增 `resolve_plugin_approval()` 函数
+- [`openclaw_guard/manager.py`](openclaw_guard/manager.py) — `approve_action` / `reject_action` 中调用同步
 
 - **OpenClaw → Dashboard**（Push 模式）：插件 `onResolution` 回调直接 POST `/api/hook/resolve-approval`，后端同步更新动作状态
 - **Dashboard → OpenClaw**（Gateway 远程调用）：审批/拒绝时通过 `openclaw gateway call approvals.resolve` 异步通知 OpenClaw 原生审批系统放行/拒绝
@@ -187,7 +187,7 @@ v0.2.0 的 Hook 插件使用了已废弃的 `api.registerHook()` API，`requireA
 
 ### 4. 后端 `resolve_hook_approval` 处理函数修正
 
-**修改文件**：[`openclaw_guard/api/_handlers.py`](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/api/_handlers.py)
+**修改文件**：[`openclaw_guard/api/_handlers.py`](openclaw_guard/api/_handlers.py)
 
 - 字段名兼容：同时接受 `actionId`（camelCase）和 `action_id`（snake_case）
 - 决策值兼容：同时接受 `allow-once`（官方连字符格式）和 `allow_once`（旧版下划线格式）
@@ -200,7 +200,7 @@ v0.2.0 的 Hook 插件使用了已废弃的 `api.registerHook()` API，`requireA
 
 ### 5. 遗留代码清理
 
-**修改文件**：[`openclaw_guard/manager.py`](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/manager.py)
+**修改文件**：[`openclaw_guard/manager.py`](openclaw_guard/manager.py)
 
 - 移除 `_hook_waiters` 字典和 `_hook_waiters_lock`
 - 移除 `_register_hook_waiter`、`_signal_hook_waiter`、`_clear_hook_waiter` 方法

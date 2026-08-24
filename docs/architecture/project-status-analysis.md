@@ -3,7 +3,7 @@
 > **版本**：v0.6.0（含 RV 层拆分 + 阶段 A–F 落地 + P0/P1/P2 整改闭环）
 > **分析日期**：2026-08-23
 > **分析基准**：`git commit 114502e`（当前 HEAD）
-> **测试基线**：345 passed / 18 skipped / 0 failed（`python -m pytest -q`）
+> **测试基线**：349 passed / 18 skipped / 0 failed（`python -m pytest -q`，2026-08-23）
 
 ---
 
@@ -23,7 +23,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 | 后端 | Python 3.13+ / Pydantic v2 / FastAPI（可选依赖）/ transitions FSM |
 | 前端 | Vite 6 + Preact 10 + Zustand 5 + preact-router |
 | 存储 | SQLite（开发）/ PostgreSQL + Redis（生产，可选依赖） |
-| 测试 | 22 个 Python 测试文件，345 通过 / 18 跳过 |
+| 测试 | 23 个 Python 测试文件，349 通过 / 18 跳过 |
 | 当前 git | `114502e feat(release,rv,frontend,docs,build): 发布v0.6.0正式版` |
 
 **后端模块布局**（`openclaw_guard/`）：
@@ -34,7 +34,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 | `rv/` | RV 运行时验证（FSM、约束推理、IR、基线自动机） | 本次拆分后新增 |
 | `spec/` | 规约生成/校验/会话状态（NL2Spec、SpecValidator、SessionSafetyState） | 本次拆分后新增 |
 | `web/` | FastAPI HTTP 层（7 个路由模块） | 实验性（`--fastapi` 启用） |
-| `legacy_web.py` | 旧版 stdlib HTTP 层 | 默认入口 |
+| `legacy_web.py` | stdlib HTTP 兼容层 | 默认入口；与 FastAPI 保持双轨兼容 |
 | `api/` | HTTP handler 桥接层（被 web/ 与 legacy_web 共用） | 保留 |
 | `core/` | ActionService / AuditService / BaselineService | 活跃 |
 | `integrations/` | OpenClaw 适配、Hook 运行时、发现、载荷转换 | 活跃 |
@@ -68,7 +68,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 - **双层防线**：DetectionEngine（单步，<1ms）+ RV 引擎（跨步有状态，<5ms）。
 - **SHA-256 审计哈希链**，SQLite + JSONL 双写。
 - **白名单 Trie 前缀树**，O(n) 匹配效率。
-- **OpenClaw 原生审批双向同步**（`requireApproval` + `onResolution` + Gateway 远程调用）。
+- **OpenClaw 原生审批 + Guard 只读同步**（`requireApproval` + `onResolution` + SSE/增量查询）。
 - **基线安全扫描**（配置/端口/用户/依赖），JSON/HTML/PDF 输出。
 
 ---
@@ -89,8 +89,8 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 |---|---|---|---|---|
 | F-1 | **首屏 JS 资源超标** | 构建产物 `runtime/ui/assets/index-CAuI_5Ll.js` = 61 KB（未压缩），CSS 18 KB，总 96 KB；远高于项目约束「前端首屏 JS ≤ 20 KB」。即使 gzip 后 JS 仍约 20 KB，逼近上限 | 首屏加载速度、性能指标达成 | **High** |
 | F-2 | **前端无自动化测试** | 21 个测试文件全部为后端 Python；前端 `store.js`（乐观更新、哈希去重）、`api.js`（错误处理）、5 个页面组件零单测/E2E | 前端回归保障缺失，重构风险高 | **Medium** |
-| F-3 | **前端构建流程依赖手工操作** | `ui.py:build_ui()` 仅复制已存在的 `runtime/ui/` 构建产物，不触发 Vite 构建；前端源码修改后需手动 `pnpm build`，否则运行时服务旧资源 | 部署一致性、CI 自动化 | **Medium** |
-| F-4 | **API 层静默吞错** | `api.js` 中 `fetchSummary`/`fetchRvStatus`/`rvToggle` 使用 `catch(() => {})` 静默吞掉异常 | 后端异常时前端显示空数据，用户无感知 | **Low** |
+| F-3 | **前端构建流程依赖手工操作** | `ui.py:build_ui()` 仅复制已存在的 `runtime/ui/` 构建产物，不触发 Vite 构建；前端源码修改后需手动 `npm run build`，否则运行时服务旧资源 | 部署一致性、CI 自动化 | **Medium** |
+| F-4 | ~~**API 层静默吞错**~~ ✅ 已解决 | `api.js` 统一抛出错误并由 `apiErrorMessage()` 展示 `detail/message/error` | ~~Low~~ 已闭环 |
 
 ---
 
@@ -146,7 +146,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 | collectors 真实采集落地 | C-4 | 实现 HookBridge 至少一个真实采集器，或删除 `enable_ptrace/enable_ebpf` 虚设配置 |
 | LLM 语义增强启用策略 | C-3 | 明确 LLM 模式开关与降级策略，文档化无 key 时的行为预期 |
 | 生产存储路径集成测试 | B-4 | PostgreSQL/Redis 路径补集成测试，覆盖自动切换逻辑 |
-| 前端构建自动化 | F-3 | 集成到 CI（`pnpm build` 前置），或运行时校验构建产物版本 |
+| 前端构建自动化 | F-3 | 集成到 CI（`npm run build` 前置），或运行时校验构建产物版本 |
 
 ### P3 — 长期（优化）
 
@@ -178,4 +178,4 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 
 ---
 
-*本报告已于 2026-08-23 复核；当前全量回归为 345 passed / 18 skipped。文中 2026-08-14 的问题快照保留其历史语境。*
+*本报告已于 2026-08-23 复核；当前全量回归为 349 passed / 18 skipped。文中 2026-08-14 的问题快照保留其历史语境。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 为准。*

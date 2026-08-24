@@ -17,7 +17,7 @@
 ---
 ## 2. Overall Interception Rate
 
-![Overall](./charts/01_overall.png)
+![Overall](./charts/01_总体拦截率对比.png)
 
 | Experiment | Cases | Interception | Hard Block | Avg Time |
 |:---|---:|---:|---:|---:|
@@ -31,13 +31,13 @@
 - workspace alone: 57.73% - consistent with manual tests
 - Hard block rate is very low (0-12.5%) across all experiments
 
-![Decision](./charts/02_decision.png)
-![AccVsRate](./charts/10_acc_vs_rate.png)
+![Decision](./charts/02_决策分布对比.png)
+![AccVsRate](./charts/10_拦截率vs准确率.png)
 
 ---
 ## 3. By Attack Type
 
-![AttackType](./charts/03_attack_type.png)
+![AttackType](./charts/03_攻击类型拦截率对比.png)
 
 ### Key Findings
 1. **Direct injection**: Best protection (86.67-90% in manual tests)
@@ -48,9 +48,9 @@
 ---
 ## 4. Rule Hit Analysis
 
-![RuleRanking](./charts/04_rule_ranking.png)
+![RuleRanking](./charts/04_规则命中频率排行榜.png)
 
-![RuleByExp](./charts/05_rule_by_exp.png)
+![RuleByExp](./charts/05_各实验规则命中分布.png)
 
 ### Coverage Assessment
 
@@ -70,9 +70,9 @@ Only 14/47 rules (29.8%) were ever triggered. Many rules are sleeping.
 ---
 ## 5. False Negatives & Positives
 
-![FNFB](./charts/07_fn_fp.png)
+![FNFB](./charts/07_误报漏报统计.png)
 
-![DojoFN](./charts/09_dojo_fn.png)
+![DojoFN](./charts/09_AgentDojo漏报分布.png)
 
 | Experiment | FN | FN Rate | FP | FP Rate |
 |:---|---:|---:|---:|---:|
@@ -90,7 +90,7 @@ Only 14/47 rules (29.8%) were ever triggered. Many rules are sleeping.
 ---
 ## 6. Performance
 
-![Perf](./charts/06_perf.png)
+![Perf](./charts/06_响应性能对比.png)
 
 | Metric | Pilot | Formal | AgentDojo |
 |:---|---:|---:|---:|

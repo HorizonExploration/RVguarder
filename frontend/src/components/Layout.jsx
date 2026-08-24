@@ -1,7 +1,7 @@
 import { Link } from 'preact-router';
 import { useStore } from '../store';
 import { t } from '../i18n';
-import { rvToggle } from '../api';
+import { rvToggle, apiErrorMessage } from '../api';
 import { Toast } from './Toast';
 
 /** 根据当前路径判断 nav 按钮是否 active */
@@ -22,9 +22,13 @@ export function Layout({ children, currentPath }) {
 
   const handleRvToggle = async () => {
     const on = !rvMode;
-    setRvMode(on);
-    showToast(on ? '🔄 RV 模式已开启 — 安全执行链路实时追踪' : '🔄 RV 模式已关闭 — 恢复标准视图');
-    await rvToggle(on);
+    try {
+      await rvToggle(on);
+      setRvMode(on);
+      showToast(on ? '🔄 RV 模式已开启 — 安全执行链路实时追踪' : '🔄 RV 模式已关闭 — 恢复标准视图');
+    } catch (error) {
+      showToast(apiErrorMessage(error, t('error_default')));
+    }
   };
 
   const handleRefresh = async () => {
@@ -32,7 +36,7 @@ export function Layout({ children, currentPath }) {
       const s = await fetch('/api/summary').then((r) => r.json());
       setSummary(s);
     } catch (error) {
-      showToast(error.payload?.message || t('error_default'));
+      showToast(apiErrorMessage(error, t('error_default')));
     }
   };
 

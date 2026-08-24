@@ -45,7 +45,7 @@ test.describe("OpenClaw Guard UI", () => {
     }
   });
 
-  test("审批按钮可用：动作进入 pending 后可点击确认", async ({ page, request }) => {
+  test("Hook 动作仅在 OpenClaw 侧审批，Guard 页面只读同步", async ({ page, request }) => {
     const baseUrl = getBaseUrl();
     const ingestUrl = new URL("/api/actions/ingest", baseUrl).toString();
 
@@ -63,11 +63,7 @@ test.describe("OpenClaw Guard UI", () => {
     await expect(page.locator(".trace-card")).toBeVisible();
     await expect(page.locator(".trace-card")).toContainText("总耗时");
 
-    const approve = page.locator(".approve-action").first();
-    await expect(approve).toBeVisible();
-    await approve.click();
-    await expect(page.locator("#toast-root .toast")).toContainText("已批准");
     await expect(page.locator(".approve-action")).toHaveCount(0);
+    await expect(page.locator(".sync-hint").first()).toContainText("OpenClaw");
   });
 });
-

@@ -66,7 +66,22 @@ class ActionService:
                 if not isinstance(item, dict):
                     continue
                 try:
-                    result.append(ControlledAction(**item))
+                    action = ControlledAction(**item)
+                    if action.event and action.event.metadata.get("hook_bridge"):
+                        action.source = "hook_bridge"
+                    if action.status == "pending_approval":
+                        action.decision_state = "pending"
+                    elif action.status in {"approved", "allow", "executed", "executing"}:
+                        action.decision_state = "allowed"
+                    elif action.status in {"rejected", "blocked"}:
+                        action.decision_state = "denied"
+                    if action.status == "executing":
+                        action.execution_state = "running"
+                    elif action.status == "executed":
+                        action.execution_state = "executed"
+                    elif action.status == "failed":
+                        action.execution_state = "failed"
+                    result.append(action)
                 except Exception:
                     continue
             self._cache = result[-MAX_ACTIONS_SIZE:]

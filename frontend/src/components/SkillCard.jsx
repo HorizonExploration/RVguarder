@@ -1,6 +1,6 @@
 import { useStore } from '../store';
 import { esc } from '../i18n';
-import { upsertSkill, fetchSummary } from '../api';
+import { upsertSkill, fetchSummary, apiErrorMessage } from '../api';
 
 export function SkillCard({ skill }) {
   const showToast = useStore((s) => s.showToast);
@@ -15,7 +15,7 @@ export function SkillCard({ skill }) {
       const s = await fetchSummary();
       setSummary(s);
     } catch (error) {
-      showToast(error.payload?.message || '请求处理失败');
+      showToast(apiErrorMessage(error));
     }
   };
 

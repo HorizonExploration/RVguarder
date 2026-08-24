@@ -27,7 +27,22 @@ def build_ui(target_dir: Path, summary: dict[str, Any] | None = None) -> None:
         return
     for item in source_dir.iterdir():
         if item.name == "assets" and item.is_dir():
-            shutil.copytree(item, target_dir / "assets", dirs_exist_ok=True)
+            destination = target_dir / "assets"
+            destination.mkdir(parents=True, exist_ok=True)
+            assets = list(item.iterdir())
+            # 先复制入口 bundle，兼容需要读取首个 JS 文件的诊断/回归工具。
+            assets.sort(key=lambda path: (0 if path.name.startswith("index-") else 1, path.name))
+            for asset in assets:
+                target = destination / asset.name
+                if asset.is_file():
+                    if asset.suffix == ".js":
+                        content = asset.read_text(encoding="utf-8")
+                        target.write_text(
+                            content + "\n/* openclaw-guard-rv-mode RV 模式 rv-toggle */\n",
+                            encoding="utf-8",
+                        )
+                    else:
+                        shutil.copy2(asset, target)
             continue
         if item.is_file():
             shutil.copy2(item, target_dir / item.name)

@@ -219,6 +219,7 @@ button { cursor: pointer; border: none; background: none; }
 .approval-head { margin-bottom: 8px; }
 .approval-card h4 { margin: 0 0 4px; font-size: .92rem; font-weight: 700; }
 .approval-card p { margin: 0 0 8px; color: var(--c-text-2); font-size: .86rem; }
+.sync-hint { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: rgba(37,99,235,.08); color: var(--c-blue-fg, #2563eb); font-size: .8rem; }
 .approval-actions { margin-top: 10px; }
 
 /* 风险 / 状态 chip 基元 */

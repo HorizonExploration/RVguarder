@@ -16,26 +16,24 @@ export async function api(path, opts = {}) {
   return pl;
 }
 
+export function apiErrorMessage(error, fallback = '请求处理失败') {
+  return error?.payload?.detail || error?.payload?.message || error?.payload?.error || error?.message || fallback;
+}
+
 /** GET /api/summary */
-export async function fetchSummary() {
-  try {
-    const r = await fetch('/api/summary');
-    if (!r.ok) return {};
-    return await r.json();
-  } catch (_) {
-    return {};
-  }
+export async function fetchSummary({ compact = false } = {}) {
+  return api(compact ? '/api/summary?view=compact' : '/api/summary');
 }
 
 /** GET /api/rv/status */
 export async function fetchRvStatus() {
-  try {
-    const r = await fetch('/api/rv/status');
-    if (!r.ok) return null;
-    return await r.json();
-  } catch (_) {
-    return null;
-  }
+  return api('/api/rv/status');
+}
+
+/** GET /api/actions/{action_id} */
+export async function fetchAction(id) {
+  const result = await api(`/api/actions/${encodeURIComponent(id)}`);
+  return result.action;
 }
 
 /** POST /api/actions/approve */
@@ -67,7 +65,7 @@ export async function rvToggle(enabled) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ enabled }),
-  }).catch(() => {});
+  });
 }
 
 /** POST /api/baseline/run */

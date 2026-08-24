@@ -47,6 +47,7 @@ from openclaw_guard.integrations.openclaw_adapter import (
 )
 from openclaw_guard.utils import LazyProxy, append_jsonl, read_json, utc_now_iso, write_json
 from openclaw_guard.engine.whitelist import WhitelistEngine, default_police_whitelist
+from openclaw_guard.events import EventBus
 
 if TYPE_CHECKING:
     from openclaw_guard.engine.pipeline import (  # noqa: F401 - 仅类型检查使用
@@ -367,6 +368,7 @@ class GuardServices:
         settings.sqlite_path = settings.sqlite_path or context.paths.audit_dir / "audit.db"
         settings.json_backup_path = settings.json_backup_path or context.paths.audit_dir / "audit.jsonl"
         self.context = context
+        self.events = EventBus()
 
         # ── 热路径：急切初始化 ──
         self.collectors = BehaviorCollectorManager()
@@ -451,7 +453,7 @@ class GuardServices:
     # 状态 / 摘要查询
     # ------------------------------------------------------------------
 
-    def summary(self) -> dict[str, Any]:
+    def summary(self, *, compact: bool = False) -> dict[str, Any]:
         actions = self._load_actions()
         counts = {
             "total": len(actions),
@@ -462,21 +464,26 @@ class GuardServices:
             "failed": sum(1 for item in actions if item.status == "failed"),
             "rejected": sum(1 for item in actions if item.status == "rejected"),
         }
-        latest_baseline = self.ensure_baseline()
         chat_status = self.chat_status()
-        return {
+        result = {
             "generated_at": utc_now_iso(),
             "product": self.context.describe()["product"],
             "target": self.context.target.to_dict(),
             "paths": self.context.paths.to_dict(),
             "settings": self.context.settings.to_dict(),
             "capabilities": [item.to_dict() for item in self.collectors.capabilities()],
-            "baseline": latest_baseline,
             "actions": {"counts": counts, "items": [item.to_dict() for item in list(reversed(actions))[:50]]},
             "console": {},
             "chat": chat_status.to_dict(),
             "hook": self.hook_status(),
             "execution_guard": self.execution_guard_status(),
+            "sync": {"latest_event_seq": self.events.latest_seq},
+        }
+        if compact:
+            return result
+        latest_baseline = self.ensure_baseline()
+        result.update({
+            "baseline": latest_baseline,
             "skills": self.skills_summary(),
             "channels": self.channels_summary(),
             "preferences": self.preferences(),
@@ -493,7 +500,8 @@ class GuardServices:
                 "mode": self.preferences().get("rv_mode", True),
                 "engine": self.rv_engine.result_summary(),
             },
-        }
+        })
+        return result
 
     def ensure_baseline(self) -> dict[str, Any]:
         return self.baseline_service.ensure()
@@ -895,11 +903,22 @@ class GuardServices:
             raise KeyError("action_not_found")
         if action.status != "pending_approval":
             raise ValueError("action_not_pending")
+        if action.source == "hook_bridge" or action.event.metadata.get("hook_bridge"):
+            raise PermissionError("hook_approval_owned_by_openclaw")
         if action.decision.requires_second_confirmation and (
             (confirmation_text or "").upper() != (action.decision.confirmation_word or "EXECUTE").upper()
         ):
             raise ValueError("confirmation_word_required")
         result = self.action_service.approve(action_id, confirmation_text)
+        action.decision_state = "allowed"
+        action.execution_state = "running"
+        event = self.events.publish("action.resolved", {
+            "action_id": action_id,
+            "decision": "allow-once",
+            "source": action.source,
+        })
+        action.last_event_seq = event["seq"]
+        self._save_all(self._replace_action(action))
         if action.event.metadata.get("hook_bridge"):
             run_id = (action.event.metadata.get("run_id") or
                       action.event.raw_payload.get("runId") or
@@ -940,7 +959,18 @@ class GuardServices:
         action = self._find_action(action_id)
         if action is None:
             raise KeyError("action_not_found")
+        if action.source == "hook_bridge" or action.event.metadata.get("hook_bridge"):
+            raise PermissionError("hook_approval_owned_by_openclaw")
         result = self.action_service.reject(action_id)
+        action.decision_state = "denied"
+        action.execution_state = "not_started"
+        event = self.events.publish("action.resolved", {
+            "action_id": action_id,
+            "decision": "deny",
+            "source": action.source,
+        })
+        action.last_event_seq = event["seq"]
+        self._save_all(self._replace_action(action))
         self._log("action_rejected", action_id=action_id)
         if action.event.metadata.get("hook_bridge"):
             run_id = (action.event.metadata.get("run_id") or

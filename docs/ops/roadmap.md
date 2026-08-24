@@ -1,6 +1,6 @@
 # 发展路线图 · Roadmap
 
-当前版本：**v0.6.0** — FastAPI HTTP 层就绪，Pydantic v2 模型迁移完成，RV 阶段 A–F（IR 结构化 / 约束推理 / 基线自动机 / 参数化原语 / NL2Spec / 干预升级）全部落地。当前回归基线：345 passed / 18 skipped（2026-08-23）。
+当前版本：**v0.6.0** — FastAPI HTTP 层就绪，Pydantic v2 模型迁移完成，RV 阶段 A–F（IR 结构化 / 约束推理 / 基线自动机 / 参数化原语 / NL2Spec / 干预升级）全部落地，并完成 Hook 单一审批入口与 SSE 同步。当前回归基线：349 passed / 18 skipped（2026-08-23）。
 
 ---
 
@@ -11,7 +11,7 @@
 | 语义理解增强 | v0.2.0 | SemanticEnhancer（DeepSeek LLM + 本地规则），7 维度标签体系，检测引擎语义优先模式 |
 | 办公场景规则 | v0.2.0 | 5 条办公安全策略（邮件、日报、附件），47+ 语义规则 |
 | 原生钩子拦截 | v0.2.1 | `api.on("before_tool_call")`，`requireApproval` 物理挂起，对齐官方 SDK 规范 |
-| 双端状态同步 | v0.2.1 | `onResolution` 回调 + Gateway 远程调用，Dashboard ↔ OpenClaw 双向 Push |
+| 审批结果同步 | v0.6.0 | OpenClaw 原生审批唯一入口，`onResolution` 回调 + SSE/增量查询更新 Guard Dashboard |
 | 电路熔断器 | v0.2.1 | 优雅期 → 熔断 OPEN（fail-open）→ 恢复 CLOSED 三态自动切换 |
 | RV 运行时验证 | v0.2.1 | 6 个 FSM 监视器（Mail/Report/Chain/Broadcast/DataExport/BatchFile），滑动窗口 10 步 |
 | 前端 RV 面板 | v0.2.1 | Trace 时间线、RV 状态面板、RV 模式开关 |

@@ -1,6 +1,6 @@
 import { useStore } from '../store';
 import { esc, t } from '../i18n';
-import { approveAction, rejectAction, fetchSummary } from '../api';
+import { approveAction, rejectAction, fetchSummary, apiErrorMessage } from '../api';
 
 export function ActionCard({ item }) {
   const optimisticUpdate = useStore((s) => s.optimisticUpdate);
@@ -11,6 +11,7 @@ export function ActionCard({ item }) {
 
   const d = item.decision || {};
   const ip = item.status === 'pending_approval';
+  const canApprove = item.source !== 'hook_bridge' && !item.event?.metadata?.hook_bridge;
   const il = item._loading;
 
   const handleApprove = async () => {
@@ -23,7 +24,7 @@ export function ActionCard({ item }) {
       setSummary(s);
     } catch (error) {
       setActionLoading(item.action_id, false);
-      showToast(error.payload?.message || t('error_default'));
+      showToast(apiErrorMessage(error, t('error_default')));
       const s = await fetchSummary();
       setSummary(s);
     }
@@ -39,7 +40,7 @@ export function ActionCard({ item }) {
       setSummary(s);
     } catch (error) {
       setActionLoading(item.action_id, false);
-      showToast(error.payload?.message || t('error_default'));
+      showToast(apiErrorMessage(error, t('error_default')));
       const s = await fetchSummary();
       setSummary(s);
     }
@@ -58,7 +59,7 @@ export function ActionCard({ item }) {
       setSummary(s);
     } catch (error) {
       setActionLoading(item.action_id, false);
-      showToast(error.payload?.message || t('error_default'));
+      showToast(apiErrorMessage(error, t('error_default')));
       const s = await fetchSummary();
       setSummary(s);
     }
@@ -78,6 +79,9 @@ export function ActionCard({ item }) {
       </div>
       <h4>{esc(item.target_summary || item.source_message || '')}</h4>
       <p>{esc(d.reason || '')}</p>
+      {item.source === 'hook_bridge' && (
+        <div class="sync-hint">请在 OpenClaw 审批中心处理 · 同步状态：{esc(item.sync_state || 'local_only')}</div>
+      )}
       {revisionHint && (
         <div class="revision-hint">
           <strong>{t('revisionHint')}：</strong>{esc(revisionHint)}
@@ -98,7 +102,7 @@ export function ActionCard({ item }) {
           {t('sessionState')}：{esc(sessionState.state || 'safe')}（{t('score')} {esc(sessionState.total_score ?? 0)}）
         </div>
       )}
-      {ip && (
+      {ip && canApprove && (
         <div class="approval-actions">
           <button
             class="btn primary approve-action"

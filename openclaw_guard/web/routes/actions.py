@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
 from openclaw_guard import api
@@ -12,8 +12,19 @@ router = APIRouter(tags=["actions"])
 
 
 @router.get("/api/actions")
-def list_actions(manager=Depends(get_manager)):
-    payload, status = api.list_actions(manager)
+def list_actions(
+    status_filter: str | None = Query(default=None, alias="status"),
+    source: str | None = None,
+    limit: int = Query(default=1000, ge=1, le=1000),
+    manager=Depends(get_manager),
+):
+    payload, status = api.list_actions(manager, status=status_filter, source=source, limit=limit)
+    return JSONResponse(content=payload, status_code=int(status))
+
+
+@router.get("/api/actions/{action_id}")
+def get_action(action_id: str, manager=Depends(get_manager)):
+    payload, status = api.get_action(manager, action_id)
     return JSONResponse(content=payload, status_code=int(status))
 
 

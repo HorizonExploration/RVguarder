@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
 from openclaw_guard import api
@@ -18,8 +18,8 @@ def health(manager=Depends(get_manager)):
 
 
 @router.get("/api/summary")
-def summary(manager=Depends(get_manager)):
-    payload, status = api.summary(manager)
+def summary(view: str | None = Query(default=None), manager=Depends(get_manager)):
+    payload, status = api.summary(manager, compact=view == "compact")
     return JSONResponse(content=payload, status_code=int(status))
 
 

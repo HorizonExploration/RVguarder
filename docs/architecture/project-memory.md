@@ -2,7 +2,7 @@
 
 > **核对日期**：2026-08-23  
 > **核对基准**：仓库当前 HEAD `114502e`（`feat(release,rv,frontend,docs,build): 发布v0.6.0正式版，落地RV全阶段功能`）  
-> **测试基线**：`python -m pytest -q` → **345 passed / 18 skipped / 0 failed**（363 个用例被收集）
+> **测试基线**：`python -m pytest -q` → **349 passed / 18 skipped / 0 failed**（367 个用例被收集）
 
 本文档是后续维护项目时的“当前事实源”。历史方案、阶段性审计报告和旧版本说明仍然保留，但如果它们与本文档或当前代码冲突，应以当前代码和本文档为准。
 
@@ -13,7 +13,7 @@ OpenClaw-RVGuarder（龙虾卫士）是面向 OpenClaw 的非侵入式运行时�
 1. 执行前语义分析与规则检测；
 2. 跨调用运行时验证（RV）；
 3. `allow` / `ask` / `escalate` / `block` / `revise` 决策；
-4. OpenClaw 原生审批与 Guard Dashboard 双向同步；
+4. OpenClaw 原生页面是 Hook 审批唯一入口，Guard Dashboard 通过 resolution/SSE 只读同步状态；
 5. 执行后审计、哈希链校验和基线扫描。
 
 核心安全取舍是“先决策后执行、可取证、非侵入、故障可降级”。Hook 后端不可达时，插件电路熔断器会进入 fail-open，以避免 Guard 停服阻塞 OpenClaw；这意味着生产部署必须配套健康检查和熔断告警。
@@ -55,7 +55,7 @@ OpenClaw before_tool_call
 - v0.3.0 架构重构：FastAPI 可选层、Pydantic v2、GuardServices + pipeline、Preact、可选 SQLAlchemyStore、ChainRule 规约驱动 RV。
 - RV 阶段 A–F：ToolCallIR、五类约束与置信度门控、基线自动机、实体/时间/计数参数化、NL2Spec + 反例校验、revise 干预与会话升级。
 - 运行时默认 `dsl` 规则模式；设置 `OPENCLAW_RV_RULE_MODE=fsm` 可回退到六个手写 FSM 监视器。
-- 规则检测、Hook 审批、审计双写、基线扫描和前端 RV 状态面板均有现行代码与测试覆盖。
+- 规则检测、Hook 审批、resolution 幂等同步、审计双写、基线扫描和前端 RV 状态面板均有现行代码与测试覆盖。
 
 ## 5. 当前边界与待办
 
@@ -71,8 +71,8 @@ OpenClaw before_tool_call
 
 ## 6. 维护规则
 
-1. 先看本文件、`docs/architecture/project-status-analysis.md`、`docs/ops/roadmap.md`，再看历史研究文档。
+1. 先看本文件、`docs/architecture/project-status-analysis.md`、`docs/ops/roadmap.md`，再看历史研究文档；`testlab/` 仅作为历史实验与证据，不是运行时依赖。
 2. 修改 Hook 合约、RV 判定顺序、默认模式或版本号时，同时更新 API/架构/部署文档和测试基线。
-3. 报告测试数量必须注明运行日期和命令；历史报告中的 331/340/344 是历史快照，不应覆盖当前 345/18 基线。
+3. 报告测试数量必须注明运行日期和命令；历史报告中的 331/340/344/345 是历史快照，不应覆盖当前 349/18 基线。
 4. 运行时是否处于 fail-open 不能从静态文档推断，必须通过进程、健康接口和插件状态现场检查。
-
+5. 文档与前端构建验证命令分别为 `cd docs && npm run docs:build`、`cd frontend && npm run build`；2026-08-23 均已通过。

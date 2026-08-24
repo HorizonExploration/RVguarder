@@ -14,6 +14,7 @@ from openclaw_guard.api._handlers import (
     debug_logs,
     dump_response,
     health,
+    get_action,
     hook_after_tool_call,
     hook_authorized,
     hook_before_tool_call,

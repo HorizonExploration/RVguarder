@@ -183,6 +183,12 @@ class ControlledAction(GuardBaseModel):
     matched_whitelists: list[str] = Field(default_factory=list)
     matched_rules: list[str] = Field(default_factory=list)
     execution_result: dict[str, Any] = Field(default_factory=dict)
+    source: str = "chat_relay"
+    decision_state: str = "pending"
+    execution_state: str = "not_started"
+    sync_state: str = "local_only"
+    resolution: dict[str, Any] = Field(default_factory=dict)
+    last_event_seq: int | None = None
 
     # __post_init__ 移除 — pydantic 在构造时自动将嵌套 dict 转换
     # 为 BehaviorEvent / DetectionDecision 实例。
@@ -201,6 +207,12 @@ class ControlledAction(GuardBaseModel):
             "matched_whitelists": self.matched_whitelists,
             "matched_rules": self.matched_rules,
             "execution_result": self.execution_result,
+            "source": self.source,
+            "decision_state": self.decision_state,
+            "execution_state": self.execution_state,
+            "sync_state": self.sync_state,
+            "resolution": self.resolution,
+            "last_event_seq": self.last_event_seq,
         }
 
 

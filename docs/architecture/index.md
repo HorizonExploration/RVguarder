@@ -16,6 +16,7 @@
 |------|------|---------|
 | [overview.md](./overview.md) | **架构总览**：分层设计（管理层/管控层/检测层/监控层）与决策流 | **1** |
 | [project-memory.md](./project-memory.md) | **项目理解与当前记忆**：当前代码边界、测试基线、已知边界与维护规则 | **0（先读）** |
+| [frontend-handoff-redesign-report.md](./frontend-handoff-redesign-report.md) | **前端与前后端交接改造报告**：审批权收敛、实时同步、页面信息架构与接口改造 | **6** |
 | [rv-engine-report.md](./rv-engine-report.md) | **RV 层技术报告**：规约 DSL、监视器编译、约束引擎、基线自动机、已知边界 | **2** |
 | [nl-automata-rv-landing-report.md](./nl-automata-rv-landing-report.md) | **RV 落地审计报告**：阶段 A–F 逐项核验 + 异常整改闭环 | **3** |
 | [project-status-analysis.md](./project-status-analysis.md) | **项目现状分析**：前端/后端/核心功能三类问题清单与推进顺序 | **4** |

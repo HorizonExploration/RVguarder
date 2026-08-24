@@ -8,8 +8,8 @@
 
 ### 现状
 - `semantic_enhancer.py` 的 `evaluate()` 返回 `{"semantic": {...}, "rv_trace": [{"step_id","event","props"}]}`
-- LLM 路径 (`_call_llm`)：在 `rv_trace` 每条步骤只补全 `step_id`/`event`/`props`（[semantic_enhancer.py#L212-L217](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/engine/semantic_enhancer.py#L212-L217)），LLM 返回的 `semantic.entities`/`semantic.constraints`/`semantic.confidence` 信息未写入 rv_trace
-- 本地路径 (`_local_evaluate`)：`_local_evaluate` 已内部分析出 `recipients`、`constraints`、`confidence`（[semantic_enhancer.py#L350-L390](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/engine/semantic_enhancer.py#L350-L390)），但仅存于 `semantic` 字段，未透传到 `rv_trace` 步骤
+- LLM 路径 (`_call_llm`)：在 `rv_trace` 每条步骤只补全 `step_id`/`event`/`props`（[semantic_enhancer.py#L212-L217](../../openclaw_guard/engine/semantic_enhancer.py#L212-L217)），LLM 返回的 `semantic.entities`/`semantic.constraints`/`semantic.confidence` 信息未写入 rv_trace
+- 本地路径 (`_local_evaluate`)：`_local_evaluate` 已内部分析出 `recipients`、`constraints`、`confidence`（[semantic_enhancer.py#L350-L390](../../openclaw_guard/engine/semantic_enhancer.py#L350-L390)），但仅存于 `semantic` 字段，未透传到 `rv_trace` 步骤
 - 下游消费者（`pipeline.py` 的 `_annotate_event_context`、`_apply_rv_if_available`）只使用 `rv_trace` 列表，不消费额外结构
 
 ### 目标
@@ -52,7 +52,7 @@ class ToolCallIR(BaseModel):
 
 ### 2. 修改 `semantic_enhancer.py` — LLM 路径
 
-**文件**：[semantic_enhancer.py](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/engine/semantic_enhancer.py#L132-L219)
+**文件**：[semantic_enhancer.py](../../openclaw_guard/engine/semantic_enhancer.py#L132-L219)
 
 **变更点**：在 `_call_llm` 方法的 rv_trace 补全循环中（第 212-217 行），为每条步骤注入结构化字段：
 
@@ -73,7 +73,7 @@ for item in rv_trace:
 
 ### 3. 修改 `semantic_enhancer.py` — 本地路径
 
-**文件**：[semantic_enhancer.py](file:///home/yosoro126/OpenClaw-RVGuarder/openclaw_guard/engine/semantic_enhancer.py#L342-L390)
+**文件**：[semantic_enhancer.py](../../openclaw_guard/engine/semantic_enhancer.py#L342-L390)
 
 **变更点**：在 `_local_evaluate` 的 `rv_trace` 构建处（第 383-389 行），注入已本地提取的实体和约束：
 

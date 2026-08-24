@@ -2,7 +2,7 @@
 
 ## 这页讲什么
 
-这一页说明龙虾卫士如何在**不修改 OpenClaw 源码**的前提下，把高风险工具调用真正拦在执行前，以及如何实现 OpenClaw 原生审批与 Guard Dashboard 之间的双向状态同步。
+这一页说明龙虾卫士如何在**不修改 OpenClaw 源码**的前提下，把高风险工具调用真正拦在执行前，以及如何把 OpenClaw 原生审批结果及时同步到 Guard Dashboard。
 
 ## 核心机制
 
@@ -40,8 +40,8 @@ OpenClaw 进入工具调用
   -> 风险判定
   -> allow / ask (require_approval) / block / escalate / revise (require_approval + revision_hint)
   -> require_approval 时 OpenClaw 挂起 agent，展示审批卡片
-  -> 用户在 OpenClaw 原生 UI 或 Guard Dashboard 批准
-  -> 双端同步：onResolution 推送 / Gateway 远程调用
+  -> 用户只在 OpenClaw 原生 UI 批准或拒绝
+  -> Guard 通过 onResolution 回调写入状态并发布 SSE 事件
   -> 批准后继续原工具调用
   -> after_tool_call 回写执行结果
 ```
@@ -102,26 +102,19 @@ pluginConfig = {
 >
 > **系统默认**：首次写入 `openclaw.json` 时，`_ensure_plugin_config()` 默认写入 `failClosed: false`（默认 fail-open，后端不可达直接放行），需要严格模式请显式改为 `true`。
 
-## 双端同步机制
+## 审批结果同步机制
 
-系统使用双向同步确保 OpenClaw 原生审批与 Guard Dashboard 状态一致：
+Hook 动作只有 OpenClaw 原生审批入口；Guard Dashboard 不显示批准/拒绝按钮，只展示风险证据和同步状态。
 
-### Dashboard → OpenClaw
-
-用户在 Guard Dashboard 点击「确认继续」或「拒绝」时：
-
-1. 后端更新 `action_service` 中动作状态
-2. 异步调用 `resolve_plugin_approval(target, plugin_id, run_id, decision)` 通过 `openclaw gateway call` 通知 OpenClaw
-3. Gateway 方法：优先 `approvals.resolve`，回退 `plugin.resolveApproval`
-4. OpenClaw 原生审批卡片同步更新状态，agent 继续执行
-
-### OpenClaw 原生 → Dashboard
+### OpenClaw 原生 → Guard Dashboard
 
 用户在 OpenClaw 原生审批 UI 中批准/拒绝时：
 
 1. 插件 `onResolution` 回调触发，POST `/api/hook/resolve-approval`
 2. 后端 `resolve_hook_approval` 处理：字段名兼容 `actionId`/`action_id`，决策值兼容 `allow-once`/`allow_once`
-3. Guard Dashboard 通过轮询自动获取最新状态
+3. 后端幂等更新 `decision_state`、`sync_state` 和审计记录
+4. 发布 `action.resolved` SSE 事件，前端按 `action_id` 增量刷新
+5. SSE 断线时通过 `GET /api/actions/{action_id}` 和轻量 summary 对账
 
 ## 首次启用
 
@@ -168,9 +161,9 @@ npm run openclaw gateway
 ### Guard Dashboard
 
 - 动作页出现 `pending_approval`
-- 批准后动作变为 `approved -> executing`，同时 OpenClaw 卡片同步更新
+- OpenClaw 回调收到批准后，动作变为 `approved -> executing`；Guard 不执行二次审批
 - 工具执行结束后回写 `executed` 或 `failed`
-- 如果用户拒绝，动作保持 `rejected`，原工具不会继续
+- 收到 OpenClaw 拒绝回调后，动作保持 `rejected`，原工具不会继续
 
 ## 当前边界
 

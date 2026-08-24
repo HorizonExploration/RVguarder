@@ -1,6 +1,6 @@
 import { useStore } from '../store';
 import { t, esc } from '../i18n';
-import { runBaseline, exportAudit } from '../api';
+import { runBaseline, exportAudit, apiErrorMessage } from '../api';
 
 const PHASES = ['scanStage_prepare', 'scanStage_config', 'scanStage_runtime', 'scanStage_audit'];
 const STEPS = [18, 42, 71, 92];
@@ -29,7 +29,7 @@ export function ScanProgress() {
     } catch (error) {
       clearInterval(timer);
       setScan({ running: false });
-      showToast(error.payload?.message || t('error_default'));
+      showToast(apiErrorMessage(error, t('error_default')));
     }
     const s = await fetch(`/api/summary`).then((r) => r.json()).catch(() => ({}));
     setSummary(s);
@@ -40,7 +40,7 @@ export function ScanProgress() {
       const p = await exportAudit();
       showToast('✅ 导出成功：' + p.json);
     } catch (error) {
-      showToast(error.payload?.message || t('error_default'));
+      showToast(apiErrorMessage(error, t('error_default')));
     }
   };
 
