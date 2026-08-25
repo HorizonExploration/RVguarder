@@ -27,6 +27,7 @@ from openclaw_guard.engine.pipeline import (
     handle_before_tool_call_pipeline,
     ingest_event_pipeline,
 )
+from openclaw_guard.integrations.tool_hook_bridge import build_hook_event, build_hook_source_message
 from openclaw_guard.models import BehaviorEvent, DetectionDecision
 from openclaw_guard.services import build_services
 
@@ -233,6 +234,30 @@ class HandleBeforeToolCallPipelineTests(unittest.TestCase):
                 {"toolName": "before_prompt_build", "params": {}, "runId": "r1", "toolCallId": "c1", "sessionId": "s1"},
             )
         self.assertEqual(result["action"], "allow")
+        self.assertNotIn("action_record", result)
+        actions = self.services.action_service.list_actions(limit=100)
+        self.assertFalse(
+            any(item.get("event", {}).get("metadata", {}).get("tool_name") == "before_prompt_build" for item in actions)
+        )
+
+    def test_before_prompt_build_is_not_command_action(self) -> None:
+        event = build_hook_event(
+            {"toolName": "before_prompt_build", "params": {}, "runId": "r-pre", "toolCallId": "c-pre"}
+        )
+        self.assertEqual(event.action_type, "unknown")
+        self.assertIn("预检查", build_hook_source_message(event))
+
+    def test_real_tool_approval_still_creates_pending_action(self) -> None:
+        with patch.object(self.services.audit_store, "append", return_value={}):
+            result = handle_before_tool_call_pipeline(
+                self.services,
+                {"toolName": "unknown_tool", "params": {}, "runId": "r-approval", "toolCallId": "c-approval"},
+            )
+        self.assertEqual(result["action"], "require_approval")
+        actions = self.services.action_service.list_actions(limit=100)
+        pending = [item for item in actions if item.get("status") == "pending_approval"]
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["event"]["metadata"]["tool_name"], "unknown_tool")
 
     def test_read_command_produces_action_record(self) -> None:
         """正常 read 命令应产生 action_record。"""

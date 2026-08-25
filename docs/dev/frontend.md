@@ -90,7 +90,7 @@ openclaw-guard run
 
 | 路由/视图 | 说明 |
 |-----------|------|
-| `dashboard`（`/`） | 首页：连接状态 + 待 OpenClaw 处理动作 + 最近动作 + Hook 状态 |
+| `dashboard`（`/`） | 首页：连接状态 + 待 OpenClaw 处理动作 + 最近动作 + Hook 状态；最近动作不重复展示待确认项 |
 | `actions`（`/actions`） | 动作状态页：按状态筛选 + 分页浏览；Hook 动作只读 |
 | `rules`（`/rules`） | 安全规则页：规则列表与管理 |
 | `skills`（`/skills`） | 技能配置页：skill 启停与权限 |

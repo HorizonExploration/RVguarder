@@ -110,7 +110,7 @@ function RecentSection() {
   const setSummary = useStore((s) => s.setSummary);
   const showToast = useStore((s) => s.showToast);
   const items = (summary.actions || {}).items || [];
-  const recent = items.slice(0, 6);
+  const recent = items.filter((item) => item.status !== 'pending_approval').slice(0, 6);
 
   const handleClear = async () => {
     if (!confirm('确定要清空所有动作历史记录吗？')) return;

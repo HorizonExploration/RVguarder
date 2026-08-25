@@ -72,6 +72,8 @@ def build_hook_event(payload: dict[str, Any]) -> BehaviorEvent:
 
 def build_hook_source_message(event: BehaviorEvent) -> str:
     tool_name = str(event.metadata.get("tool_name") or event.action_type)
+    if tool_name == "before_prompt_build":
+        return "OpenClaw 提示词构建前预检查"
     if event.action_type == "file_delete":
         if event.target_paths:
             return f"OpenClaw 请求删除文件：{', '.join(event.target_paths[:3])}"
@@ -124,6 +126,8 @@ def _infer_action_type(
     command: str | None,
 ) -> str:
     lowered_tool = tool_name.lower()
+    if lowered_tool == "before_prompt_build":
+        return "unknown"
     haystack = " ".join(
         [
             lowered_tool,

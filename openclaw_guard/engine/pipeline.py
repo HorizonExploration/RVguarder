@@ -324,6 +324,26 @@ def handle_before_tool_call_pipeline(
     timings = _ensure_pipeline_timings(event)
     timings["controller_ms"] = round((time.perf_counter() - controller_started) * 1000.0, 3)
     timings["total_ms"] = round((time.perf_counter() - started) * 1000.0, 3)
+
+    # before_prompt_build is an intent precheck. OpenClaw does not wait for
+    # this hook and therefore cannot display or resolve an approval card.
+    # Keep the analysis in the audit trail, but never create a pending action.
+    if event.metadata.get("tool_name") == "before_prompt_build":
+        services.audit_store.append(
+            "hook_intent_precheck",
+            {
+                "event": event.to_dict(),
+                "decision": controlled.decision.to_dict(),
+                "timings": dict(timings),
+            },
+        )
+        services._log(
+            "hook_intent_precheck",
+            tool_name="before_prompt_build",
+            decision=controlled.decision.action,
+        )
+        return {"action": "allow", "precheck": True}
+
     hook_key = str(event.metadata.get("hook_key") or hook_key_from_payload(payload))
     controlled.event.metadata["hook_key"] = hook_key
     controlled.event.metadata["hook_bridge"] = True
@@ -351,13 +371,6 @@ def handle_before_tool_call_pipeline(
         tool_name=event.metadata.get("tool_name"),
         decision=controlled.decision.action,
     )
-
-    # 意图预警阶段禁止触发阻塞审批（OpenClaw 此时不等待返回）
-    if event.metadata.get("tool_name") == "before_prompt_build":
-        return {
-            "action": "allow",
-            "action_record": controlled.to_dict(),
-        }
 
     if controlled.status == "blocked":
         return {

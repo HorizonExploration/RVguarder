@@ -89,6 +89,8 @@ export default defineUserConfig({
         {
           text: "调研与规划",
           children: [
+            "/research/permission-model-kb-and-cross-session-rv-plan.md",
+            "/research/agent-permission-rv-research-report-2026-08-25.md",
             "/research/nl-automata-rv-upgrade-plan.md",
           ],
         },

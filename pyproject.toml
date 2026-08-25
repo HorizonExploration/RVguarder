@@ -30,3 +30,6 @@ test = ["httpx"]
 
 [tool.setuptools.packages.find]
 include = ["openclaw_guard*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

@@ -203,6 +203,8 @@ OpenClaw Guard 本地插件内部使用的同步审批接口。
 - 生成动作记录
 - 执行 `allow / require_approval / block / escalate`
 - 返回给 OpenClaw 的 `requireApproval` 遵循官方 `BeforeToolCallResult` 类型
+- 当请求的 `toolName` 为 `before_prompt_build` 时，该接口仅执行意图预检查，返回
+  `{"action":"allow","precheck":true}`，不会写入动作记录或发布 `action.created`。
 
 ## POST `/api/hook/after-tool-call`
 

@@ -19,9 +19,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from openclaw_guard.models import ControlledAction
+from openclaw_guard.models import ControlledAction, DetectionDecision
 from openclaw_guard.services import GuardServices, build_services
 from openclaw_guard.integrations.openclaw_adapter import OpenClawRelayError
+from openclaw_guard.integrations.tool_hook_bridge import build_hook_event
+from openclaw_guard.utils import utc_now_iso
 
 
 class BuildServicesTests(unittest.TestCase):
@@ -84,6 +86,39 @@ class BuildServicesTests(unittest.TestCase):
             self.assertTrue(services.log_path.name.endswith("guard.log"))
             self.assertTrue(services.preferences_path.name.endswith("preferences.json"))
             self.assertIsNotNone(services.conversation_path)
+
+    def test_legacy_precheck_action_is_not_reported_as_pending(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "OpenclawGuard"
+            project.mkdir()
+            config_path = project / "openclaw.json"
+            config_path.write_text(json.dumps({"models": {"providers": {}}}), encoding="utf-8")
+            services = build_services(project, config_path=config_path)
+            event = build_hook_event({"toolName": "before_prompt_build", "params": {}, "runId": "legacy", "toolCallId": ""})
+            action = ControlledAction(
+                action_id="legacy-precheck",
+                source_message="OpenClaw 提示词构建前预检查",
+                created_at=utc_now_iso(),
+                status="pending_approval",
+                event=event,
+                decision=DetectionDecision(
+                    event_id=event.event_id,
+                    timestamp=utc_now_iso(),
+                    action_type=event.action_type,
+                    risk_level="caution",
+                    action="ask",
+                    reason="legacy precheck",
+                ),
+                target_summary="OpenClaw 提示词构建前预检查",
+                source="hook_bridge",
+            )
+            services.action_service._save_all([action])
+            services.action_service._load(force_refresh=True)
+
+            listed = services.action_service.list_actions(limit=10)
+            self.assertEqual(len(listed), 1)
+            self.assertEqual(listed[0]["status"], "allow")
+            self.assertTrue(listed[0]["execution_result"]["precheck"])
 
 
 class GuardServicesRvTests(unittest.TestCase):

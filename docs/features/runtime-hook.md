@@ -19,6 +19,11 @@
 - 额外通过 `api.registerGatewayMethod()` 注册：
   - `openclaw_guard.hook_status` — Gateway 健康检查方法
 
+其中 `before_prompt_build` 只用于提示词构建前的意图预检查：它始终返回
+`allow`，只保留审计/遥测信息，不创建 Guard 动作记录，也不会出现在待确认列表。
+只有 `before_tool_call` 进入动作生命周期并可能返回 `requireApproval`；这样 OpenClaw
+原生审批卡片是唯一审批入口。
+
 ### API 说明
 
 插件使用 OpenClaw 官方 `api.on()` API 注册钩子（非已废弃的 `api.registerHook()`）：
@@ -34,6 +39,7 @@ api.on("before_tool_call", async (event, hookCtx) => {
 
 ```text
 OpenClaw 进入工具调用
+  -> api.on("before_prompt_build")（非阻塞预检查，allow + 审计，不创建待审批动作）
   -> api.on("before_tool_call")
   -> 调用 Guard 本地 API (/api/hook/before-tool-call)
   -> Guard 转成行为事件

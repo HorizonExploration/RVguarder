@@ -9,6 +9,13 @@ from openclaw_guard.manager import build_manager
 
 
 class FrontendRvContractTests(unittest.TestCase):
+    def test_dashboard_does_not_repeat_pending_actions_in_recent_list(self) -> None:
+        source = (Path(__file__).resolve().parents[1] / "frontend/src/pages/Dashboard.jsx").read_text(encoding="utf-8")
+        self.assertIn(
+            "const recent = items.filter((item) => item.status !== 'pending_approval').slice(0, 6);",
+            source,
+        )
+
     def test_action_contains_pipeline_timings(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp) / "OpenclawGuard"
@@ -55,4 +62,3 @@ class FrontendRvContractTests(unittest.TestCase):
                 self.assertNotIn("raw", item)
             for item in summary.get("channels", {}).get("items", []):
                 self.assertNotIn("raw", item)
-
