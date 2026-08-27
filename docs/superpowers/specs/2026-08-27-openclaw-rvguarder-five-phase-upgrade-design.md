@@ -65,7 +65,63 @@
 - [OpenClaw configuration reference](https://docs.openclaw.ai/gateway/configuration-reference)
 - [OpenClaw plugin CLI](https://docs.openclaw.ai/cli/plugins)
 
-## 5. 目标架构
+## 5. 飞书权限分类的可迁移设计
+
+飞书开放平台的权限实践提供了个人办公场景所需的粒度参考：应用先声明能力范围，再按业务域、读写动作、资源协作者/可见范围和字段级权限进行约束；机器人身份、用户委托身份和应用发布/管理员审批也相互区分。项目只借鉴这种分层方法，不直接复制飞书 scope 名称或假设 Guard 能替代飞书的授权系统。
+
+### 5.1 权限分类映射
+
+| 飞书式分类 | 本项目统一模型 | 个人办公示例 | 默认风险 |
+|---|---|---|---|
+| 应用/机器人身份 | `principal`、`agent_id`、`capability_lineage`、`grant_mode` | 用户委托的 agent、独立 bot、skill | 身份混淆可能造成 confused deputy |
+| 即时消息 | `message.read/send`、`message.bulk_send` | 读取单聊、发送单聊、群发、发送附件 | 外部/群发不可逆 |
+| 通讯录 | `directory.read_basic`、`directory.read_sensitive` | 获取姓名、邮箱、组织关系 | 个人信息暴露 |
+| 云文档/知识库/云盘 | `document.read/write/share/export`、`file.read/write/delete` | 读取本人文档、编辑共享文档、生成外链 | 共享范围扩张、批量外发 |
+| 电子表格/多维表格 | `table.read/write/export/manage` | 读取字段、更新记录、导出表格、改字段权限 | 批量数据泄露或篡改 |
+| 日历/会议 | `calendar.freebusy/read/create/update/delete/invite`、`meeting.recording.read` | 查空闲、创建会议、邀请外部人员、下载录制 | 外部通知、隐私泄露、不可逆取消 |
+| 审批/工作流 | `workflow.read/submit/approve/reject/delegate` | 代提交、批量审批、跳过审批人 | 业务控制绕过 |
+| 事件/回调/网络 | `event.subscribe`、`network.connect/egress` | 接收事件、调用外部 webhook、上传附件 | 数据外发与供应链风险 |
+| 应用配置/发布 | `app.install`、`scope.grant`、`config.modify`、`audit.modify` | 安装 skill、扩大应用 scope、关闭审计 | 持久化越权、绕过监控 |
+
+每个业务域至少拆成 `read`、`create`、`update`、`delete`、`share/export` 和 `admin/delegate` 六类动作；动作之外必须记录资源范围。比如 `document.read` 仅表示动作，不代表可以读取所有文档；最终权限应表达为：
+
+```text
+document.read
++ resource_scope = own | explicitly_shared | workspace | external
++ data_classification = public | internal | sensitive | secret
++ field_scope = named_fields | all_fields
++ quantity_limit = N
++ purpose = summarize | prepare_meeting | export_report
++ ttl = duration
+```
+
+### 5.2 飞书经验转化为本项目的三个安全边界
+
+1. **应用授权与运行时授权分离。** 飞书应用发布、管理员授予 scope 属于静态能力授予；OpenClaw 每次 Hook 调用属于运行时决策。前者写入 `capability`，后者校验本次 `requested_delta`，不能因为应用曾经获得过宽 scope 就自动放行所有动作。
+2. **身份方式必须进入 Trace。** `send_as_bot`、`send_as_user`、用户委托 token 和 skill 继承能力在模型中必须是不同的 `principal/grant_mode`。只有用户身份一致、委托链完整时，才可以把一次批准的能力绑定到后续动作。
+3. **资源协作者与字段级授权不可丢失。** 文档被添加为应用协作者、表格只开放部分字段、知识库节点只读等信息，分别建模为 resource relationship 和 field scope；仅记录 `document.read` 或 `table.read` 会产生过度授权假象。
+
+### 5.3 个人办公可信资源的初始规则
+
+在没有组织管理员策略输入时，采用默认拒绝外部边界、显式收敛可信资源的方式：
+
+- `own` 和用户明确共享的单个资源可作为候选可信范围；不能把整个云盘、整个通讯录或整个租户默认视为可信。
+- 内部收件人、域名、群组和 webhook 必须进入版本化 allowlist，并记录来源与过期时间；未知外部目标保持 `openclaw_approval`。
+- 只读权限默认可进入低风险模板；`write/delete/share/export/admin` 不因同一资源的 read 权限而继承。
+- 机器人发信与用户代发、内部群发与外部群发、查看忙闲与读取会议内容必须分别建模。
+- 字段级敏感数据（邮箱、联系方式、财务、凭据、聊天记录、会议录音）在 `data.classification` 中单独标注；导出/外发时以最高敏感字段决定风险。
+- 所有临时授权都带 `purpose`、`ttl`、`issuer` 和撤销事件；到期后自动回到 `unknown`，而不是继续沿用历史批准。
+
+这套边界可覆盖当前个人办公矩阵中的日历、会议、文档、即时消息、表格、审批、代码仓库和云盘场景，同时避免把飞书租户级管理权限误当作普通办公权限。
+
+参考材料：
+
+- [飞书开放平台](https://open.feishu.cn/)
+- [会议室预定 Pad 集成方案：接口权限与机器人通讯录范围](https://open.feishu.cn/community/articles/7271149634339618818)
+- [动态用户组与审批联动：临时权限、到期回收与台账](https://open.feishu.cn/community/articles/7329821392785326082)
+- [云文档对外分享自动化：时长、关闭日期与统一台账](https://open.feishu.cn/community/articles/7304485933503987713)
+
+## 6. 目标架构
 
 ```text
 OpenClaw before_prompt_build ──> Guard precheck telemetry (non-blocking)
@@ -97,9 +153,9 @@ normalize -> annotate -> permission_normalize -> coverage
 
 现有 detection、constraint 和 RV 仍可提升风险等级，但不能把 `block`、`ask`、`revise` 降级为 `allow`。
 
-## 6. 核心数据契约
+## 7. 核心数据契约
 
-### 6.1 Authorization Trace
+### 7.1 Authorization Trace
 
 在现有 `ToolCallIR` 保持兼容的前提下，新增或标准化以下字段：
 
@@ -122,7 +178,7 @@ normalize -> annotate -> permission_normalize -> coverage
 }
 ```
 
-### 6.2 PolicyDecision
+### 7.2 PolicyDecision
 
 所有决策层必须消费/输出统一证据，避免 DetectionRule 与 ConstraintRule 双轨漂移：
 
@@ -146,7 +202,7 @@ normalize -> annotate -> permission_normalize -> coverage
 
 `match_confidence` 只表示信息与规则覆盖的确定程度；`risk_score` 只用于无硬约束时的排序。两者不得相互替代。
 
-### 6.3 审批与同步状态
+### 7.3 审批与同步状态
 
 Hook 动作保存：`action_id`、`hook_key`、`run_id`、`tool_call_id`、`principal_id`、`policy_version`、`decision_state`、`execution_state`、`sync_state`、`event_seq`、`resolution`。
 
@@ -154,7 +210,7 @@ Hook 动作保存：`action_id`、`hook_key`、`run_id`、`tool_call_id`、`prin
 - 相同 `action_id + decision_state` 回调幂等；相反决策写入冲突审计，不覆盖已决结果。
 - 前端以 `event_seq` 递增消费 SSE；重连传递 `Last-Event-ID` 或 `after_seq`，再通过单动作查询对账。
 
-## 7. 五阶段交付
+## 8. 五阶段交付
 
 ### 阶段 1：OpenClaw 合约与审批同步基础
 
@@ -261,7 +317,7 @@ Hook 动作保存：`action_id`、`hook_key`、`run_id`、`tool_call_id`、`prin
 
 **阶段退出：** 总人工审批下降至少 40%，低风险审批下降至少 60%，高风险召回至少 98%，自动放行精确率至少 99%，本地确定性匹配 P95 不高于 50ms，审批同步 P95 不高于 1 秒。
 
-## 8. 验证策略
+## 9. 验证策略
 
 每阶段均遵循测试先行：
 
@@ -272,7 +328,7 @@ Hook 动作保存：`action_id`、`hook_key`、`run_id`、`tool_call_id`、`prin
 5. 对 Hook 生成物执行 `node --check`，并用 OpenClaw CLI 在已安装环境中做 runtime inspection。
 6. 记录性能基线和策略版本；只在满足阶段门槛后扩大自动放行范围。
 
-## 9. 回滚策略
+## 10. 回滚策略
 
 - 每个 policy bundle、权限关系和风险组合都有独立 `policy_version` 与启停开关。
 - 规则或模型升级失败时，回退到前一版本的 catalog/rules，不删除审计记录和历史实验产物。
@@ -280,7 +336,7 @@ Hook 动作保存：`action_id`、`hook_key`、`run_id`、`tool_call_id`、`prin
 - Hook 合约异常时，按部署配置选择 fail-closed 或明确记录的 fail-open；不得无日志地降级。
 - Guard 前端同步异常不会改变 OpenClaw 的审批所有权或审批结果。
 
-## 10. 文档与可观测性要求
+## 11. 文档与可观测性要求
 
 - `docs/api/http.md`：Hook payload、审批同步、SSE cursor 和状态字段。
 - `docs/features/runtime-hook.md`：官方 Hook 合约映射、配置、重启和诊断命令。
@@ -288,7 +344,7 @@ Hook 动作保存：`action_id`、`hook_key`、`run_id`、`tool_call_id`、`prin
 - `docs/ops/roadmap.md`：阶段状态、指标和回滚门槛。
 - 每次策略决策写入 `policy_version`、`match_status`、`unknown_reason`、`rule_evidence`、`risk_score`、`human_override`、`final_outcome` 与延迟字段。
 
-## 11. 规格自检结论
+## 12. 规格自检结论
 
 - 五个阶段覆盖了 Hook 合约、匹配治理、权限组合、跨 session RV 和攻击验证。
 - 每个阶段都有明确代码边界、不可违反约束、量化退出标准和可回退边界。
