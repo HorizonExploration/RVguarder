@@ -1,9 +1,13 @@
+import pytest
+
 from openclaw_guard.models import DetectionDecision
+from pydantic import ValidationError
 from openclaw_guard.policy.models import (
     AuthorizationTrace,
     CoverageResult,
     OperationRef,
     PolicyDecision,
+    PolicyRule,
     PrincipalRef,
     ResourceRef,
 )
@@ -39,4 +43,20 @@ def test_detection_decision_accepts_optional_policy_evidence():
         event_id="e1", timestamp="2026-01-01T00:00:00Z", action_type="chat_message",
         risk_level="safe", action="allow", reason="ok",
     )
+    assert decision.policy_decision is None
+
+
+def test_policy_effect_contract_rejects_unsupported_values():
+    with pytest.raises(ValidationError):
+        PolicyDecision(effect="allow", match_status="matched")
+    with pytest.raises(ValidationError):
+        PolicyRule(id="r1", version="p0.1.0", effect="partial_grant")
+
+
+def test_old_detection_decision_payload_deserializes_without_policy_evidence():
+    decision = DetectionDecision.model_validate({
+        "event_id": "legacy-1", "timestamp": "2026-01-01T00:00:00Z",
+        "action_type": "chat_message", "risk_level": "safe",
+        "action": "allow", "reason": "legacy",
+    })
     assert decision.policy_decision is None
