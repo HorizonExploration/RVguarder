@@ -1,0 +1,126 @@
+"""Deterministic PMKB authorization orchestration for enriched behavior events."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from openclaw_guard.models import BehaviorEvent
+from openclaw_guard.policy.catalog import PolicyBundle
+from openclaw_guard.policy.evaluator import PolicyEvaluator
+from openclaw_guard.policy.models import AuthorizationTrace, CapabilityGrant, PermissionRef, PolicyDecision
+from openclaw_guard.policy.permission_diff import PermissionClosure, PermissionDiff
+from openclaw_guard.policy.risk_graph import RiskGraph
+from openclaw_guard.policy.trace import TraceCompiler
+from openclaw_guard.utils import sha256_text
+
+
+_EFFECT_RANK = {
+    "auto_allow_audit": 0,
+    "clarify_then_retry": 1,
+    "openclaw_approval": 2,
+    "block": 3,
+}
+_BRIDGED_TOOL_ALIASES = {"shell", "exec", "command", "bash", "run", "execute"}
+
+
+class AuthorizationPolicyEngine:
+    """Evaluate local PMKB policy without invoking an LLM or network service."""
+
+    def __init__(self, policy_root: Path) -> None:
+        self.bundle = PolicyBundle.load(policy_root)
+        self.trace_compiler = TraceCompiler(self.bundle)
+        self.policy_evaluator = PolicyEvaluator(self.bundle)
+        self.permission_closure = PermissionClosure(self.bundle)
+        self.permission_diff = PermissionDiff()
+        self.risk_graph = RiskGraph.from_bundle(self.bundle)
+
+    def compile_trace(self, event: BehaviorEvent, *, source_message: str = "") -> AuthorizationTrace:
+        """Compile the event's already-enriched semantic context into PMKB evidence."""
+        semantic = event.metadata.get("semantic")
+        rv_trace = event.metadata.get("rv_trace")
+        return self.trace_compiler.compile(
+            event,
+            semantic=semantic if isinstance(semantic, dict) else {},
+            rv_trace=rv_trace if isinstance(rv_trace, list) else [],
+            source_message=source_message,
+        )
+
+    def evaluate(self, event: BehaviorEvent, *, source_message: str = "") -> PolicyDecision:
+        """Evaluate one event with its grants, least-privilege delta, and risk graph."""
+        trace = self._trace_for(event, source_message=source_message)
+        grants, grant_source = self._grants_for(event)
+        event.metadata["grant_source"] = grant_source
+        effective = self.permission_closure.close(grants)
+        requested = [PermissionRef(
+            family=trace.operation.family,
+            scope=trace.resource.scope,
+            classification=trace.data.classification,
+        )]
+        diff = self.permission_diff.compute(effective, requested, requested)
+        violations = self.risk_graph.evaluate(
+            effective=effective,
+            requested_delta=diff.requested_delta,
+            trace=trace,
+        )
+
+        evaluated = self.policy_evaluator.evaluate(trace)
+        effects = [evaluated.effect, *(item.effect for item in violations)]
+        if diff.hard_violations:
+            effects.append("block")
+        effect = max(effects, key=lambda candidate: _EFFECT_RANK[candidate])
+        missing_features = list(dict.fromkeys([
+            *evaluated.missing_features,
+            *trace.coverage.gaps,
+            *( ["tool_mapping"] if self._raw_tool_is_unmapped(event) else [] ),
+        ]))
+        decision = evaluated.model_copy(update={
+            "effect": effect,
+            "risk_score": max([evaluated.risk_score, *(item.severity for item in violations)], default=evaluated.risk_score),
+            "missing_features": missing_features,
+            "requested_delta": diff.requested_delta,
+            "redundant_permissions": diff.redundant_permissions,
+            "excessive_permissions": diff.excessive_permissions,
+            "combo_violations": [item.relation_id for item in violations],
+            "grant_source": grant_source,
+        })
+        decision.replay_hash = sha256_text(json.dumps({
+            "trace": trace.model_dump(mode="json"),
+            "decision": decision.model_dump(mode="json", exclude={"replay_hash"}),
+        }, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+        return decision
+
+    def _raw_tool_is_unmapped(self, event: BehaviorEvent) -> bool:
+        """Retain an explicit coverage gap when action inference masks an unknown tool."""
+        tool_name = str(event.metadata.get("tool_name") or event.api_name or "")
+        return bool(
+            tool_name
+            and tool_name.lower() not in _BRIDGED_TOOL_ALIASES
+            and self.bundle.operation_for_tool(tool_name, {}).family == "unknown_tool"
+        )
+
+    def _trace_for(self, event: BehaviorEvent, *, source_message: str) -> AuthorizationTrace:
+        """Use the pipeline's compiled trace when valid, otherwise compile locally."""
+        serialized = event.metadata.get("authorization_trace")
+        if isinstance(serialized, dict):
+            try:
+                return AuthorizationTrace.model_validate(serialized)
+            except Exception:
+                pass
+        trace = self.compile_trace(event, source_message=source_message)
+        event.metadata["authorization_trace"] = trace.model_dump()
+        return trace
+
+    @staticmethod
+    def _grants_for(event: BehaviorEvent) -> tuple[list[CapabilityGrant], str]:
+        """Normalize grants from event metadata, defaulting explicitly to no grant."""
+        raw_grants = event.metadata.get("current_permissions")
+        if not isinstance(raw_grants, list):
+            return [], "empty_default"
+        grants: list[CapabilityGrant] = []
+        for item in raw_grants:
+            try:
+                grants.append(item if isinstance(item, CapabilityGrant) else CapabilityGrant.model_validate(item))
+            except Exception:
+                continue
+        return grants, "event_metadata"

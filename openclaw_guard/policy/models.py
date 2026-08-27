@@ -111,6 +111,7 @@ class PolicyDecision(GuardBaseModel):
     redundant_permissions: list[PermissionRef] = Field(default_factory=list)
     excessive_permissions: list[PermissionRef] = Field(default_factory=list)
     combo_violations: list[str] = Field(default_factory=list)
+    grant_source: str = ""
     policy_version: str = ""
     replay_hash: str = ""
 

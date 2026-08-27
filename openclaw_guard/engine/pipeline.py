@@ -22,11 +22,6 @@ from openclaw_guard.integrations.tool_hook_bridge import (
     hook_key_from_payload,
 )
 from openclaw_guard.utils import utc_now_iso
-from openclaw_guard.policy.catalog import PolicyBundle
-from openclaw_guard.policy.trace import TraceCompiler
-
-_TRACE_COMPILER: TraceCompiler | None = None
-
 if TYPE_CHECKING:
     from openclaw_guard.services import GuardServices
 
@@ -83,6 +78,10 @@ def _annotate_event_context(
 
     原地修改 event.metadata。
     """
+    if "current_permissions" not in event.metadata and isinstance(event.raw_payload, dict):
+        raw_grants = event.raw_payload.get("current_permissions")
+        if isinstance(raw_grants, list):
+            event.metadata["current_permissions"] = raw_grants
     workspace = services.context.target.workspace_path
     if workspace and event.target_paths:
         workspace_root = Path(workspace).expanduser()
@@ -109,20 +108,63 @@ def _annotate_event_context(
     timings["semantic_ms"] = round((time.perf_counter() - semantic_started) * 1000.0, 3)
     event.metadata["semantic"] = semantic_payload["semantic"]
     event.metadata["rv_trace"] = semantic_payload["rv_trace"]
-    global _TRACE_COMPILER
-    if _TRACE_COMPILER is None:
-        try:
-            _TRACE_COMPILER = TraceCompiler(PolicyBundle.load(Path(__file__).resolve().parents[2] / "policies" / "permissions"))
-        except Exception:
-            _TRACE_COMPILER = False  # type: ignore[assignment]
-    if _TRACE_COMPILER:
-        authorization_trace = _TRACE_COMPILER.compile(
-            event,
-            semantic=semantic_payload["semantic"],
-            rv_trace=semantic_payload["rv_trace"],
-            source_message=source_message,
-        )
+    policy_engine = getattr(services, "policy_engine", None)
+    if policy_engine is not None:
+        authorization_trace = policy_engine.compile_trace(event, source_message=source_message)
         event.metadata["authorization_trace"] = authorization_trace.model_dump()
+
+
+def _apply_policy_engine(
+    services: GuardServices,
+    event: Any,
+    decision: Any,
+    *,
+    source_message: str = "",
+) -> Any:
+    """Attach PMKB evidence and only raise the pre-existing decision severity."""
+    policy_engine = getattr(services, "policy_engine", None)
+    if policy_engine is None:
+        return decision
+    policy_started = time.perf_counter()
+    policy_decision = policy_engine.evaluate(event, source_message=source_message)
+    timings = _ensure_pipeline_timings(event)
+    timings["policy_ms"] = round((time.perf_counter() - policy_started) * 1000.0, 3)
+    decision.policy_decision = policy_decision.model_dump(mode="json")
+    decision.trace = list(decision.trace) + [{
+        "stage": "pmkb",
+        "effect": policy_decision.effect,
+        "match_status": policy_decision.match_status,
+        "selected_rule_ids": list(policy_decision.selected_rule_ids),
+        "combo_violations": list(policy_decision.combo_violations),
+    }]
+
+    action_for_effect = {
+        "block": "block",
+        "openclaw_approval": "ask",
+        "clarify_then_retry": "revise",
+        "auto_allow_audit": "allow",
+    }
+    severity = {"allow": 1, "ask": 2, "revise": 2, "escalate": 3, "block": 4}
+    prior_action = getattr(decision, "action", "allow")
+    policy_action = action_for_effect[policy_decision.effect]
+    actionable = (
+        policy_decision.effect == "block"
+        or bool(policy_decision.selected_rule_ids)
+        or bool(policy_decision.combo_violations)
+        or (
+            "tool_mapping" in policy_decision.missing_features
+            and bool(event.metadata.get("hook_bridge"))
+        )
+    )
+    if actionable and severity[policy_action] > severity.get(prior_action, 1):
+        decision.action = policy_action
+        decision.reason = f"[PMKB] {policy_decision.effect} (原有: {prior_action})"
+        if policy_action == "block":
+            decision.risk_level = "blocked"
+        elif policy_action in {"ask", "revise"}:
+            decision.risk_level = "caution"
+        decision.rule_ids = list(decision.rule_ids) + list(policy_decision.selected_rule_ids) + list(policy_decision.combo_violations)
+    return decision
 
 
 def _apply_rv_if_available(
@@ -283,6 +325,7 @@ def ingest_event_pipeline(
     decision = services.detector.evaluate(event)
     timings = _ensure_pipeline_timings(event)
     timings["detection_ms"] = round((time.perf_counter() - detect_started) * 1000.0, 3)
+    decision = _apply_policy_engine(services, event, decision, source_message=source_message)
     decision = _apply_constraint_engine(services, event, decision)
     decision = _apply_rv_if_available(services, event, decision)
     timings = _ensure_pipeline_timings(event)
@@ -332,6 +375,7 @@ def handle_before_tool_call_pipeline(
     decision = services.detector.evaluate(event)
     timings = _ensure_pipeline_timings(event)
     timings["detection_ms"] = round((time.perf_counter() - detect_started) * 1000.0, 3)
+    decision = _apply_policy_engine(services, event, decision, source_message=hook_source_message)
     decision = _apply_constraint_engine(services, event, decision)
     decision = _apply_rv_if_available(services, event, decision)
     timings = _ensure_pipeline_timings(event)

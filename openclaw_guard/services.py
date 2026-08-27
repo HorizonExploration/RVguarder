@@ -27,6 +27,7 @@ from openclaw_guard.integrations.discovery import discover_openclaw
 from openclaw_guard.storage.audit_store import AuditStore
 from openclaw_guard.integrations.hook_runtime import ensure_runtime_hook_plugin
 from openclaw_guard.engine.semantic_enhancer import SemanticEnhancer
+from openclaw_guard.policy.engine import AuthorizationPolicyEngine
 from openclaw_guard.rv.runtime_verification import RuntimeVerificationEngine
 from openclaw_guard.rv.constraints import ConstraintEngine, migrated_constraint_rules
 from openclaw_guard.spec.session_state import SessionSafetyState
@@ -376,6 +377,7 @@ class GuardServices:
         self.semantic_enhancer = SemanticEnhancer(config_path=context.paths.runtime_dir / "guard-config.json")
         self.whitelist = WhitelistEngine(default_police_whitelist())
         self.controller = GuardController(self.whitelist)
+        self.policy_engine = AuthorizationPolicyEngine(Path("policies/permissions"))
 
         # AuditStore —— SQLite 连接（~50ms）
         db_url = settings.get_database_url()
