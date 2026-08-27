@@ -24,3 +24,11 @@ Verification:
 Concern: the worktree does not contain the ignored generated runtime plugin path, so the
 brief's exact worktree-local `node --check runtime/openclaw-guard-plugin/index.js` command
 cannot resolve there. The repository's generated runtime plugin was syntax-checked instead.
+
+## Review round 1 correction
+
+Corrected `match_status` examples to the serialized values `matched|partial|unknown|conflict`
+(with `complete` reserved for `AuthorizationTrace.coverage.status`), removed timing from the
+`policy_decision` examples, and documented event metadata/pipeline timings separately. Permission
+delta fields now show serialized `PermissionRef` objects. The contract tests parse both JSON
+examples and validate statuses, timing absence, and object field types.

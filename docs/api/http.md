@@ -337,16 +337,21 @@ Guard 前端使用的 Server-Sent Events（SSE）单向事件流。
     "effect": "openclaw_approval",
     "match_status": "partial",
     "missing_features": ["context.recipient_zone"],
-    "requested_delta": ["data.export(scope=own)"],
+    "requested_delta": [
+      {"family": "data.export", "scope": "own", "classification": "internal"}
+    ],
+    "redundant_permissions": [],
     "excessive_permissions": [],
     "combo_violations": [],
-    "policy_version": "1.0.0",
-    "timing": {"evaluation_ms": 2.4, "p95_ms": 50}
+    "policy_version": "1.0.0"
   }
 }
 ```
 
 `effect` 依次支持 `auto_allow_audit`、`clarify_then_retry`、`openclaw_approval` 和
-`block`；`match_status` 为 `complete`、`partial`、`unknown` 或 `conflict`。`timing` 的
+`block`；`match_status` 为 `matched`、`partial`、`unknown` 或 `conflict`。`requested_delta`、
+`redundant_permissions` 和 `excessive_permissions` 是 `PermissionRef` 对象数组；若 UI
+需要显示 `data.export(scope=own)`，必须明确这是 display transform，不是 API 序列化值。
+评估耗时不嵌入 `policy_decision`，而是记录在 event metadata/pipeline timings 中：
 `evaluation_ms` 是本次本地 evaluator 耗时，`p95_ms` 是发布窗口统计值。`policy_version`
 用于回放与 bundle rollback；证据字段必须原样保留，即使 action 已由其他安全层升级。

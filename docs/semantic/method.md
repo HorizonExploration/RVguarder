@@ -1075,15 +1075,22 @@ OpenClaw 本地运行时可验证的能力，不复制租户级 scope。Feishu-d
 ```json
 {
   "effect": "auto_allow_audit",
-  "match_status": "complete",
+  "match_status": "matched",
   "missing_features": [],
-  "requested_delta": [],
+  "requested_delta": [
+    {"family": "data.export", "scope": "own", "classification": "internal"}
+  ],
+  "redundant_permissions": [],
   "excessive_permissions": [],
   "combo_violations": [],
-  "policy_version": "1.0.0",
-  "timing": {"evaluation_ms": 1.2, "p95_ms": 50}
+  "policy_version": "1.0.0"
 }
 ```
+
+`requested_delta`、`redundant_permissions` 和 `excessive_permissions` 序列化为
+`PermissionRef` 对象（`family`、`scope`、`classification`），而不是展示字符串。
+评估耗时不属于 `policy_decision`：本次 `evaluation_ms` 与聚合 `p95_ms` 保存在事件
+metadata/pipeline timings 中，并可由只读 API 单独展示。
 
 P0 规则示例来自版本化 bundle：`EX-10`（消息群发/广播）、`EX-19`（数据库查询与
 导出中的敏感读取）和 `EX-27`（文件批量导出）。P0 trace 必须保留对应 rule ID，

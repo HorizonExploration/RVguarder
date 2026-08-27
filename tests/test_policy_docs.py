@@ -1,3 +1,5 @@
+import json
+import re
 from pathlib import Path
 
 
@@ -76,6 +78,27 @@ def test_api_docs_expose_read_only_guard_evidence_fields_and_timing():
         "read-only",
     ):
         assert token in text
+
+
+def test_policy_decision_examples_match_serialized_contract():
+    method = read_doc("docs/semantic/method.md")
+    api = read_doc("docs/api/http.md")
+    method_section = method.split("### 18.1 Authorization Trace", 1)[1]
+    method_example = json.loads(
+        re.search(r"```json\n(\{.*?\})\n```", method_section, re.DOTALL).group(1)
+    )
+    api_example = json.loads(
+        re.search(r"```json\n(\{\n  \"policy_decision\".*?\n\})\n```", api, re.DOTALL).group(1)
+    )["policy_decision"]
+    allowed_statuses = {"matched", "partial", "unknown", "conflict"}
+    assert method_example["match_status"] in allowed_statuses
+    assert api_example["match_status"] in allowed_statuses
+    assert "timing" not in method_example
+    assert "timing" not in api_example
+    for field in ("requested_delta", "redundant_permissions", "excessive_permissions"):
+        assert all(isinstance(item, dict) for item in api_example[field])
+        for item in api_example[field]:
+            assert set(("family", "scope", "classification")) <= item.keys()
 
 
 def test_docs_define_p0_metrics_shadow_gate_and_rollback():
