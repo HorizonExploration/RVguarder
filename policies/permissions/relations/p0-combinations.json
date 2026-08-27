@@ -1,0 +1,7 @@
+{"version":"1.0.0","relations":[
+  {"id":"secret-egress","requires":["secret.read","network.egress","external_target"]},
+  {"id":"export-sensitive-recipient","requires":["table.export","external_recipient","sensitive_data"]},
+  {"id":"config-audit","requires":["config.modify","audit.modify"]},
+  {"id":"credential-process","requires":["secret.read","process.execute"]},
+  {"id":"file-persistence","requires":["file.write","persistence_location"]}
+]}

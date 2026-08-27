@@ -1,0 +1,21 @@
+# Task 2 report
+
+## Changed files
+
+- `openclaw_guard/policy/catalog.py`: stdlib JSON loader, schema/field validation, operation mapping, exact/alias rule lookup, and P0 vector access.
+- `policies/permissions/schema/permissions.schema.json`
+- `policies/permissions/catalog/operation-catalog.json`
+- `policies/permissions/rules/p0-office.json`
+- `policies/permissions/traces/p0-office.json`
+- `policies/permissions/relations/p0-combinations.json`
+- `policies/permissions/tests/p0-vectors.json`
+- `tests/test_policy_catalog.py`
+
+## Tests
+
+- `python -m pytest tests/test_policy_catalog.py -q` — 5 passed.
+- `python -m pytest -q` — 366 passed, 18 skipped.
+
+## Concerns
+
+- `policies/` is ignored by the repository's existing `.gitignore`; the required policy files must be force-added to the commit.

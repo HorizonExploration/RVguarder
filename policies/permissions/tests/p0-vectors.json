@@ -1,0 +1,5 @@
+{"version":"1.0.0","vectors":[
+  {"id":"p0-ex10","rule_id":"EX-10","operation":"document.write","expected":"openclaw_approval"},
+  {"id":"p0-ex19","rule_id":"EX-19","operation":"secret.read","expected":"block"},
+  {"id":"p0-ex27","rule_id":"EX-27","operation":"table.export","expected":"openclaw_approval"}
+]}
