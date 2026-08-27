@@ -46,8 +46,9 @@ def test_catalog_rejects_duplicate_rule_ids(tmp_path):
 
 def test_rules_prefer_exact_operation_index_to_aliases():
     bundle = PolicyBundle.load(ROOT)
-    assert [rule.id for rule in bundle.rules_for_operation("document.write")] == ["EX-10"]
-    assert [rule.id for rule in bundle.rules_for_operation("data.export")] == ["EX-27"]
+    assert [rule.id for rule in bundle.rules_for_operation("message.send")] == ["EX-10", "P0-MESSAGE-SEND"]
+    assert [rule.id for rule in bundle.rules_for_operation("data.query")] == ["EX-19"]
+    assert [rule.id for rule in bundle.rules_for_operation("file.bulk_transfer")] == ["EX-27"]
 
 
 def test_p0_vectors_reference_real_rules():

@@ -491,8 +491,8 @@ Authorization Trace。
 | P0 policy ID | 场景 trace | 默认 effect | 关键证据 |
 |---|---|---|---|
 | `EX-10` | `message.send` + `bulk_send` / `broadcast_message` | `openclaw_approval` | recipient、数量、频道范围 |
-| `EX-19` | `secret.read` / `database.query` | `block` | principal、敏感数据分类、凭据来源 |
-| `EX-27` | `data.export` + `external_recipient` | `openclaw_approval` | requested_delta、recipient zone、导出数量 |
+| `EX-19` | `data.query` / `data.export` | `block` | principal、敏感数据分类、凭据来源 |
+| `EX-27` | `file.bulk_transfer` + `external_recipient` | `openclaw_approval` | requested_delta、recipient zone、传输数量 |
 
 四级 fallback 为 `auto_allow_audit`、`clarify_then_retry`、`openclaw_approval`、`block`。
 硬阻断优先于任何澄清、白名单或 RV 放宽；未知目标、缺少 principal 或能力链路时不得

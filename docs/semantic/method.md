@@ -1092,8 +1092,9 @@ OpenClaw 本地运行时可验证的能力，不复制租户级 scope。Feishu-d
 评估耗时不属于 `policy_decision`：本次 `evaluation_ms` 与聚合 `p95_ms` 保存在事件
 metadata/pipeline timings 中，并可由只读 API 单独展示。
 
-P0 规则示例来自版本化 bundle：`EX-10`（消息群发/广播）、`EX-19`（数据库查询与
-导出中的敏感读取）和 `EX-27`（文件批量导出）。P0 trace 必须保留对应 rule ID，
+P0 规则示例来自版本化 bundle：`EX-10`（`message.send` 消息群发/广播）、
+`EX-19`（`data.query`/`data.export` 数据库查询与导出中的敏感读取）和
+`EX-27`（`file.bulk_transfer` 文件批量传输）。P0 trace 必须保留对应 rule ID，
 并记录命中规则、缺失字段及组合风险，便于回放而不暴露数据内容。
 
 ### 18.2 四级路由与优先级

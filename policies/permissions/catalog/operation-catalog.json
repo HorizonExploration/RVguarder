@@ -7,6 +7,8 @@
     {"family":"document.write","tool_ids":["feishu.docs.write","feishu.wiki.write","feishu.drive.upload"],"aliases":["document.update"]},
     {"family":"table.read","tool_ids":["feishu.sheets.read","feishu.bitable.read"],"aliases":[]},
     {"family":"data.export","tool_ids":["feishu.bitable.export","feishu.sheets.export"],"aliases":["table.export"]},
+    {"family":"data.query","tool_ids":["feishu.bitable.query","feishu.sheets.query"],"aliases":["database.query"]},
+    {"family":"file.bulk_transfer","tool_ids":["feishu.drive.bulk_transfer","file.bulk_transfer"],"aliases":["batch_file_transfer"]},
     {"family":"calendar.modify","tool_ids":["feishu.calendar.modify"],"aliases":["calendar.create"]},
     {"family":"meeting.create","tool_ids":["feishu.meeting.create"],"aliases":[]},
     {"family":"workflow.approve","tool_ids":["feishu.approval.approve"],"aliases":["approval.process"]},

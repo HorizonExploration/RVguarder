@@ -2,8 +2,11 @@ import json
 import re
 from pathlib import Path
 
+from openclaw_guard.policy.catalog import PolicyBundle
+
 
 ROOT = Path(__file__).parents[1]
+POLICY_ROOT = ROOT / "policies" / "permissions"
 
 
 def read_doc(relative_path: str) -> str:
@@ -119,3 +122,24 @@ def test_docs_define_p0_metrics_shadow_gate_and_rollback():
         "audit records",
     ):
         assert token in text
+
+
+def test_documented_p0_operations_match_canonical_policy_bundle():
+    bundle = PolicyBundle.load(POLICY_ROOT)
+    rules = {rule.id: rule for rule in bundle.rules}
+    expected = {
+        "EX-10": {"message.send", "broadcast"},
+        "EX-19": {"data.query", "data.export"},
+        "EX-27": {"file.bulk_transfer"},
+    }
+    matrix = read_doc("docs/semantic/office-scenario-matrix.md")
+    method = read_doc("docs/semantic/method.md")
+    vectors = {vector["rule_id"]: vector for vector in bundle.p0_vectors()}
+    for rule_id, operations in expected.items():
+        rule = rules[rule_id]
+        canonical = {rule.match["operation"], *rule.match.get("aliases", [])}
+        assert canonical & operations
+        assert vectors[rule_id]["operation"] in canonical
+        assert rule_id in matrix and rule_id in method
+        row = matrix[matrix.index(f"| `{rule_id}`") : matrix.index("\n", matrix.index(f"| `{rule_id}`"))]
+        assert any(operation in row for operation in operations)

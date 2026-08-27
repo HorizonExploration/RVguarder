@@ -28,7 +28,7 @@ def load_p0_vectors() -> list[dict[str, object]]:
 def evaluate_vector(vector: dict[str, object]):
     """Evaluate a vector's declared operation with normalized P0 evidence."""
     operation = str(vector["operation"])
-    external = operation == "data.export"
+    external = operation in {"message.send", "data.export", "file.bulk_transfer"}
     trace = AuthorizationTrace(
         trace_id=str(vector["id"]),
         principal=PrincipalRef(id="vector-user", type="human", trust="verified"),
@@ -39,7 +39,7 @@ def evaluate_vector(vector: dict[str, object]):
             scope="external" if external else "workspace",
         ),
         coverage=CoverageResult(status="complete"),
-        data=DataRef(classification="sensitive" if external else "internal", quantity=1),
+        data=DataRef(classification="sensitive" if operation in {"data.query", "data.export"} else "internal", quantity=1),
         context=ContextRef(recipient_zone="external" if external else "internal"),
     )
     return PolicyEvaluator(PolicyBundle.load(POLICY_ROOT)).evaluate(trace)
