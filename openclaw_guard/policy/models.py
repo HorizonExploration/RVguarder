@@ -75,6 +75,10 @@ class PermissionRef(GuardBaseModel):
     scope: str = "unknown"
     classification: str = "internal"
 
+    def __hash__(self) -> int:
+        """Allow permission records to be used in the closure set."""
+        return hash((self.family, self.scope, self.classification))
+
 
 class CapabilityGrant(GuardBaseModel):
     family: str
