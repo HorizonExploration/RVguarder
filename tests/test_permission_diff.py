@@ -3,6 +3,7 @@ from datetime import datetime, timezone, timedelta
 from openclaw_guard.policy.catalog import PolicyBundle
 from openclaw_guard.policy.models import CapabilityGrant, PermissionRef
 from openclaw_guard.policy.permission_diff import PermissionClosure, PermissionDiff
+import pytest
 
 
 def permission(family, *, scope="unknown", classification="internal"):
@@ -67,3 +68,19 @@ def test_excessive_requested_permission_is_outside_required_trace():
     result = PermissionDiff.compute(frozenset(), requested, [permission("document.read", scope="workspace")])
     assert result.requested_delta == requested
     assert result.excessive_permissions == [requested[1]]
+
+
+def test_broader_grant_does_not_cover_narrower_request():
+    granted = permission("file.read", scope="outside")
+    requested = permission("file.read", scope="workspace")
+    result = PermissionDiff.compute(frozenset({granted}), [requested], [requested])
+    assert result.requested_delta == [requested]
+    assert result.redundant_permissions == []
+
+
+def test_permission_ref_is_immutable_and_hash_safe():
+    value = permission("file.read", scope="workspace")
+    permissions = frozenset({value})
+    with pytest.raises((TypeError, ValueError)):
+        value.scope = "external"
+    assert value in permissions

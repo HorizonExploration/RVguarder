@@ -107,9 +107,9 @@ def _covered_by_required(candidate: PermissionRef, required: Iterable[Permission
 
 
 def _scope_covers(granted: str, requested: str) -> bool:
-    if granted == requested:
-        return True
-    return granted != "unknown" and requested != "unknown" and _SCOPE_RANK.get(granted, -1) >= _SCOPE_RANK.get(requested, -1)
+    # Scope boundaries are not interchangeable.  Only an explicit implication
+    # edge may derive another permission, and closure preserves this scope.
+    return granted == requested
 
 
 def _broader(scope: str, than: str) -> bool:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from openclaw_guard.models import GuardBaseModel
 
@@ -71,13 +71,10 @@ class AuthorizationTrace(GuardBaseModel):
 
 
 class PermissionRef(GuardBaseModel):
+    model_config = ConfigDict(frozen=True)
     family: str
     scope: str = "unknown"
     classification: str = "internal"
-
-    def __hash__(self) -> int:
-        """Allow permission records to be used in the closure set."""
-        return hash((self.family, self.scope, self.classification))
 
 
 class CapabilityGrant(GuardBaseModel):

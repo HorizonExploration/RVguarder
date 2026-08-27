@@ -9,6 +9,11 @@ Implemented bounded effective-permission closure and least-privilege diffing.
 
 Verification: `python -m pytest tests/test_permission_diff.py tests/test_perf_smoke.py -q` — **9 passed**.
 
+Round 1 fix: scope coverage now requires exact scope equality; broader grants do not
+silently satisfy narrower requests. `PermissionRef` now uses Pydantic frozen-model
+semantics, preserving hash correctness after insertion into frozensets. Added
+regressions for both invariants. Verification: **11 passed**.
+
 Concerns:
 
 - The current P0 JSON relation bundle contains policy-combination effects but no `implies` edges; implication closure therefore remains empty unless a bundle supplies an explicit `implies` relation.
