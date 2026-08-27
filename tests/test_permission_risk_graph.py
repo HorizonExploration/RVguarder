@@ -86,3 +86,51 @@ def test_match_preserves_conditions_and_evidence():
     assert violations[0].conditions == {"quantity": {"gte": 2}}
     assert violations[0].evidence["trace_id"] == "trace-secret-egress"
 
+
+def test_explicit_conflicts_relation_is_evaluated():
+    bundle = PolicyBundle.load(ROOT)
+    bundle.relations = [{"id": "separation", "version": "1", "type": "conflicts",
+                         "effect": "block", "requires": ["credential.read", "process.execute"]}]
+    violations = RiskGraph.from_bundle(bundle).evaluate(
+        effective=frozenset({permission("credential.read")}),
+        requested_delta=[permission("process.execute")],
+        trace=trace_for_internal_read(),
+    )
+    assert violations[0].relation_id == "separation"
+    assert violations[0].evidence["relation_type"] == "conflicts"
+
+
+def test_explicit_toxic_with_relation_is_evaluated():
+    bundle = PolicyBundle.load(ROOT)
+    bundle.relations = [{"id": "toxic", "version": "1", "relation": "toxic_with",
+                         "effect": "openclaw_approval", "requires": ["data.export", "external_recipient", "sensitive_data"]}]
+    trace = trace_for_external_secret_egress().model_copy(update={
+        "operation": OperationRef(family="data.export"),
+        "data": DataRef(classification="sensitive", quantity=1),
+    })
+    violations = RiskGraph.from_bundle(bundle).evaluate(
+        effective=frozenset({permission("data.export")}),
+        requested_delta=[],
+        trace=trace,
+    )
+    assert violations[0].evidence["relation_type"] == "toxic_with"
+
+
+def test_p0_credential_process_and_export_sensitive_vectors_match():
+    graph = RiskGraph.from_bundle(PolicyBundle.load(ROOT))
+    credential = graph.evaluate(
+        effective=frozenset({permission("credential.read")}),
+        requested_delta=[permission("process.execute")],
+        trace=trace_for_internal_read(),
+    )
+    export_trace = trace_for_external_secret_egress().model_copy(update={
+        "operation": OperationRef(family="data.export"),
+        "data": DataRef(classification="sensitive", quantity=2),
+    })
+    export = graph.evaluate(
+        effective=frozenset({permission("data.export")}),
+        requested_delta=[],
+        trace=export_trace,
+    )
+    assert {v.relation_id for v in credential} == {"COMBO-CREDENTIAL-PROCESS-001"}
+    assert {v.relation_id for v in export} == {"COMBO-EXPORT-SENSITIVE-001"}

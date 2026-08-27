@@ -14,3 +14,11 @@ Verification:
 - The brief references `tests/test_runtime_verification.py`, which is not present in this checkout; the full available suite was run instead.
 
 Concerns: relation JSON currently uses short IDs, so the graph provides compatibility aliases for the required canonical P0 combination IDs.
+
+## Round 1 review fix
+
+Explicit `type` or `relation` values of `conflicts` and `toxic_with` are now indexed and evaluated as sparse hyperedges. Legacy relation records without either field retain the `toxic_with` behavior; unrelated relation types (such as `implies`) are excluded. Evidence records the normalized relation type.
+
+Additional tests cover custom conflict/toxic relations and the credential/process plus export/external/sensitive P0 vectors.
+
+Verification: `python -m pytest tests/test_permission_risk_graph.py -q` — 6 passed; `python -m pytest tests -q` — passed.

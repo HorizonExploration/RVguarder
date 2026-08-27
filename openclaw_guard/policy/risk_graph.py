@@ -39,11 +39,15 @@ class RiskGraph:
         self.relations = tuple(relations)
         frequencies: dict[str, int] = {}
         for relation in self.relations:
+            if _relation_type(relation) not in {"toxic_with", "conflicts"}:
+                continue
             for endpoint in relation.get("requires", ()):
                 if endpoint not in _CONDITION_ENDPOINTS:
                     frequencies[endpoint] = frequencies.get(endpoint, 0) + 1
         self._index: dict[str, tuple[dict[str, Any], ...]] = {}
         for relation in self.relations:
+            if _relation_type(relation) not in {"toxic_with", "conflicts"}:
+                continue
             families = [x for x in relation.get("requires", ()) if x not in _CONDITION_ENDPOINTS]
             if not families:
                 continue
@@ -98,9 +102,11 @@ class RiskGraph:
 
     @staticmethod
     def _evidence(relation: dict[str, Any], permissions: set[PermissionRef], trace: AuthorizationTrace) -> dict[str, Any]:
+        relation_type = _relation_type(relation)
         return {
             "trace_id": trace.trace_id,
             "relation_version": relation.get("version", ""),
+            "relation_type": relation_type,
             "matched_permissions": sorted({permission.family for permission in permissions}),
             "principal_id": trace.principal.id,
             "capability_lineage": list(trace.capability_lineage),
@@ -120,6 +126,11 @@ def _condition_endpoint(endpoint: str, permissions: set[PermissionRef], trace: A
     if endpoint == "persistence_location":
         return trace.resource.scope in {"outside", "external"} or any(token in trace.operation.family.lower() for token in ("write", "persist", "save"))
     return False
+
+
+def _relation_type(relation: dict[str, Any]) -> str:
+    """Return the explicit relation kind, retaining old records as toxic edges."""
+    return str(relation.get("type", relation.get("relation", "toxic_with"))).lower()
 
 
 def _conditions_match(conditions: dict[str, Any], trace: AuthorizationTrace, permissions: set[PermissionRef]) -> bool:
