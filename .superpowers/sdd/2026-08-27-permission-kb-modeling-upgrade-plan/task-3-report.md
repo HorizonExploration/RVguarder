@@ -15,7 +15,7 @@ Focused RED was verified first: collection failed because `openclaw_guard.policy
 
 ## Commit
 
-Recorded after verification: `feat: compile authorization traces from hook events` (hash filled after commit).
+`5754636` (`feat: compile authorization traces from hook events`).
 
 ## Concerns
 
