@@ -32,11 +32,11 @@ def test_catalog_rejects_duplicate_rule_ids(tmp_path):
     (tmp_path / "relations").mkdir()
     (tmp_path / "tests").mkdir()
     (tmp_path / "schema/permissions.schema.json").write_text('{"version":"1"}')
-    (tmp_path / "catalog/operation-catalog.json").write_text('{"operations": []}')
+    (tmp_path / "catalog/operation-catalog.json").write_text('{"version":"1", "operations": []}')
     rule = {"id":"same", "version":"1", "effect":"block", "priority":1,
             "match":{}, "required_fields":[], "negative_conditions":[], "obligations":[],
             "source":"x", "test_vectors":[]}
-    (tmp_path / "rules/p0-office.json").write_text('{"rules": [' + str(rule).replace("'", '"') + ',' + str(rule).replace("'", '"') + ']}')
+    (tmp_path / "rules/p0-office.json").write_text('{"version":"1", "rules": [' + str(rule).replace("'", '"') + ',' + str(rule).replace("'", '"') + ']}')
     (tmp_path / "traces/p0-office.json").write_text('{"traces": []}')
     (tmp_path / "relations/p0-combinations.json").write_text('{"relations": []}')
     (tmp_path / "tests/p0-vectors.json").write_text('{"vectors": []}')
@@ -81,3 +81,28 @@ def test_required_relations_use_canonical_operation_endpoints():
     assert ["credential.read", "process.execute"] == relations["credential-process"]
     assert ["data.export", "external_recipient", "sensitive_data"] == relations["export-sensitive-recipient"]
     assert bundle.operation_for_tool("feishu.bitable.export", {}).family == "data.export"
+
+
+@pytest.mark.parametrize("relative,field", [
+    ("catalog/operation-catalog.json", "version"),
+    ("rules/p0-office.json", "version"),
+    ("traces/p0-office.json", "version"),
+    ("relations/p0-combinations.json", "version"),
+    ("tests/p0-vectors.json", "version"),
+])
+def test_loader_requires_top_level_versions(tmp_path, relative, field):
+    root = _bundle_copy(tmp_path)
+    payload = json.loads((root / relative).read_text())
+    payload.pop("version")
+    (root / relative).write_text(json.dumps(payload))
+    with pytest.raises(PolicyBundleError, match=re.escape(f"$.{field}")):
+        PolicyBundle.load(root)
+
+
+def test_loader_rejects_empty_relation_requirements(tmp_path):
+    root = _bundle_copy(tmp_path)
+    payload = json.loads((root / "relations/p0-combinations.json").read_text())
+    payload["relations"][0]["requires"] = []
+    (root / "relations/p0-combinations.json").write_text(json.dumps(payload))
+    with pytest.raises(PolicyBundleError, match=re.escape("relations[0].requires")):
+        PolicyBundle.load(root)

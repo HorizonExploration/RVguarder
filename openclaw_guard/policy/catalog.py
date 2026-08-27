@@ -45,6 +45,7 @@ class PolicyBundle:
         if not isinstance(schema.get("version"), str) or not schema["version"]:
             raise PolicyBundleError("schema/permissions.schema.json: $.version")
         catalog = read("catalog/operation-catalog.json")
+        _version(catalog, "catalog/operation-catalog.json")
         raw_operations = _array(catalog, "operations", "catalog/operation-catalog.json")
         operations: list[_Operation] = []
         families: set[str] = set()
@@ -62,7 +63,9 @@ class PolicyBundle:
             families.add(family)
             operations.append(_Operation(family, tuple(tools), tuple(aliases)))
 
-        raw_rules = _array(read("rules/p0-office.json"), "rules", "rules/p0-office.json")
+        rules_doc = read("rules/p0-office.json")
+        _version(rules_doc, "rules/p0-office.json")
+        raw_rules = _array(rules_doc, "rules", "rules/p0-office.json")
         rules: list[PolicyRule] = []
         rule_ids: set[str] = set()
         for i, item in enumerate(raw_rules):
@@ -85,9 +88,15 @@ class PolicyBundle:
                 raise PolicyBundleError(f"{path}: {exc}") from exc
             rule_ids.add(item["id"])
 
-        traces = _array(read("traces/p0-office.json"), "traces", "traces/p0-office.json")
-        relations = _array(read("relations/p0-combinations.json"), "relations", "relations/p0-combinations.json")
-        vectors = _array(read("tests/p0-vectors.json"), "vectors", "tests/p0-vectors.json")
+        traces_doc = read("traces/p0-office.json")
+        relations_doc = read("relations/p0-combinations.json")
+        vectors_doc = read("tests/p0-vectors.json")
+        _version(traces_doc, "traces/p0-office.json")
+        _version(relations_doc, "relations/p0-combinations.json")
+        _version(vectors_doc, "tests/p0-vectors.json")
+        traces = _array(traces_doc, "traces", "traces/p0-office.json")
+        relations = _array(relations_doc, "relations", "relations/p0-combinations.json")
+        vectors = _array(vectors_doc, "vectors", "tests/p0-vectors.json")
         for i, trace in enumerate(traces):
             path = f"traces/p0-office.json: $.traces[{i}]"
             _object(trace, path)
@@ -100,7 +109,7 @@ class PolicyBundle:
             path = f"relations/p0-combinations.json: $.relations[{i}]"
             _object(relation, path)
             for field in ("id", "version", "effect", "requires"):
-                if not isinstance(relation.get(field), str if field != "requires" else list) or (not relation[field] if field != "requires" else False):
+                if not isinstance(relation.get(field), str if field != "requires" else list) or (not relation[field]):
                     raise PolicyBundleError(f"{path}.{field}")
             if relation["effect"] not in {"auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block"}:
                 raise PolicyBundleError(f"{path}.effect: unknown effect {relation['effect']}")
@@ -157,3 +166,10 @@ def _string(value: dict[str, Any], field: str, path: str) -> str:
     if not isinstance(value.get(field), str) or not value[field]:
         raise PolicyBundleError(f"{path}.{field} must be a non-empty string")
     return value[field]
+
+
+def _version(value: Any, path: str) -> str:
+    value = _object(value, path)
+    if not isinstance(value.get("version"), str) or not value["version"]:
+        raise PolicyBundleError(f"{path}: $.version")
+    return value["version"]
