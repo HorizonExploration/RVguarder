@@ -20,7 +20,11 @@ class PolicyEvaluator:
         match = rule.match
         operation = str(match.get("operation", ""))
         exact = operation == trace.operation.family
-        alias = operation != "" and operation in trace.operation.aliases
+        alias = operation != "" and (
+            operation in trace.operation.aliases
+            or trace.operation.family in match.get("aliases", [])
+            or self._catalog_alias_match(operation, trace.operation.family)
+        )
         if not exact and not alias:
             return MatchCandidate(rule_id=rule.id, status="unknown", reasons=["operation_mismatch"])
 
@@ -58,8 +62,8 @@ class PolicyEvaluator:
         missing = list(dict.fromkeys(missing))
         if conflict:
             status = "conflict"
-        elif not exact or missing:
-            status = "partial" if (exact or missing) else "unknown"
+        elif missing:
+            status = "partial"
         else:
             status = "matched"
         action = 1.0 if exact else 0.5
@@ -70,6 +74,15 @@ class PolicyEvaluator:
         return MatchCandidate(rule_id=rule.id, score=score, status=status,
                               matched=status == "matched", reasons=reasons,
                               missing_features=missing)
+
+    def _catalog_alias_match(self, rule_operation: str, trace_family: str) -> bool:
+        """Resolve either direction of a canonical/alias operation relationship."""
+        for operation in self.bundle.operations:
+            if operation.family == rule_operation and trace_family in operation.aliases:
+                return True
+            if operation.family == trace_family and rule_operation in operation.aliases:
+                return True
+        return False
 
     def evaluate(self, trace: AuthorizationTrace) -> PolicyDecision:
         rules = self.bundle.rules_for_operation(trace.operation.family)
