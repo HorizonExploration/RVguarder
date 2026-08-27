@@ -22,6 +22,10 @@ from openclaw_guard.integrations.tool_hook_bridge import (
     hook_key_from_payload,
 )
 from openclaw_guard.utils import utc_now_iso
+from openclaw_guard.policy.catalog import PolicyBundle
+from openclaw_guard.policy.trace import TraceCompiler
+
+_TRACE_COMPILER: TraceCompiler | None = None
 
 if TYPE_CHECKING:
     from openclaw_guard.services import GuardServices
@@ -105,6 +109,20 @@ def _annotate_event_context(
     timings["semantic_ms"] = round((time.perf_counter() - semantic_started) * 1000.0, 3)
     event.metadata["semantic"] = semantic_payload["semantic"]
     event.metadata["rv_trace"] = semantic_payload["rv_trace"]
+    global _TRACE_COMPILER
+    if _TRACE_COMPILER is None:
+        try:
+            _TRACE_COMPILER = TraceCompiler(PolicyBundle.load(Path(__file__).resolve().parents[2] / "policies" / "permissions"))
+        except Exception:
+            _TRACE_COMPILER = False  # type: ignore[assignment]
+    if _TRACE_COMPILER:
+        authorization_trace = _TRACE_COMPILER.compile(
+            event,
+            semantic=semantic_payload["semantic"],
+            rv_trace=semantic_payload["rv_trace"],
+            source_message=source_message,
+        )
+        event.metadata["authorization_trace"] = authorization_trace.model_dump()
 
 
 def _apply_rv_if_available(
