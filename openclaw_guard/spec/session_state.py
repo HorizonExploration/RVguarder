@@ -214,7 +214,7 @@ class PrincipalSecurityState:
             return "block"
         if decision.effect == "auto_allow_audit":
             self.effective_grants.add(requested)
-            self._grant_observed_at[requested] = _time.monotonic()
+            self._grant_observed_at[requested] = _time.time()
             self._record_sensitive_lineage(trace)
         return None
 
@@ -276,7 +276,7 @@ class PrincipalSecurityState:
                     try:
                         grant = PermissionRef.model_validate(item)
                         state.effective_grants.add(grant)
-                        state._grant_observed_at[grant] = _time.monotonic()
+                        state._grant_observed_at[grant] = _time.time()
                     except (TypeError, ValueError):
                         continue
         state._expire_old()
@@ -311,7 +311,7 @@ class PrincipalSecurityState:
             "session_id": trace.session_id,
             "goal_id": trace.goal_id,
             "sequence": self.sequence,
-            "observed_at": _time.monotonic(),
+            "observed_at": _time.time(),
         })
         del self.sensitive_data_lineage[:-self._MAX_SENSITIVE_EVENTS]
 
@@ -319,7 +319,7 @@ class PrincipalSecurityState:
         """Expire grants and lineage evidence outside the configured TTL."""
         if self.ttl_seconds is None:
             return
-        cutoff = _time.monotonic() - self.ttl_seconds
+        cutoff = _time.time() - self.ttl_seconds
         for grant, observed_at in tuple(self._grant_observed_at.items()):
             if observed_at < cutoff:
                 self._grant_observed_at.pop(grant, None)

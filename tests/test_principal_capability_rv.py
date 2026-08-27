@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import openclaw_guard.spec.session_state as session_state_module
+
 from openclaw_guard.policy.models import (
     AuthorizationTrace,
     ContextRef,
@@ -103,3 +105,16 @@ def test_principal_snapshots_round_trip_without_changing_session_windows():
     assert restored.state_for_principal("u1", "agent1", ("grant1",)).record(
         external_egress_trace(session_id="s2"), approval_policy()
     ) in {"block", "openclaw_approval"}
+
+
+def test_snapshot_ttl_survives_a_monotonic_clock_restart(monkeypatch):
+    """Persisted TTL evidence must not expire only because a process restarts."""
+    monkeypatch.setattr(session_state_module._time, "monotonic", lambda: 10.0)
+    state = PrincipalSecurityState("u1", "agent1", ("grant1",))
+    state.record(secret_read_trace(session_id="s1"), allow_policy())
+    snapshot = state.to_dict()
+
+    monkeypatch.setattr(session_state_module._time, "monotonic", lambda: 1_000.0)
+    restored = PrincipalSecurityState.from_dict(snapshot)
+
+    assert restored.record(external_egress_trace(session_id="s2"), approval_policy()) == "block"
