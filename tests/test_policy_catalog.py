@@ -1,4 +1,7 @@
 from pathlib import Path
+import json
+import shutil
+import re
 
 import pytest
 
@@ -12,7 +15,7 @@ def test_catalog_maps_feishu_like_domains_to_atomic_operations():
     bundle = PolicyBundle.load(ROOT)
     assert bundle.operation_for_tool("feishu.docs.read", {}).family == "document.read"
     assert bundle.operation_for_tool("feishu.im.send", {}).family == "message.send"
-    assert bundle.operation_for_tool("feishu.bitable.export", {}).family == "table.export"
+    assert bundle.operation_for_tool("feishu.bitable.export", {}).family == "data.export"
 
 
 def test_catalog_keeps_unknown_tool_as_explicit_gap():
@@ -28,7 +31,7 @@ def test_catalog_rejects_duplicate_rule_ids(tmp_path):
     (tmp_path / "traces").mkdir()
     (tmp_path / "relations").mkdir()
     (tmp_path / "tests").mkdir()
-    (tmp_path / "schema/permissions.schema.json").write_text("{}")
+    (tmp_path / "schema/permissions.schema.json").write_text('{"version":"1"}')
     (tmp_path / "catalog/operation-catalog.json").write_text('{"operations": []}')
     rule = {"id":"same", "version":"1", "effect":"block", "priority":1,
             "match":{}, "required_fields":[], "negative_conditions":[], "obligations":[],
@@ -52,3 +55,29 @@ def test_p0_vectors_reference_real_rules():
     ids = {rule.id for rule in bundle.rules}
     assert bundle.p0_vectors()
     assert all(vector["rule_id"] in ids for vector in bundle.p0_vectors())
+
+
+def _bundle_copy(tmp_path):
+    shutil.copytree(ROOT, tmp_path / "permissions")
+    return tmp_path / "permissions"
+
+
+@pytest.mark.parametrize("relative,payload,field", [
+    ("schema/permissions.schema.json", {"version": ""}, "version"),
+    ("traces/p0-office.json", {"version": "1", "traces": [{}]}, "traces[0].id"),
+    ("relations/p0-combinations.json", {"version": "1", "relations": [{"id": "x", "requires": [1]}]}, "relations[0].version"),
+    ("tests/p0-vectors.json", {"version": "1", "vectors": [{"id": "x"}]}, "vectors[0].expected_effect"),
+])
+def test_loader_rejects_malformed_contracts(tmp_path, relative, payload, field):
+    root = _bundle_copy(tmp_path)
+    (root / relative).write_text(json.dumps(payload))
+    with pytest.raises(PolicyBundleError, match=re.escape(field)):
+        PolicyBundle.load(root)
+
+
+def test_required_relations_use_canonical_operation_endpoints():
+    bundle = PolicyBundle.load(ROOT)
+    relations = {item["id"]: item["requires"] for item in bundle.relations}
+    assert ["credential.read", "process.execute"] == relations["credential-process"]
+    assert ["data.export", "external_recipient", "sensitive_data"] == relations["export-sensitive-recipient"]
+    assert bundle.operation_for_tool("feishu.bitable.export", {}).family == "data.export"

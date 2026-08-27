@@ -42,6 +42,8 @@ class PolicyBundle:
         schema = read("schema/permissions.schema.json")
         if not isinstance(schema, dict):
             raise PolicyBundleError("schema/permissions.schema.json: $ must be an object")
+        if not isinstance(schema.get("version"), str) or not schema["version"]:
+            raise PolicyBundleError("schema/permissions.schema.json: $.version")
         catalog = read("catalog/operation-catalog.json")
         raw_operations = _array(catalog, "operations", "catalog/operation-catalog.json")
         operations: list[_Operation] = []
@@ -86,19 +88,37 @@ class PolicyBundle:
         traces = _array(read("traces/p0-office.json"), "traces", "traces/p0-office.json")
         relations = _array(read("relations/p0-combinations.json"), "relations", "relations/p0-combinations.json")
         vectors = _array(read("tests/p0-vectors.json"), "vectors", "tests/p0-vectors.json")
+        for i, trace in enumerate(traces):
+            path = f"traces/p0-office.json: $.traces[{i}]"
+            _object(trace, path)
+            for field in ("id", "rule_id"):
+                if not isinstance(trace.get(field), str) or not trace[field]:
+                    raise PolicyBundleError(f"{path}.{field}")
+            if trace["rule_id"] not in rule_ids:
+                raise PolicyBundleError(f"{path}.rule_id: unknown rule {trace['rule_id']}")
         for i, relation in enumerate(relations):
-            _object(relation, f"relations/p0-combinations.json: $.relations[{i}]")
-            endpoints = relation.get("requires", relation.get("operations", []))
-            if not isinstance(endpoints, list):
-                raise PolicyBundleError(f"relations/p0-combinations.json: $.relations[{i}].requires")
+            path = f"relations/p0-combinations.json: $.relations[{i}]"
+            _object(relation, path)
+            for field in ("id", "version", "effect", "requires"):
+                if not isinstance(relation.get(field), str if field != "requires" else list) or (not relation[field] if field != "requires" else False):
+                    raise PolicyBundleError(f"{path}.{field}")
+            if relation["effect"] not in {"auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block"}:
+                raise PolicyBundleError(f"{path}.effect: unknown effect {relation['effect']}")
+            endpoints = relation["requires"]
+            if not all(isinstance(endpoint, str) and endpoint for endpoint in endpoints):
+                raise PolicyBundleError(f"{path}.requires")
             for endpoint in endpoints:
                 if endpoint not in families and endpoint not in {"external_target", "external_recipient", "sensitive_data", "audit.modify", "persistence_location"}:
                     raise PolicyBundleError(f"relations/p0-combinations.json: unknown endpoint {endpoint}")
         for i, vector in enumerate(vectors):
             if not isinstance(vector, dict):
                 raise PolicyBundleError(f"tests/p0-vectors.json: $.vectors[{i}]")
-            if vector.get("rule_id") and vector["rule_id"] not in rule_ids:
-                raise PolicyBundleError(f"tests/p0-vectors.json: $.vectors[{i}].rule_id")
+            path = f"tests/p0-vectors.json: $.vectors[{i}]"
+            for field in ("id", "expected_effect", "rule_id"):
+                if not isinstance(vector.get(field), str) or not vector[field]:
+                    raise PolicyBundleError(f"{path}.{field}")
+            if vector["rule_id"] not in rule_ids:
+                raise PolicyBundleError(f"{path}.rule_id")
         return cls(operations, rules, traces, relations, vectors)
 
     def operation_for_tool(self, tool_id: str, params: dict[str, Any]) -> OperationRef:

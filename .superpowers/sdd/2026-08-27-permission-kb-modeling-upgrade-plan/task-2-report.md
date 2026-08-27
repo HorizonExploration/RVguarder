@@ -13,9 +13,10 @@
 
 ## Tests
 
-- `python -m pytest tests/test_policy_catalog.py -q` — 5 passed.
-- `python -m pytest -q` — 366 passed, 18 skipped.
+- `python -m pytest tests/test_policy_catalog.py -q` — 10 passed.
+- `python -m pytest -q` — 371 passed, 18 skipped.
 
 ## Concerns
 
 - `policies/` is ignored by the repository's existing `.gitignore`; the required policy files must be force-added to the commit.
+- Round 1 fixes canonicalize `data.export` and validate schema, traces, relations, and vectors with file/field paths.

@@ -3,7 +3,7 @@
   "rules":[
     {"id":"EX-10","version":"1.0.0","effect":"openclaw_approval","priority":100,"match":{"operation":"document.write"},"required_fields":["resource"],"negative_conditions":[],"obligations":["audit"],"source":"P0 office policy","test_vectors":["p0-ex10"]},
     {"id":"EX-19","version":"1.0.0","effect":"block","priority":100,"match":{"operation":"secret.read"},"required_fields":["principal"],"negative_conditions":[],"obligations":["audit"],"source":"P0 office policy","test_vectors":["p0-ex19"]},
-    {"id":"EX-27","version":"1.0.0","effect":"openclaw_approval","priority":100,"match":{"operation":"table.export","aliases":["data.export"]},"required_fields":["recipient"],"negative_conditions":[{"field":"recipient_zone","equals":"internal"}],"obligations":["audit"],"source":"P0 office policy","test_vectors":["p0-ex27"]},
+    {"id":"EX-27","version":"1.0.0","effect":"openclaw_approval","priority":100,"match":{"operation":"data.export","aliases":["table.export"]},"required_fields":["recipient"],"negative_conditions":[{"field":"recipient_zone","equals":"internal"}],"obligations":["audit"],"source":"P0 office policy","test_vectors":["p0-ex27"]},
     {"id":"P0-DOCUMENT-READ","version":"1.0.0","effect":"auto_allow_audit","priority":10,"match":{"operation":"document.read"},"required_fields":[],"negative_conditions":[],"obligations":["audit"],"source":"P0 office policy","test_vectors":[]},
     {"id":"P0-MESSAGE-SEND","version":"1.0.0","effect":"openclaw_approval","priority":20,"match":{"operation":"message.send"},"required_fields":["recipient"],"negative_conditions":[],"obligations":["audit"],"source":"P0 office policy","test_vectors":[]}
   ]
