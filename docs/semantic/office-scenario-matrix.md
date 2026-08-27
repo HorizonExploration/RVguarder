@@ -479,3 +479,24 @@ FILE_BATCH_LABELS = ["file_compress", "file_package", "share_link_update",
 **P2 后续扩展**：剩余 27 个  
 
 **核心结论**：邮件和日报只是个人办公的冰山一角。消息群发、数据库导出、文件批量操作、代提交审批、代码推送等场景的风险更高、更常见，应优先纳入 RV 保护范围。
+
+## 十一、PMKB P0 授权样例与证据
+
+Feishu-derived domains 仅作为个人办公资源分类参考：`IM`、`directory`、
+`document/wiki/drive`、`sheets/bitables`、`calendar/meeting`、`workflow/approval`、
+`event/network`、`app/config`。每个场景要声明资源 scope（资源 ID/路径、所有者、读写、
+数量、数据分类和 recipient zone），并把 principal、agent 和 capability lineage 写入
+Authorization Trace。
+
+| P0 policy ID | 场景 trace | 默认 effect | 关键证据 |
+|---|---|---|---|
+| `EX-10` | `message.send` + `bulk_send` / `broadcast_message` | `openclaw_approval` | recipient、数量、频道范围 |
+| `EX-19` | `secret.read` / `database.query` | `block` | principal、敏感数据分类、凭据来源 |
+| `EX-27` | `data.export` + `external_recipient` | `openclaw_approval` | requested_delta、recipient zone、导出数量 |
+
+四级 fallback 为 `auto_allow_audit`、`clarify_then_retry`、`openclaw_approval`、`block`。
+硬阻断优先于任何澄清、白名单或 RV 放宽；未知目标、缺少 principal 或能力链路时不得
+自动放行。组合风险（例如 `secret.read + network.egress + external_target`、
+`data.export + external_recipient + sensitive_data`、`config.modify + audit.modify`、
+`credential.read + process.execute`、`file.write + persistence_location`）保留
+`combo_violations` 证据并提升 effect。

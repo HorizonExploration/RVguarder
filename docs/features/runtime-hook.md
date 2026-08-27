@@ -24,6 +24,20 @@
 只有 `before_tool_call` 进入动作生命周期并可能返回 `requireApproval`；这样 OpenClaw
 原生审批卡片是唯一审批入口。
 
+### 授权策略与审批所有权
+
+PMKB 在 Hook 前生成 Authorization Trace 和只读 `policy_decision` 证据。四级路由为
+`auto_allow_audit`、`clarify_then_retry`、`openclaw_approval`、`block`；任何 hard-block
+优先级都不能被 Hook 降级。`principal`、`agent_id` 和 `capability_lineage` 必须一致才
+允许跨 session 关联，未知身份或能力缺失只能进入澄清/审批。
+
+对于需要确认的动作，OpenClaw 原生审批卡片是唯一审批（唯一审批）入口。Guard Dashboard
+只读显示 `effect`、`match_status`、`missing_features`、`requested_delta`、
+`excessive_permissions`、`combo_violations`、`policy_version` 和 timing；Guard 不提供
+第二个批准按钮，也不绕过 OpenClaw 的 `requireApproval`。版本化策略 bundle 校验失败、
+硬风险漏检或 principal-state merge anomaly 时，禁用新版本并 rollback 到 previous
+catalog，保留所有 audit records。
+
 ### API 说明
 
 插件使用 OpenClaw 官方 `api.on()` API 注册钩子（非已废弃的 `api.registerHook()`）：

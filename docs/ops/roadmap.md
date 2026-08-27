@@ -56,3 +56,23 @@
 - Hook 插件注入后需要重启 OpenClaw Gateway 才能生效
 - RV 的窗口大小（默认 10 步）在不同办公场景下可能需要动态调整
 - `feishu_doc`/`feishu_wiki` 等频道工具在 Dashboard（WebChat）环境下不可见
+
+## PMKB 发布门禁、指标与回滚
+
+策略 bundle 必须先进行 7–14 天 shadow run，同时记录 baseline 与 new outcomes，不能
+直接替换生产目录。P0 发布门禁定义如下：
+
+| 指标 | 目标 |
+|---|---:|
+| complete coverage（P0） | ≥85% |
+| unknown rate | ≤10% |
+| low-risk auto-allow precision | ≥99% |
+| high-risk recall | ≥98% |
+| total manual approvals | −40% |
+| low-risk approvals | −60% |
+| local evaluator P95 | ≤50 ms |
+
+每个 outcome 都要带 `policy_version`、effect、匹配状态、证据字段和 timing，按版本并列
+比较后再晋级。若发生 hard-risk false negative、bundle validation error 或 principal-state
+merge anomaly，立即 disable 新 bundle version，rollback 到 previous catalog，并保留全部
+audit records 供调查；修复后重新开始 shadow run。

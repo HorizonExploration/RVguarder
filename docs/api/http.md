@@ -325,3 +325,28 @@ Guard 前端使用的 Server-Sent Events（SSE）单向事件流。
 | `gateway_unreachable` | 无法连接 OpenClaw gateway |
 | `hook_unauthorized` | Hook 鉴权失败 |
 | `internal_error` | 服务内部错误 |
+
+## 策略证据（只读）
+
+动作和审计查询可在 `decision.policy_decision` 中返回 PMKB 证据。Guard API 对这些字段
+只读展示（read-only），不能从 Dashboard 修改审批结果：
+
+```json
+{
+  "policy_decision": {
+    "effect": "openclaw_approval",
+    "match_status": "partial",
+    "missing_features": ["context.recipient_zone"],
+    "requested_delta": ["data.export(scope=own)"],
+    "excessive_permissions": [],
+    "combo_violations": [],
+    "policy_version": "1.0.0",
+    "timing": {"evaluation_ms": 2.4, "p95_ms": 50}
+  }
+}
+```
+
+`effect` 依次支持 `auto_allow_audit`、`clarify_then_retry`、`openclaw_approval` 和
+`block`；`match_status` 为 `complete`、`partial`、`unknown` 或 `conflict`。`timing` 的
+`evaluation_ms` 是本次本地 evaluator 耗时，`p95_ms` 是发布窗口统计值。`policy_version`
+用于回放与 bundle rollback；证据字段必须原样保留，即使 action 已由其他安全层升级。
