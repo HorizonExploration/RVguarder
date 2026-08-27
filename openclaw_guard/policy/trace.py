@@ -60,12 +60,16 @@ class TraceCompiler:
         recipient_zone = "external" if recipients and any(_external(x) for x in recipients) else ("internal" if recipients else "unknown")
         purpose = str(semantic.get("purpose") or semantic.get("intent", {}).get("goal", "") if isinstance(semantic.get("intent"), dict) else semantic.get("purpose", ""))
         missing = []
-        if event.action_type in {"channel_send", "network_egress"} and not recipients and not urls:
-            missing.append("resource.recipient")
+        resource_gap = _resource_gap(operation.family, resource_ids)
+        if resource_gap:
+            missing.append(resource_gap)
         if operation.family == "unknown_tool":
             missing.append("operation.mapping")
+        gaps = list(operation.gaps)
+        if resource_gap:
+            gaps.append(resource_gap)
         coverage = CoverageResult(status="complete" if not missing else "partial", missing_features=missing,
-                                  gaps=list(operation.gaps))
+                                  gaps=list(dict.fromkeys(gaps)))
         principal = semantic.get("principal") if isinstance(semantic.get("principal"), dict) else {}
         principal_id = str(principal.get("id") or event.metadata.get("principal_id") or event.user or event.process_name or "unknown")
         principal_type = str(principal.get("type") or event.metadata.get("principal_type") or "agent")
@@ -99,16 +103,32 @@ def _external(value):
 
 
 def _classification(semantic, labels, steps):
+    candidates = []
     explicit = semantic.get("data_classification") or semantic.get("classification")
-    if explicit in _CLASSIFICATION: return explicit
+    if explicit in _CLASSIFICATION: candidates.append(explicit)
     step_classes = [step.get("sensitivity") or step.get("classification") for step in steps]
-    if any(item in _CLASSIFICATION for item in step_classes):
-        return max((item for item in step_classes if item in _CLASSIFICATION), key=_CLASSIFICATION.index)
+    candidates.extend(item for item in step_classes if item in _CLASSIFICATION)
     for level in reversed(_CLASSIFICATION):
-        if level == "secret" and ({"contains_secret", "network_secret_payload"} & labels): return level
-        if level == "sensitive" and ("sensitive_data" in labels or "path_sensitive_creds" in labels): return level
-        if level == "internal" and ({"internal_source", "source_internal"} & labels): return level
-    return "internal"
+        if level == "secret" and ({"contains_secret", "network_secret_payload"} & labels): candidates.append(level)
+        if level == "sensitive" and ("sensitive_data" in labels or "path_sensitive_creds" in labels): candidates.append(level)
+        if level == "internal" and ({"internal_source", "source_internal"} & labels): candidates.append(level)
+    return max(candidates, key=_CLASSIFICATION.index) if candidates else "internal"
+
+
+def _resource_gap(family, resource_ids):
+    if resource_ids:
+        return ""
+    if family in {"message.send", "network.egress"}:
+        return "resource.recipient"
+    if family in {"file.write", "secret.read", "credential.read"}:
+        return "resource.path"
+    if family in {"document.read", "document.write", "table.read", "data.export"}:
+        return "resource.target"
+    if family == "process.execute":
+        return "resource.command"
+    if family == "config.modify":
+        return "resource.config"
+    return ""
 
 
 def _quantity(semantic, steps, fallback):

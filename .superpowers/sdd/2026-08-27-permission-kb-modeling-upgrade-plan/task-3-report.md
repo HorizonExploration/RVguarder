@@ -9,7 +9,7 @@
 
 ## Tests
 
-`python -m pytest tests/test_authorization_trace.py tests/test_ir.py tests/test_semantic_enhancer.py tests/test_pipeline.py -q` — **39 passed**.
+`python -m pytest tests/test_authorization_trace.py tests/test_ir.py tests/test_semantic_enhancer.py tests/test_pipeline.py -q` — **41 passed** (including review regressions for RV sensitivity precedence and missing resource gaps).
 
 Focused RED was verified first: collection failed because `openclaw_guard.policy.trace` did not exist. The implementation then passed the focused and compatibility suites.
 
@@ -21,3 +21,4 @@ Focused RED was verified first: collection failed because `openclaw_guard.policy
 
 - Pipelines attach traces when the bundled `policies/permissions` catalog is available; a malformed/unavailable bundle leaves the existing semantic/RV path unchanged.
 - Authorization trace compilation is evidence-only and does not perform policy matching or allow/block decisions.
+- Classification now takes the highest level across semantic metadata, labels, and all RV step sensitivity/classification values; resource-required operation families report explicit `partial` coverage and resource gap fields when evidence is absent.

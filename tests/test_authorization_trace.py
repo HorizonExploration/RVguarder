@@ -52,3 +52,21 @@ def test_compile_keeps_legacy_ir_and_event_action_type():
     assert trace.legacy_steps == rv
     assert trace.resource.scope == "external"
     assert event.action_type == "channel_send"
+
+
+def test_trace_classification_uses_highest_rv_sensitivity():
+    event = make_event(action_type="network_egress")
+    trace = TraceCompiler(PolicyBundle.load(ROOT)).compile(
+        event,
+        semantic={"classification": "internal"},
+        rv_trace=[{"step_id": "s1", "event": "report_send", "sensitivity": "secret"}],
+    )
+    assert trace.data.classification == "secret"
+
+
+def test_file_write_without_path_has_explicit_resource_gap():
+    event = make_event(action_type="file_write", metadata={"tool_name": "file.write"})
+    trace = TraceCompiler(PolicyBundle.load(ROOT)).compile(event, semantic={}, rv_trace=[])
+    assert trace.coverage.status == "partial"
+    assert "resource.path" in trace.coverage.missing_features
+    assert "resource.path" in trace.coverage.gaps
