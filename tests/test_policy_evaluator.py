@@ -2,7 +2,7 @@ from pathlib import Path
 
 from openclaw_guard.policy.catalog import PolicyBundle
 from openclaw_guard.policy.evaluator import PolicyEvaluator
-from openclaw_guard.policy.models import OperationRef
+from openclaw_guard.policy.models import CoverageResult, OperationRef
 from tests.policy_factories import trace_for_message
 
 
@@ -42,3 +42,24 @@ def test_alias_family_trace_matches_canonical_rule():
     candidate = evaluator.match_rule(next(r for r in evaluator.bundle.rules if r.id == "EX-27"), trace)
     assert candidate.status == "matched"
     assert candidate.score > 0
+
+
+def test_partial_coverage_without_explicit_gaps_cannot_auto_allow():
+    evaluator = PolicyEvaluator(PolicyBundle.load(ROOT))
+    trace = trace_for_message().model_copy(update={
+        "coverage": CoverageResult(status="partial")
+    })
+    result = evaluator.evaluate(trace)
+    assert result.match_status == "partial"
+    assert result.effect != "auto_allow_audit"
+
+
+def test_unknown_or_conflict_coverage_is_retained_and_fail_closed():
+    evaluator = PolicyEvaluator(PolicyBundle.load(ROOT))
+    for status in ("unknown", "conflict"):
+        trace = trace_for_message().model_copy(update={
+            "coverage": CoverageResult(status=status)
+        })
+        result = evaluator.evaluate(trace)
+        assert result.match_status == status
+        assert result.effect in {"openclaw_approval", "block"}

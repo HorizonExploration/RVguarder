@@ -66,6 +66,13 @@ class PolicyEvaluator:
             status = "partial"
         else:
             status = "matched"
+        # Compiler coverage uncertainty is authoritative, even with no listed gaps.
+        if trace.coverage.status == "conflict":
+            status = "conflict"
+        elif trace.coverage.status == "unknown":
+            status = "unknown"
+        elif trace.coverage.status == "partial" and status == "matched":
+            status = "partial"
         action = 1.0 if exact else 0.5
         completeness = 1.0 if not rule.required_fields else max(0.0, 1 - len(missing) / len(rule.required_fields))
         specificity = predicate_matches / predicate_count if predicate_count else 1.0
@@ -99,8 +106,9 @@ class PolicyEvaluator:
         selected: list[str] = []
         synthetic_block = high_impact and trace.data.classification == "secret" and trace.context.recipient_zone == "external"
         if synthetic_block:
-            effect = "block" if not missing else "openclaw_approval"
-            status = "matched" if not missing else "partial"
+            certain = not missing and trace.coverage.status == "complete"
+            effect = "block" if certain else "openclaw_approval"
+            status = "matched" if certain else (trace.coverage.status if trace.coverage.status != "complete" else "partial")
         elif applicable:
             strongest = max(applicable, key=lambda c: (_EFFECT_RANK[self._rule_effect(c.rule_id)], c.score))
             effect = self._rule_effect(strongest.rule_id)
@@ -114,6 +122,10 @@ class PolicyEvaluator:
                 effect = "auto_allow_audit"
         else:
             effect, status = "openclaw_approval", "unknown"
+        if trace.coverage.status in {"unknown", "conflict"}:
+            status = trace.coverage.status
+            if effect == "auto_allow_audit":
+                effect = "openclaw_approval"
         if status == "partial" and not high_impact and len(missing) <= 2:
             effect = "clarify_then_retry"
         return PolicyDecision(effect=effect, match_status=status,
