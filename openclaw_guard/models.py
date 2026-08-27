@@ -169,6 +169,8 @@ class DetectionDecision(GuardBaseModel):
     confirmation_word: str | None = None
     # 阶段 F：revise 干预携带的修正建议文本（session 风险升级时透出）
     revision_hint: str | None = None
+    # Optional PMKB evidence; absent in legacy serialized action records.
+    policy_decision: dict[str, Any] | None = None
 
 
 class ControlledAction(GuardBaseModel):
