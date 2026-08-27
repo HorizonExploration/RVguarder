@@ -1,5 +1,8 @@
 from openclaw_guard.models import BehaviorEvent
-from openclaw_guard.policy.models import CapabilityGrant, PermissionRef
+from openclaw_guard.policy.models import (
+    AuthorizationTrace, CapabilityGrant, ContextRef, CoverageResult, DataRef,
+    OperationRef, PermissionRef, PrincipalRef, ProvenanceRef, ResourceRef,
+)
 
 
 def permission(family: str, *, scope: str = "unknown", classification: str = "internal") -> PermissionRef:
@@ -21,4 +24,19 @@ def make_event(action_type: str, *, target_paths: list[str] | None = None,
         user=None,
         target_paths=target_paths or [],
         network_targets=network_targets or [],
+    )
+
+
+def trace_for_message(*, recipient_zone: str = "internal", recipient_count: int | None = 2,
+                      classification: str = "internal", purpose: str = "meeting_notice") -> AuthorizationTrace:
+    ids = [f"person-{i}" for i in range(recipient_count or 0)]
+    return AuthorizationTrace(
+        trace_id="trace-message",
+        principal=PrincipalRef(id="agent-1", type="agent", trust="verified"),
+        operation=OperationRef(family="message.send", tool_id="feishu.im.send"),
+        resource=ResourceRef(type="recipient", ids=ids, scope="external" if recipient_zone == "external" else "workspace"),
+        coverage=CoverageResult(status="complete" if recipient_count is not None else "partial"),
+        data=DataRef(classification=classification, quantity=recipient_count or 0),
+        context=ContextRef(recipient_zone=recipient_zone, purpose=purpose),
+        provenance=ProvenanceRef(source="test", trust="verified"),
     )

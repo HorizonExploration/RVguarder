@@ -15,9 +15,11 @@ from .models import (
     ProvenanceRef,
     ResourceRef,
 )
+from .evaluator import PolicyEvaluator
 
 __all__ = [
     "AuthorizationTrace", "CapabilityGrant", "ContextRef", "CoverageResult",
     "DataRef", "MatchCandidate", "OperationRef", "PermissionRef",
     "PolicyDecision", "PolicyRule", "PrincipalRef", "ProvenanceRef", "ResourceRef",
+    "PolicyEvaluator",
 ]

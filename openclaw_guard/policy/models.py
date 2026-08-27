@@ -89,6 +89,7 @@ class CapabilityGrant(GuardBaseModel):
 class MatchCandidate(GuardBaseModel):
     rule_id: str = ""
     score: float = 0.0
+    status: Literal["matched", "partial", "unknown", "conflict"] = "unknown"
     matched: bool = False
     reasons: list[str] = Field(default_factory=list)
     missing_features: list[str] = Field(default_factory=list)
@@ -104,6 +105,7 @@ class PolicyDecision(GuardBaseModel):
     selected_rule_ids: list[str] = Field(default_factory=list)
     candidate_rule_ids: list[str] = Field(default_factory=list)
     missing_features: list[str] = Field(default_factory=list)
+    conflicts: list[str] = Field(default_factory=list)
     requested_delta: list[PermissionRef] = Field(default_factory=list)
     redundant_permissions: list[PermissionRef] = Field(default_factory=list)
     excessive_permissions: list[PermissionRef] = Field(default_factory=list)
