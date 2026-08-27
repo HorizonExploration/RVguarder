@@ -74,6 +74,12 @@ class TraceCompiler:
         principal_id = str(principal.get("id") or event.metadata.get("principal_id") or event.user or event.process_name or "unknown")
         principal_type = str(principal.get("type") or event.metadata.get("principal_type") or "agent")
         if principal_type not in {"human", "agent", "skill", "service"}: principal_type = "agent"
+        confidence = {
+            "operation": 1.0 if operation.family != "unknown_tool" else 0.2,
+            "resource": 0.9 if resource_ids else 0.0,
+            "scope": 0.95 if scope == "external" else (0.8 if scope in {"workspace", "outside"} else 0.0),
+            "overall": _bounded_confidence(semantic.get("confidence", 0.0)),
+        }
         return AuthorizationTrace(
             trace_id=str(event.event_id or uuid4()), principal=PrincipalRef(id=principal_id, type=principal_type,
                 trust="verified" if event.user else "unknown"), operation=operation,
@@ -83,7 +89,7 @@ class TraceCompiler:
             context=ContextRef(recipient_zone=recipient_zone, purpose=purpose),
             provenance=ProvenanceRef(source=str(semantic.get("origin") or event.source or "unknown"),
                 trust=str(event.metadata.get("provenance_trust") or "unknown")),
-            confidence={"overall": float(semantic.get("confidence", 0.0) or 0.0)}, legacy_steps=steps,
+            confidence=confidence, legacy_steps=steps,
         )
 
 
@@ -136,3 +142,10 @@ def _quantity(semantic, steps, fallback):
     for step in steps:
         if isinstance(step.get("quantity"), int): value = step["quantity"]
     return int(value) if isinstance(value, (int, float)) else fallback
+
+
+def _bounded_confidence(value):
+    try:
+        return max(0.0, min(1.0, float(value or 0.0)))
+    except (TypeError, ValueError):
+        return 0.0

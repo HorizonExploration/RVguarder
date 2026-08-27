@@ -70,3 +70,20 @@ def test_file_write_without_path_has_explicit_resource_gap():
     assert trace.coverage.status == "partial"
     assert "resource.path" in trace.coverage.missing_features
     assert "resource.path" in trace.coverage.gaps
+
+
+def test_trace_has_bounded_field_confidence_for_known_evidence():
+    event = make_event(action_type="network_egress", network_targets=["partner.example"])
+    trace = TraceCompiler(PolicyBundle.load(ROOT)).compile(event, semantic={}, rv_trace=[])
+    assert {"operation", "resource", "scope", "overall"} <= trace.confidence.keys()
+    assert all(0.0 <= value <= 1.0 for value in trace.confidence.values())
+    assert trace.confidence["operation"] > 0.0
+    assert trace.confidence["resource"] > 0.0
+    assert trace.confidence["scope"] > 0.0
+
+
+def test_unknown_fields_do_not_receive_full_confidence():
+    event = make_event(action_type="file_write", metadata={"tool_name": "file.write"})
+    trace = TraceCompiler(PolicyBundle.load(ROOT)).compile(event, semantic={}, rv_trace=[])
+    assert trace.confidence["resource"] < 1.0
+    assert trace.confidence["scope"] < 1.0
