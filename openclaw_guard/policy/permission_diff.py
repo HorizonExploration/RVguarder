@@ -22,6 +22,7 @@ class PermissionDiffResult:
     scope_expansions: list[PermissionRef] = field(default_factory=list)
     expired_grants: list[Any] = field(default_factory=list)
     hard_violations: list[str] = field(default_factory=list)
+    coverage_gaps: list[str] = field(default_factory=list)
 
 
 class _EffectivePermissions(frozenset[PermissionRef]):
@@ -83,9 +84,12 @@ class PermissionDiff:
             else:
                 result.requested_delta.append(item)
 
-        for item in result.requested_delta:
+        for item in requested:
             if not _covered_by_required(item, required_trace):
                 result.excessive_permissions.append(item)
+
+        if any(item.scope == "unknown" for item in required_trace):
+            result.coverage_gaps.append("required_trace.scope")
 
         for item in requested:
             if any(req.family == item.family and _broader(item.scope, req.scope)
@@ -125,7 +129,7 @@ def _resource_covers(granted: PermissionRef, requested: PermissionRef) -> bool:
 
 
 def _required_resource_covers(required: PermissionRef, requested: PermissionRef) -> bool:
-    if required.resource_type and required.resource_type != requested.resource_type:
+    if required.resource_type != requested.resource_type:
         return False
     if required.resource_ids and tuple(required.resource_ids) != tuple(requested.resource_ids):
         return False
@@ -135,11 +139,16 @@ def _required_resource_covers(required: PermissionRef, requested: PermissionRef)
 def _fields_covers(granted: PermissionRef, requested: PermissionRef) -> bool:
     if requested.field_scope and granted.field_scope != requested.field_scope:
         return False
-    if requested.purpose and granted.purpose != requested.purpose:
+    # An empty purpose is an explicitly unscoped legacy record; a named
+    # purpose in the required trace, however, must match exactly.
+    if granted.purpose and requested.purpose and granted.purpose != requested.purpose:
         return False
-    if requested.ttl_seconds is not None and (
-        granted.ttl_seconds is None or granted.ttl_seconds > requested.ttl_seconds
-    ):
+    # TTL is an authorization boundary.  An absent or different TTL is not
+    # evidence that the request is within the required trace.  This is
+    # intentionally strict for both grants and required traces; callers can
+    # issue a new, explicitly bounded grant instead of inheriting an unknown
+    # lifetime.
+    if granted.ttl_seconds != requested.ttl_seconds:
         return False
     return True
 
@@ -151,8 +160,8 @@ def _scope_covers(granted: str, requested: str) -> bool:
 
 
 def _required_scope_covers(required: str, requested: str) -> bool:
-    """Treat an explicitly unknown trace scope as unspecified, not broad."""
-    return required == "unknown" or required == requested
+    """Unknown trace scope is insufficient evidence for any authorization."""
+    return required != "unknown" and requested != "unknown" and required == requested
 
 
 def _broader(scope: str, than: str) -> bool:

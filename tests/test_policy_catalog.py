@@ -107,3 +107,18 @@ def test_loader_rejects_empty_relation_requirements(tmp_path):
     (root / "relations/p0-combinations.json").write_text(json.dumps(payload))
     with pytest.raises(PolicyBundleError, match=re.escape("relations[0].requires")):
         PolicyBundle.load(root)
+
+
+def test_policy_vectors_are_defensive_copies():
+    bundle = PolicyBundle.load(ROOT)
+    vectors = bundle.p0_vectors()
+    vectors[0]["id"] = "tampered"
+
+    assert bundle.p0_vectors()[0]["id"] != "tampered"
+
+
+def test_loaded_relation_records_are_immutable():
+    bundle = PolicyBundle.load(ROOT)
+
+    with pytest.raises(TypeError):
+        bundle.relations[0]["requires"] = []

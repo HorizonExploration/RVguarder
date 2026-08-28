@@ -128,6 +128,7 @@ class PolicyDecision(GuardBaseModel):
     p_after: list[PermissionRef] = Field(default_factory=list)
     combo_violations: list[str] = Field(default_factory=list)
     grant_source: str = ""
+    grant_validation_gaps: list[str] = Field(default_factory=list)
     policy_version: str = ""
     replay_hash: str = ""
 

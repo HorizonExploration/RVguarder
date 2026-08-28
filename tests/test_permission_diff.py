@@ -105,3 +105,41 @@ def test_permission_ref_is_immutable_and_hash_safe():
     with pytest.raises((TypeError, ValueError)):
         value.scope = "external"
     assert value in permissions
+
+
+@pytest.mark.parametrize("dimension", [
+    "classification", "resource_type", "resource_ids", "field_scope", "purpose", "ttl_seconds",
+])
+def test_least_privilege_marks_every_dimension_expansion_excessive(dimension):
+    required = PermissionRef(
+        family="document.read",
+        resource_type="document",
+        resource_ids=("doc-1",),
+        scope="workspace",
+        classification="internal",
+        field_scope=("title",),
+        purpose="meeting_summary",
+        ttl_seconds=300,
+    )
+    values = {
+        "classification": "secret",
+        "resource_type": "table",
+        "resource_ids": ("doc-2",),
+        "field_scope": ("title", "body"),
+        "purpose": "export",
+        "ttl_seconds": 600,
+    }
+    requested = required.model_copy(update={dimension: values[dimension]})
+
+    result = PermissionDiff.compute(frozenset(), [requested], [required])
+
+    assert result.excessive_permissions == [requested]
+
+
+def test_unknown_required_scope_is_not_a_wildcard():
+    requested = permission("document.read", scope="external")
+    required = permission("document.read", scope="unknown")
+
+    result = PermissionDiff.compute(frozenset(), [requested], [required])
+
+    assert result.excessive_permissions == [requested]

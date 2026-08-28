@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Iterable
+from collections.abc import Mapping
 
 from .catalog import PolicyBundle
 from .models import AuthorizationTrace, PermissionRef
@@ -143,7 +144,7 @@ def _conditions_match(conditions: dict[str, Any], trace: AuthorizationTrace, per
             "recipient_zone": trace.context.recipient_zone,
             "principal_lineage": trace.capability_lineage,
         }.get(field)
-        if isinstance(requirement, dict):
+        if isinstance(requirement, Mapping):
             if "gte" in requirement and (value is None or value < requirement["gte"]):
                 return False
             if "lte" in requirement and (value is None or value > requirement["lte"]):

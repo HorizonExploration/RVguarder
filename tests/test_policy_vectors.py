@@ -53,3 +53,15 @@ def test_all_p0_vectors_have_expected_effect():
     """Changing any P0 rule's effective policy outcome must fail its declared vector."""
     for vector in load_p0_vectors():
         assert evaluate_vector(vector).effect == vector["expected_effect"]
+
+
+def test_p0_vectors_include_a_negative_rule_case():
+    negatives = [vector for vector in load_p0_vectors() if vector["category"] == "negative"]
+
+    assert negatives
+    assert any(
+        vector["operation"] == "data.query"
+        and vector.get("classification") == "public"
+        and vector["expected_effect"] == "openclaw_approval"
+        for vector in negatives
+    )

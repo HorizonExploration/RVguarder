@@ -6,7 +6,16 @@ import pytest
 from openclaw_guard.models import BehaviorEvent
 from openclaw_guard.policy.catalog import PolicyBundle
 from openclaw_guard.policy.engine import AuthorizationPolicyEngine
-from openclaw_guard.policy.models import PermissionRef
+from openclaw_guard.policy.models import (
+    AuthorizationTrace,
+    ContextRef,
+    CoverageResult,
+    DataRef,
+    OperationRef,
+    PermissionRef,
+    PrincipalRef,
+    ResourceRef,
+)
 from openclaw_guard.integrations.hook_runtime import _plugin_source
 from openclaw_guard import api
 
@@ -86,3 +95,127 @@ def test_persistent_allow_always_resolution_is_rejected(services):
     )
     assert status == 400
     assert payload["error_code"] == "unsupported_resolution"
+
+
+def _document_read_event(metadata):
+    trace = AuthorizationTrace(
+        trace_id="least-privilege-review",
+        principal=PrincipalRef(id="agent-review", type="agent", trust="verified"),
+        operation=OperationRef(family="document.read", tool_id="feishu.docs.read"),
+        resource=ResourceRef(type="document", ids=["doc-1"], scope="workspace"),
+        coverage=CoverageResult(status="complete"),
+        data=DataRef(classification="internal", quantity=1),
+        context=ContextRef(recipient_zone="internal", purpose="meeting_summary"),
+    )
+    return BehaviorEvent(
+        event_id="least-privilege-review",
+        timestamp="2026-01-01T00:00:00Z",
+        action_type="unknown",
+        process_name="openclaw",
+        pid=None,
+        user="openclaw",
+        raw_payload={},
+        metadata={"authorization_trace": trace.model_dump(), **metadata},
+    )
+
+
+def test_excessive_permission_dimensions_raise_policy_to_openclaw_approval():
+    requested = {
+        "family": "document.read",
+        "resource_type": "document",
+        "resource_ids": ["doc-1"],
+        "scope": "workspace",
+        "classification": "secret",
+        "field_scope": ["title", "body"],
+        "purpose": "export",
+        "ttl_seconds": 600,
+    }
+    required = {
+        **requested,
+        "classification": "internal",
+        "field_scope": ["title"],
+        "purpose": "meeting_summary",
+        "ttl_seconds": 300,
+    }
+
+    decision = AuthorizationPolicyEngine(Path("policies/permissions")).evaluate(
+        _document_read_event({"requested_permissions": [requested], "required_trace": [required]})
+    )
+
+    assert decision.excessive_permissions
+    assert decision.effect == "openclaw_approval"
+
+
+def test_unknown_required_scope_is_an_explicit_approval_gap():
+    permission = {
+        "family": "document.read",
+        "resource_type": "document",
+        "resource_ids": ["doc-1"],
+        "scope": "external",
+    }
+    decision = AuthorizationPolicyEngine(Path("policies/permissions")).evaluate(
+        _document_read_event({"requested_permissions": [permission], "required_trace": [{**permission, "scope": "unknown"}]})
+    )
+
+    assert decision.excessive_permissions == [PermissionRef.model_validate(permission)]
+    assert decision.effect == "openclaw_approval"
+
+
+def test_invalid_delegated_grant_is_not_used_and_routes_to_explicit_approval_gap():
+    permission = {
+        "family": "document.read",
+        "resource_type": "document",
+        "resource_ids": ["doc-1"],
+        "scope": "workspace",
+        "grant_mode": "delegated",
+    }
+    event = _document_read_event({
+        "current_permissions": [{
+            "family": "document.read",
+            "scope": "workspace",
+            "principal_id": "agent-review",
+            "owner_id": "user-owner",
+            "delegates": ["agent-review"],
+            "permissions": [permission],
+            "constraints": {"grant_mode": "delegated"},
+        }],
+        "requested_permissions": [permission],
+        "required_trace": [permission],
+    })
+
+    decision = AuthorizationPolicyEngine(Path("policies/permissions")).evaluate(event)
+
+    assert not decision.effective_permissions
+    assert decision.grant_validation_gaps
+    assert decision.effect == "openclaw_approval"
+
+
+def test_valid_delegated_grant_is_scoped_and_ttl_bounded():
+    permission = {
+        "family": "document.read",
+        "resource_type": "document",
+        "resource_ids": ["doc-1"],
+        "scope": "workspace",
+        "grant_mode": "delegated",
+        "ttl_seconds": 300,
+    }
+    event = _document_read_event({
+        "current_permissions": [{
+            "family": "document.read",
+            "scope": "workspace",
+            "principal_id": "agent-review",
+            "owner_id": "user-owner",
+            "delegated_by": "user-owner",
+            "delegates": ["agent-review"],
+            "permissions": [permission],
+            "constraints": {"grant_mode": "delegated", "scope": "workspace"},
+            "expires_at": "2999-01-01T00:00:00+00:00",
+        }],
+        "requested_permissions": [permission],
+        "required_trace": [permission],
+    })
+
+    decision = AuthorizationPolicyEngine(Path("policies/permissions")).evaluate(event)
+
+    assert not decision.grant_validation_gaps
+    assert decision.effective_permissions

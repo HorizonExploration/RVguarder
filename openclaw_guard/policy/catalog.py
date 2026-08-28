@@ -5,13 +5,25 @@ import json
 from importlib import resources
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
+from collections.abc import Mapping
 
 from .models import OperationRef, PolicyRule
 
 
 class PolicyBundleError(ValueError):
     """Raised when a permission bundle is malformed (including its JSON path)."""
+
+
+class _FrozenList(list):
+    """List-compatible immutable JSON sequence for backwards-compatible equality."""
+
+    def _immutable(self, *args: Any, **kwargs: Any) -> None:
+        raise TypeError("policy records are immutable")
+
+    __setitem__ = __delitem__ = __iadd__ = __imul__ = _immutable
+    append = clear = extend = insert = pop = remove = reverse = sort = _immutable
 
 
 def default_policy_root() -> Path:
@@ -42,6 +54,8 @@ class PolicyBundle:
     def __setattr__(self, name: str, value: Any) -> None:
         if name in {"operations", "rules", "traces", "relations", "vectors"} and not isinstance(value, tuple):
             value = tuple(value)
+        if name in {"traces", "relations", "vectors"}:
+            value = tuple(_freeze_record(item) for item in value)
         super().__setattr__(name, value)
 
     def __post_init__(self) -> None:
@@ -228,7 +242,9 @@ class PolicyBundle:
         return [rule for rule in self.rules if family in rule.match.get("aliases", [])]
 
     def p0_vectors(self) -> list[dict[str, Any]]:
-        return list(self.vectors)
+        # Callers use vectors as test input and may annotate them; return a
+        # detached mutable copy so a test cannot alter the loaded policy.
+        return [_thaw_record(vector) for vector in self.vectors]
 
 
 def _object(value: Any, path: str) -> dict[str, Any]:
@@ -255,3 +271,23 @@ def _version(value: Any, path: str) -> str:
     if not isinstance(value.get("version"), str) or not value["version"]:
         raise PolicyBundleError(f"{path}: $.version")
     return value["version"]
+
+
+def _freeze_record(value: Any) -> Any:
+    """Recursively freeze JSON policy records kept by a loaded bundle."""
+    if isinstance(value, Mapping):
+        return MappingProxyType({key: _freeze_record(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return _FrozenList(_freeze_record(item) for item in value)
+    return value
+
+
+def _thaw_record(value: Any) -> Any:
+    """Convert an immutable policy record into a detached JSON-like value."""
+    if isinstance(value, Mapping):
+        return {key: _thaw_record(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_thaw_record(item) for item in value]
+    if isinstance(value, tuple):
+        return [_thaw_record(item) for item in value]
+    return value
