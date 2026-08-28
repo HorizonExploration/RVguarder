@@ -147,16 +147,7 @@ def _apply_policy_engine(
     severity = {"allow": 1, "ask": 2, "revise": 2, "escalate": 3, "block": 4}
     prior_action = getattr(decision, "action", "allow")
     policy_action = action_for_effect[policy_decision.effect]
-    actionable = (
-        policy_decision.effect == "block"
-        or bool(policy_decision.selected_rule_ids)
-        or bool(policy_decision.combo_violations)
-        or (
-            "tool_mapping" in policy_decision.missing_features
-            and bool(event.metadata.get("hook_bridge"))
-        )
-    )
-    if actionable and severity[policy_action] > severity.get(prior_action, 1):
+    if severity[policy_action] > severity.get(prior_action, 1):
         decision.action = policy_action
         decision.reason = f"[PMKB] {policy_decision.effect} (原有: {prior_action})"
         if policy_action == "block":
@@ -284,7 +275,7 @@ def _apply_session_escalation(
 
     # revise 干预（spec F1）：会话风险达到修正建议阈值时，返回带建议的 revise 拒绝
     hint = state.revision_hint()
-    if hint is not None:
+    if hint is not None and getattr(decision, "action", "allow") != "block":
         decision.action = "revise"
         decision.revision_hint = hint
         decision.reason = (

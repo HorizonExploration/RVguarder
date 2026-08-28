@@ -118,7 +118,7 @@ class PolicyEvaluator:
             # Internal, small, classified messages are the calibrated low-impact exception.
             if (trace.operation.family == "message.send" and trace.context.recipient_zone == "internal"
                     and trace.data.classification in {"public", "internal"} and trace.data.quantity <= 10
-                    and not missing):
+                    and not missing and effect != "block"):
                 effect = "auto_allow_audit"
         else:
             effect, status = "openclaw_approval", "unknown"
@@ -126,7 +126,8 @@ class PolicyEvaluator:
             status = trace.coverage.status
             if effect == "auto_allow_audit":
                 effect = "openclaw_approval"
-        if status == "partial" and not high_impact and len(missing) <= 2:
+        if (status == "partial" and not high_impact and len(missing) <= 2
+                and _EFFECT_RANK[effect] < _EFFECT_RANK["clarify_then_retry"]):
             effect = "clarify_then_retry"
         return PolicyDecision(effect=effect, match_status=status,
                               match_confidence=max((c.score for c in applicable), default=0.0),

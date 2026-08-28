@@ -2,7 +2,7 @@ from pathlib import Path
 
 from openclaw_guard.policy.catalog import PolicyBundle
 from openclaw_guard.policy.evaluator import PolicyEvaluator
-from openclaw_guard.policy.models import CoverageResult, OperationRef
+from openclaw_guard.policy.models import CoverageResult, OperationRef, PrincipalRef
 from tests.policy_factories import trace_for_message
 
 
@@ -63,3 +63,18 @@ def test_unknown_or_conflict_coverage_is_retained_and_fail_closed():
         result = evaluator.evaluate(trace)
         assert result.match_status == status
         assert result.effect in {"openclaw_approval", "block"}
+
+
+def test_partial_match_cannot_weaken_real_block_rule():
+    """A clarification fallback must not replace a selected hard-block rule."""
+    evaluator = PolicyEvaluator(PolicyBundle.load(ROOT))
+    trace = trace_for_message().model_copy(update={
+        "principal": PrincipalRef(id="unknown", type="agent", trust="unknown"),
+        "operation": OperationRef(family="data.query", tool_id="feishu.bitable.query"),
+    })
+
+    result = evaluator.evaluate(trace)
+
+    assert result.match_status == "partial"
+    assert result.selected_rule_ids == ["EX-19"]
+    assert result.effect == "block"

@@ -55,6 +55,17 @@ def unknown_tool_payload() -> dict[str, object]:
     }
 
 
+def known_uncovered_operation_payload() -> dict[str, object]:
+    """Return a catalogued operation that has no matching policy rule."""
+    return {
+        "toolName": "feishu.directory.search",
+        "params": {"query": "Alice"},
+        "runId": "policy-known-uncovered",
+        "toolCallId": "directory-search",
+        "sessionId": "policy-known-uncovered-session",
+    }
+
+
 def test_p0_internal_message_is_allowed_with_policy_evidence(services, monkeypatch):
     """A PMKB allow remains allow when the pre-existing detector allows it."""
     def detector_allow(event):
@@ -103,6 +114,51 @@ def test_unknown_tool_records_gap_and_does_not_create_silent_allow(services):
     assert evidence["match_status"] in {"partial", "unknown"}
     assert "tool_mapping" in evidence["missing_features"]
     assert result["action"] != "allow" or evidence["effect"] == "auto_allow_audit"
+
+
+def test_known_uncovered_operation_never_becomes_silent_allow(services, monkeypatch):
+    """Ignoring an approval effect without rule IDs would silently allow uncovered operations."""
+    def detector_allow(event):
+        return DetectionDecision(
+            event_id=event.event_id,
+            timestamp=utc_now_iso(),
+            action_type=event.action_type,
+            risk_level="safe",
+            action="allow",
+            reason="test detector allow",
+        )
+
+    monkeypatch.setattr(services.detector, "evaluate", detector_allow)
+    result = services.handle_before_tool_call(known_uncovered_operation_payload())
+
+    evidence = result["action_record"]["decision"]["policy_decision"]
+    assert evidence["effect"] == "openclaw_approval"
+    assert evidence["match_status"] == "unknown"
+    assert evidence["selected_rule_ids"] == []
+    assert result["action"] == "require_approval"
+
+
+def test_repeated_blocked_hook_calls_remain_blocked(services, monkeypatch):
+    """A session revision hint must not weaken a repeated hard block into approval."""
+    def detector_block(event):
+        return DetectionDecision(
+            event_id=event.event_id,
+            timestamp=utc_now_iso(),
+            action_type=event.action_type,
+            risk_level="blocked",
+            action="block",
+            reason="test hard block",
+        )
+
+    monkeypatch.setattr(services.detector, "evaluate", detector_block)
+    payload = known_uncovered_operation_payload()
+
+    first = services.handle_before_tool_call(payload)
+    second = services.handle_before_tool_call({**payload, "toolCallId": "directory-search-2"})
+
+    assert first["action"] == "block"
+    assert second["action"] == "block"
+    assert second["action_record"]["decision"]["action"] == "block"
 
 
 def test_whitelist_cannot_bypass_a_pmkb_approval(services):
