@@ -7,7 +7,7 @@ export default defineUserConfig({
   title: "Openclaw Guard",
   description: "龙虾卫士文档站，覆盖快速开始、架构说明、部署、安全能力与运维说明。",
   base: "/",
-  pagePatterns: ["**/*.md", "!superpowers/**"],
+  pagePatterns: ["**/*.md", "!superpowers/**", "!archive/**"],
   bundler: viteBundler(),
   head: [
     ["meta", { name: "theme-color", content: "#111827" }],
@@ -25,22 +25,21 @@ export default defineUserConfig({
       { text: "部署运维", link: "/deployment/local.html" },
       { text: "API", link: "/api/http.html" },
       { text: "FAQ", link: "/ops/faq.html" },
-      { text: "调研", link: "/research/nl-automata-rv-upgrade-plan.html" },
+      { text: "调研", link: "/research/index.html" },
     ],
     sidebar: {
       "/architecture/": [
         {
           text: "架构设计",
           children: [
+            "/architecture/index.md",
             "/architecture/overview.md",
             "/architecture/project-memory.md",
             "/architecture/frontend-handoff-redesign-report.md",
-            "/architecture/index.md",
             "/architecture/rv-engine-report.md",
             "/architecture/nl-automata-rv-landing-report.md",
             "/architecture/project-status-analysis.md",
             "/architecture/target-architecture.md",
-            "/architecture/refactoring-plan.md",
             "/architecture/quality-assurance.md",
           ],
         },
@@ -89,9 +88,9 @@ export default defineUserConfig({
         {
           text: "调研与规划",
           children: [
+            "/research/index.md",
             "/research/permission-model-kb-and-cross-session-rv-plan.md",
             "/research/agent-permission-rv-research-report-2026-08-25.md",
-            "/research/nl-automata-rv-upgrade-plan.md",
             "/research/pmkb-network-baseline-implementation-report-2026-08-28.md",
           ],
         },
@@ -100,6 +99,7 @@ export default defineUserConfig({
         {
           text: "语义理解",
           children: [
+            "/semantic/index.md",
             "/semantic/method.md",
             "/semantic/office-scenario-matrix.md",
             "/semantic/pmkb-network-case-baseline.md",
@@ -110,7 +110,7 @@ export default defineUserConfig({
         {
           text: "测试设计",
           children: [
-            "/test-design/rv-vs-static-experiment-v2.md",
+            "/test-design/index.md",
             "/test-design/openclaw-guard-test-design.md",
           ],
         },

@@ -1,5 +1,7 @@
 # Agent Permission and Runtime Verification Research Plan
 
+> **归档状态（2026-08-28）：** 已执行的内部研究计划；当前研究结论见 [`research/index.md`](../../research/index.md)。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Produce an evidence-backed research report and an executable roadmap for strengthening OpenClaw-RVGuarder’s policy knowledge base, permission-risk model, cross-session runtime verification, and attack-validation program.

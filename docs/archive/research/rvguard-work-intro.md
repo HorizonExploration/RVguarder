@@ -1,8 +1,10 @@
 # OpenClaw-RVGuarder：自然语言驱动的自动机生成与运行时验证
 
+> **归档状态（2026-08-28）：** 历史项目介绍；当前项目定位见 [`README.md`](../../README.md) 和 [`research/index.md`](../../research/index.md)。
+
 > **面向 OpenClaw 智能体的运行时安全防护框架**
 > 版本：v0.6.0（阶段 A–F 已全部落地） | 整理日期：2026-08-14
-> 关联文档：[nl-automata-rv-upgrade-plan.md](./nl-automata-rv-upgrade-plan.md)、[rvguard-vs-agent-security-tools.md](../comparison/rvguard-vs-agent-security-tools.md)、[rv-engine-report.md](../architecture/rv-engine-report.md)
+> 关联文档：[历史 NL→Automata 计划](./nl-automata-rv-upgrade-plan.md)、[工具对比](../../comparison/rvguard-vs-agent-security-tools.md)、[RV 层技术报告](../../architecture/rv-engine-report.md)
 
 ---
 

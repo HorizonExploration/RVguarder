@@ -35,7 +35,7 @@ def test_docs_preserve_openclaw_single_approval_owner():
 
 def test_runtime_hook_docs_match_once_only_resolution_contract():
     runtime_hook = read_doc("docs/features/runtime-hook.md")
-    spec = read_doc("docs/superpowers/specs/2026-08-27-openclaw-rvguarder-five-phase-upgrade-design.md")
+    spec = read_doc("docs/archive/specs/2026-08-27-openclaw-rvguarder-five-phase-upgrade-design.md")
     assert "允许一次" in runtime_hook and "拒绝" in runtime_hook
     assert "始终允许" not in runtime_hook
     assert "当前生成插件只向 OpenClaw 暴露" in spec

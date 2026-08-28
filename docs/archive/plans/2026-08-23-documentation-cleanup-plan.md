@@ -1,5 +1,7 @@
 # Documentation Cleanup Implementation Plan
 
+> **归档状态（2026-08-28）：** 已执行的内部文档清理计划；当前文档结构见 [`docs/archive/README.md`](../../archive/README.md)。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Align current documentation with the implemented v0.6.0 code, remove invalid local links, and explicitly preserve historical experiment artifacts.

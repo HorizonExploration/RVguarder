@@ -5,7 +5,7 @@
 **研究对象：** OpenClaw-RVGuarder 当前代码与 OpenClaw 审批交接链
 **来源：** DeepSeek 研究方案与 `agent-permission-rv-research-report-2026-08-25.md` 的对比、批判和融合
 
-关联文档：[NL2Spec 与自动机升级方案](./nl-automata-rv-upgrade-plan.md)、[办公场景矩阵](../semantic/office-scenario-matrix.md)；研究实施计划位于 `docs/superpowers/plans/2026-08-25-agent-permission-rv-research-plan.md`（该目录不纳入文档站页面）。
+关联文档：[RV 落地审计报告](../architecture/nl-automata-rv-landing-report.md)、[办公场景矩阵](../semantic/office-scenario-matrix.md)；研究实施计划的历史执行记录位于 `docs/archive/plans/2026-08-25-agent-permission-rv-research-plan.md`。
 
 ## 1. 执行摘要
 
@@ -397,9 +397,9 @@ OWASP LLM/Agentic 风险分类、AgentDojo、InjecAgent、MELON、NVD EchoLeak �
 - 权限与 IR 基线：`openclaw_guard/rv/ir.py`、`openclaw_guard/rv/constraints.py`；
 - 运行时验证：`openclaw_guard/rv/runtime_verification.py`、`openclaw_guard/spec/session_state.py`；
 - NL2Spec：`openclaw_guard/spec/nl2spec_generator.py`；
-- 研究与计划：`docs/research/agent-permission-rv-research-report-2026-08-25.md`、`docs/superpowers/plans/2026-08-25-agent-permission-rv-research-plan.md`；
+- 研究与计划：`docs/research/agent-permission-rv-research-report-2026-08-25.md`、`docs/archive/plans/2026-08-25-agent-permission-rv-research-plan.md`；
 - 攻击夹具：`testlab/research/scenarios.json`、`testlab/research/fixtures.py`、`tests/test_research_attack_fixtures.py`；
-- 现有 RV 路线：`docs/research/nl-automata-rv-upgrade-plan.md`、`docs/ops/roadmap.md`。
+- 现有 RV 路线：`docs/architecture/nl-automata-rv-landing-report.md`、`docs/ops/roadmap.md`。
 
 本文件是两份研究报告的融合最终版；原始研究报告和实验产物保留用于追溯，不代表其中每一条未经验证的外部攻击描述都已在本项目复现。
 

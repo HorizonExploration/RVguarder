@@ -1,5 +1,7 @@
 # 架构分析报告
 
+> **归档状态（2026-08-28）：** 历史架构评审，仅供追溯；现行事实请以 [`architecture/index.md`](../../architecture/index.md) 和 [`project-memory.md`](../../architecture/project-memory.md) 为准。
+
 > 版本：v0.2.1（分析基线）→ v0.3.0（当前） | 日期：2026-07-30（分析）/ 2026-08-01（更新） | 作者：架构评审组
 
 ---

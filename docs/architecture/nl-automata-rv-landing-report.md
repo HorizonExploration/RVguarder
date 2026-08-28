@@ -1,7 +1,7 @@
 # NL 驱动自动机生成与运行时验证 · 升级方案落地情况检查报告
 
 > **审计日期**：2026-08-14
-> **审计范围**：`nl-automata-rv-upgrade-plan.md`（v1.0，2026-08-11 标记「已完成」）阶段 A–F 全量落地情况
+> **审计范围**：历史计划 `docs/archive/research/nl-automata-rv-upgrade-plan.md`（v1.0，2026-08-11 标记「已完成」）的阶段 A–F 全量落地情况
 > **配套规格**：`.trae/specs/nl-automata-rv/{spec.md, tasks.md, checklist.md}`
 > **审计基准**：`git` master（审计时 `e30879f`），全量测试基线 **331 passed / 18 skipped / 0 failed**（整改后基准 `2a4bccd` / **340 passed**，见第八节）
 

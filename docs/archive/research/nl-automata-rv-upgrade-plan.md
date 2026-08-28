@@ -1,7 +1,9 @@
 # NL 驱动自动机生成与运行时验证 · 分阶段实施升级计划
 
+> **归档状态（2026-08-28）：** 已完成的早期 NL→Automata 计划；当前 RV 事实见 [`architecture/rv-engine-report.md`](../../architecture/rv-engine-report.md)。
+
 > 版本：v1.0 | 日期：2026-08-11 | 状态：**已完成**  
-> 关联文档：[rvguard-vs-agent-security-tools.md](../comparison/rvguard-vs-agent-security-tools.md)（对比）、[rv-engine-report.md](../architecture/rv-engine-report.md)（技术报告）、[roadmap.md](../ops/roadmap.md)（路线图）
+> 关联文档：[rvguard-vs-agent-security-tools.md](../../comparison/rvguard-vs-agent-security-tools.md)（对比）、[rv-engine-report.md](../../architecture/rv-engine-report.md)（技术报告）、[roadmap.md](../../ops/roadmap.md)（路线图）
 
 ---
 

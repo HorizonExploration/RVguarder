@@ -2,7 +2,7 @@
 
 > 版本：v1.0 | 日期：2026-08-11
 > 范围：`openclaw_guard/rv/`（运行时验证）+ `openclaw_guard/spec/`（规约生成与校验）两个子包
-> 关联文档：[nl-automata-rv-upgrade-plan.md](../research/nl-automata-rv-upgrade-plan.md)（升级计划）、[rvguard-work-intro.md](../research/rvguard-work-intro.md)（项目介绍）、[roadmap.md](../ops/roadmap.md)（路线图）
+> 关联文档：[RV 落地审计报告](./nl-automata-rv-landing-report.md)（落地核验）、[路线图](../ops/roadmap.md)（当前推进）；历史 NL→Automata 计划位于 `docs/archive/research/nl-automata-rv-upgrade-plan.md`
 
 ---
 

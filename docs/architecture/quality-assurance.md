@@ -1,6 +1,10 @@
 # 质量保障方案
 
-> 版本：v0.2.1 → v0.3.0（当前） | 日期：2026-07-30（初版）/ 2026-08-01（更新） | 作者：架构评审组
+> **核对日期：** 2026-08-28
+> **适用版本：** v0.7.0-dev（PMKB 1.1.0、RV 阶段 A–F）
+> **文档性质：** 当前测试门禁与目标指标；历史重构过程见 [`archive/architecture/`](../archive/architecture/)。
+
+当前可执行事实以仓库 `tests/`、`frontend/` 和 `docs` 构建输出为准。本方案中的“目标”是尚未完成的工程门禁，不应被误读为已实现能力。
 
 ---
 
@@ -320,7 +324,7 @@ diff <(grep -E "^(OK|FAILED|ERROR)" baseline-regression.log) \
      <(grep -E "^(OK|FAILED|ERROR)" phase-N-regression.log)
 ```
 
-新旧 HTTP 层并行运行时（见 [refactoring-plan.md §11.2](./refactoring-plan.md#112-并行运行策略)），还应执行端点对比验证。
+新旧 HTTP 层并行运行时（历史策略见 `docs/archive/architecture/refactoring-plan.md §11.2`），还应执行端点对比验证。
 
 ---
 

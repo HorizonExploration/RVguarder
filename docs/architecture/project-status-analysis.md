@@ -1,9 +1,9 @@
 # OpenClaw-RVGuarder 项目现状分析报告
 
-> **版本**：v0.6.0（含 RV 层拆分 + 阶段 A–F 落地 + P0/P1/P2 整改闭环）
-> **分析日期**：2026-08-23
-> **分析基准**：`git commit 114502e`（当前 HEAD）
-> **测试基线**：349 passed / 18 skipped / 0 failed（`python -m pytest -q`，2026-08-23）
+> **版本**：v0.7.0-dev（含 PMKB 1.1.0、RV 阶段 A–F 和 OpenClaw 单一审批契约）
+> **分析日期**：2026-08-28（文档重组后复核）
+> **分析基准**：当前工作树；精确提交号以 Git 为准
+> **测试基线（2026-08-28）**：`python -m pytest -q` → **472 passed / 18 skipped / 4 subtests passed**
 
 ---
 
@@ -11,7 +11,7 @@
 
 OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运行时安全保护系统。当前项目已跨过 v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆分懒加载、Preact 前端迁移），并在此基础上完成 RV 层拆分（`engine/` → `rv/` + `spec/`）与规约驱动能力（阶段 A–F）的落地。
 
-项目整体处于**架构转型后期、功能能力早期**的阶段：核心检测/RV 链路已具备生产雏形，但仍存在三类系统性问题——**前端自动化测试与构建门禁不足**、**双轨 HTTP 层维护成本**、**约束规则与标签规则并行导致的治理风险**。本报告按三大维度展开，并给出后续推进顺序。当前事实与维护口径见 [项目理解与当前记忆](./project-memory.md)。
+项目整体处于**核心链路可用、治理能力持续完善**阶段：检测、审批、审计、RV 和 PMKB 基础链路已落地，但仍存在三类系统性问题——**前端自动化测试与构建门禁不足**、**双轨 HTTP 层维护成本**、**约束规则与标签规则并行导致的治理风险**。本报告按三大维度展开，并给出后续推进顺序。当前事实与维护口径见 [项目理解与当前记忆](./project-memory.md)。
 
 ---
 
@@ -23,8 +23,8 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 | 后端 | Python 3.13+ / Pydantic v2 / FastAPI（可选依赖）/ transitions FSM |
 | 前端 | Vite 6 + Preact 10 + Zustand 5 + preact-router |
 | 存储 | SQLite（开发）/ PostgreSQL + Redis（生产，可选依赖） |
-| 测试 | 23 个 Python 测试文件，349 通过 / 18 跳过 |
-| 当前 git | `114502e feat(release,rv,frontend,docs,build): 发布v0.6.0正式版` |
+| 测试 | Python 全量回归；最新数量以 `project-memory.md` 与 CI 输出为准 |
+| 当前 git | 当前工作树（PMKB 1.1.0 文档与规则基线） |
 
 **后端模块布局**（`openclaw_guard/`）：
 
@@ -52,7 +52,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 3. **阶段三：Manager 拆分 + 懒加载** — `GuardServices` 容器 + `LazyProxy` 惰性加载 + `pipeline.py` 流水线模块，核心组件延迟初始化优化启动。
 4. **阶段四：前端 Preact 迁移** — 17 源文件、5 页面、10 组件、Zustand 状态管理，替换 Vanilla JS。
 
-### 3.2 RV 层拆分与规约驱动能力（本次提交，未发布）
+### 3.2 RV 层拆分、规约驱动与 PMKB 能力（已落地）
 
 5. **RV 层拆分** — `engine/` 下 RV 相关 13 个文件迁移至 `rv/`（运行时验证）与 `spec/`（规约），与在线检测解耦。
 6. **阶段 A：ToolCallIR** — `rv/ir.py` 结构化中间表示（Entity/Constraint/ToolCallIR），语义层 `rv_trace` 透传 entities/constraints/confidence。
@@ -61,6 +61,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 9. **阶段 D：RV 参数化原语** — entity 匹配、时间间隔、state_counter、quantifier/bind_vars。
 10. **阶段 E：NL2Spec 生成** — `spec/nl2spec_generator.py` + `spec/spec_validator.py` + 正反例 trace 库（`eval_traces.py`）。
 11. **阶段 F：会话安全状态** — `spec/session_state.py`，接入 pipeline `_apply_session_escalation`，per-session 累计风险升级。
+12. **PMKB 1.1.0** — 网络案例基础规则通过 `PolicyBundle → TraceCompiler → PolicyEvaluator → RiskGraph` 接入运行时；基础规则立即生效，新规则使用离线回放和有限事件样本验证。
 
 ### 3.3 核心安全能力
 
@@ -69,6 +70,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 - **SHA-256 审计哈希链**，SQLite + JSONL 双写。
 - **白名单 Trie 前缀树**，O(n) 匹配效率。
 - **OpenClaw 原生审批 + Guard 只读同步**（`requireApproval` + `onResolution` + SSE/增量查询）。
+- **权限知识库与组合风险**：Authorization Trace、最小权限闭包/差分、危险权限组合图和主体跨 session 风险累计。
 - **基线安全扫描**（配置/端口/用户/依赖），JSON/HTML/PDF 输出。
 
 ---
@@ -87,7 +89,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 
 | # | 问题 | 具体表现 | 影响范围 | 严重等级 |
 |---|---|---|---|---|
-| F-1 | **首屏 JS 资源超标** | 构建产物 `runtime/ui/assets/index-CAuI_5Ll.js` = 61 KB（未压缩），CSS 18 KB，总 96 KB；远高于项目约束「前端首屏 JS ≤ 20 KB」。即使 gzip 后 JS 仍约 20 KB，逼近上限 | 首屏加载速度、性能指标达成 | **High** |
+| F-1 | **首屏 JS 资源超标** | 当前构建产物 `runtime/ui/assets/index-C6by2uZY.js` 约 54 KB（未压缩），仍高于项目约束「前端首屏 JS ≤ 20 KB gzip」；需在构建门禁中持续复测 | 首屏加载速度、性能指标达成 | **High** |
 | F-2 | **前端无自动化测试** | 21 个测试文件全部为后端 Python；前端 `store.js`（乐观更新、哈希去重）、`api.js`（错误处理）、5 个页面组件零单测/E2E | 前端回归保障缺失，重构风险高 | **Medium** |
 | F-3 | **前端构建流程依赖手工操作** | `ui.py:build_ui()` 仅复制已存在的 `runtime/ui/` 构建产物，不触发 Vite 构建；前端源码修改后需手动 `npm run build`，否则运行时服务旧资源 | 部署一致性、CI 自动化 | **Medium** |
 | F-4 | ~~**API 层静默吞错**~~ ✅ 已解决 | `api.js` 统一抛出错误并由 `apiErrorMessage()` 展示 `detail/message/error` | ~~Low~~ 已闭环 |
@@ -172,10 +174,10 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 
 ## 七、结论
 
-项目已完成 v0.3.0 的架构现代化改造，并成功落地 RV 层拆分与规约驱动能力（阶段 A–F），具备可运行的检测、审批、审计、基线扫描核心链路。当前主要风险集中在**规则治理的单一数据源收敛**、**前端资源体积与测试缺口**、**双轨 HTTP 的维护成本**三大方向。
+项目已完成 v0.3.0 的架构现代化改造，并成功落地 RV 层拆分、规约驱动能力（阶段 A–F）与 PMKB 1.1.0 基础规则，具备可运行的检测、审批、审计、基线扫描和跨 session 风险链路。当前主要风险集中在**规则治理的单一数据源收敛**、**前端资源体积与测试缺口**、**双轨 HTTP 的维护成本**三大方向。
 
 建议按 P0 → P1 → P2 → P3 顺序推进，优先消除规则双源与死代码，再补前端工程化与双轨收敛，最后完善采集器与 LLM 能力，使项目从「架构转型后期」稳步进入「能力完善期」。
 
 ---
 
-*本报告已于 2026-08-23 复核；当前全量回归为 349 passed / 18 skipped。文中 2026-08-14 的问题快照保留其历史语境。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 为准。*
+*本报告已于 2026-08-28 复核；全量回归为 **472 passed / 18 skipped / 4 subtests passed**（`python -m pytest -q`）。历史问题快照保留原日期和语境。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 为准。*

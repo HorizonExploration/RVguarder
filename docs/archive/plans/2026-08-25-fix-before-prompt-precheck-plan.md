@@ -1,5 +1,7 @@
 # Fix before_prompt_build Precheck Plan
 
+> **归档状态（2026-08-28）：** 已执行的 Bug 修复计划；现行 Hook 行为见 [`features/runtime-hook.md`](../../features/runtime-hook.md)。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Prevent the non-blocking `before_prompt_build` precheck from creating phantom Guard approvals while preserving real `before_tool_call` approval and resolution synchronization.

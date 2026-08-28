@@ -1,5 +1,7 @@
 # RV 运行时验证 vs 静态单步检测 — 对比实证实验设计
 
+> **归档状态（2026-08-28）：** 历史实验设计，不作为当前回归门禁；现行测试入口见 [`test-design/index.md`](../../test-design/index.md)。
+
 > **核心问题**：为什么 Guardrails 拦不住的链式攻击，我们的 RV 引擎能自动阻断？  
 > **文档状态**：v2.0（适配 2026-07-29 RV 层 FSM 全面升级）  
 > **关联文档**：`openclaw-guard-test-design.md`（v1.0）

@@ -567,10 +567,10 @@ MockOpenClaw
 ## 10. 与项目文件的对应关系
 
 - 当前基线：`openclaw_guard/rv/ir.py`、`openclaw_guard/rv/constraints.py`、`openclaw_guard/rv/runtime_verification.py`、`openclaw_guard/spec/session_state.py`。
-- 研究计划：`docs/superpowers/plans/2026-08-25-agent-permission-rv-research-plan.md`。
+- 研究计划：历史执行记录位于 `docs/archive/plans/2026-08-25-agent-permission-rv-research-plan.md`。
 - 攻击夹具：`testlab/research/scenarios.json`、`testlab/research/fixtures.py`、`tests/test_research_attack_fixtures.py`。
 - 现有语义方案：`docs/semantic/method.md`。
-- 现有 RV 路线：`docs/ops/roadmap.md`、`docs/research/nl-automata-rv-upgrade-plan.md`。
+- 现有 RV 路线：`docs/ops/roadmap.md`、`docs/architecture/nl-automata-rv-landing-report.md`。
 - 相关详细技术方案：`docs/research/permission-model-kb-and-cross-session-rv-plan.md`。
 
 本报告只新增研究与实施建议，不会自动把 P0–P3 方案直接改写成生产代码；下一步应先确认“权限本体字段、默认未知策略、跨 session 身份键和攻击实验范围”四项决策，再按计划逐阶段实现。

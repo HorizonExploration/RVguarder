@@ -108,14 +108,18 @@ openclaw-guard run
 | ⚙️ [动作审批链](/features/action-gate.html) | 决策流程与规则引擎 | Decision pipeline & rule engine |
 | 🌐 [HTTP 接口清单](/api/http.html) | 所有后端 API 文档 | Complete API reference |
 | 🏗️ [架构总览](/architecture/overview.html) | 分层设计与代码映射 | Architecture & code map |
+| 🧭 [架构文档索引](/architecture/index.html) | 当前架构阅读顺序与历史归档规则 | Architecture index & archive policy |
 | 🔬 [RV 层技术报告](/architecture/rv-engine-report.html) | 运行时验证：规约 DSL、FSM、约束引擎、基线自动机 | RV layer tech report |
 | ✅ [RV 落地审计报告](/architecture/nl-automata-rv-landing-report.html) | 阶段 A–F 落地核验与整改闭环 | RV landing audit report |
 | 📊 [项目现状分析](/architecture/project-status-analysis.html) | 三类系统性问题与推进顺序 | Project status analysis |
 | 📋 [基线扫描](/features/baseline.html) | 安全扫描与报告 | Security scanning & reports |
 | 📝 [审计](/features/audit.html) | 审计链与导出 | Audit trail & export |
 | 🧠 [语义增强方案](/semantic/method.html) | 语义理解架构设计 | Semantic enhancement design |
+| 🧩 [语义与 PMKB 索引](/semantic/index.html) | 办公场景、语义方法和知识库入口 | Semantic and PMKB index |
 | 📚 [PMKB 网络案例基线](/semantic/pmkb-network-case-baseline.html) | 可直接接入运行时链路的案例型权限知识库 | Case-derived permission baseline wired into the runtime |
 | 🧾 [PMKB 升级结果报告](/research/pmkb-network-baseline-implementation-report-2026-08-28.html) | 本次案例型知识库接入、测试与边界 | PMKB baseline integration, tests, and boundaries |
+| 🔬 [研究与规划索引](/research/index.html) | 权限模型、PMKB 和 RV 研究入口 | Research and planning index |
+| 🧪 [测试设计索引](/test-design/index.html) | 当前验证设计与执行命令 | Test design and commands |
 | 🧭 [项目理解与当前记忆](/architecture/project-memory.html) | 当前代码边界、已落地能力、已知边界与维护规则 | Current project facts and maintenance memory |
 | 🩺 [运维 FAQ](/ops/faq.html) | 常见问题 | Frequently asked questions |
 | 🗺️ [路线图](/ops/roadmap.html) | 开发计划 | Development roadmap |

@@ -1,5 +1,7 @@
 # Permission Knowledge Base and Modeling Upgrade Implementation Plan
 
+> **归档状态（2026-08-28）：** 已执行的权限知识库实施计划；当前交付状态见 [`research/pmkb-network-baseline-implementation-report-2026-08-28.md`](../../research/pmkb-network-baseline-implementation-report-2026-08-28.md)。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a versioned personal-office permission knowledge base and deterministic authorization model that reduces false “unmatched → manual approval” outcomes while preserving hard blocking, least privilege, toxic-combination detection, and OpenClaw’s single approval owner.
@@ -8,7 +10,7 @@
 
 **Tech Stack:** Python 3.13+, Pydantic v2, stdlib JSON/YAML-compatible data files, existing Python `unittest`/pytest suite, current JSON/SQLite-compatible stores, React/Vite documentation and frontend build tooling.
 
-**Spec:** `docs/superpowers/specs/2026-08-27-openclaw-rvguarder-five-phase-upgrade-design.md`
+**Spec:** `docs/archive/specs/2026-08-27-openclaw-rvguarder-five-phase-upgrade-design.md`
 
 ## Global Constraints
 

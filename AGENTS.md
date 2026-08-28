@@ -1,6 +1,6 @@
 # AGENTS.md — OpenClaw-RVGuarder（龙虾卫士）
 
-> 面向 OpenClaw 的非侵入式运行时安全保护系统 | v0.3.0
+> 面向 OpenClaw 的非侵入式运行时安全保护系统 | v0.7.0-dev（PMKB 1.1.0）
 
 ## 项目定位
 
@@ -202,7 +202,7 @@ cd e2e && npm install && npm run install:browsers && npm test
 
 ## 当前状态
 
-- **版本**: v0.3.0
+- **版本**: v0.7.0-dev（PMKB 1.1.0 基线已接入）
 - **Python 版本要求**: 3.13+
 - **许可证**: Apache 2.0
 - **作者**: Codex
@@ -214,7 +214,8 @@ cd e2e && npm install && npm run install:browsers && npm test
   - ✅ RV 层拆分 — engine/ 下 RV 相关拆分为 rv/ + spec/ 子包
   - ✅ 阶段 A（ToolCallIR）/ B（约束推理引擎）/ C（基线自动机）/ D（RV 参数化原语）
   - ✅ 阶段 E（NL2Spec 生成 + 规约校验）/ F（会话安全状态）
-- **下一步计划**: 见 `CHANGELOG.md`、`docs/architecture/refactoring-plan.md` 和 `docs/architecture/project-status-analysis.md`
+  - ✅ PMKB 1.1.0 网络案例基础规则 — 直接参与运行时决策，新规则采用离线回放与有限事件样本校验
+- **下一步计划**: 见 `CHANGELOG.md`、`docs/architecture/index.md`、`docs/ops/roadmap.md` 和 `docs/research/index.md`
 
 ---
 
