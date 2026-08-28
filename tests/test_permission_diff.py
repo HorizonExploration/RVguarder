@@ -143,3 +143,24 @@ def test_unknown_required_scope_is_not_a_wildcard():
     result = PermissionDiff.compute(frozenset(), [requested], [required])
 
     assert result.excessive_permissions == [requested]
+
+
+def test_explicit_required_resource_and_purpose_mismatches_are_excessive():
+    requested = PermissionRef(
+        family="document.read",
+        resource_type="document",
+        resource_ids=("doc-1",),
+        scope="workspace",
+        purpose="meeting_summary",
+    )
+    required = PermissionRef(
+        family="document.read",
+        resource_type="document",
+        resource_ids=("doc-2",),
+        scope="workspace",
+        purpose="other_purpose",
+    )
+
+    result = PermissionDiff.compute(frozenset(), [requested], [required])
+
+    assert result.excessive_permissions == [requested]

@@ -139,8 +139,8 @@ def _required_resource_covers(required: PermissionRef, requested: PermissionRef)
 def _fields_covers(granted: PermissionRef, requested: PermissionRef) -> bool:
     if requested.field_scope and granted.field_scope != requested.field_scope:
         return False
-    # An empty purpose is an explicitly unscoped legacy record; a named
-    # purpose in the required trace, however, must match exactly.
+    # Legacy trace records may intentionally omit purpose; that omission is
+    # a bounded wildcard for the operation's known resource/scope template.
     if granted.purpose and requested.purpose and granted.purpose != requested.purpose:
         return False
     # TTL is an authorization boundary.  An absent or different TTL is not
