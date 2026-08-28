@@ -115,7 +115,7 @@ def _covered_by_required(candidate: PermissionRef, required: Iterable[Permission
                and _required_resource_covers(item, candidate)
                and _required_scope_covers(item.scope, candidate.scope)
                and _classification_covers(item.classification, candidate.classification)
-               and _fields_covers(item, candidate)
+               and _required_fields_covers(item, candidate)
                for item in required)
 
 
@@ -137,11 +137,15 @@ def _required_resource_covers(required: PermissionRef, requested: PermissionRef)
 
 
 def _fields_covers(granted: PermissionRef, requested: PermissionRef) -> bool:
-    if requested.field_scope and granted.field_scope != requested.field_scope:
+    # A bounded grant cannot cover a request whose bound is absent: an empty
+    # request dimension means broader/unknown authority, not a narrow one.
+    if granted.field_scope and (
+        not requested.field_scope
+        or set(granted.field_scope) != set(requested.field_scope)
+    ):
         return False
-    # Legacy trace records may intentionally omit purpose; that omission is
-    # a bounded wildcard for the operation's known resource/scope template.
-    if granted.purpose and requested.purpose and granted.purpose != requested.purpose:
+    # An explicitly purposed grant cannot cover a request with no purpose.
+    if granted.purpose and granted.purpose != requested.purpose:
         return False
     # TTL is an authorization boundary.  An absent or different TTL is not
     # evidence that the request is within the required trace.  This is
@@ -151,6 +155,23 @@ def _fields_covers(granted: PermissionRef, requested: PermissionRef) -> bool:
     if granted.ttl_seconds != requested.ttl_seconds:
         return False
     return True
+
+
+def _required_fields_covers(required: PermissionRef, requested: PermissionRef) -> bool:
+    """Apply directional least-privilege bounds from the required Trace.
+
+    Empty field/purpose dimensions in a legacy P0 Trace are intentional
+    wildcards.  Once a Trace declares either bound, however, a request must
+    carry the same bound; omitting it is treated as broader unknown authority.
+    """
+    if required.field_scope and (
+        not requested.field_scope
+        or set(required.field_scope) != set(requested.field_scope)
+    ):
+        return False
+    if required.purpose and required.purpose != requested.purpose:
+        return False
+    return required.ttl_seconds == requested.ttl_seconds
 
 
 def _scope_covers(granted: str, requested: str) -> bool:

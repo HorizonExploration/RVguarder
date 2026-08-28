@@ -42,7 +42,7 @@ class _Operation:
     aliases: tuple[str, ...] = ()
 
 
-@dataclass
+@dataclass(frozen=True)
 class PolicyBundle:
     operations: tuple[_Operation, ...]
     rules: tuple[PolicyRule, ...]
@@ -51,19 +51,12 @@ class PolicyBundle:
     vectors: tuple[dict[str, Any], ...]
     version: str = ""
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        if name in {"operations", "rules", "traces", "relations", "vectors"} and not isinstance(value, tuple):
-            value = tuple(value)
-        if name in {"traces", "relations", "vectors"}:
-            value = tuple(_freeze_record(item) for item in value)
-        super().__setattr__(name, value)
-
     def __post_init__(self) -> None:
-        self.operations = tuple(self.operations)
-        self.rules = tuple(self.rules)
-        self.traces = tuple(self.traces)
-        self.relations = tuple(self.relations)
-        self.vectors = tuple(self.vectors)
+        object.__setattr__(self, "operations", tuple(self.operations))
+        object.__setattr__(self, "rules", tuple(self.rules))
+        object.__setattr__(self, "traces", tuple(_freeze_record(item) for item in self.traces))
+        object.__setattr__(self, "relations", tuple(_freeze_record(item) for item in self.relations))
+        object.__setattr__(self, "vectors", tuple(_freeze_record(item) for item in self.vectors))
 
     @classmethod
     def load(cls, root: Path | None = None) -> "PolicyBundle":

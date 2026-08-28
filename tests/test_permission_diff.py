@@ -1,6 +1,10 @@
 from datetime import datetime, timezone, timedelta
+from dataclasses import replace
+from pathlib import Path
 
+from openclaw_guard.models import BehaviorEvent
 from openclaw_guard.policy.catalog import PolicyBundle
+from openclaw_guard.policy.engine import AuthorizationPolicyEngine
 from openclaw_guard.policy.models import CapabilityGrant, PermissionRef
 from openclaw_guard.policy.permission_diff import PermissionClosure, PermissionDiff
 import pytest
@@ -17,8 +21,7 @@ def grant(family, *, scope="unknown", expires_at=None, constraints=None):
 
 def bundle(relations=None):
     loaded = PolicyBundle.load("policies/permissions")
-    loaded.relations = relations or []
-    return loaded
+    return replace(loaded, relations=tuple(relations or []))
 
 
 def test_read_grant_does_not_imply_export_or_share():
@@ -164,3 +167,86 @@ def test_explicit_required_resource_and_purpose_mismatches_are_excessive():
     result = PermissionDiff.compute(frozenset(), [requested], [required])
 
     assert result.excessive_permissions == [requested]
+
+
+@pytest.mark.parametrize(
+    ("dimension", "missing"),
+    [("field_scope", ()), ("purpose", "")],
+)
+def test_missing_request_bound_is_excessive_against_explicit_required_trace(dimension, missing):
+    required = PermissionRef(
+        family="document.read",
+        resource_type="document",
+        resource_ids=("doc-1",),
+        scope="workspace",
+        field_scope=("title",),
+        purpose="meeting_summary",
+    )
+    requested = required.model_copy(update={dimension: missing})
+
+    result = PermissionDiff.compute(frozenset(), [requested], [required])
+
+    assert result.excessive_permissions == [requested]
+
+
+def test_explicitly_unbounded_legacy_trace_keeps_dimension_wildcards():
+    required = PermissionRef(
+        family="message.send",
+        resource_type="recipient",
+        scope="outside",
+    )
+    requested = required.model_copy(update={
+        "field_scope": ("address",),
+        "purpose": "meeting_notice",
+    })
+
+    result = PermissionDiff.compute(frozenset(), [requested], [required])
+
+    assert result.excessive_permissions == []
+
+
+def test_engine_p_after_contains_permission_implication_closure():
+    loaded = bundle([{
+        "id": "test-implies-write-read",
+        "version": "1.0.0",
+        "effect": "implies",
+        "requires": ["document.write"],
+        "source": "document.write",
+        "target": "document.read",
+        "rollback_state": "previous",
+        "positive_examples": [],
+        "negative_examples": [],
+    }])
+    engine = AuthorizationPolicyEngine(Path("policies/permissions"))
+    engine.bundle = loaded
+    engine.policy_evaluator.bundle = loaded
+    engine.permission_closure = PermissionClosure(loaded)
+
+    event = BehaviorEvent(
+        event_id="p-after-closure",
+        timestamp="2026-01-01T00:00:00Z",
+        action_type="file_write",
+        process_name="openclaw",
+        pid=None,
+        user="u1",
+        metadata={
+            "requested_permissions": [{
+                "family": "document.write",
+                "resource_type": "document",
+                "resource_ids": ["doc-1"],
+                "scope": "workspace",
+            }],
+            "required_trace": [{
+                "family": "document.write",
+                "resource_type": "document",
+                "resource_ids": ["doc-1"],
+                "scope": "workspace",
+            }],
+        },
+    )
+
+    decision = engine.evaluate(event)
+
+    assert {permission.family for permission in decision.p_after} >= {
+        "document.write", "document.read",
+    }

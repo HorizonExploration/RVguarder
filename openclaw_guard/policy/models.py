@@ -9,6 +9,37 @@ from pydantic import ConfigDict, Field
 from openclaw_guard.models import GuardBaseModel
 
 
+class _FrozenList(list[Any]):
+    """List-compatible immutable container used inside loaded policy records."""
+
+    def _immutable(self, *args: Any, **kwargs: Any) -> None:
+        raise TypeError("policy records are immutable")
+
+    __setitem__ = __delitem__ = __iadd__ = __imul__ = _immutable
+    append = clear = extend = insert = pop = remove = reverse = sort = _immutable
+
+
+class _FrozenDict(dict[str, Any]):
+    """Dict-compatible immutable container that remains Pydantic serializable."""
+
+    def _immutable(self, *args: Any, **kwargs: Any) -> None:
+        raise TypeError("policy records are immutable")
+
+    __setitem__ = __delitem__ = __ior__ = _immutable
+    clear = pop = popitem = setdefault = update = _immutable
+
+
+def _deep_freeze(value: Any) -> Any:
+    """Recursively freeze JSON-shaped policy fields without losing JSON support."""
+    if isinstance(value, dict):
+        return _FrozenDict({key: _deep_freeze(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return _FrozenList(_deep_freeze(item) for item in value)
+    if isinstance(value, tuple):
+        return tuple(_deep_freeze(item) for item in value)
+    return value
+
+
 class PrincipalRef(GuardBaseModel):
     id: str
     type: Literal["human", "agent", "skill", "service"]
@@ -134,6 +165,7 @@ class PolicyDecision(GuardBaseModel):
 
 
 class PolicyRule(GuardBaseModel):
+    model_config = ConfigDict(frozen=True)
     id: str
     version: str
     effect: Literal[
@@ -149,3 +181,11 @@ class PolicyRule(GuardBaseModel):
     rollback_state: str = ""
     positive_examples: list[dict[str, Any]] = Field(default_factory=list)
     negative_examples: list[dict[str, Any]] = Field(default_factory=list)
+
+    def model_post_init(self, __context: Any) -> None:
+        """Freeze nested rule data after Pydantic has validated the record."""
+        for field_name in (
+            "match", "required_fields", "negative_conditions", "obligations",
+            "test_vectors", "positive_examples", "negative_examples",
+        ):
+            object.__setattr__(self, field_name, _deep_freeze(getattr(self, field_name)))

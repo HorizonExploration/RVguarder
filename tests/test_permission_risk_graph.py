@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from openclaw_guard.policy.catalog import PolicyBundle
 from openclaw_guard.policy.models import (
     AuthorizationTrace,
@@ -66,13 +68,13 @@ def test_unrelated_read_permissions_do_not_trigger_hyperedge():
 
 def test_match_preserves_conditions_and_evidence():
     bundle = PolicyBundle.load(ROOT)
-    bundle.relations = [{
+    bundle = replace(bundle, relations=({
         "id": "combo",
         "version": "1",
         "effect": "openclaw_approval",
         "requires": ["document.read", "external_target"],
         "conditions": {"quantity": {"gte": 2}},
-    }]
+    },))
     graph = RiskGraph.from_bundle(bundle)
     trace = trace_for_external_secret_egress().model_copy(
         update={"operation": OperationRef(family="document.read"), "data": DataRef(classification="internal", quantity=2)}
@@ -89,8 +91,8 @@ def test_match_preserves_conditions_and_evidence():
 
 def test_explicit_conflicts_relation_is_evaluated():
     bundle = PolicyBundle.load(ROOT)
-    bundle.relations = [{"id": "separation", "version": "1", "type": "conflicts",
-                         "effect": "block", "requires": ["credential.read", "process.execute"]}]
+    bundle = replace(bundle, relations=({"id": "separation", "version": "1", "type": "conflicts",
+                                         "effect": "block", "requires": ["credential.read", "process.execute"]},))
     violations = RiskGraph.from_bundle(bundle).evaluate(
         effective=frozenset({permission("credential.read")}),
         requested_delta=[permission("process.execute")],
@@ -102,8 +104,8 @@ def test_explicit_conflicts_relation_is_evaluated():
 
 def test_explicit_toxic_with_relation_is_evaluated():
     bundle = PolicyBundle.load(ROOT)
-    bundle.relations = [{"id": "toxic", "version": "1", "relation": "toxic_with",
-                         "effect": "openclaw_approval", "requires": ["data.export", "external_recipient", "sensitive_data"]}]
+    bundle = replace(bundle, relations=({"id": "toxic", "version": "1", "relation": "toxic_with",
+                                         "effect": "openclaw_approval", "requires": ["data.export", "external_recipient", "sensitive_data"]},))
     trace = trace_for_external_secret_egress().model_copy(update={
         "operation": OperationRef(family="data.export"),
         "data": DataRef(classification="sensitive", quantity=1),

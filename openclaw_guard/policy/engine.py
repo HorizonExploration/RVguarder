@@ -58,8 +58,15 @@ class AuthorizationPolicyEngine:
         requested = self._requested_permissions(event, trace)
         required_trace = self._required_trace_permissions(event, trace)
         diff = self.permission_diff.compute(effective, requested, required_trace)
+        # Evaluate toxic combinations against the authority that would exist
+        # after this request, including any explicit implication edges.  A
+        # plain set union would omit permissions derived from the requested
+        # operation and could hide a downstream combination risk.
+        p_after = self.permission_closure.close(
+            self._permission_grants(set(effective) | set(requested))
+        )
         violations = self.risk_graph.evaluate(
-            effective=effective,
+            effective=p_after,
             requested_delta=diff.requested_delta,
             trace=trace,
         )
@@ -93,7 +100,7 @@ class AuthorizationPolicyEngine:
             "scope_expansions": diff.scope_expansions,
             "hard_violations": diff.hard_violations,
             "effective_permissions": sorted(effective, key=repr),
-            "p_after": sorted(set(effective) | set(diff.requested_delta), key=repr),
+            "p_after": sorted(p_after, key=repr),
             "combo_violations": [item.relation_id for item in violations],
             "grant_source": grant_source,
             "grant_validation_gaps": grant_gaps,
@@ -103,6 +110,15 @@ class AuthorizationPolicyEngine:
             "decision": decision.model_dump(mode="json", exclude={"replay_hash"}),
         }, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
         return decision
+
+    @staticmethod
+    def _permission_grants(permissions: set[PermissionRef]) -> list[CapabilityGrant]:
+        """Represent already-normalized permissions as closure inputs."""
+        return [
+            CapabilityGrant(family=permission.family, scope=permission.scope,
+                            permissions=[permission])
+            for permission in permissions
+        ]
 
     def _requested_permissions(self, event: BehaviorEvent, trace: AuthorizationTrace) -> list[PermissionRef]:
         raw = event.metadata.get("requested_permissions")

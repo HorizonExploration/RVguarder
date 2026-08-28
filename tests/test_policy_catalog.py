@@ -2,6 +2,7 @@ from pathlib import Path
 import json
 import shutil
 import re
+from dataclasses import FrozenInstanceError
 
 import pytest
 
@@ -122,3 +123,24 @@ def test_loaded_relation_records_are_immutable():
 
     with pytest.raises(TypeError):
         bundle.relations[0]["requires"] = []
+
+
+def test_loaded_bundle_rules_and_nested_match_data_are_immutable():
+    bundle = PolicyBundle.load(ROOT)
+
+    with pytest.raises(FrozenInstanceError):
+        bundle.version = "tampered"
+    with pytest.raises(FrozenInstanceError):
+        bundle.rules = ()
+    with pytest.raises((TypeError, ValueError)):
+        bundle.rules[0].effect = "block"
+    with pytest.raises(TypeError):
+        bundle.rules[0].match["operation"] = "tampered"
+    with pytest.raises(TypeError):
+        bundle.rules[0].match["aliases"].append("tampered")
+    with pytest.raises(TypeError):
+        bundle.rules[0].required_fields.append("tampered")
+
+    assert [rule.id for rule in bundle.rules_for_operation("message.send")] == [
+        "EX-10", "P0-MESSAGE-SEND",
+    ]
