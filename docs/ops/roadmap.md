@@ -1,6 +1,6 @@
 # 发展路线图 · Roadmap
 
-当前版本：**v0.7.0-dev** — PMKB 权限模型、覆盖感知匹配、最小权限闭包/差分、风险组合图、主体能力跨 session RV 和 OpenClaw 单一审批契约已实现。当前回归基线以 CI 最新结果为准；PMKB 仍处于 shadow gate 前，未宣称生产启用。
+当前版本：**v0.7.0-dev** — PMKB 权限模型、覆盖感知匹配、最小权限闭包/差分、风险组合图、主体能力跨 session RV 和 OpenClaw 单一审批契约已实现。PMKB `1.1.0` 基础规则可立即参与运行时决策；shadow gate 仅用于新规则或批量发布的可选评估，个人模式不以长时间留存记录为前提。
 
 ---
 
@@ -59,8 +59,11 @@
 
 ## PMKB 发布门禁、指标与回滚
 
-策略 bundle 必须先进行 7–14 天 shadow run，同时记录 baseline 与 new outcomes，不能
-直接替换生产目录。当前分支尚未完成真实 shadow run，以下目标是发布门禁而非已测结果：
+当前 `1.1.0` 基础 bundle 已直接接入运行时；高风险阻断、普通审批和明确低风险自动放行不需要等待
+7–14 天。7–14 天 shadow run 仅作为团队批量上线或新规则版本的可选评估手段。个人模式可通过显式确认，
+或少量一致事件证据（默认同一规则 3 次无冲突命中）启用用户化偏好；用户偏好不能降低既有安全下限。
+
+以下指标用于新规则晋级、自动放行范围扩大和回滚判断，而不是基础 PMKB 的生效前置条件：
 
 | 指标 | 目标 |
 |---|---:|
@@ -72,7 +75,7 @@
 | low-risk approvals | −60% |
 | local evaluator P95 | ≤50 ms |
 
-每个 outcome 都要带 `policy_version`、effect、匹配状态、证据字段和 timing，按版本并列
-比较后再晋级。若发生 hard-risk false negative、bundle validation error 或 principal-state
+每个 outcome 都要带 `policy_version`、effect、匹配状态、证据字段和 timing；可按事件计数或时间窗口
+进行比较。若发生 hard-risk false negative、bundle validation error 或 principal-state
 merge anomaly，立即 disable 新 bundle version，rollback 到 previous catalog，并保留全部
 audit records 供调查；修复后重新开始 shadow run。
