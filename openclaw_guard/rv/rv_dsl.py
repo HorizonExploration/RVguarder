@@ -39,6 +39,23 @@ class SequenceRequirement(BaseModel):
     window_size: int | None = Field(default=None, ge=1)
 
 
+class PolicyGuard(BaseModel):
+    """Guard over normalized PMKB evidence attached to one RV step.
+
+    The policy evaluator remains the authority for matching and permission
+    closure.  This guard lets generated monitors consume its typed evidence
+    without reimplementing the evaluator in the RV DSL.
+    """
+
+    rule_ids_any_of: list[str] = Field(default_factory=list)
+    combo_violations_any_of: list[str] = Field(default_factory=list)
+    effects_any_of: list[str] = Field(default_factory=list)
+    match_statuses: list[str] = Field(default_factory=list)
+    operation_families: list[str] = Field(default_factory=list)
+    permission_families_any_of: list[str] = Field(default_factory=list)
+    min_risk_score: int | None = Field(default=None, ge=0, le=100)
+
+
 class StepRequirement(BaseModel):
     event: str | None = None
     all_of: list[str] = Field(default_factory=list)
@@ -54,6 +71,7 @@ class StepRequirement(BaseModel):
     step_gap_within_seconds: int | None = Field(default=None, ge=0)
     step_gap_at_least_seconds: int | None = Field(default=None, ge=0)
     state_counter: dict[str, dict[str, int]] = Field(default_factory=dict)
+    policy: PolicyGuard | None = None
 
 
 class ChainRule(BaseModel):
@@ -74,6 +92,9 @@ class MonitorSpec(BaseModel):
     # ── 阶段 D：参数化原语 ──
     quantifier: Literal["forall", "exists"] | None = None
     bind_vars: list[str] = Field(default_factory=list)
+    scope: Literal["session", "principal"] = "session"
+    source: str = "handwritten"
+    source_ids: list[str] = Field(default_factory=list)
 
 
 class Ruleset(BaseModel):
@@ -214,6 +235,42 @@ def _matches_requirement(
             if "gte" in op_dict and actual < op_dict["gte"]:
                 return False
 
+    if req.policy and not _policy_matches(req.policy, current_step or {}):
+        return False
+
+    return True
+
+
+def _policy_matches(guard: PolicyGuard, step: dict[str, Any]) -> bool:
+    """Match a PMKB-generated synthetic step against authoritative evidence."""
+    policy = step.get("policy")
+    if not isinstance(policy, dict):
+        return False
+
+    def _overlaps(expected: list[str], actual: Any) -> bool:
+        actual_values = {str(item) for item in actual} if isinstance(actual, list) else {str(actual)}
+        return bool({str(item) for item in expected} & actual_values)
+
+    if guard.rule_ids_any_of and not _overlaps(
+        guard.rule_ids_any_of, policy.get("selected_rule_ids", []),
+    ):
+        return False
+    if guard.combo_violations_any_of and not _overlaps(
+        guard.combo_violations_any_of, policy.get("combo_violations", []),
+    ):
+        return False
+    if guard.effects_any_of and str(policy.get("effect", "")) not in guard.effects_any_of:
+        return False
+    if guard.match_statuses and str(policy.get("match_status", "")) not in guard.match_statuses:
+        return False
+    if guard.operation_families and str(policy.get("operation_family", "")) not in guard.operation_families:
+        return False
+    if guard.permission_families_any_of and not _overlaps(
+        guard.permission_families_any_of, policy.get("p_after_families", []),
+    ):
+        return False
+    if guard.min_risk_score is not None and int(policy.get("risk_score", 0) or 0) < guard.min_risk_score:
+        return False
     return True
 
 

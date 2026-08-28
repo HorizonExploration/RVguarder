@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
+  <title id="title">OpenClaw RV permission automata flow</title>
+  <desc id="desc">Hook event flows through semantic normalization and PMKB policy evaluation into behavior and permission monitors, then a monotonic decision merge.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker>
+    <style>
+      .box { stroke-width:2; rx:14; ry:14; }
+      .t { font: 600 18px system-ui, sans-serif; fill:#0f172a; text-anchor:middle; }
+      .s { font: 14px system-ui, sans-serif; fill:#334155; text-anchor:middle; }
+      .l { stroke:#64748b; stroke-width:2.5; fill:none; marker-end:url(#arrow); }
+      .cap { font: 600 15px system-ui, sans-serif; fill:#475569; }
+    </style>
+  </defs>
+  <rect width="1200" height="430" fill="#f8fafc"/>
+  <text x="600" y="38" class="t" style="font-size:24px">RV 权限自动机在线架构</text>
+  <text x="600" y="64" class="s">权限语义由 PMKB 决定；自动机只消费已验证的证据并单调提升处置</text>
+  <rect x="35" y="150" width="175" height="90" class="box" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="122" y="185" class="t">OpenClaw Hook</text><text x="122" y="210" class="s">BehaviorEvent</text>
+  <rect x="270" y="150" width="200" height="90" class="box" fill="#e0f2fe" stroke="#0284c7"/>
+  <text x="370" y="185" class="t">语义与 Trace</text><text x="370" y="210" class="s">entities · labels · scope</text>
+  <rect x="530" y="105" width="240" height="105" class="box" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="650" y="145" class="t">PMKB 策略权威</text><text x="650" y="170" class="s">规则 · 最小权限 · RiskGraph</text><text x="650" y="192" class="s">PolicyDecision</text>
+  <rect x="530" y="265" width="240" height="95" class="box" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="650" y="302" class="t">行为 DSL 自动机</text><text x="650" y="327" class="s">session 行为链</text>
+  <rect x="830" y="105" width="230" height="105" class="box" fill="#fef3c7" stroke="#d97706"/>
+  <text x="945" y="145" class="t">权限自动机</text><text x="945" y="170" class="s">rule: session</text><text x="945" y="192" class="s">relation: principal</text>
+  <rect x="830" y="265" width="230" height="95" class="box" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="945" y="302" class="t">单调决策合并</text><text x="945" y="327" class="s">allow → ask → block</text>
+  <path d="M210 195 H270" class="l"/><path d="M470 195 H530" class="l"/>
+  <path d="M650 210 V265" class="l"/><path d="M770 158 H830" class="l"/>
+  <path d="M770 312 H830" class="l"/><path d="M945 210 V265" class="l"/>
+  <path d="M1060 312 H1135" class="l"/><text x="1145" y="307" class="cap">OpenClaw</text><text x="1145" y="329" class="cap">审批/阻断</text>
+</svg>

@@ -3,7 +3,7 @@
 > **状态：** 当前实现结果与架构事实源
 > **核对日期：** 2026-08-28
 > **PMKB 版本：** `1.1.0`
-> **测试基线：** `python -m pytest -q` → `473 passed / 18 skipped / 4 subtests passed`
+> **测试基线：** `python -m pytest -q` → `541 passed / 18 skipped / 4 subtests passed`
 
 本文档说明本次升级实际交付的权限规则知识库（Permission Model Knowledge Base，PMKB）、权限建模、最小权限校验、危险权限组合检测和跨 session 运行时验证。它不是下一阶段愿景：已实现部分以代码和测试为证据，未实现部分明确列在“当前边界”中。
 
@@ -41,7 +41,8 @@ OpenClaw before_tool_call
        ├─ PermissionClosure + PermissionDiff（最小权限）
        └─ RiskGraph（危险权限组合）
   → ConstraintEngine（可选约束升权）
-  → RuntimeVerificationEngine（session 窗口）
+  → PermissionAutomatonCompiler（PMKB → 权限监视器）
+  → RuntimeVerificationEngine（行为 DSL + session/principal 权限监视器）
   → SessionSafetyState / PrincipalSecurityState（累计风险）
   → GuardController
   → allow / revise / requireApproval / block
@@ -60,6 +61,7 @@ OpenClaw before_tool_call
 | 最小权限闭包/差分 | `openclaw_guard/policy/permission_diff.py` |
 | 组合风险图 | `openclaw_guard/policy/risk_graph.py` |
 | 统一权限处置 | `openclaw_guard/policy/engine.py` |
+| PMKB 权限自动机编译 | `openclaw_guard/policy/rv_compiler.py` |
 | session / principal RV | `openclaw_guard/rv/runtime_verification.py`、`openclaw_guard/spec/session_state.py` |
 | OpenClaw 审批和同步 | `openclaw_guard/integrations/hook_runtime.py`、`services.py` |
 
@@ -187,7 +189,15 @@ RiskGraph 将稀疏权限关系作为超边索引，只检查被当前权限族�
 
 ## 6. 与 RV 的协同
 
-当前有两个互补的状态域：
+当前有三个互补的自动机族和两个状态域。完整的编译合同、图示和旧结构迁移表见[RV 权限自动机架构](./rv-permission-automata.md)。
+
+### 6.0 PMKB 权限自动机
+
+PMKB 规则与危险组合关系会在本地 bundle 装载时由 `PermissionAutomatonCompiler` 生成 `MonitorSpec`：每条规则对应一个 session 监视器，每条可执行关系对应一个 principal 监视器。运行时把 Authorization Trace 和 PolicyDecision 规范化为 `pmkb.permission` synthetic step，再由 `StepRequirement.policy` 读取 `selected_rule_ids`、`combo_violations`、effect、匹配状态、操作族、闭包后的权限族和风险分数。
+
+这不是用 DFA 重复实现 PolicyEvaluator：规则谓词、权限闭包、TTL/委派校验和 RiskGraph 仍以 PMKB 引擎的结果为权威；自动机负责将已验证的权限结论纳入 RV 标准监视器、作用域隔离、timing 和审计接口。因此未知或缺字段的请求不会因自动机存在而被放行。
+
+### 6.1 session-local RV
 
 ### 6.1 session-local RV
 
@@ -230,7 +240,8 @@ PMKB 效果到 Guard 动作的映射为：
 - `tests/test_authorization_trace.py`、`test_policy_pipeline.py`：语义到 Hook 决策的运行时接入；
 - `tests/test_permission_diff.py`、`test_permission_risk_graph.py`：最小权限、scope expansion 和危险组合；
 - `tests/test_principal_capability_rv.py`、`test_principal_rv_hook_integration.py`：跨 session 主体状态和持久化；
-- 全量回归：`473 passed / 18 skipped / 4 subtests passed`（2026-08-28）。
+- `tests/test_permission_rv_compiler.py`：PMKB 规则/关系自动机编译、effect 投影和 principal 作用域隔离；
+- 全量回归：`541 passed / 18 skipped / 4 subtests passed`（2026-08-28）。
 
 路线图目标 `complete coverage ≥85%`、`unknown rate ≤10%`、`low-risk auto-allow precision ≥99%`、`high-risk recall ≥98%`、人工审批量下降 40% 等，当前仅是发布和扩大自动放行范围的验收门槛，尚未由真实个人使用数据验证。
 

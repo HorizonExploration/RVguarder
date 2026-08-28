@@ -332,7 +332,7 @@ SecurityChainMonitor 触发:
 python -m pytest -q
 ```
 
-当前回归基线（2026-08-28）：`473 passed / 18 skipped / 4 subtests passed`。
+当前回归基线（2026-08-28）：`541 passed / 18 skipped / 4 subtests passed`。
 
 测试覆盖：
 

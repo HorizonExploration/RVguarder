@@ -3,7 +3,7 @@
 > **版本**：v0.7.0-dev（含 PMKB 1.1.0、RV 阶段 A–F 和 OpenClaw 单一审批契约）
 > **分析日期**：2026-08-28（文档重组后复核）
 > **分析基准**：当前工作树；精确提交号以 Git 为准
-> **测试基线（2026-08-28）**：`python -m pytest -q` → **473 passed / 18 skipped / 4 subtests passed**
+> **测试基线（2026-08-28）**：`python -m pytest -q` → **541 passed / 18 skipped / 4 subtests passed**
 
 ---
 
@@ -182,4 +182,4 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 
 ---
 
-*本报告已于 2026-08-28 复核；全量回归为 **473 passed / 18 skipped / 4 subtests passed**（`python -m pytest -q`）。历史问题快照保留原日期和语境。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 为准。*
+*本报告已于 2026-08-28 复核；全量回归为 **541 passed / 18 skipped / 4 subtests passed**（`python -m pytest -q`）。历史问题快照保留原日期和语境。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 为准。*

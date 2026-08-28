@@ -571,6 +571,7 @@ class GuardServices:
         engine = RuntimeVerificationEngine(
             window_size=10,
             rule_mode=str(self.preferences().get("rv_rule_mode") or "") or None,
+            permission_bundle=self.policy_engine.bundle,
         )
         with self._rv_state_lock:
             snapshot = read_json(self.rv_state_path)

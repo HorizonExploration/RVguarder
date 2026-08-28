@@ -186,7 +186,12 @@ def _apply_rv_if_available(
     session_key = _resolve_rv_session_key(event)
 
     rv_started = time.perf_counter()
-    rv_result = services.rv_engine.evaluate(rv_trace, session_key=session_key)
+    rv_result = services.rv_engine.evaluate(
+        rv_trace,
+        session_key=session_key,
+        authorization_trace=event.metadata.get("authorization_trace"),
+        policy_decision=getattr(decision, "policy_decision", None),
+    )
     timings = _ensure_pipeline_timings(event)
     timings["rv_ms"] = round((time.perf_counter() - rv_started) * 1000.0, 3)
     event.metadata["rv_result"] = rv_result

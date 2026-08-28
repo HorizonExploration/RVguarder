@@ -81,7 +81,7 @@ cd docs && npm run docs:build
 python -m pip wheel . --no-deps --no-build-isolation
 ```
 
-提交前验证结果：`473 passed, 18 skipped, 4 subtests passed`（包含本次新增 PMKB 与文档合同、只读工具回归）；本次文档归档与架构结果页加入后，VuePress 最新构建渲染 33 页；wheel `openclaw_guard-0.3.0-py3-none-any.whl` 构建成功，并确认包含 `openclaw_guard/policy/data/permissions/rules/p0-office.json`。源码/打包知识库 JSON parity 校验通过。历史基线为 `469 passed, 18 skipped, 4 subtests passed`。
+提交前验证结果：`541 passed, 18 skipped, 4 subtests passed`（包含本次新增 PMKB、权限自动机与文档合同回归）；VuePress 最新构建渲染 34 页；wheel `openclaw_guard-0.3.0-py3-none-any.whl` 构建成功，并确认包含 `openclaw_guard/policy/data/permissions/rules/p0-office.json`。源码/打包知识库 JSON parity 校验通过。历史基线为 `469 passed, 18 skipped, 4 subtests passed`。
 
 ## 5. 后续建议
 

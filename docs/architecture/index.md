@@ -12,7 +12,8 @@
 | 0 | [项目理解与当前记忆](./project-memory.md) | 当前代码边界、运行链路、版本与维护规则 |
 | 1 | [架构总览](./overview.md) | 分层结构、组件职责和端到端决策流 |
 | 2 | [权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md) | 本次升级的现行实现、数据合同、语义命中、权限建模和跨 session RV |
-| 3 | [RV 层技术报告](./rv-engine-report.md) | ToolCallIR、约束引擎、ChainRule、FSM 和会话状态 |
+| 3 | [RV 权限自动机架构](./rv-permission-automata.md) | 三类自动机、PMKB 编译合同、作用域和旧结构迁移 |
+| 4 | [RV 层技术报告](./rv-engine-report.md) | ToolCallIR、约束引擎、ChainRule、FSM 和会话状态 |
 | 4 | [RV 落地审计报告](./nl-automata-rv-landing-report.md) | RV 阶段 A–F 的代码核验和整改闭环 |
 | 5 | [前后端交接改造报告](./frontend-handoff-redesign-report.md) | OpenClaw 单一审批入口、SSE 同步和前端状态模型 |
 | 6 | [项目现状分析](./project-status-analysis.md) | 已完成能力、风险清单和后续优先级 |
@@ -36,7 +37,7 @@ OpenClaw before_tool_call
 - PMKB `1.1.0` 基线直接参与运行时决策；新规则通过离线回放和有限事件样本验证，不设置自然日 shadow gate。
 - 语义层先把工具调用归一化为 Authorization Trace，再由 `TraceCompiler` 做覆盖感知匹配；未知工具或缺失特征不会被“相似度”误放行。
 - PMKB 同时校验单步规则、最小必要权限闭包/差分和危险权限组合；证据进入 Guard 页面，审批仍只回到 OpenClaw。
-- RV 分为 session-local 与 principal-global 两个作用域：前者捕获当前会话链路，后者用 `(principal_id, agent_id, capability_lineage)` 关联跨 session 能力累积。
+- RV 分为行为 DSL、PMKB 权限自动机和可选基线 DFA 三族；PMKB 规则为 session 监视器，权限组合关系为 `(principal_id, agent_id, capability_lineage)` 隔离的 principal 监视器。
 - 默认 RV 模式为 DSL；`OPENCLAW_RV_RULE_MODE=fsm` 仅用于兼容回退。
 - 默认 HTTP 入口仍是 `legacy_web.py`，FastAPI 通过 `--fastapi` 启用；该双轨边界是已知维护风险。
 

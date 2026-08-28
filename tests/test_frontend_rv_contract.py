@@ -47,7 +47,7 @@ class FrontendRvContractTests(unittest.TestCase):
                 json.dumps(
                     {
                         "models": {"providers": {}},
-                        "channels": {"feishu": {"enabled": True, "appId": "ID", "appSecret": "SECRET"}},
+                        "channels": {"feishu": {"enabled": True, "appId": "ID", "appSecret": "CHANNEL_APP_SECRET_DO_NOT_LEAK"}},
                         "skills": {"demo-skill": {"enabled": True, "description": "demo", "permissions": ["net"]}},
                     },
                     ensure_ascii=False,
@@ -57,7 +57,10 @@ class FrontendRvContractTests(unittest.TestCase):
             manager = build_manager(project, config_path=config_path)
             summary = manager.summary()
             payload = json.dumps(summary, ensure_ascii=False)
-            self.assertNotIn("SECRET", payload)
+            # PMKB monitor identifiers may legitimately contain words such as
+            # "SECRET_READ".  Verify the configured credential itself is
+            # absent rather than treating a static rule identifier as a leak.
+            self.assertNotIn("CHANNEL_APP_SECRET_DO_NOT_LEAK", payload)
             for item in summary.get("skills", {}).get("items", []):
                 self.assertNotIn("raw", item)
             for item in summary.get("channels", {}).get("items", []):

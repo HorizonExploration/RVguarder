@@ -294,6 +294,7 @@ class RuntimeVerificationEngine:
         rule_mode: str | None = None,
         baseline_dfa_path: str | None = None,
         principal_state_limit: int = 256,
+        permission_bundle: Any | None = None,
     ) -> None:
         self._window_size = window_size
         self._window_ttl = window_ttl_seconds
@@ -305,11 +306,17 @@ class RuntimeVerificationEngine:
         # Per-session 隔离存储
         self._session_windows: dict[str, WindowManager] = {}
         self._session_monitors: dict[str, list] = {}
+        self._session_permission_monitors: dict[str, list] = {}
+        self._principal_monitors: dict[tuple[str, str, tuple[str, ...]], list] = {}
         self._principal_states: dict[tuple[str, str, tuple[str, ...]], Any] = {}
         self._principal_state_limit = max(1, principal_state_limit)
         self._fsm_monitors_template: list | None = None
         self._spec_monitors_template: list | None = None
         self._spec_ruleset: Any | None = None
+        self._permission_ruleset: Any | None = None
+        self._permission_monitors_template: list | None = None
+        if permission_bundle is not None:
+            self.configure_permission_monitors(permission_bundle)
         # 基线自动机监视器（阶段 C）
         self._baseline_monitor: Any | None = None
         self._init_baseline_monitor(baseline_dfa_path)
@@ -351,6 +358,9 @@ class RuntimeVerificationEngine:
         self._session_monitors.clear()
         self._fsm_monitors_template = None
         self._spec_monitors_template = None
+        self._permission_monitors_template = None
+        self._principal_monitors.clear()
+        self._session_permission_monitors.clear()
 
     def reset_rules(self) -> None:
         """重置规约缓存，下次 evaluate 重新加载 rv_rules.json。
@@ -360,6 +370,34 @@ class RuntimeVerificationEngine:
         self._spec_ruleset = None
         self._spec_monitors_template = None
         self._session_monitors.clear()
+
+    def configure_permission_monitors(self, bundle: Any | None) -> None:
+        """Compile one PMKB bundle into symbolic permission monitor specs.
+
+        Passing ``None`` disables generated permission monitors.  The caller
+        keeps ownership of bundle loading, so this hot path never reads remote
+        policy data or blocks an OpenClaw hook.
+        """
+        if bundle is None:
+            self._permission_ruleset = None
+        else:
+            from openclaw_guard.policy.rv_compiler import PermissionAutomatonCompiler
+
+            self._permission_ruleset = PermissionAutomatonCompiler(bundle).compile_ruleset()
+        self._permission_monitors_template = None
+        self._session_monitors.clear()
+        self._session_permission_monitors.clear()
+        self._principal_monitors.clear()
+
+    def _lazy_init_permission_monitors(self) -> None:
+        if self._permission_monitors_template is not None:
+            return
+        if self._permission_ruleset is None:
+            self._permission_monitors_template = []
+            return
+        from openclaw_guard.rv.rv_dsl import compile_monitors
+
+        self._permission_monitors_template = compile_monitors(self._permission_ruleset)
 
     def _lazy_init_monitors(self) -> None:
         if self._rule_mode == "fsm":
@@ -421,12 +459,36 @@ class RuntimeVerificationEngine:
 
         return compile_monitors(self._spec_ruleset)
 
+    def _create_permission_monitors(self, scope: str) -> list:
+        """Create fresh PMKB monitor instances for one state scope."""
+        self._lazy_init_permission_monitors()
+        if self._permission_ruleset is None:
+            return []
+        from openclaw_guard.rv.rv_dsl import Ruleset, compile_monitors
+
+        specs = [spec for spec in self._permission_ruleset.monitors if spec.scope == scope]
+        return compile_monitors(Ruleset(version=self._permission_ruleset.version, monitors=specs))
+
+    def _permission_monitor_templates_for(self, scope: str) -> list:
+        """Return stable default-session PMKB monitor instances for one scope."""
+        self._lazy_init_permission_monitors()
+        if self._permission_ruleset is None:
+            return []
+        return [
+            monitor
+            for spec, monitor in zip(self._permission_ruleset.monitors, self._permission_monitors_template or [])
+            if spec.scope == scope
+        ]
+
     # ── 核心方法 ──
 
     def evaluate(
         self,
         rv_trace: list[dict[str, Any]],
         session_key: str = "_default",
+        *,
+        authorization_trace: Any | None = None,
+        policy_decision: Any | None = None,
     ) -> dict[str, Any]:
         """执行在线运行时验证。
 
@@ -449,6 +511,8 @@ class RuntimeVerificationEngine:
                 "session_key": str,
             }
         """
+        permission_step = self._permission_step(authorization_trace, policy_decision)
+
         # 获取 per-session 资源
         window = self._get_session_window(session_key)
         monitors = self._get_session_monitors(session_key)
@@ -481,6 +545,40 @@ class RuntimeVerificationEngine:
                 (_time.perf_counter() - m_start) * 1000.0, 4
             )
 
+        permission_monitors = self._get_session_permission_monitors(session_key)
+        if permission_step is not None:
+            for monitor in permission_monitors:
+                m_start = _time.perf_counter()
+                try:
+                    result = monitor.feed(permission_step, window)
+                except Exception:
+                    result = None
+                if result and severity_map.get(result, 0) > severity_map.get(final, 0):
+                    final = result
+                    triggered_by = monitor.__class__.__name__
+                    reason = f"{monitor.__class__.__name__}: {result}"
+                monitor_timings[monitor.__class__.__name__] = round(
+                    (_time.perf_counter() - m_start) * 1000.0, 4
+                )
+
+        principal_monitor_count = 0
+        if permission_step is not None:
+            principal_monitors = self._get_principal_monitors(authorization_trace)
+            principal_monitor_count = len(principal_monitors)
+            for monitor in principal_monitors:
+                m_start = _time.perf_counter()
+                try:
+                    result = monitor.feed(permission_step, window)
+                except Exception:
+                    result = None
+                if result and severity_map.get(result, 0) > severity_map.get(final, 0):
+                    final = result
+                    triggered_by = monitor.__class__.__name__
+                    reason = f"{monitor.__class__.__name__}: {result}"
+                monitor_timings[monitor.__class__.__name__] = round(
+                    (_time.perf_counter() - m_start) * 1000.0, 4
+                )
+
         return {
             "verdict": final,
             "triggered_by": triggered_by,
@@ -490,7 +588,51 @@ class RuntimeVerificationEngine:
             "rule_mode": self._rule_mode,
             "monitor_timings_ms": monitor_timings,
             "baseline_result": self._run_baseline(rv_trace, severity_map, final),
+            "monitor_sources": {
+                "behavior": len(monitors),
+                "permission": len(permission_monitors),
+                "principal_permission": principal_monitor_count,
+            },
         }
+
+    @staticmethod
+    def _model_data(value: Any) -> dict[str, Any]:
+        """Return a JSON-shaped view of a Pydantic model or mapping."""
+        if hasattr(value, "model_dump"):
+            dumped = value.model_dump(mode="json")
+            return dumped if isinstance(dumped, dict) else {}
+        return dict(value) if isinstance(value, dict) else {}
+
+    def _permission_step(self, authorization_trace: Any, policy_decision: Any) -> dict[str, Any] | None:
+        """Build one synthetic RV step from PMKB evidence when both parts exist."""
+        trace = self._model_data(authorization_trace)
+        decision = self._model_data(policy_decision)
+        if not trace or not decision:
+            return None
+        operation = trace.get("operation") if isinstance(trace.get("operation"), dict) else {}
+        p_after = decision.get("p_after") if isinstance(decision.get("p_after"), list) else []
+        p_after_families = [str(item.get("family")) for item in p_after if isinstance(item, dict) and item.get("family")]
+        policy = dict(decision)
+        policy["operation_family"] = str(operation.get("family") or "")
+        policy["p_after_families"] = p_after_families
+        props = ["pmkb", f"pmkb:operation:{policy['operation_family']}"]
+        props.extend(f"pmkb:rule:{item}" for item in policy.get("selected_rule_ids", []) if item)
+        props.extend(f"pmkb:relation:{item}" for item in policy.get("combo_violations", []) if item)
+        return {"event": "pmkb.permission", "props": props, "policy": policy}
+
+    def _get_principal_monitors(self, authorization_trace: Any) -> list:
+        """Get generated relation monitors for a verified principal identity."""
+        trace = self._model_data(authorization_trace)
+        principal = trace.get("principal") if isinstance(trace.get("principal"), dict) else {}
+        if principal.get("trust") != "verified" or not principal.get("id"):
+            return []
+        agent_id = str(trace.get("agent_id") or "")
+        lineage_raw = trace.get("capability_lineage")
+        lineage = tuple(str(item) for item in lineage_raw) if isinstance(lineage_raw, list) else ()
+        key = (str(principal["id"]), agent_id, lineage)
+        if key not in self._principal_monitors:
+            self._principal_monitors[key] = self._create_permission_monitors("principal")
+        return self._principal_monitors[key]
 
     def _run_baseline(
         self,
@@ -540,15 +682,25 @@ class RuntimeVerificationEngine:
             self._lazy_init_monitors()
             if self._rule_mode == "fsm":
                 return self._fsm_monitors_template  # type: ignore[return-value]
-            return self._spec_monitors_template  # type: ignore[return-value]
+            else:
+                return self._spec_monitors_template  # type: ignore[return-value]
         if session_key not in self._session_monitors:
             self._session_monitors[session_key] = self._create_monitors()
         return self._session_monitors[session_key]
+
+    def _get_session_permission_monitors(self, session_key: str) -> list:
+        """Get PMKB rule monitors without contaminating the behavior window."""
+        if session_key == "_default":
+            return self._permission_monitor_templates_for("session")
+        if session_key not in self._session_permission_monitors:
+            self._session_permission_monitors[session_key] = self._create_permission_monitors("session")
+        return self._session_permission_monitors[session_key]
 
     def release_session(self, session_key: str) -> None:
         """释放某个会话的 RV 状态（窗口 + 监视器）。"""
         self._session_windows.pop(session_key, None)
         self._session_monitors.pop(session_key, None)
+        self._session_permission_monitors.pop(session_key, None)
 
     def state_for_principal(
         self,
@@ -581,6 +733,10 @@ class RuntimeVerificationEngine:
     def session_count(self) -> int:
         """返回当前活跃的 per-session 数量（不含 _default）。"""
         return len(self._session_windows)
+
+    def principal_monitor_count(self) -> int:
+        """Return the number of isolated principal monitor sets."""
+        return len(self._principal_monitors)
 
     # ── 序列化 ──
 
@@ -663,6 +819,11 @@ class RuntimeVerificationEngine:
                     m.reset()
                 except Exception:
                     pass
+            for m in self._get_session_permission_monitors(session_key):
+                try:
+                    m.reset()
+                except Exception:
+                    pass
         else:
             # 重置所有
             self.window.clear()
@@ -686,4 +847,12 @@ class RuntimeVerificationEngine:
                         m.reset()
                     except Exception:
                         pass
+            for monitors in self._session_permission_monitors.values():
+                for m in monitors:
+                    try:
+                        m.reset()
+                    except Exception:
+                        pass
             self._principal_states.clear()
+            self._principal_monitors.clear()
+            self._session_permission_monitors.clear()
