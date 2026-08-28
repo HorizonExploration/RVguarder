@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from importlib import resources
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,15 @@ class PolicyBundleError(ValueError):
     """Raised when a permission bundle is malformed (including its JSON path)."""
 
 
+def default_policy_root() -> Path:
+    """Resolve the bundled PMKB independently of the process working directory."""
+    checkout = Path(__file__).resolve().parents[2] / "policies" / "permissions"
+    if (checkout / "schema/permissions.schema.json").exists():
+        return checkout
+    packaged = resources.files("openclaw_guard.policy.data.permissions")
+    return Path(str(packaged))
+
+
 @dataclass(frozen=True)
 class _Operation:
     family: str
@@ -22,15 +32,28 @@ class _Operation:
 
 @dataclass
 class PolicyBundle:
-    operations: list[_Operation]
-    rules: list[PolicyRule]
-    traces: list[dict[str, Any]]
-    relations: list[dict[str, Any]]
-    vectors: list[dict[str, Any]]
+    operations: tuple[_Operation, ...]
+    rules: tuple[PolicyRule, ...]
+    traces: tuple[dict[str, Any], ...]
+    relations: tuple[dict[str, Any], ...]
+    vectors: tuple[dict[str, Any], ...]
+    version: str = ""
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in {"operations", "rules", "traces", "relations", "vectors"} and not isinstance(value, tuple):
+            value = tuple(value)
+        super().__setattr__(name, value)
+
+    def __post_init__(self) -> None:
+        self.operations = tuple(self.operations)
+        self.rules = tuple(self.rules)
+        self.traces = tuple(self.traces)
+        self.relations = tuple(self.relations)
+        self.vectors = tuple(self.vectors)
 
     @classmethod
-    def load(cls, root: Path) -> "PolicyBundle":
-        root = Path(root)
+    def load(cls, root: Path | None = None) -> "PolicyBundle":
+        root = Path(root) if root is not None else default_policy_root()
         def read(relative: str) -> Any:
             path = root / relative
             try:
@@ -42,13 +65,18 @@ class PolicyBundle:
         schema = read("schema/permissions.schema.json")
         if not isinstance(schema, dict):
             raise PolicyBundleError("schema/permissions.schema.json: $ must be an object")
-        if not isinstance(schema.get("version"), str) or not schema["version"]:
-            raise PolicyBundleError("schema/permissions.schema.json: $.version")
+        bundle_version = _version(schema, "schema/permissions.schema.json")
+        if "type" in schema and schema.get("type") != "policy-bundle":
+            raise PolicyBundleError("schema/permissions.schema.json: $.type")
+        required_sections = schema.get("required")
+        if required_sections is not None and required_sections != ["operations", "rules", "traces", "relations", "vectors"]:
+            raise PolicyBundleError("schema/permissions.schema.json: $.required")
         catalog = read("catalog/operation-catalog.json")
         _version(catalog, "catalog/operation-catalog.json")
         raw_operations = _array(catalog, "operations", "catalog/operation-catalog.json")
         operations: list[_Operation] = []
         families: set[str] = set()
+        operation_tokens: set[str] = set()
         for i, item in enumerate(raw_operations):
             _object(item, f"catalog/operation-catalog.json: $.operations[{i}]")
             family = _string(item, "family", f"catalog/operation-catalog.json: $.operations[{i}]")
@@ -60,7 +88,11 @@ class PolicyBundle:
                 raise PolicyBundleError(f"catalog/operation-catalog.json: $.operations[{i}].aliases")
             if family in families:
                 raise PolicyBundleError(f"catalog/operation-catalog.json: duplicate family {family}")
+            tokens = [*tools, *aliases]
+            if len(set(tokens)) != len(tokens) or operation_tokens.intersection(tokens):
+                raise PolicyBundleError(f"catalog/operation-catalog.json: duplicate tool or alias in {family}")
             families.add(family)
+            operation_tokens.update(tokens)
             operations.append(_Operation(family, tuple(tools), tuple(aliases)))
 
         rules_doc = read("rules/p0-office.json")
@@ -68,16 +100,24 @@ class PolicyBundle:
         raw_rules = _array(rules_doc, "rules", "rules/p0-office.json")
         rules: list[PolicyRule] = []
         rule_ids: set[str] = set()
+        seen_rule_ids: set[str] = set()
+        for item in raw_rules:
+            if isinstance(item, dict) and isinstance(item.get("id"), str) and item["id"] in rule_ids:
+                raise PolicyBundleError(f"rules/p0-office.json: duplicate rule id {item['id']}")
+            if isinstance(item, dict) and isinstance(item.get("id"), str):
+                rule_ids.add(item["id"])
+        rule_ids.clear()
         for i, item in enumerate(raw_rules):
             path = f"rules/p0-office.json: $.rules[{i}]"
             _object(item, path)
+            if item.get("id") in seen_rule_ids:
+                raise PolicyBundleError(f"{path}: duplicate rule id {item['id']}")
             required = ("id", "version", "effect", "priority", "match", "required_fields",
-                        "negative_conditions", "obligations", "source", "test_vectors")
+                        "negative_conditions", "obligations", "source", "test_vectors",
+                        "rollback_state", "positive_examples", "negative_examples")
             for field in required:
                 if field not in item:
                     raise PolicyBundleError(f"{path}.{field}")
-            if item["id"] in rule_ids:
-                raise PolicyBundleError(f"{path}: duplicate rule id {item['id']}")
             if not isinstance(item["version"], str) or not item["version"]:
                 raise PolicyBundleError(f"{path}.version")
             if item["effect"] not in {"auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block"}:
@@ -87,6 +127,12 @@ class PolicyBundle:
             except Exception as exc:
                 raise PolicyBundleError(f"{path}: {exc}") from exc
             rule_ids.add(item["id"])
+            seen_rule_ids.add(item["id"])
+
+        for rule in rules:
+            operation = rule.match.get("operation")
+            if operation and operation not in families:
+                raise PolicyBundleError(f"rules/p0-office.json: unknown operation {operation}")
 
         traces_doc = read("traces/p0-office.json")
         relations_doc = read("relations/p0-combinations.json")
@@ -97,21 +143,37 @@ class PolicyBundle:
         traces = _array(traces_doc, "traces", "traces/p0-office.json")
         relations = _array(relations_doc, "relations", "relations/p0-combinations.json")
         vectors = _array(vectors_doc, "vectors", "tests/p0-vectors.json")
+        trace_ids: set[str] = set()
         for i, trace in enumerate(traces):
             path = f"traces/p0-office.json: $.traces[{i}]"
             _object(trace, path)
-            for field in ("id", "rule_id"):
+            for field in ("id", "version", "rule_id", "required_permissions", "rollback_state", "positive_examples", "negative_examples"):
                 if not isinstance(trace.get(field), str) or not trace[field]:
+                    if field in {"positive_examples", "negative_examples"} and isinstance(trace.get(field), list):
+                        continue
+                    if field == "required_permissions" and isinstance(trace.get(field), list):
+                        continue
                     raise PolicyBundleError(f"{path}.{field}")
+            if trace["id"] in trace_ids:
+                raise PolicyBundleError(f"{path}: duplicate trace id {trace['id']}")
+            trace_ids.add(trace["id"])
             if trace["rule_id"] not in rule_ids:
                 raise PolicyBundleError(f"{path}.rule_id: unknown rule {trace['rule_id']}")
+            if not all(isinstance(item, dict) and isinstance(item.get("family"), str) and item["family"] for item in trace["required_permissions"]):
+                raise PolicyBundleError(f"{path}.required_permissions")
+        relation_ids: set[str] = set()
         for i, relation in enumerate(relations):
             path = f"relations/p0-combinations.json: $.relations[{i}]"
             _object(relation, path)
-            for field in ("id", "version", "effect", "requires"):
+            for field in ("id", "version", "effect", "requires", "source", "rollback_state", "positive_examples", "negative_examples"):
                 if not isinstance(relation.get(field), str if field != "requires" else list) or (not relation[field]):
+                    if field in {"positive_examples", "negative_examples"} and isinstance(relation.get(field), list):
+                        continue
                     raise PolicyBundleError(f"{path}.{field}")
-            if relation["effect"] not in {"auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block"}:
+            if relation["id"] in relation_ids:
+                raise PolicyBundleError(f"{path}: duplicate relation id {relation['id']}")
+            relation_ids.add(relation["id"])
+            if relation["effect"] not in {"auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block", "implies"}:
                 raise PolicyBundleError(f"{path}.effect: unknown effect {relation['effect']}")
             endpoints = relation["requires"]
             if not all(isinstance(endpoint, str) and endpoint for endpoint in endpoints):
@@ -119,16 +181,36 @@ class PolicyBundle:
             for endpoint in endpoints:
                 if endpoint not in families and endpoint not in {"external_target", "external_recipient", "sensitive_data", "audit.modify", "persistence_location"}:
                     raise PolicyBundleError(f"relations/p0-combinations.json: unknown endpoint {endpoint}")
+        vector_ids: set[str] = set()
         for i, vector in enumerate(vectors):
             if not isinstance(vector, dict):
                 raise PolicyBundleError(f"tests/p0-vectors.json: $.vectors[{i}]")
             path = f"tests/p0-vectors.json: $.vectors[{i}]"
-            for field in ("id", "expected_effect", "rule_id"):
+            for field in ("id", "expected_effect", "rule_id", "version", "category"):
                 if not isinstance(vector.get(field), str) or not vector[field]:
                     raise PolicyBundleError(f"{path}.{field}")
+            if vector["id"] in vector_ids:
+                raise PolicyBundleError(f"{path}: duplicate vector id {vector['id']}")
+            vector_ids.add(vector["id"])
             if vector["rule_id"] not in rule_ids:
                 raise PolicyBundleError(f"{path}.rule_id")
-        return cls(operations, rules, traces, relations, vectors)
+            if vector["expected_effect"] not in {"auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block"}:
+                raise PolicyBundleError(f"{path}.expected_effect: unknown effect {vector['expected_effect']}")
+            operation = vector.get("operation")
+            if (operation and vector["category"] != "unknown"
+                    and operation not in families
+                    and not any(operation in item.aliases for item in operations)):
+                raise PolicyBundleError(f"{path}.operation: unknown operation {operation}")
+        component_versions = {
+            "catalog/operation-catalog.json": _version(catalog, "catalog/operation-catalog.json"),
+            "rules/p0-office.json": _version(rules_doc, "rules/p0-office.json"),
+            "traces/p0-office.json": _version(traces_doc, "traces/p0-office.json"),
+            "relations/p0-combinations.json": _version(relations_doc, "relations/p0-combinations.json"),
+            "tests/p0-vectors.json": _version(vectors_doc, "tests/p0-vectors.json"),
+        }
+        if any(version != bundle_version for version in component_versions.values()):
+            raise PolicyBundleError(f"policy bundle version mismatch: schema={bundle_version}, components={component_versions}")
+        return cls(tuple(operations), tuple(rules), tuple(traces), tuple(relations), tuple(vectors), bundle_version)
 
     def operation_for_tool(self, tool_id: str, params: dict[str, Any]) -> OperationRef:
         for operation in self.operations:

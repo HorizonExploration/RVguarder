@@ -10,11 +10,10 @@ session_state.py —— 阶段 F：会话安全状态与干预升级。
 
 from __future__ import annotations
 
-from pathlib import Path
 import time as _time
 from typing import Any
 
-from openclaw_guard.policy.catalog import PolicyBundle
+from openclaw_guard.policy.catalog import PolicyBundle, default_policy_root
 from openclaw_guard.policy.models import AuthorizationTrace, PermissionRef, PolicyDecision
 from openclaw_guard.policy.risk_graph import RiskGraph
 
@@ -168,8 +167,7 @@ class PrincipalSecurityState:
         self.sequence = 0
         self._grant_observed_at: dict[PermissionRef, float] = {}
         self._last_seen_at = _time.monotonic()
-        policy_root = Path(__file__).parents[2] / "policies" / "permissions"
-        self._risk_graph = RiskGraph.from_bundle(PolicyBundle.load(policy_root))
+        self._risk_graph = RiskGraph.from_bundle(PolicyBundle.load(default_policy_root()))
 
     @property
     def last_seen_at(self) -> float:
@@ -200,8 +198,11 @@ class PrincipalSecurityState:
 
         requested = PermissionRef(
             family=trace.operation.family,
+            resource_type=trace.resource.type,
+            resource_ids=tuple(trace.resource.ids),
             scope=trace.resource.scope,
             classification=trace.data.classification,
+            purpose=trace.context.purpose,
         )
         violations = self._risk_graph.evaluate(
             effective=frozenset(self.effective_grants),

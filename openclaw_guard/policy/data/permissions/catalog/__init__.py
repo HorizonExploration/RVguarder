@@ -1,0 +1,1 @@
+"""PMKB operation catalog resources."""

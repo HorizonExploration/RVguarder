@@ -29,6 +29,10 @@ def evaluate_vector(vector: dict[str, object]):
     """Evaluate a vector's declared operation with normalized P0 evidence."""
     operation = str(vector["operation"])
     external = operation in {"message.send", "data.export", "file.bulk_transfer"}
+    recipient_zone = str(vector.get("recipient_zone") or ("external" if external else "internal"))
+    classification = str(vector.get("classification") or ("sensitive" if operation in {"data.query", "data.export"} else "internal"))
+    quantity = int(vector.get("quantity") or 1)
+    coverage_status = str(vector.get("coverage_status") or "complete")
     trace = AuthorizationTrace(
         trace_id=str(vector["id"]),
         principal=PrincipalRef(id="vector-user", type="human", trust="verified"),
@@ -38,9 +42,9 @@ def evaluate_vector(vector: dict[str, object]):
             ids=["partner.example"] if external else ["office-doc"],
             scope="external" if external else "workspace",
         ),
-        coverage=CoverageResult(status="complete"),
-        data=DataRef(classification="sensitive" if operation in {"data.query", "data.export"} else "internal", quantity=1),
-        context=ContextRef(recipient_zone="external" if external else "internal"),
+        coverage=CoverageResult(status=coverage_status),
+        data=DataRef(classification=classification, quantity=quantity),
+        context=ContextRef(recipient_zone=recipient_zone),
     )
     return PolicyEvaluator(PolicyBundle.load(POLICY_ROOT)).evaluate(trace)
 

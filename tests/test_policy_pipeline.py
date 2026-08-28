@@ -29,6 +29,7 @@ def internal_message_payload() -> dict[str, object]:
         "runId": "policy-internal",
         "toolCallId": "message",
         "sessionId": "policy-internal-session",
+        "agentId": "agent-policy",
     }
 
 

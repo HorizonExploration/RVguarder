@@ -134,7 +134,7 @@ class PolicyEvaluator:
                               risk_score=self._risk_score(trace), selected_rule_ids=selected,
                               candidate_rule_ids=[c.rule_id for c in candidates],
                               missing_features=missing, conflicts=list(dict.fromkeys(conflicts)),
-                              policy_version="1.0.0")
+                              policy_version=self.bundle.version)
 
     def _rule_effect(self, rule_id: str) -> str:
         return next(rule.effect for rule in self.bundle.rules if rule.id == rule_id)
@@ -162,6 +162,14 @@ class PolicyEvaluator:
 
     @staticmethod
     def _equals(actual: Any, expected: Any) -> bool:
+        if isinstance(expected, dict):
+            if "gte" in expected and (actual is None or actual < expected["gte"]):
+                return False
+            if "lte" in expected and (actual is None or actual > expected["lte"]):
+                return False
+            if "in" in expected and actual not in expected["in"]:
+                return False
+            return True
         if isinstance(expected, list): return actual in expected
         if isinstance(actual, list): return expected in actual
         return actual == expected

@@ -73,8 +73,17 @@ class AuthorizationTrace(GuardBaseModel):
 class PermissionRef(GuardBaseModel):
     model_config = ConfigDict(frozen=True)
     family: str
+    # The dimensions below make least-privilege comparisons explicit.  They
+    # intentionally use tuples so a PermissionRef remains hashable/frozen and
+    # can safely participate in closure sets and replay evidence.
+    resource_type: str = ""
+    resource_ids: tuple[str, ...] = ()
     scope: str = "unknown"
     classification: str = "internal"
+    field_scope: tuple[str, ...] = ()
+    purpose: str = ""
+    ttl_seconds: int | None = None
+    grant_mode: Literal["direct", "inherited", "delegated", "temporary"] = "direct"
 
 
 class CapabilityGrant(GuardBaseModel):
@@ -85,6 +94,9 @@ class CapabilityGrant(GuardBaseModel):
     permissions: list[PermissionRef] = Field(default_factory=list)
     constraints: dict[str, Any] = Field(default_factory=dict)
     expires_at: str | None = None
+    owner_id: str | None = None
+    delegated_by: str | None = None
+    delegates: list[str] = Field(default_factory=list)
 
 
 class MatchCandidate(GuardBaseModel):
@@ -110,6 +122,10 @@ class PolicyDecision(GuardBaseModel):
     requested_delta: list[PermissionRef] = Field(default_factory=list)
     redundant_permissions: list[PermissionRef] = Field(default_factory=list)
     excessive_permissions: list[PermissionRef] = Field(default_factory=list)
+    scope_expansions: list[PermissionRef] = Field(default_factory=list)
+    hard_violations: list[str] = Field(default_factory=list)
+    effective_permissions: list[PermissionRef] = Field(default_factory=list)
+    p_after: list[PermissionRef] = Field(default_factory=list)
     combo_violations: list[str] = Field(default_factory=list)
     grant_source: str = ""
     policy_version: str = ""
@@ -129,3 +145,6 @@ class PolicyRule(GuardBaseModel):
     obligations: list[str] = Field(default_factory=list)
     source: str = ""
     test_vectors: list[str] = Field(default_factory=list)
+    rollback_state: str = ""
+    positive_examples: list[dict[str, Any]] = Field(default_factory=list)
+    negative_examples: list[dict[str, Any]] = Field(default_factory=list)

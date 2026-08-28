@@ -235,7 +235,8 @@ OpenClaw 原生审批卡片 `onResolution` 回调使用的接口。
 ```
 
 - `actionId` 也兼容 `action_id` 字段名
-- `decision` 支持 `allow-once` / `allow-always` / `deny` / `timeout` / `cancelled`（同时兼容 `allow_once` / `allow_always` 旧格式）
+- `decision` 支持 `allow-once` / `deny` / `timeout` / `cancelled`（兼容 `allow_once` 旧格式）；`allow-always` 不在首版审批契约内并返回 `400 unsupported_resolution`
+- 权限证据同时返回 `effective_permissions`、`p_after`、`scope_expansions` 和 `hard_violations`，用于核对主体当前授权、申请后授权集合及最小权限越界。
 - 相同决策重复回调幂等返回；相反决策会返回 `409 resolution_conflict`
 - 响应包含 `decision_state`、`sync_state`、`event_seq` 和 `received_at`
 
@@ -352,6 +353,7 @@ Guard 前端使用的 Server-Sent Events（SSE）单向事件流。
 `block`；`match_status` 为 `matched`、`partial`、`unknown` 或 `conflict`。`requested_delta`、
 `redundant_permissions` 和 `excessive_permissions` 是 `PermissionRef` 对象数组；若 UI
 需要显示 `data.export(scope=own)`，必须明确这是 display transform，不是 API 序列化值。
-评估耗时不嵌入 `policy_decision`，而是记录在 event metadata/pipeline timings 中：
-`evaluation_ms` 是本次本地 evaluator 耗时，`p95_ms` 是发布窗口统计值。`policy_version`
+评估耗时不嵌入 `policy_decision`，而是记录在 event metadata/pipeline timings 中；当前实现
+字段为 `policy_ms`。`evaluation_ms` 与发布窗口聚合的 `p95_ms` 是后续只读指标采集器的
+兼容字段，未在当前版本承诺。`policy_version`
 用于回放与 bundle rollback；证据字段必须原样保留，即使 action 已由其他安全层升级。

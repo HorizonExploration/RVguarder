@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openclaw_guard.main import main
+from openclaw_guard import api
 from openclaw_guard.integrations.discovery import _extract_available_models
 from openclaw_guard.integrations.openclaw_adapter import (
     ChatMessage,
@@ -281,9 +282,16 @@ class WebCliTests(unittest.TestCase):
                     "runId": "run-hook-3",
                     "toolCallId": "tool-call-3",
                     "sessionKey": "agent:main:main",
+                    "agentId": "agent-main",
                 }
             )
-            self.assertEqual(before["action"], "allow")
+            self.assertEqual(before["action"], "require_approval")
+            resolved, status = api.resolve_hook_approval(
+                manager,
+                {"actionId": before["action_record"]["action_id"], "decision": "allow-once"},
+            )
+            self.assertEqual(status, 200)
+            self.assertEqual(resolved["decision_state"], "allowed")
             after = manager.handle_after_tool_call(
                 {
                     "toolName": "shell",
@@ -410,6 +418,8 @@ class WebCliTests(unittest.TestCase):
             config_path.write_text(json.dumps({"models": {"providers": {"openai": {"models": ["gpt-4.1"]}}}}), encoding="utf-8")
             manager = build_manager(project, config_path=config_path)
             action = manager.create_chat_action("请只回复 OK")
+            if action["status"] == "pending_approval":
+                action = manager.action_service.approve(action["action_id"])["action"]
             with patch(
                 "openclaw_guard.manager.start_chat_message",
                 return_value=ChatStartResult(ok=True, session_key="main", run_id="run-3", status="started"),

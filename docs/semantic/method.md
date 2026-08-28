@@ -1078,19 +1078,25 @@ OpenClaw 本地运行时可验证的能力，不复制租户级 scope。Feishu-d
   "match_status": "matched",
   "missing_features": [],
   "requested_delta": [
-    {"family": "data.export", "scope": "own", "classification": "internal"}
+    {"family": "data.export", "resource_type": "table", "resource_ids": ["tbl-1"], "scope": "own", "classification": "internal", "field_scope": [], "purpose": "report", "ttl_seconds": 300}
   ],
   "redundant_permissions": [],
   "excessive_permissions": [],
+  "scope_expansions": [],
+  "hard_violations": [],
+  "effective_permissions": [],
+  "p_after": [],
   "combo_violations": [],
   "policy_version": "1.0.0"
 }
 ```
 
-`requested_delta`、`redundant_permissions` 和 `excessive_permissions` 序列化为
-`PermissionRef` 对象（`family`、`scope`、`classification`），而不是展示字符串。
-评估耗时不属于 `policy_decision`：本次 `evaluation_ms` 与聚合 `p95_ms` 保存在事件
-metadata/pipeline timings 中，并可由只读 API 单独展示。
+`requested_delta`、`redundant_permissions`、`excessive_permissions`、`effective_permissions`
+和 `p_after` 序列化为完整 `PermissionRef` 对象（操作、资源类型/ID、scope、分类、字段
+范围、purpose 和 TTL），而不是展示字符串。
+评估耗时不属于 `policy_decision`：当前实现以 `policy_ms` 保存在事件
+metadata/pipeline timings 中；`evaluation_ms` 与聚合 `p95_ms` 等兼容指标待后续
+只读采集器实现后再启用。
 
 P0 规则示例来自版本化 bundle：`EX-10`（`message.send` 消息群发/广播）、
 `EX-19`（`data.query`/`data.export` 数据库查询与导出中的敏感读取）和

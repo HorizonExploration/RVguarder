@@ -1,0 +1,1 @@
+"""PMKB vector resources."""

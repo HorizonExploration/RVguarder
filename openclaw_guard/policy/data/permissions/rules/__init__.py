@@ -1,0 +1,1 @@
+"""PMKB rule resources."""

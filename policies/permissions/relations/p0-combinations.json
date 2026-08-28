@@ -1,7 +1,7 @@
 {"version":"1.0.0","relations":[
-  {"id":"secret-egress","version":"1.0.0","effect":"block","requires":["secret.read","network.egress","external_target"]},
-  {"id":"export-sensitive-recipient","version":"1.0.0","effect":"openclaw_approval","requires":["data.export","external_recipient","sensitive_data"]},
-  {"id":"config-audit","version":"1.0.0","effect":"openclaw_approval","requires":["config.modify","audit.modify"]},
-  {"id":"credential-process","version":"1.0.0","effect":"block","requires":["credential.read","process.execute"]},
-  {"id":"file-persistence","version":"1.0.0","effect":"openclaw_approval","requires":["file.write","persistence_location"]}
+  {"id":"secret-egress","version":"1.0.0","effect":"block","requires":["secret.read","network.egress","external_target"],"source":"P0 office policy","evidence":{"scenario":"secret egress"},"rollback_state":"previous","positive_examples":[{}],"negative_examples":[]},
+  {"id":"export-sensitive-recipient","version":"1.0.0","effect":"openclaw_approval","requires":["data.export","external_recipient","sensitive_data"],"source":"P0 office policy","evidence":{"scenario":"sensitive export"},"rollback_state":"previous","positive_examples":[{}],"negative_examples":[]},
+  {"id":"config-audit","version":"1.0.0","effect":"openclaw_approval","requires":["config.modify","audit.modify"],"source":"P0 office policy","evidence":{"scenario":"audit tampering"},"rollback_state":"previous","positive_examples":[{}],"negative_examples":[]},
+  {"id":"credential-process","version":"1.0.0","effect":"block","requires":["credential.read","process.execute"],"source":"P0 office policy","evidence":{"scenario":"credential execution"},"rollback_state":"previous","positive_examples":[{}],"negative_examples":[]},
+  {"id":"file-persistence","version":"1.0.0","effect":"openclaw_approval","requires":["file.write","persistence_location"],"source":"P0 office policy","evidence":{"scenario":"persistent write"},"rollback_state":"previous","positive_examples":[{}],"negative_examples":[]}
 ]}

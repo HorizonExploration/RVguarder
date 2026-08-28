@@ -1,0 +1,7 @@
+{"version":"1.0.0","vectors":[
+  {"id":"p0-ex10","version":"1.0.0","category":"risk","rule_id":"EX-10","operation":"message.send","expected_effect":"openclaw_approval"},
+  {"id":"p0-ex19","version":"1.0.0","category":"risk","rule_id":"EX-19","operation":"data.query","expected_effect":"block"},
+  {"id":"p0-ex27","version":"1.0.0","category":"boundary","rule_id":"EX-27","operation":"file.bulk_transfer","expected_effect":"openclaw_approval"},
+  {"id":"p0-safe-document-read","version":"1.0.0","category":"safe","rule_id":"P0-DOCUMENT-READ","operation":"document.read","expected_effect":"auto_allow_audit"},
+  {"id":"p0-unknown-operation","version":"1.0.0","category":"unknown","rule_id":"P0-DOCUMENT-READ","operation":"unknown.operation","expected_effect":"openclaw_approval"}
+]}

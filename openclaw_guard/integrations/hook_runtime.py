@@ -464,7 +464,7 @@ export default {{
           api.logger.warn(`[${{PLUGIN_ID}}] Intent pre-check skipped (non-blocking): ${{err.message}}`);
         }});
       }},
-      {{ name: "openclaw_guard_intent_precheck" }},
+      {{ registrationId: "openclaw_guard_intent_precheck" }},
     );
 
     // before_tool_call: main approval gate
@@ -499,8 +499,8 @@ export default {{
                 title: result.title || "龙虾卫士安全审批",
                 description: result.message || `拦截动作：${{event.toolName}}`,
                 severity: result.severity || "warning",
+                allowedDecisions: ["allow-once", "deny"],
                 timeoutMs: 300000,
-                timeoutBehavior: "deny",
                 onResolution: async (decision) => {{
                   try {{
                     await postJson(
@@ -542,7 +542,7 @@ export default {{
           return undefined;
         }}
       }},
-      {{ name: "openclaw_guard_before_tool_call" }},
+      {{ registrationId: "openclaw_guard_before_tool_call" }},
     );
 
     // after_tool_call: audit logging (non-blocking)
@@ -572,7 +572,7 @@ export default {{
           api.logger.warn(`[${{PLUGIN_ID}}] after_tool_call bridge failed: ${{detail}}`);
         }}
       }},
-      {{ name: "openclaw_guard_after_tool_call" }},
+      {{ registrationId: "openclaw_guard_after_tool_call" }},
     );
 
     // gateway_start: initialize health check
@@ -584,7 +584,7 @@ export default {{
         doHealthCheck();
         healthCheckTimer = setInterval(doHealthCheck, 30000);
       }},
-      {{ name: "openclaw_guard_gateway_start" }},
+      {{ registrationId: "openclaw_guard_gateway_start" }},
     );
 
     // gateway_stop: cleanup
@@ -597,7 +597,7 @@ export default {{
           healthCheckTimer = null;
         }}
       }},
-      {{ name: "openclaw_guard_gateway_stop" }},
+      {{ registrationId: "openclaw_guard_gateway_stop" }},
     );
 
     api.logger.info(`[${{PLUGIN_ID}}] registered all hooks (5) via api.on()`);

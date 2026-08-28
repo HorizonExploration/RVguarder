@@ -94,16 +94,49 @@ class PermissionDiff:
 
 def _covered(candidate: PermissionRef, available: Iterable[PermissionRef]) -> bool:
     return any(candidate.family == item.family
+               and _resource_covers(item, candidate)
                and _scope_covers(item.scope, candidate.scope)
                and _classification_covers(item.classification, candidate.classification)
+               and _fields_covers(item, candidate)
                for item in available)
 
 
 def _covered_by_required(candidate: PermissionRef, required: Iterable[PermissionRef]) -> bool:
     return any(candidate.family == item.family
-               and _scope_covers(item.scope, candidate.scope)
+               and _required_resource_covers(item, candidate)
+               and _required_scope_covers(item.scope, candidate.scope)
                and _classification_covers(item.classification, candidate.classification)
+               and _fields_covers(item, candidate)
                for item in required)
+
+
+def _resource_covers(granted: PermissionRef, requested: PermissionRef) -> bool:
+    """Compare resource type/IDs without treating unknown grants as precise."""
+    if granted.resource_type != requested.resource_type:
+        return not requested.resource_type and not granted.resource_type
+    if not requested.resource_ids:
+        return True
+    return bool(granted.resource_ids) and granted.resource_ids == requested.resource_ids
+
+
+def _required_resource_covers(required: PermissionRef, requested: PermissionRef) -> bool:
+    if required.resource_type and required.resource_type != requested.resource_type:
+        return False
+    if required.resource_ids and tuple(required.resource_ids) != tuple(requested.resource_ids):
+        return False
+    return True
+
+
+def _fields_covers(granted: PermissionRef, requested: PermissionRef) -> bool:
+    if requested.field_scope and granted.field_scope != requested.field_scope:
+        return False
+    if requested.purpose and granted.purpose != requested.purpose:
+        return False
+    if requested.ttl_seconds is not None and (
+        granted.ttl_seconds is None or granted.ttl_seconds > requested.ttl_seconds
+    ):
+        return False
+    return True
 
 
 def _scope_covers(granted: str, requested: str) -> bool:
@@ -112,8 +145,13 @@ def _scope_covers(granted: str, requested: str) -> bool:
     return granted == requested
 
 
+def _required_scope_covers(required: str, requested: str) -> bool:
+    """Treat an explicitly unknown trace scope as unspecified, not broad."""
+    return required == "unknown" or required == requested
+
+
 def _broader(scope: str, than: str) -> bool:
-    return scope != than and _SCOPE_RANK.get(scope, -1) > _SCOPE_RANK.get(than, -1)
+    return than != "unknown" and scope != than and _SCOPE_RANK.get(scope, -1) > _SCOPE_RANK.get(than, -1)
 
 
 def _classification_covers(granted: str, requested: str) -> bool:
@@ -143,8 +181,17 @@ def _nested_permissions(value: Any) -> list[PermissionRef]:
         return list(value.permissions) or [PermissionRef(family=value.family, scope=value.scope)]
     if isinstance(value, dict):
         if isinstance(value.get("family"), str):
-            found.append(PermissionRef(family=value["family"], scope=str(value.get("scope", "unknown")),
-                                       classification=str(value.get("classification", "internal"))))
+            found.append(PermissionRef(
+                family=value["family"],
+                resource_type=str(value.get("resource_type", "")),
+                resource_ids=tuple(value.get("resource_ids", ())) if isinstance(value.get("resource_ids", ()), (list, tuple)) else (),
+                scope=str(value.get("scope", "unknown")),
+                classification=str(value.get("classification", "internal")),
+                field_scope=tuple(value.get("field_scope", ())) if isinstance(value.get("field_scope", ()), (list, tuple)) else (),
+                purpose=str(value.get("purpose", "")),
+                ttl_seconds=value.get("ttl_seconds"),
+                grant_mode=str(value.get("grant_mode", "direct")),
+            ))
         for key in ("inherited_roles", "active_capabilities", "delegated_capabilities", "permissions", "grants"):
             found.extend(_nested_permissions(value.get(key, [])))
     elif isinstance(value, (list, tuple, set)):

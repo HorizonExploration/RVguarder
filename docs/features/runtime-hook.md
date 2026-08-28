@@ -77,10 +77,10 @@ OpenClaw 进入工具调用
     title: "龙虾卫士安全审批",              // 审批卡片标题
     description: "拦截动作：write_file",    // 审批卡片描述
     severity: "warning",                    // "info" | "warning" | "critical"
+    allowedDecisions: ["allow-once", "deny"], // 首版不提供持久放行
     timeoutMs: 300000,                      // 5 分钟超时
-    timeoutBehavior: "deny",                // 超时后自动拒绝（不设为 allow）
     onResolution: async (decision) => {     // 审批决策回调
-      // decision: "allow-once" | "allow-always" | "deny" | "timeout" | "cancelled"
+      // decision: "allow-once" | "deny" | "timeout" | "cancelled"
       await postJson(`${guardUrl}/api/hook/resolve-approval`, {
         actionId: result.action_record.action_id,
         decision: decision,

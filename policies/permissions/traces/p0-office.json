@@ -1,1 +1,5 @@
-{"version":"1.0.0","traces":[{"id":"p0-ex10","rule_id":"EX-10"},{"id":"p0-ex19","rule_id":"EX-19"},{"id":"p0-ex27","rule_id":"EX-27"}]}
+{"version":"1.0.0","traces":[
+  {"id":"p0-ex10","version":"1.0.0","rule_id":"EX-10","required_permissions":[{"family":"message.send","resource_type":"recipient","scope":"unknown","classification":"internal","purpose":""}],"rollback_state":"previous","positive_examples":[{"recipient_zone":"external"}],"negative_examples":[{"recipient_zone":"internal"}]},
+  {"id":"p0-ex19","version":"1.0.0","rule_id":"EX-19","required_permissions":[{"family":"data.query","resource_type":"table","scope":"workspace","classification":"internal","purpose":"business_query"}],"rollback_state":"previous","positive_examples":[{"classification":"secret"}],"negative_examples":[{"classification":"public"}]},
+  {"id":"p0-ex27","version":"1.0.0","rule_id":"EX-27","required_permissions":[{"family":"file.bulk_transfer","resource_type":"file","scope":"workspace","classification":"internal","purpose":"office_transfer"}],"rollback_state":"previous","positive_examples":[{"quantity":11}],"negative_examples":[{"recipient_zone":"internal"}]}
+]}
