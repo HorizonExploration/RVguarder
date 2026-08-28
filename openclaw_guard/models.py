@@ -24,7 +24,7 @@ Severity = Literal["critical", "high", "medium", "low", "info"]
 RiskLevel = Literal["safe", "caution", "dangerous", "blocked"]
 DecisionAction = Literal["allow", "ask", "block", "escalate", "revise"]
 ActionType = Literal[
-    "chat_message", "command_exec", "file_delete", "file_write",
+    "chat_message", "command_exec", "file_read", "file_delete", "file_write",
     "config_modify", "network_egress", "channel_send", "skill_run",
     "unknown",  # 兜底：来自外部原始 payload 的未识别类型
 ]
@@ -169,6 +169,8 @@ class DetectionDecision(GuardBaseModel):
     confirmation_word: str | None = None
     # 阶段 F：revise 干预携带的修正建议文本（session 风险升级时透出）
     revision_hint: str | None = None
+    # Optional PMKB evidence; absent in legacy serialized action records.
+    policy_decision: dict[str, Any] | None = None
 
 
 class ControlledAction(GuardBaseModel):

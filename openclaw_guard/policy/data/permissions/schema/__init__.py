@@ -1,0 +1,1 @@
+"""PMKB schema resource package."""

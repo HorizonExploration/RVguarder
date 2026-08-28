@@ -11,6 +11,7 @@ from typing import Any
 from uuid import uuid4
 
 from openclaw_guard.config import OpenClawTarget
+from openclaw_guard.integrations.hook_runtime import DEFAULT_DECISION_TIMEOUT_MS
 
 logger = logging.getLogger(__name__)
 
@@ -381,7 +382,7 @@ def get_guard_hook_status(target: OpenClawTarget) -> dict[str, Any]:
                 "pluginId": "openclaw-guard-hook",
                 "guardUrl": None,
                 "failClosed": True,
-                "decisionTimeoutMs": 180000,
+                "decisionTimeoutMs": DEFAULT_DECISION_TIMEOUT_MS,
             }
         raise
 

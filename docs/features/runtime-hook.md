@@ -24,6 +24,20 @@
 只有 `before_tool_call` 进入动作生命周期并可能返回 `requireApproval`；这样 OpenClaw
 原生审批卡片是唯一审批入口。
 
+### 授权策略与审批所有权
+
+PMKB 在 Hook 前生成 Authorization Trace 和只读 `policy_decision` 证据。四级路由为
+`auto_allow_audit`、`clarify_then_retry`、`openclaw_approval`、`block`；任何 hard-block
+优先级都不能被 Hook 降级。`principal`、`agent_id` 和 `capability_lineage` 必须一致才
+允许跨 session 关联，未知身份或能力缺失只能进入澄清/审批。
+
+对于需要确认的动作，OpenClaw 原生审批卡片是唯一审批（唯一审批）入口。Guard Dashboard
+只读显示 `effect`、`match_status`、`missing_features`、`requested_delta`、
+`excessive_permissions`、`combo_violations`、`policy_version` 和 timing；Guard 不提供
+第二个批准按钮，也不绕过 OpenClaw 的 `requireApproval`。版本化策略 bundle 校验失败、
+硬风险漏检或 principal-state merge anomaly 时，禁用新版本并 rollback 到 previous
+catalog，保留所有 audit records。
+
 ### API 说明
 
 插件使用 OpenClaw 官方 `api.on()` API 注册钩子（非已废弃的 `api.registerHook()`）：
@@ -63,10 +77,10 @@ OpenClaw 进入工具调用
     title: "龙虾卫士安全审批",              // 审批卡片标题
     description: "拦截动作：write_file",    // 审批卡片描述
     severity: "warning",                    // "info" | "warning" | "critical"
+    allowedDecisions: ["allow-once", "deny"], // 首版不提供持久放行
     timeoutMs: 300000,                      // 5 分钟超时
-    timeoutBehavior: "deny",                // 超时后自动拒绝（不设为 allow）
     onResolution: async (decision) => {     // 审批决策回调
-      // decision: "allow-once" | "allow-always" | "deny" | "timeout" | "cancelled"
+      // decision: "allow-once" | "deny" | "timeout" | "cancelled"
       await postJson(`${guardUrl}/api/hook/resolve-approval`, {
         actionId: result.action_record.action_id,
         decision: decision,
@@ -162,7 +176,7 @@ npm run openclaw gateway
 
 ### OpenClaw 原生审批卡片
 
-工具调用被拦截时，OpenClaw 直接在界面上弹出审批卡片，显示动作名称和风险等级，用户可「允许一次」「始终允许」「拒绝」。
+工具调用被拦截时，OpenClaw 直接在界面上弹出审批卡片，显示动作名称和风险等级，用户可「允许一次」或「拒绝」。当前生成插件不提供持久放行；Guard 解析器也会拒绝 `allow-always`。
 
 ### Guard Dashboard
 

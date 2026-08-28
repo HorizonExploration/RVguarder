@@ -105,11 +105,18 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
             return _error("action_not_found", HTTPStatus.NOT_FOUND)
         if action.get("source") != "hook_bridge" and not action.get("event", {}).get("metadata", {}).get("hook_bridge"):
             return _error("hook_action_required", HTTPStatus.CONFLICT)
-        allowed = decision in ("allow-once", "allow-always", "allow_once", "allow_always")
+        normalized_decision = decision.replace("_", "-").strip().lower()
+        if normalized_decision not in {"allow-once", "deny", "timeout", "cancelled"}:
+            return _error("unsupported_resolution", HTTPStatus.BAD_REQUEST)
+        allowed = normalized_decision == "allow-once"
         desired_state = "allowed" if allowed else "denied"
         existing = action.get("resolution") or {}
+        terminal_statuses = {"approved", "rejected", "blocked", "executed", "failed", "allow"}
         if existing:
-            if existing.get("decision_state") == desired_state:
+            if (
+                action.get("status") in terminal_statuses
+                and existing.get("decision_state") == desired_state
+            ):
                 return {
                     "ok": True,
                     "accepted": True,
@@ -120,6 +127,15 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
                     "event_seq": action.get("last_event_seq"),
                     "received_at": existing.get("received_at"),
                 }, HTTPStatus.OK
+            if action.get("status") not in terminal_statuses:
+                manager.audit_store.append("hook_resolution_conflict", {
+                    "action_id": action_id,
+                    "existing": existing,
+                    "incoming_decision": decision,
+                    "reason": "resolution_for_non_terminal_action",
+                })
+                manager.events.publish("action.conflict", {"action_id": action_id, "decision": decision})
+                return _error("resolution_conflict", HTTPStatus.CONFLICT)
             action_model = manager._find_action(action_id)
             action_model.sync_state = "conflict"
             manager._save_all(manager._replace_action(action_model))
@@ -131,9 +147,31 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
             manager.events.publish("action.conflict", {"action_id": action_id, "decision": decision})
             return _error("resolution_conflict", HTTPStatus.CONFLICT)
 
+        if action.get("status") != "pending_approval":
+            manager.audit_store.append("hook_resolution_conflict", {
+                "action_id": action_id,
+                "incoming_decision": decision,
+                "reason": "action_not_pending",
+                "status": action.get("status"),
+            })
+            manager.events.publish("action.conflict", {"action_id": action_id, "decision": decision})
+            return _error("resolution_conflict", HTTPStatus.CONFLICT)
+
         if action.get("status") == "pending_approval":
             if allowed:
                 manager.action_service.approve(action_id, None)
+                action_model = manager._find_action(action_id)
+                principal_effect = manager.record_approved_principal_action(action_model)
+                if principal_effect == "block":
+                    action_model.status = "blocked"
+                    action_model.decision_state = "denied"
+                    action_model.sync_state = "conflict"
+                    manager._save_all(manager._replace_action(action_model))
+                    manager.audit_store.append("principal_rv_block_after_approval", {
+                        "action_id": action_id,
+                        "decision": normalized_decision,
+                    })
+                    return _error("principal_rv_block", HTTPStatus.CONFLICT)
             else:
                 manager.action_service.reject(action_id)
         action_model = manager._find_action(action_id)
@@ -142,7 +180,7 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
         action_model.execution_state = "not_started"
         action_model.sync_state = "callback_received"
         action_model.resolution = {
-            "decision": decision,
+            "decision": normalized_decision,
             "source": "openclaw",
             "received_at": received_at,
             "decision_state": desired_state,

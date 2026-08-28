@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from uuid import uuid4
 
 from openclaw_guard.models import BehaviorEvent, ControlledAction, DetectionDecision
@@ -8,14 +9,22 @@ from openclaw_guard.utils import utc_now_iso
 
 
 class GuardController:
-    def __init__(self, whitelist: WhitelistEngine) -> None:
+    def __init__(
+        self,
+        whitelist: WhitelistEngine,
+        decision_overlay: Callable[[BehaviorEvent, DetectionDecision], DetectionDecision] | None = None,
+    ) -> None:
         self.whitelist = whitelist
+        self.decision_overlay = decision_overlay
 
     def decide(self, event: BehaviorEvent, decision: DetectionDecision, source_message: str) -> ControlledAction:
+        if self.decision_overlay is not None:
+            decision = self.decision_overlay(event, decision)
         matches = self.whitelist.evaluate(event)
         final = decision
         trace = list(decision.trace)
-        if matches and decision.action != "block" and _can_whitelist_override(event):
+        if (matches and decision.action != "block" and _can_whitelist_override(event)
+                and _pmkb_allows_whitelist_override(decision)):
             final = DetectionDecision(
                 event_id=decision.event_id,
                 timestamp=decision.timestamp,
@@ -27,6 +36,7 @@ class GuardController:
                 trace=trace + [{"stage": "whitelist", "outcome": "allow", "matches": matches}],
                 requires_second_confirmation=False,
                 confirmation_word=None,
+                policy_decision=decision.policy_decision,
             )
         status = "proposed"
         if final.action in {"ask", "escalate", "revise"}:
@@ -86,3 +96,9 @@ def _target_summary(event: BehaviorEvent) -> str:
 
 def _can_whitelist_override(event: BehaviorEvent) -> bool:
     return event.action_type == "chat_message"
+
+
+def _pmkb_allows_whitelist_override(decision: DetectionDecision) -> bool:
+    """Keep PMKB approvals and blocks above convenience whitelist overrides."""
+    evidence = decision.policy_decision
+    return not isinstance(evidence, dict) or evidence.get("effect") == "auto_allow_audit"

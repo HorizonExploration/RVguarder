@@ -40,8 +40,8 @@ features:
   </div>
   <div class="custom-card">
     <h3>📦 当前状态</h3>
-    <p>v0.6.0 — 六阶段架构重构 + RV 阶段 A–F 全部落地，并完成 Hook 单一审批入口与 SSE 状态同步。当前回归基线为 349 passed / 18 skipped（2026-08-23）。</p>
-    <p><em>v0.6.0 — Six-phase refactor + RV phases A–F complete, with OpenClaw-only Hook approval and SSE state synchronization. Current regression baseline: 349 passed / 18 skipped (2026-08-23).</em></p>
+    <p>v0.7.0-dev — PMKB 权限模型、最小权限与跨 session RV 已落地，Hook 仍由 OpenClaw 单一审批并通过 SSE 同步。PMKB 尚处于 7–14 天 shadow gate 前，未宣称生产启用；回归基线以 CI 最新结果为准。</p>
+    <p><em>v0.7.0-dev — PMKB authorization modeling, least privilege, and cross-session RV are implemented. OpenClaw remains the single Hook approval owner with SSE synchronization. PMKB is still before the 7–14 day shadow gate and is not claimed production-ready; use the latest CI result as the regression baseline.</em></p>
   </div>
 </div>
 
@@ -53,13 +53,13 @@ features:
 
 OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式安全增强客户端与本地控制面。我们不做替代品，做的是**安全补位**。
 
-v0.6.0 完成了六阶段架构重构与 RV 升级阶段 A–F 全部落地：① FastAPI HTTP 层（可选依赖，`--fastapi` flag 启用，缺失时自动回退 stdlib `legacy_web`）；② 全部数据模型迁移至 **Pydantic v2**；③ Manager 拆分（`services.py` GuardServices 服务容器 + `engine/pipeline.py` 编排层，`manager.py` 保留为兼容子类）；④ 前端迁移至 **Preact** SPA（Dashboard/Actions/Rules/Skills/Settings）；⑤ 可选 **SQLAlchemyStore** 存储层（`DB_STORE_MODE=sqlalchemy`）；⑥ RV 规约驱动（ChainRule DSL 编译监视器，`OPENCLAW_RV_RULE_MODE=dsl` 为默认，FSM 为回退模式）。RV 阶段 A–F 进一步落地：ToolCallIR 结构化透传（阶段 A）、约束推理引擎（五类约束 + 置信度门控，阶段 B）、RV 基线自动机（阶段 C）、参数化原语（阶段 D）、NL2Spec 生成 + 反例验证闭环（阶段 E）、revise 干预 + 会话状态（阶段 F）。详见 [rv-engine-report.md](./architecture/rv-engine-report.md) 与 [nl-automata-rv-landing-report.md](./architecture/nl-automata-rv-landing-report.md)。
+v0.7.0-dev 在 v0.6.0 六阶段架构与 RV 阶段 A–F 的基础上，增加版本化 PMKB 权限模型：Authorization Trace、覆盖感知匹配、最小权限闭包/差分、危险权限组合图、主体能力跨 session RV，以及 OpenClaw 单一审批契约。PMKB 的发布仍须先完成 7–14 天 shadow run，并以覆盖率、未知率、误放率、高风险召回率、审批量和延迟作为晋级门禁；详见 [路线图](./ops/roadmap.html)。
 
 **English**
 
 OpenClaw-RVGuarder ("Lobster Guard") is a non-invasive security enhancement client and local control plane for OpenClaw. We don't replace OpenClaw — we **backfill the safety gap**.
 
-v0.6.0 completes the six-phase architecture refactor plus all RV upgrade phases A–F: ① optional FastAPI HTTP layer (opt-in via `--fastapi`, auto-fallback to stdlib `legacy_web` when missing); ② all data models migrated to **Pydantic v2**; ③ Manager split into the GuardServices container (`services.py`) + pipeline orchestration (`engine/pipeline.py`), with `manager.py` kept as a compatibility subclass; ④ frontend migrated to a **Preact** SPA (Dashboard/Actions/Rules/Skills/Settings); ⑤ optional **SQLAlchemyStore** storage (`DB_STORE_MODE=sqlalchemy`); ⑥ spec-driven RV (ChainRule DSL compiling monitors, `OPENCLAW_RV_RULE_MODE=dsl` by default, FSM as fallback). RV phases A–F add: ToolCallIR structured passthrough (A), constraint engine — 5 constraint types + confidence gating (B), baseline automaton (C), parameterized primitives (D), NL2Spec + counter-example validation loop (E), revise intervention + session state (F).
+v0.7.0-dev builds on the v0.6.0 six-phase refactor and RV phases A–F with a versioned PMKB authorization model: Authorization Traces, coverage-aware matching, least-privilege closure/diff, toxic permission-combination graphs, principal capability RV across sessions, and an OpenClaw single-approval contract. PMKB remains gated on a 7–14 day shadow run; promotion requires coverage, unknown-rate, false-allow, high-risk-recall, approval-volume, and latency evidence. See the [roadmap](./ops/roadmap.html).
 
 ## 核心特性 · Core Features
 
@@ -114,6 +114,8 @@ openclaw-guard run
 | 📋 [基线扫描](/features/baseline.html) | 安全扫描与报告 | Security scanning & reports |
 | 📝 [审计](/features/audit.html) | 审计链与导出 | Audit trail & export |
 | 🧠 [语义增强方案](/semantic/method.html) | 语义理解架构设计 | Semantic enhancement design |
+| 📚 [PMKB 网络案例基线](/semantic/pmkb-network-case-baseline.html) | 可直接接入运行时链路的案例型权限知识库 | Case-derived permission baseline wired into the runtime |
+| 🧾 [PMKB 升级结果报告](/research/pmkb-network-baseline-implementation-report-2026-08-28.html) | 本次案例型知识库接入、测试与边界 | PMKB baseline integration, tests, and boundaries |
 | 🧭 [项目理解与当前记忆](/architecture/project-memory.html) | 当前代码边界、已落地能力、已知边界与维护规则 | Current project facts and maintenance memory |
 | 🩺 [运维 FAQ](/ops/faq.html) | 常见问题 | Frequently asked questions |
 | 🗺️ [路线图](/ops/roadmap.html) | 开发计划 | Development roadmap |

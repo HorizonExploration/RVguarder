@@ -88,7 +88,7 @@ Guard 决策：ASK / ESCALATE
         ▼
 OpenClaw 原生审批卡片（唯一用户操作）
         │
-        ├─ allow-once / allow-always
+        ├─ allow-once / deny
         ├─ deny / timeout / cancelled
         ▼
 Guard /api/hook/resolve-approval

@@ -1,0 +1,27 @@
+{
+  "version": "1.1.0",
+  "operations": [
+    {"family":"message.send","tool_ids":["feishu.im.send","feishu.im.reply"],"aliases":["im.send"]},
+    {"family":"directory.read","tool_ids":["feishu.directory.search"],"aliases":["directory.lookup"]},
+    {"family":"document.read","tool_ids":["feishu.docs.read","feishu.wiki.read","feishu.drive.download"],"aliases":["document.get"]},
+    {"family":"document.write","tool_ids":["feishu.docs.write","feishu.wiki.write","feishu.drive.upload"],"aliases":["document.update"]},
+    {"family":"table.read","tool_ids":["feishu.sheets.read","feishu.bitable.read"],"aliases":[]},
+    {"family":"data.export","tool_ids":["feishu.bitable.export","feishu.sheets.export"],"aliases":["table.export"]},
+    {"family":"data.query","tool_ids":["feishu.bitable.query","feishu.sheets.query"],"aliases":["database.query"]},
+    {"family":"file.bulk_transfer","tool_ids":["feishu.drive.bulk_transfer","file.bulk_transfer"],"aliases":["batch_file_transfer"]},
+    {"family":"calendar.modify","tool_ids":["feishu.calendar.modify"],"aliases":["calendar.create"]},
+    {"family":"meeting.create","tool_ids":["feishu.meeting.create"],"aliases":[]},
+    {"family":"workflow.approve","tool_ids":["feishu.approval.approve"],"aliases":["approval.process"]},
+    {"family":"event.subscribe","tool_ids":["feishu.event.subscribe"],"aliases":[]},
+    {"family":"network.egress","tool_ids":["network.request","feishu.http.request"],"aliases":[]},
+    {"family":"config.modify","tool_ids":["feishu.app.config.modify","config.modify"],"aliases":["app.config.modify"]},
+    {"family":"secret.read","tool_ids":["secret.read"],"aliases":[]},
+    {"family":"credential.read","tool_ids":["credential.read"],"aliases":[]},
+    {"family":"process.execute","tool_ids":["process.execute"],"aliases":[]},
+    {"family":"file.write","tool_ids":["file.write"],"aliases":[]},
+    {"family":"session.token.read","tool_ids":["session.token.read","auth.session.read"],"aliases":["session.cookie.read","oauth.token.read"]},
+    {"family":"identity.permission.grant","tool_ids":["permission.grant","oauth.scope.grant"],"aliases":["role.assign","app.permission.grant"]},
+    {"family":"identity.auth.modify","tool_ids":["identity.auth.modify","auth.method.add"],"aliases":["mfa.method.add","oauth.credential.add"]},
+    {"family":"audit.modify","tool_ids":["audit.modify"],"aliases":["audit.disable","logging.modify"]}
+  ]
+}

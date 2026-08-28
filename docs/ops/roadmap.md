@@ -1,6 +1,6 @@
 # 发展路线图 · Roadmap
 
-当前版本：**v0.6.0** — FastAPI HTTP 层就绪，Pydantic v2 模型迁移完成，RV 阶段 A–F（IR 结构化 / 约束推理 / 基线自动机 / 参数化原语 / NL2Spec / 干预升级）全部落地，并完成 Hook 单一审批入口与 SSE 同步。当前回归基线：349 passed / 18 skipped（2026-08-23）。
+当前版本：**v0.7.0-dev** — PMKB 权限模型、覆盖感知匹配、最小权限闭包/差分、风险组合图、主体能力跨 session RV 和 OpenClaw 单一审批契约已实现。当前回归基线以 CI 最新结果为准；PMKB 仍处于 shadow gate 前，未宣称生产启用。
 
 ---
 
@@ -31,7 +31,7 @@
 ### P0（当前迭代优先）
 
 - [x] **会话级作用域**（已完成）：RV 引擎按 `session_id` 隔离，不同 Agent 会话使用独立的滑动窗口和 FSM 状态（`rv/runtime_verification.py` `_session_windows`）
-- [ ] **RV 引擎持久化**：允许跨 Guard 重启保留 RV 窗口状态 —— 引擎已实现 `serialize_state` / `deserialize_state`（`rv/runtime_verification.py`），尚未接线到持久化
+- [x] **RV 引擎持久化**：主体/能力状态在 `runtime/rv-state.json` 恢复后再处理新 Hook，窗口状态仍按 session 隔离
 - [ ] **熔断器告警**：熔断状态变更时通过 Webhook 或邮件通知运维
 
 ### P1（下一阶段）
@@ -56,3 +56,23 @@
 - Hook 插件注入后需要重启 OpenClaw Gateway 才能生效
 - RV 的窗口大小（默认 10 步）在不同办公场景下可能需要动态调整
 - `feishu_doc`/`feishu_wiki` 等频道工具在 Dashboard（WebChat）环境下不可见
+
+## PMKB 发布门禁、指标与回滚
+
+策略 bundle 必须先进行 7–14 天 shadow run，同时记录 baseline 与 new outcomes，不能
+直接替换生产目录。当前分支尚未完成真实 shadow run，以下目标是发布门禁而非已测结果：
+
+| 指标 | 目标 |
+|---|---:|
+| complete coverage（P0） | ≥85% |
+| unknown rate | ≤10% |
+| low-risk auto-allow precision | ≥99% |
+| high-risk recall | ≥98% |
+| total manual approvals | −40% |
+| low-risk approvals | −60% |
+| local evaluator P95 | ≤50 ms |
+
+每个 outcome 都要带 `policy_version`、effect、匹配状态、证据字段和 timing，按版本并列
+比较后再晋级。若发生 hard-risk false negative、bundle validation error 或 principal-state
+merge anomaly，立即 disable 新 bundle version，rollback 到 previous catalog，并保留全部
+audit records 供调查；修复后重新开始 shadow run。

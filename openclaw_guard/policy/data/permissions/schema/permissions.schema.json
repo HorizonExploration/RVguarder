@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.1.0",
+  "type": "policy-bundle",
+  "required": ["operations", "rules", "traces", "relations", "vectors"],
+  "properties": {
+    "version": {"type": "string", "minLength": 1},
+    "type": {"const": "policy-bundle"},
+    "required": {"type": "array", "items": {"type": "string"}},
+    "effects": {"enum": ["auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block"]},
+    "match_status": {"enum": ["matched", "partial", "unknown", "conflict"]},
+    "permission": {
+      "type": "object",
+      "required": ["family", "scope", "classification"],
+      "properties": {
+        "family": {"type": "string", "minLength": 1},
+        "resource_type": {"type": "string"},
+        "resource_ids": {"type": "array", "items": {"type": "string"}},
+        "scope": {"type": "string"},
+        "classification": {"type": "string"},
+        "field_scope": {"type": "array", "items": {"type": "string"}},
+        "purpose": {"type": "string"},
+        "ttl_seconds": {"type": ["integer", "null"], "minimum": 0}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

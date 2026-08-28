@@ -22,7 +22,6 @@ from openclaw_guard.integrations.tool_hook_bridge import (
     hook_key_from_payload,
 )
 from openclaw_guard.utils import utc_now_iso
-
 if TYPE_CHECKING:
     from openclaw_guard.services import GuardServices
 
@@ -79,6 +78,10 @@ def _annotate_event_context(
 
     原地修改 event.metadata。
     """
+    if "current_permissions" not in event.metadata and isinstance(event.raw_payload, dict):
+        raw_grants = event.raw_payload.get("current_permissions")
+        if isinstance(raw_grants, list):
+            event.metadata["current_permissions"] = raw_grants
     workspace = services.context.target.workspace_path
     if workspace and event.target_paths:
         workspace_root = Path(workspace).expanduser()
@@ -105,6 +108,54 @@ def _annotate_event_context(
     timings["semantic_ms"] = round((time.perf_counter() - semantic_started) * 1000.0, 3)
     event.metadata["semantic"] = semantic_payload["semantic"]
     event.metadata["rv_trace"] = semantic_payload["rv_trace"]
+    policy_engine = getattr(services, "policy_engine", None)
+    if policy_engine is not None:
+        authorization_trace = policy_engine.compile_trace(event, source_message=source_message)
+        event.metadata["authorization_trace"] = authorization_trace.model_dump()
+
+
+def _apply_policy_engine(
+    services: GuardServices,
+    event: Any,
+    decision: Any,
+    *,
+    source_message: str = "",
+) -> Any:
+    """Attach PMKB evidence and only raise the pre-existing decision severity."""
+    policy_engine = getattr(services, "policy_engine", None)
+    if policy_engine is None:
+        return decision
+    policy_started = time.perf_counter()
+    policy_decision = policy_engine.evaluate(event, source_message=source_message)
+    timings = _ensure_pipeline_timings(event)
+    timings["policy_ms"] = round((time.perf_counter() - policy_started) * 1000.0, 3)
+    decision.policy_decision = policy_decision.model_dump(mode="json")
+    decision.trace = list(decision.trace) + [{
+        "stage": "pmkb",
+        "effect": policy_decision.effect,
+        "match_status": policy_decision.match_status,
+        "selected_rule_ids": list(policy_decision.selected_rule_ids),
+        "combo_violations": list(policy_decision.combo_violations),
+    }]
+
+    action_for_effect = {
+        "block": "block",
+        "openclaw_approval": "ask",
+        "clarify_then_retry": "revise",
+        "auto_allow_audit": "allow",
+    }
+    severity = {"allow": 1, "ask": 2, "revise": 2, "escalate": 3, "block": 4}
+    prior_action = getattr(decision, "action", "allow")
+    policy_action = action_for_effect[policy_decision.effect]
+    if severity[policy_action] > severity.get(prior_action, 1):
+        decision.action = policy_action
+        decision.reason = f"[PMKB] {policy_decision.effect} (原有: {prior_action})"
+        if policy_action == "block":
+            decision.risk_level = "blocked"
+        elif policy_action in {"ask", "revise"}:
+            decision.risk_level = "caution"
+        decision.rule_ids = list(decision.rule_ids) + list(policy_decision.selected_rule_ids) + list(policy_decision.combo_violations)
+    return decision
 
 
 def _apply_rv_if_available(
@@ -222,21 +273,27 @@ def _apply_session_escalation(
     upgrade = state.record(getattr(decision, "action", "ok"), decision.reason)
     event.metadata["session_state"] = state.status()
 
-    # revise 干预（spec F1）：会话风险达到修正建议阈值时，返回带建议的 revise 拒绝
+    # 先应用 record() 的明确升级，再考虑 revise 建议，保证所有会话叠加单调升权。
+    severity = {"allow": 1, "ask": 2, "revise": 2, "escalate": 3, "block": 4}
+    current_action = getattr(decision, "action", "allow")
+    if upgrade:
+        if severity.get(upgrade, 1) > severity.get(current_action, 1):
+            decision.action = upgrade
+            decision.reason = (
+                f"[Session] 会话风险升级为 {upgrade}（累计风险 {state.total_score}）"
+            )
+            decision.rule_ids = list(decision.rule_ids) + [f"SESSION-{session_key}"]
+            current_action = upgrade
+
+    # revise 干预（spec F1）：只有在不降低既有裁决严重度时才可应用建议。
     hint = state.revision_hint()
     if hint is not None:
-        decision.action = "revise"
+        # 即使当前裁决更强，也保留建议供审计和调用方展示；不得改变 action。
         decision.revision_hint = hint
+    if hint is not None and severity.get("revise", 2) >= severity.get(current_action, 1):
+        decision.action = "revise"
         decision.reason = (
             f"[Session] 建议修订后重试：{hint}（累计风险 {state.total_score}）"
-        )
-        decision.rule_ids = list(decision.rule_ids) + [f"SESSION-{session_key}"]
-        return decision
-
-    if upgrade:
-        decision.action = upgrade
-        decision.reason = (
-            f"[Session] 会话风险升级为 {upgrade}（累计风险 {state.total_score}）"
         )
         decision.rule_ids = list(decision.rule_ids) + [f"SESSION-{session_key}"]
     return decision
@@ -265,6 +322,7 @@ def ingest_event_pipeline(
     decision = services.detector.evaluate(event)
     timings = _ensure_pipeline_timings(event)
     timings["detection_ms"] = round((time.perf_counter() - detect_started) * 1000.0, 3)
+    decision = _apply_policy_engine(services, event, decision, source_message=source_message)
     decision = _apply_constraint_engine(services, event, decision)
     decision = _apply_rv_if_available(services, event, decision)
     timings = _ensure_pipeline_timings(event)
@@ -314,6 +372,7 @@ def handle_before_tool_call_pipeline(
     decision = services.detector.evaluate(event)
     timings = _ensure_pipeline_timings(event)
     timings["detection_ms"] = round((time.perf_counter() - detect_started) * 1000.0, 3)
+    decision = _apply_policy_engine(services, event, decision, source_message=hook_source_message)
     decision = _apply_constraint_engine(services, event, decision)
     decision = _apply_rv_if_available(services, event, decision)
     timings = _ensure_pipeline_timings(event)

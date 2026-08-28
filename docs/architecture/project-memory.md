@@ -1,8 +1,8 @@
 # 项目理解与当前记忆
 
-> **核对日期**：2026-08-23  
-> **核对基准**：仓库当前 HEAD `114502e`（`feat(release,rv,frontend,docs,build): 发布v0.6.0正式版，落地RV全阶段功能`）  
-> **测试基线**：`python -m pytest -q` → **349 passed / 18 skipped / 0 failed**（367 个用例被收集）
+> **核对日期**：2026-08-28
+> **核对基准**：当前工作树（PMKB 网络案例基础知识库 `1.1.0`）
+> **测试基线**：`python -m pytest -q` → **469 passed / 18 skipped / 4 subtests passed**
 
 本文档是后续维护项目时的“当前事实源”。历史方案、阶段性审计报告和旧版本说明仍然保留，但如果它们与本文档或当前代码冲突，应以当前代码和本文档为准。
 
@@ -56,6 +56,7 @@ OpenClaw before_tool_call
 - RV 阶段 A–F：ToolCallIR、五类约束与置信度门控、基线自动机、实体/时间/计数参数化、NL2Spec + 反例校验、revise 干预与会话升级。
 - 运行时默认 `dsl` 规则模式；设置 `OPENCLAW_RV_RULE_MODE=fsm` 可回退到六个手写 FSM 监视器。
 - 规则检测、Hook 审批、resolution 幂等同步、审计双写、基线扫描和前端 RV 状态面板均有现行代码与测试覆盖。
+- PMKB 网络案例基线 `1.1.0` 已直接接入 `PolicyBundle → TraceCompiler → PolicyEvaluator → RiskGraph` 链路；源码目录与打包目录保持同版本、同内容，并为关键操作保留来源、Trace 和正反例向量。
 
 ## 5. 当前边界与待办
 

@@ -54,7 +54,7 @@
 | `POST /api/hook/before-tool-call` 响应格式 | 后端 API | JS 插件解析 `{ action, title, message, ... }` |
 | `POST /api/hook/resolve-approval` 请求/响应格式 | 后端 API | JS 插件 `onResolution` 回调 |
 | `registerGatewayMethod(STATUS_METHOD, ...)` | JS 插件 | Gateway 插件状态检测 |
-| `api.on("before_tool_call")` 的 `requireApproval` 返回值 | JS 插件 | `timeoutBehavior`, `onResolution` |
+| `api.on("before_tool_call")` 的 `requireApproval` 返回值 | JS 插件 | `allowedDecisions`, `timeoutMs`, `onResolution` |
 | `x-openclaw-guard-token` 鉴权 header | 后端 API | JS 插件认证协议 |
 
 **合约保护手段**：

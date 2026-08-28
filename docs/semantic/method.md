@@ -1056,3 +1056,63 @@ G( file_delete(target in high_value_path) -> ask )
 8. 用分阶段、初学者友好的方式持续演进
 
 这样可以最大程度复用当前项目已经稳定的拦截、审批、审计和 Hook 链路，同时把“只靠关键词匹配”的短板逐步替换为“规则 + 语义 + Trace + RV + 场景化约束”的组合防线。
+
+## 18. PMKB 授权策略合同（Task 9）
+
+PMKB（Permission Model Knowledge Base）借鉴 Feishu 的权限分层经验，但只描述
+OpenClaw 本地运行时可验证的能力，不复制租户级 scope。Feishu-derived domains 映射为
+`IM`、`directory`、`document/wiki/drive`、`sheets/bitables`、`calendar/meeting`、
+`workflow/approval`、`event/network` 和 `app/config`；个人办公资源 scope 还必须明确
+资源 ID/路径、所有者、读写动作、数量、数据分类和收件人区域。
+
+### 18.1 Authorization Trace 与 policy_decision
+
+每次 Hook 决策都保留一个只读的 Authorization Trace，区分 `principal`、`agent_id`、
+`session_id`、`capability_lineage`、工具/operation、资源 scope、data classification、
+目的、来源和字段置信度。策略层只产生证据，不替代 OpenClaw 执行审批。序列化的
+`policy_decision` 形状如下（字段可为空但不可删除）：
+
+```json
+{
+  "effect": "auto_allow_audit",
+  "match_status": "matched",
+  "missing_features": [],
+  "requested_delta": [
+    {"family": "data.export", "resource_type": "table", "resource_ids": ["tbl-1"], "scope": "own", "classification": "internal", "field_scope": [], "purpose": "report", "ttl_seconds": 300}
+  ],
+  "redundant_permissions": [],
+  "excessive_permissions": [],
+  "scope_expansions": [],
+  "hard_violations": [],
+  "effective_permissions": [],
+  "p_after": [],
+  "combo_violations": [],
+  "policy_version": "1.1.0"
+}
+```
+
+`requested_delta`、`redundant_permissions`、`excessive_permissions`、`effective_permissions`
+和 `p_after` 序列化为完整 `PermissionRef` 对象（操作、资源类型/ID、scope、分类、字段
+范围、purpose 和 TTL），而不是展示字符串。
+评估耗时不属于 `policy_decision`：当前实现以 `policy_ms` 保存在事件
+metadata/pipeline timings 中；`evaluation_ms` 与聚合 `p95_ms` 等兼容指标待后续
+只读采集器实现后再启用。
+
+P0 规则示例来自版本化 bundle：`EX-10`（`message.send` 消息群发/广播）、
+`EX-19`（`data.query`/`data.export` 数据库查询与导出中的敏感读取）和
+`EX-27`（`file.bulk_transfer` 文件批量传输）。P0 trace 必须保留对应 rule ID，
+并记录命中规则、缺失字段及组合风险，便于回放而不暴露数据内容。
+
+### 18.2 四级路由与优先级
+
+正常路由为 `auto_allow_audit` → `clarify_then_retry` → `openclaw_approval` →
+`block`。完整且低风险的匹配可自动放行并审计；低影响且最多两个字段缺失时先澄清；
+高影响或未知外部目标交给审批；硬风险始终 `block`。hard-block precedence 适用于
+规则、风险图和 RV 的所有覆盖层：任何上层只能提升严重性，不能降低既有 block。
+
+`principal`、`agent_id` 和 `capability_lineage` 不得因文本相似而合并；缺失身份只能
+得到不确定证据，不能产生自动放行。策略 bundle 按 `policy_version` 版本化，发布前
+是 versioned bundle，验证 catalog、rules、relations、traces 和 vectors；出现校验错误或身份状态合并异常，
+rollback 到 previous catalog，同时保留全部 audit records。
+这些 personal-office scope 只授予完成当前任务所需的最小能力，并随目的、期限和资源
+边界记录。

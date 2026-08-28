@@ -293,6 +293,7 @@ class RuntimeVerificationEngine:
         window_ttl_seconds: int | None = 300,
         rule_mode: str | None = None,
         baseline_dfa_path: str | None = None,
+        principal_state_limit: int = 256,
     ) -> None:
         self._window_size = window_size
         self._window_ttl = window_ttl_seconds
@@ -304,6 +305,8 @@ class RuntimeVerificationEngine:
         # Per-session 隔离存储
         self._session_windows: dict[str, WindowManager] = {}
         self._session_monitors: dict[str, list] = {}
+        self._principal_states: dict[tuple[str, str, tuple[str, ...]], Any] = {}
+        self._principal_state_limit = max(1, principal_state_limit)
         self._fsm_monitors_template: list | None = None
         self._spec_monitors_template: list | None = None
         self._spec_ruleset: Any | None = None
@@ -547,6 +550,34 @@ class RuntimeVerificationEngine:
         self._session_windows.pop(session_key, None)
         self._session_monitors.pop(session_key, None)
 
+    def state_for_principal(
+        self,
+        principal_id: str,
+        agent_id: str,
+        lineage: tuple[str, ...],
+    ) -> Any:
+        """Return bounded cross-session state for one complete identity key.
+
+        A goal is deliberately excluded from this key: it may partition work,
+        but cannot authenticate an identity merge.  Conversely, a difference in
+        any principal, agent, or capability-lineage component always yields a
+        separate state object.
+        """
+        from openclaw_guard.spec.session_state import PrincipalSecurityState
+
+        key = (str(principal_id), str(agent_id), tuple(str(item) for item in lineage))
+        state = self._principal_states.get(key)
+        if state is not None:
+            return state
+        if len(self._principal_states) >= self._principal_state_limit:
+            oldest_key = min(self._principal_states, key=lambda item: self._principal_states[item].last_seen_at)
+            self._principal_states.pop(oldest_key, None)
+        state = PrincipalSecurityState(
+            key[0], key[1], key[2], ttl_seconds=self._window_ttl,
+        )
+        self._principal_states[key] = state
+        return state
+
     def session_count(self) -> int:
         """返回当前活跃的 per-session 数量（不含 _default）。"""
         return len(self._session_windows)
@@ -562,6 +593,10 @@ class RuntimeVerificationEngine:
             "session_windows": {
                 k: w.to_dict() for k, w in self._session_windows.items()
             },
+            "principal_states": [
+                principal_state.to_dict()
+                for principal_state in self._principal_states.values()
+            ],
         }
         return state
 
@@ -573,6 +608,21 @@ class RuntimeVerificationEngine:
             for k, data in state["session_windows"].items():
                 if isinstance(data, dict):
                     self._session_windows[k] = WindowManager.from_dict(data)
+        raw_principal_states = state.get("principal_states", [])
+        if isinstance(raw_principal_states, list):
+            from openclaw_guard.spec.session_state import PrincipalSecurityState
+
+            for data in raw_principal_states:
+                if not isinstance(data, dict):
+                    continue
+                principal_state = PrincipalSecurityState.from_dict(data)
+                key = (
+                    principal_state.principal_id,
+                    principal_state.agent_id,
+                    principal_state.capability_lineage,
+                )
+                if all(key) and len(self._principal_states) < self._principal_state_limit:
+                    self._principal_states[key] = principal_state
 
     # ── 摘要 ──
 
@@ -636,3 +686,4 @@ class RuntimeVerificationEngine:
                         m.reset()
                     except Exception:
                         pass
+            self._principal_states.clear()

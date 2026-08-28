@@ -59,3 +59,8 @@ class ToolCallIR(BaseModel):
     sensitivity: str | None = None
     irreversibility: str | None = None
     intent: str | None = None
+    # Optional authorization evidence, retained when a hook supplies it.
+    negated: bool = False
+    excluded_entities: list[str] = Field(default_factory=list)
+    quantity: int = 0
+    provenance: dict[str, Any] = Field(default_factory=dict)

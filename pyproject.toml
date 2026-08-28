@@ -31,5 +31,8 @@ test = ["httpx"]
 [tool.setuptools.packages.find]
 include = ["openclaw_guard*"]
 
+[tool.setuptools.package-data]
+"openclaw_guard.policy.data.permissions" = ["**/*.json"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
