@@ -61,8 +61,13 @@ class PermissionClosure:
             effective.add(current)
             for source, target in edges:
                 if source == current.family:
-                    pending.append(PermissionRef(family=target, scope=current.scope,
-                                                 classification=current.classification))
+                    # Implication changes the operation family, not the
+                    # authority dimensions. Preserve resource/field/purpose
+                    # and TTL evidence so closure remains least-privilege
+                    # comparable.
+                    pending.append(current.model_copy(update={
+                        "family": target,
+                    }))
         return _EffectivePermissions(effective, self.expired_grants)
 
 

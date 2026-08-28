@@ -33,6 +33,27 @@ def test_implies_relation_adds_only_explicit_target():
     assert permission("document.read", scope="workspace") in closure.close([grant("document.write", scope="workspace")])
 
 
+def test_implied_permission_preserves_least_privilege_dimensions():
+    closure = PermissionClosure(bundle([{"effect": "implies", "source": "document.write", "target": "document.read"}]))
+    source = PermissionRef(
+        family="document.write",
+        resource_type="document",
+        resource_ids=("doc-1",),
+        scope="workspace",
+        classification="sensitive",
+        field_scope=("title",),
+        purpose="meeting_summary",
+        ttl_seconds=300,
+    )
+    derived = next(item for item in closure.close([CapabilityGrant(family="document.write", permissions=[source])])
+                   if item.family == "document.read")
+    assert derived.resource_type == source.resource_type
+    assert derived.resource_ids == source.resource_ids
+    assert derived.field_scope == source.field_scope
+    assert derived.purpose == source.purpose
+    assert derived.ttl_seconds == source.ttl_seconds
+
+
 def test_requested_permission_already_granted_is_redundant():
     granted = permission("calendar.read", scope="own")
     result = PermissionDiff.compute(frozenset({granted}), [granted], [granted])
