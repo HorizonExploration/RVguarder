@@ -16,7 +16,7 @@ from openclaw_guard.policy.models import (
     PrincipalRef,
     ResourceRef,
 )
-from openclaw_guard.integrations.hook_runtime import _plugin_source
+from openclaw_guard.integrations.hook_runtime import DEFAULT_DECISION_TIMEOUT_MS, _plugin_source
 from openclaw_guard import api
 
 
@@ -78,6 +78,9 @@ def test_generated_openclaw_approval_contract_is_single_owner_and_once_only():
     assert 'allowedDecisions: ["allow-once", "deny"]' in source
     assert "timeoutBehavior" not in source
     assert 'registrationId: "openclaw_guard_before_tool_call"' in source
+    assert DEFAULT_DECISION_TIMEOUT_MS == 15_000
+    assert "180000" not in source
+    assert "DEFAULT_DECISION_TIMEOUT_MS = 15000" in source
 
 
 def test_persistent_allow_always_resolution_is_rejected(services):

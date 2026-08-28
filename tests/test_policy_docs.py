@@ -33,6 +33,15 @@ def test_docs_preserve_openclaw_single_approval_owner():
     assert "OpenClaw" in text and "唯一审批" in text
 
 
+def test_runtime_hook_docs_match_once_only_resolution_contract():
+    runtime_hook = read_doc("docs/features/runtime-hook.md")
+    spec = read_doc("docs/superpowers/specs/2026-08-27-openclaw-rvguarder-five-phase-upgrade-design.md")
+    assert "允许一次" in runtime_hook and "拒绝" in runtime_hook
+    assert "始终允许" not in runtime_hook
+    assert "当前生成插件只向 OpenClaw 暴露" in spec
+    assert "Guard resolver 明确拒绝该值" in spec
+
+
 def test_policy_docs_cover_catalog_scopes_trace_and_precedence():
     text = "\n".join(
         read_doc(path)

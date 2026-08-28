@@ -52,8 +52,8 @@
 |---|---|
 | `before_tool_call` | 唯一能够产生 `requireApproval` 的 Guard Hook；接收工具名、参数、run/session/tool-call 标识，返回 allow/block/requireApproval。 |
 | `requireApproval` | 显式传递 `title`、`description`、`severity`、`allowedDecisions`、`timeoutMs`、`onResolution`。 |
-| `onResolution` | 只接受 OpenClaw 的 `allow-once`、`allow-always`、`deny`、`timeout`、`cancelled`；Guard 按幂等键写入同一动作。 |
-| `allow-always` | 首版只提供 `allow-once` 与 `deny`；只有实现了插件侧持久信任范围、TTL、撤销和审计后才开放。 |
+| `onResolution` | OpenClaw 回调可能报告 `allow-once`、`allow-always`、`deny`、`timeout`、`cancelled`；当前生成插件只向 OpenClaw 暴露 `allow-once` 与 `deny`，Guard resolver 接受 `allow-once`、`deny`、`timeout`、`cancelled`，并按幂等键写入同一动作。 |
+| `allow-always` | 当前版本不提供持久放行，Guard resolver 明确拒绝该值；只有实现插件侧持久信任范围、TTL、撤销和审计后才开放。 |
 | `before_prompt_build` | 仅用于非阻塞预检查或授权后的 prompt enrichment；不得创建审批单。需要原始对话内容时才开启 `allowConversationAccess`。 |
 | 超时 | 移除 `timeoutBehavior`；Guard 决策请求限制在短预算内，Hook 注册使用明确 `timeoutMs`，避免默认 Hook 等待耗尽。 |
 | 运行验证 | 配置改动后重启 Gateway；用 `openclaw plugins inspect <id> --runtime --json` 与 `openclaw gateway status --deep --require-rpc` 验证。 |

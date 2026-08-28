@@ -12,6 +12,9 @@ from openclaw_guard.utils import read_json, write_json
 
 HOOK_PLUGIN_ID = "openclaw-guard-hook"
 HOOK_METHOD_STATUS = "openclaw_guard.hook_status"
+# Keep the synchronous before_tool_call bridge bounded. Interactive approval
+# has its own timeout and is intentionally configured separately below.
+DEFAULT_DECISION_TIMEOUT_MS = 15_000
 
 
 def ensure_runtime_hook_plugin(context: AppContext) -> dict[str, Any]:
@@ -136,7 +139,7 @@ def _ensure_plugin_config(
     desired = {
         "guardUrl": guard_url,
         "authToken": auth_token,
-        "decisionTimeoutMs": 180000,
+        "decisionTimeoutMs": DEFAULT_DECISION_TIMEOUT_MS,
         "callbackTimeoutMs": 15000,
         "failClosed": False,
         "failClosedGracePeriodMs": 30000,
@@ -305,6 +308,7 @@ def _plugin_source(*, guard_url: str, auth_token: str) -> str:
 const STATUS_METHOD = "__STATUS_METHOD__";
 const DEFAULT_GUARD_URL = "__GUARD_URL__";
 const DEFAULT_AUTH_TOKEN = "__AUTH_TOKEN__";
+const DEFAULT_DECISION_TIMEOUT_MS = __DECISION_TIMEOUT_MS__;
 
 function trimTrailingSlash(value) {{
   return String(value || "").replace(/\\/+$/, "");
@@ -370,7 +374,7 @@ export default {{
     const guardUrl = trimTrailingSlash(pluginConfig.guardUrl || DEFAULT_GUARD_URL);
     const authToken = String(pluginConfig.authToken || DEFAULT_AUTH_TOKEN || "");
     const failClosed = pluginConfig.failClosed === true;
-    const decisionTimeoutMs = Number(pluginConfig.decisionTimeoutMs || 180000);
+    const decisionTimeoutMs = Number(pluginConfig.decisionTimeoutMs || DEFAULT_DECISION_TIMEOUT_MS);
     const callbackTimeoutMs = Number(pluginConfig.callbackTimeoutMs || 15000);
 
     // Circuit breaker state
@@ -609,5 +613,6 @@ export default {{
         .replace("__STATUS_METHOD__", HOOK_METHOD_STATUS)
         .replace("__GUARD_URL__", guard_url)
         .replace("__AUTH_TOKEN__", auth_token)
+        .replace("__DECISION_TIMEOUT_MS__", str(DEFAULT_DECISION_TIMEOUT_MS))
     )
     return rendered.replace("{{", "{").replace("}}", "}")

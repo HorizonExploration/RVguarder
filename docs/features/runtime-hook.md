@@ -176,7 +176,7 @@ npm run openclaw gateway
 
 ### OpenClaw 原生审批卡片
 
-工具调用被拦截时，OpenClaw 直接在界面上弹出审批卡片，显示动作名称和风险等级，用户可「允许一次」「始终允许」「拒绝」。
+工具调用被拦截时，OpenClaw 直接在界面上弹出审批卡片，显示动作名称和风险等级，用户可「允许一次」或「拒绝」。当前生成插件不提供持久放行；Guard 解析器也会拒绝 `allow-always`。
 
 ### Guard Dashboard
 
