@@ -24,26 +24,26 @@
 
 ```mermaid
 flowchart LR
-    H[OpenClaw before_tool_call] --> B[Hook Bridge<br/>BehaviorEvent]
-    B --> S[SemanticEnhancer<br/>labels/entities/RV trace]
-    S --> T[TraceCompiler<br/>Authorization Trace]
-    T --> P[PMKB policy engine]
+    H[OpenClaw before_tool_call<br/>执行前钩子] --> B[Hook Bridge<br/>行为事件 BehaviorEvent]
+    B --> S[SemanticEnhancer<br/>语义 labels/entities/RV trace]
+    S --> T[TraceCompiler<br/>授权轨迹 Authorization Trace]
+    T --> P[PMKB policy engine<br/>权限策略引擎]
     P --> E[PolicyEvaluator]
     P --> D[PermissionClosure + Diff]
     P --> G[RiskGraph]
-    E --> PD[PolicyDecision<br/>effect / selected rules / combos]
+    E --> PD[PolicyDecision<br/>效果/规则/组合 effect/rules/combos]
     D --> PD
     G --> PD
 
-    S --> BRV[Behavior DSL compiler<br/>rv_rules.json]
-    P --> PRV[PermissionAutomatonCompiler]
-    BRV --> R[RuntimeVerificationEngine]
+    S --> BRV[Behavior DSL compiler<br/>行为编译器 rv_rules.json]
+    P --> PRV[PermissionAutomatonCompiler<br/>权限自动机编译器]
+    BRV --> R[RuntimeVerificationEngine<br/>运行时验证]
     PRV --> R
     T --> R
     PD --> R
-    R --> M[Monotonic decision merge]
-    M --> O[OpenClaw allow / requireApproval / block]
-    O --> A[Audit + read-only Dashboard sync]
+    R --> M[Monotonic decision merge<br/>单调决策合并]
+    M --> O[OpenClaw allow / requireApproval / block<br/>放行/审批/阻断]
+    O --> A[Audit + read-only Dashboard sync<br/>审计与只读同步]
 ```
 
 决策顺序有两个不可变约束：
@@ -57,17 +57,17 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    K[PolicyBundle 1.1.0] --> R[PolicyRule]
-    K --> X[Permission relation]
-    R --> RM[PMKBRule_ID<br/>scope=session]
-    X --> XM[PMKBRelation_ID<br/>scope=principal]
-    RM --> DSL[MonitorSpec / ChainRule / StepRequirement.policy]
+    K[PolicyBundle 1.1.0<br/>权限知识库] --> R[PolicyRule<br/>权限规则]
+    K --> X[Permission relation<br/>权限关系]
+    R --> RM[PMKBRule_ID<br/>作用域 scope=session]
+    X --> XM[PMKBRelation_ID<br/>作用域 scope=principal]
+    RM --> DSL[MonitorSpec / ChainRule / StepRequirement.policy<br/>监视器规约]
     XM --> DSL
     DSL --> C[compile_monitors]
-    C --> SM[session monitor instances]
-    C --> PM[principal monitor instances]
-    PD[Authoritative PolicyDecision] --> PS[pmkb.permission synthetic step]
-    AT[Authorization Trace] --> PS
+    C --> SM[session monitor instances<br/>会话监视器实例]
+    C --> PM[principal monitor instances<br/>主体监视器实例]
+    PD[Authoritative PolicyDecision<br/>权威策略结论] --> PS[pmkb.permission synthetic step<br/>合成权限步骤]
+    AT[Authorization Trace<br/>授权轨迹] --> PS
     PS --> SM
     PS --> PM
 ```
@@ -129,11 +129,11 @@ effect 映射为 RV verdict：`auto_allow_audit → ok`、`clarify_then_retry/op
 
 ```mermaid
 flowchart TB
-    S1[session A] --> W1[WindowManager A<br/>behavior + PMKB rule monitors]
-    S2[session B] --> W2[WindowManager B<br/>behavior + PMKB rule monitors]
-    I[verified principal + agent + lineage] --> P[Principal PMKB relation monitors]
-    P --> R[Cross-session relation verdict]
-    U[unknown/unverified identity] --> X[No principal monitor merge]
+    S1[会话 A / session A] --> W1[窗口 A / WindowManager A<br/>behavior + PMKB rule monitors]
+    S2[会话 B / session B] --> W2[窗口 B / WindowManager B<br/>behavior + PMKB rule monitors]
+    I[可信主体 + Agent + 谱系<br/>verified principal + agent + lineage] --> P[主体 PMKB 关系监视器<br/>Principal relation monitors]
+    P --> R[跨会话关系结论<br/>cross-session verdict]
+    U[未知/不可信身份<br/>unknown/unverified identity] --> X[不合并主体监视器<br/>no principal monitor merge]
 ```
 
 - session 作用域按 `session_id`（回退 `session_key`）隔离，默认窗口 10 步、TTL 300 秒；

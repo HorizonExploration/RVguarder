@@ -13,12 +13,13 @@
 | 1 | [架构总览](./overview.md) | 分层结构、组件职责和端到端决策流 |
 | 2 | [权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md) | 本次升级的现行实现、数据合同、语义命中、权限建模和跨 session RV |
 | 3 | [RV 权限自动机架构](./rv-permission-automata.md) | 三类自动机、PMKB 编译合同、作用域和旧结构迁移 |
-| 4 | [RV 层技术报告](./rv-engine-report.md) | ToolCallIR、约束引擎、ChainRule、FSM 和会话状态 |
-| 4 | [RV 落地审计报告](./nl-automata-rv-landing-report.md) | RV 阶段 A–F 的代码核验和整改闭环 |
-| 5 | [前后端交接改造报告](./frontend-handoff-redesign-report.md) | OpenClaw 单一审批入口、SSE 同步和前端状态模型 |
-| 6 | [项目现状分析](./project-status-analysis.md) | 已完成能力、风险清单和后续优先级 |
-| 7 | [质量保障方案](./quality-assurance.md) | 测试分层、合约门禁、性能和回归策略 |
-| 8 | [目标架构参考](./target-architecture.md) | 仍有效的目标设计；与当前事实冲突时以当前记忆和代码为准 |
+| 4 | [旧规则迁移矩阵](./legacy-rule-migration-matrix.md) | 47 条旧规则的迁移事实、删除门槛和分组计划 |
+| 5 | [RV 层技术报告](./rv-engine-report.md) | ToolCallIR、约束引擎、ChainRule、FSM 和会话状态 |
+| 6 | [RV 落地审计报告](./nl-automata-rv-landing-report.md) | RV 阶段 A–F 的代码核验和整改闭环 |
+| 7 | [前后端交接改造报告](./frontend-handoff-redesign-report.md) | OpenClaw 单一审批入口、SSE 同步和前端状态模型 |
+| 8 | [项目现状分析](./project-status-analysis.md) | 已完成能力、风险清单和后续优先级 |
+| 9 | [质量保障方案](./quality-assurance.md) | 测试分层、合约门禁、性能和回归策略 |
+| 10 | [目标架构参考](./target-architecture.md) | 仍有效的目标设计；与当前事实冲突时以当前记忆和代码为准 |
 
 ## 当前架构要点
 

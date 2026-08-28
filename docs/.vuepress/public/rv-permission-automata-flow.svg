@@ -12,22 +12,22 @@
     </style>
   </defs>
   <rect width="1200" height="430" fill="#f8fafc"/>
-  <text x="600" y="38" class="t" style="font-size:24px">RV 权限自动机在线架构</text>
-  <text x="600" y="64" class="s">权限语义由 PMKB 决定；自动机只消费已验证的证据并单调提升处置</text>
+  <text x="600" y="38" class="t" style="font-size:24px">RV 权限自动机在线架构 / RV Permission Automata</text>
+  <text x="600" y="64" class="s">权限语义由 PMKB 决定 / PMKB is authoritative; monitors consume verified evidence only</text>
   <rect x="35" y="150" width="175" height="90" class="box" fill="#dbeafe" stroke="#2563eb"/>
-  <text x="122" y="185" class="t">OpenClaw Hook</text><text x="122" y="210" class="s">BehaviorEvent</text>
+  <text x="122" y="181" class="t">OpenClaw Hook</text><text x="122" y="206" class="s">钩子事件 / BehaviorEvent</text>
   <rect x="270" y="150" width="200" height="90" class="box" fill="#e0f2fe" stroke="#0284c7"/>
-  <text x="370" y="185" class="t">语义与 Trace</text><text x="370" y="210" class="s">entities · labels · scope</text>
+  <text x="370" y="181" class="t">语义与 Trace / Semantic Trace</text><text x="370" y="206" class="s">实体 · 标签 · 范围 / entities · labels · scope</text>
   <rect x="530" y="105" width="240" height="105" class="box" fill="#ede9fe" stroke="#7c3aed"/>
-  <text x="650" y="145" class="t">PMKB 策略权威</text><text x="650" y="170" class="s">规则 · 最小权限 · RiskGraph</text><text x="650" y="192" class="s">PolicyDecision</text>
+  <text x="650" y="141" class="t">PMKB 策略权威 / Policy Authority</text><text x="650" y="166" class="s">规则 · 最小权限 · RiskGraph</text><text x="650" y="190" class="s">PolicyDecision</text>
   <rect x="530" y="265" width="240" height="95" class="box" fill="#dcfce7" stroke="#16a34a"/>
-  <text x="650" y="302" class="t">行为 DSL 自动机</text><text x="650" y="327" class="s">session 行为链</text>
+  <text x="650" y="298" class="t">行为 DSL 自动机 / Behavior DSL</text><text x="650" y="323" class="s">会话行为链 / session behavior chain</text>
   <rect x="830" y="105" width="230" height="105" class="box" fill="#fef3c7" stroke="#d97706"/>
-  <text x="945" y="145" class="t">权限自动机</text><text x="945" y="170" class="s">rule: session</text><text x="945" y="192" class="s">relation: principal</text>
+  <text x="945" y="141" class="t">权限自动机 / Permission Automata</text><text x="945" y="166" class="s">规则：会话 / rule: session</text><text x="945" y="190" class="s">关系：主体 / relation: principal</text>
   <rect x="830" y="265" width="230" height="95" class="box" fill="#fee2e2" stroke="#dc2626"/>
-  <text x="945" y="302" class="t">单调决策合并</text><text x="945" y="327" class="s">allow → ask → block</text>
+  <text x="945" y="298" class="t">单调决策合并 / Monotonic Merge</text><text x="945" y="323" class="s">放行 → 审批 → 阻断 / allow → ask → block</text>
   <path d="M210 195 H270" class="l"/><path d="M470 195 H530" class="l"/>
   <path d="M650 210 V265" class="l"/><path d="M770 158 H830" class="l"/>
   <path d="M770 312 H830" class="l"/><path d="M945 210 V265" class="l"/>
-  <path d="M1060 312 H1135" class="l"/><text x="1145" y="307" class="cap">OpenClaw</text><text x="1145" y="329" class="cap">审批/阻断</text>
+  <path d="M1060 312 H1135" class="l"/><text x="1145" y="303" class="cap">OpenClaw</text><text x="1145" y="325" class="cap">审批/阻断</text><text x="1145" y="345" class="cap">approval / block</text>
 </svg>
