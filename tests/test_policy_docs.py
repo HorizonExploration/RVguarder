@@ -113,7 +113,7 @@ def test_policy_decision_examples_match_serialized_contract():
             assert set(("family", "scope", "classification")) <= item.keys()
 
 
-def test_docs_define_p0_metrics_shadow_gate_and_rollback():
+def test_docs_define_p0_metrics_bounded_validation_and_rollback():
     text = read_doc("docs/ops/roadmap.md")
     for token in (
         "complete coverage",
@@ -125,8 +125,8 @@ def test_docs_define_p0_metrics_shadow_gate_and_rollback():
         "40%",
         "60%",
         "50 ms",
-        "7–14",
-        "shadow",
+        "有限样本",
+        "20",
         "previous catalog",
         "audit records",
     ):

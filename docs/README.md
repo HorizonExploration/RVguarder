@@ -40,8 +40,8 @@ features:
   </div>
   <div class="custom-card">
     <h3>📦 当前状态</h3>
-    <p>v0.7.0-dev — PMKB 权限模型、最小权限与跨 session RV 已落地，Hook 仍由 OpenClaw 单一审批并通过 SSE 同步。PMKB 1.1.0 基础规则立即参与运行时决策；7–14 天 shadow gate 仅用于新规则或批量发布评估，个人模式可用显式确认或小样本证据启用偏好。</p>
-    <p><em>v0.7.0-dev — PMKB authorization modeling, least privilege, and cross-session RV are implemented. OpenClaw remains the single Hook approval owner with SSE synchronization. PMKB 1.1.0 baseline rules are enforced immediately; the 7–14 day shadow gate is optional for new rules or batch rollout, while personal mode can use explicit confirmation or small-sample evidence.</em></p>
+    <p>v0.7.0-dev — PMKB 权限模型、最小权限与跨 session RV 已落地，Hook 仍由 OpenClaw 单一审批并通过 SSE 同步。PMKB 1.1.0 基础规则立即参与运行时决策；新规则采用离线回放与有限事件样本校验，个人模式可用显式确认或小样本证据启用偏好。</p>
+    <p><em>v0.7.0-dev — PMKB authorization modeling, least privilege, and cross-session RV are implemented. OpenClaw remains the single Hook approval owner with SSE synchronization. PMKB 1.1.0 baseline rules are enforced immediately; new rules use offline replay and bounded event-sample validation, while personal mode can use explicit confirmation or small-sample evidence.</em></p>
   </div>
 </div>
 
@@ -53,13 +53,13 @@ features:
 
 OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式安全增强客户端与本地控制面。我们不做替代品，做的是**安全补位**。
 
-v0.7.0-dev 在 v0.6.0 六阶段架构与 RV 阶段 A–F 的基础上，增加版本化 PMKB 权限模型：Authorization Trace、覆盖感知匹配、最小权限闭包/差分、危险权限组合图、主体能力跨 session RV，以及 OpenClaw 单一审批契约。PMKB 1.1.0 基础规则直接参与运行时决策；7–14 天 shadow run 仅用于新规则评估和批量发布，指标用于晋级与回滚而非阻塞基础规则；详见 [路线图](./ops/roadmap.html)。
+v0.7.0-dev 在 v0.6.0 六阶段架构与 RV 阶段 A–F 的基础上，增加版本化 PMKB 权限模型：Authorization Trace、覆盖感知匹配、最小权限闭包/差分、危险权限组合图、主体能力跨 session RV，以及 OpenClaw 单一审批契约。PMKB 1.1.0 基础规则直接参与运行时决策；新规则使用离线回放与有限事件样本验证，指标用于晋级和回滚而非阻塞基础规则；详见 [路线图](./ops/roadmap.html)。
 
 **English**
 
 OpenClaw-RVGuarder ("Lobster Guard") is a non-invasive security enhancement client and local control plane for OpenClaw. We don't replace OpenClaw — we **backfill the safety gap**.
 
-v0.7.0-dev builds on the v0.6.0 six-phase refactor and RV phases A–F with a versioned PMKB authorization model: Authorization Traces, coverage-aware matching, least-privilege closure/diff, toxic permission-combination graphs, principal capability RV across sessions, and an OpenClaw single-approval contract. PMKB 1.1.0 baseline rules are enforced immediately; a 7–14 day shadow run is optional for new rules and batch rollout, with evidence used for promotion and rollback rather than blocking the baseline. See the [roadmap](./ops/roadmap.html).
+v0.7.0-dev builds on the v0.6.0 six-phase refactor and RV phases A–F with a versioned PMKB authorization model: Authorization Traces, coverage-aware matching, least-privilege closure/diff, toxic permission-combination graphs, principal capability RV across sessions, and an OpenClaw single-approval contract. PMKB 1.1.0 baseline rules are enforced immediately; new rules use offline replay and bounded event-sample validation, with evidence used for promotion and rollback rather than blocking the baseline. See the [roadmap](./ops/roadmap.html).
 
 ## 核心特性 · Core Features
 
