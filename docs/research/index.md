@@ -15,6 +15,7 @@
 
 - 规则内容和办公场景案例见 [`semantic/`](../semantic/method.md)；本目录不重复维护规则条目。
 - OpenClaw 对接约束见[前后端交接改造报告](../architecture/frontend-handoff-redesign-report.md)和[运行时 Hook 文档](../features/runtime-hook.md)。
+- 系统级落地结果见[权限知识库与 RV 运行时架构结果](../architecture/permission-kb-runtime-architecture.md)；本目录的研究报告用于解释依据、指标和后续验证，不覆盖代码事实。
 - 研究材料中的“目标”“建议”“待验证”不是已实现能力，落地状态以[项目记忆](../architecture/project-memory.md)为准。
 
 ## 历史研究

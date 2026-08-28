@@ -9,8 +9,9 @@ Openclaw Guard 的价值不在“执行后解释”，而在“执行前决策�
 ```text
 用户请求
   -> 事件推断 / 事件摄入
-  -> 风险规则判断
-  -> RV 规约 overlay（detection 后、controller 前，升权不降权）
+  -> 语义归一化 / Authorization Trace
+  -> PMKB 单步规则 + 最小权限 + 危险组合判断
+  -> RV 规约 overlay（PMKB 后、controller 前，升权不降权）
   -> 白名单校验
   -> 生成动作记录
   -> allow / ask / block / escalate / revise
@@ -29,6 +30,21 @@ OpenClaw 准备调用工具
   -> Guard 只读同步 resolution 后继续原始工具调用
   -> after_tool_call 回写 executed / failed
 ```
+
+## PMKB 权限决策证据
+
+每次 `before_tool_call` 都从 `policies/permissions/` 加载已校验的版本化 bundle。语义层先
+填充 action、resource、scope、data、context、principal 和 trusted identity，随后按
+`matched`、`partial`、`unknown`、`conflict` 返回匹配状态。PMKB 再计算：
+
+- 当前权限与申请权限的 `requested_delta`、冗余权限和超出最小权限的部分；
+- 显式 `implies` 闭包后的 least-privilege 范围；
+- 互斥、聚合和毒性权限组合的 `combo_violations`。
+
+最终 effect 只允许向更高风险合并：`auto_allow_audit`、`clarify_then_retry`、
+`openclaw_approval`、`block`。响应会携带 `policy_version`、`missing_features`、
+`risk_score`、`risk_reasons` 和 timing，供 Guard 页面解释和审计；Guard 页面不创建第二个
+审批按钮，需确认时只返回 OpenClaw 原生 `requireApproval`。
 
 ## 支持的动作类型（9 种）
 

@@ -34,6 +34,7 @@ export default defineUserConfig({
           children: [
             "/architecture/index.md",
             "/architecture/overview.md",
+            "/architecture/permission-kb-runtime-architecture.md",
             "/architecture/project-memory.md",
             "/architecture/frontend-handoff-redesign-report.md",
             "/architecture/rv-engine-report.md",

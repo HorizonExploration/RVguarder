@@ -4,6 +4,8 @@
 **范围**：基础知识库内容扩充与运行时链路接入  
 **版本**：PMKB `1.1.0`
 
+本报告记录数据与实现验收；系统分层、语义命中、权限建模和 RV 交互的现行说明以[权限知识库与 RV 运行时架构结果](../architecture/permission-kb-runtime-architecture.md)为准。
+
 ## 1. 目标与边界
 
 本次工作将公开网络安全案例提炼为可直接被 Guard 运行时加载的权限知识，不新增数据库表、不改变 OpenClaw 审批所有权，也不把用户一次批准转换成永久规则。用户化调整仍应作为后续有范围、有期限、可撤销的策略叠加层实现。
@@ -79,7 +81,7 @@ cd docs && npm run docs:build
 python -m pip wheel . --no-deps --no-build-isolation
 ```
 
-提交前验证结果：`472 passed, 18 skipped, 4 subtests passed`（包含本次新增 PMKB 与只读工具回归）；VuePress 成功渲染 36 页；wheel `openclaw_guard-0.3.0-py3-none-any.whl` 构建成功，并确认包含 `openclaw_guard/policy/data/permissions/rules/p0-office.json`。源码/打包知识库 JSON parity 校验通过。历史基线为 `469 passed, 18 skipped, 4 subtests passed`。
+提交前验证结果：`473 passed, 18 skipped, 4 subtests passed`（包含本次新增 PMKB 与文档合同、只读工具回归）；本次文档归档与架构结果页加入后，VuePress 最新构建渲染 33 页；wheel `openclaw_guard-0.3.0-py3-none-any.whl` 构建成功，并确认包含 `openclaw_guard/policy/data/permissions/rules/p0-office.json`。源码/打包知识库 JSON parity 校验通过。历史基线为 `469 passed, 18 skipped, 4 subtests passed`。
 
 ## 5. 后续建议
 

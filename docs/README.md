@@ -20,6 +20,8 @@ features:
     details: 后端不可达时自动进入熔断 fail-open 模式，所有工具调用自动放行。后端恢复后自动闭合。再不担心「停服即封锁」。
   - title: 🧠 语义理解增强
     details: DeepSeek LLM 驱动的语义分析引擎，理解自然语言约束而非简单关键词匹配。7 维度 50+ 标签，双模式运行（LLM / 本地规则）。
+  - title: 🧩 权限知识库 PMKB
+    details: 版本化操作目录、Authorization Trace、最小权限闭包/差分和危险权限组合图，直接参与 before_tool_call 决策并输出可解释证据。
   - title: 📊 运行时验证 RV
     details: 滑动窗口 + FSM 监视器，检测「搜索→删除→外发」等链式攻击模式。覆盖邮件、日报、群发、数据导出等办公场景。
   - title: 🖥️ 统一工作台
@@ -35,8 +37,8 @@ features:
   </div>
   <div class="custom-card">
     <h3>🧱 架构概览</h3>
-    <p>插件层 (api.on) → 桥接层 (HTTP POST) → 检测层 (规则+语义+RV) → 决策层 (requireApproval/block) → Guard 状态同步 (onResolution + SSE)</p>
-    <p><em>Plugin hooks → Bridge API → Detection (Rule+Semantic+RV) → Decision (requireApproval/Block) → Read-only Guard sync (onResolution + SSE)</em></p>
+    <p>插件层 (api.on) → 语义/Authorization Trace → PMKB 权限策略 → session/principal RV → 决策层 (requireApproval/block) → Guard 状态同步 (onResolution + SSE)</p>
+    <p><em>Plugin hooks → Semantic/Trace → PMKB policy → session/principal RV → Decision → Read-only Guard sync</em></p>
   </div>
   <div class="custom-card">
     <h3>📦 当前状态</h3>
@@ -44,6 +46,20 @@ features:
     <p><em>v0.7.0-dev — PMKB authorization modeling, least privilege, and cross-session RV are implemented. OpenClaw remains the single Hook approval owner with SSE synchronization. PMKB 1.1.0 baseline rules are enforced immediately; new rules use offline replay and bounded event-sample validation, while personal mode can use explicit confirmation or small-sample evidence.</em></p>
   </div>
 </div>
+
+---
+
+## 本次升级结果 · Current Upgrade Result
+
+本次升级的现行事实以[权限知识库与 RV 运行时架构结果](./architecture/permission-kb-runtime-architecture.html)为准：
+
+- PMKB `1.1.0` 已接入 `before_tool_call` 主链，当前基线包含 22 个操作、25 条规则、23 条最小权限 Trace、9 条权限关系和 27 个回归向量。
+- 语义层先将输入规范化为 Authorization Trace，再进行覆盖感知规则命中；`unknown`、`partial`、`conflict` 不会被模糊匹配直接放行。
+- 权限闭包/差分和 RiskGraph 在单步规则之后运行，检查超出业务最小权限、互斥权限和危险聚合组合。
+- RV 保留 session-local 行为窗口，并增加以主体、agent 和能力血缘为键的 principal-global 跨 session 状态；审批仍只由 OpenClaw 原生审批中心完成。
+- 当前文档中的“目标指标”与“实测指标”分开记录；PMKB 尚未覆盖历史全部 47 条规则，也没有自动学习写入生产规则。
+
+配套材料：[PMKB 网络案例基线](./semantic/pmkb-network-case-baseline.html)、[实现结果报告](./research/pmkb-network-baseline-implementation-report-2026-08-28.html)、[路线图](./ops/roadmap.html)。
 
 ---
 

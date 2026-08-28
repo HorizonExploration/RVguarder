@@ -2,9 +2,11 @@
 
 > **核对日期**：2026-08-28（文档重组后复核）
 > **核对基准**：当前工作树（PMKB 网络案例基础知识库 `1.1.0`）
-> **测试基线（2026-08-28）**：`python -m pytest -q` → **472 passed / 18 skipped / 4 subtests passed**
+> **测试基线（2026-08-28）**：`python -m pytest -q` → **473 passed / 18 skipped / 4 subtests passed**
 
 本文档是后续维护项目时的“当前事实源”。历史方案、阶段性审计报告和旧版本说明仍然保留，但如果它们与本文档或当前代码冲突，应以当前代码和本文档为准。
+
+本次权限知识库与运行时验证升级的系统级结果见[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)；本文档负责维护全项目事实摘要，避免重复复制策略细节。
 
 ## 1. 项目定位
 
@@ -24,10 +26,11 @@ OpenClaw-RVGuarder（龙虾卫士）是面向 OpenClaw 的非侵入式运行时�
 OpenClaw before_tool_call
   → Hook Bridge / BehaviorEvent
   → SemanticEnhancer（DeepSeek LLM 或本地规则降级）
-  → DetectionEngine（47 条单步规则 + 办公场景策略）
+  → TraceCompiler / PMKB PolicyEvaluator（Authorization Trace、最小权限、RiskGraph）
+  → DetectionEngine（47 条历史单步规则 + 办公场景策略）
   → ConstraintEngine（可配置，升权不降权）
   → RuntimeVerificationEngine（默认 ChainRule DSL，FSM 回退）
-  → SessionSafetyState（会话累计风险、escalate/revise）
+  → SessionSafetyState + PrincipalSecurityState（会话与主体跨 session 累计风险）
   → GuardController
   → requireApproval / block / allow
   → after_tool_call 审计
@@ -40,6 +43,7 @@ OpenClaw before_tool_call
 | 区域 | 当前职责 |
 |---|---|
 | `openclaw_guard/engine/` | 语义增强、单步检测、控制决策、白名单、热路径编排 |
+| `openclaw_guard/policy/` | PMKB bundle、TraceCompiler、规则评估、权限闭包/差分、RiskGraph |
 | `openclaw_guard/rv/` | ToolCallIR、约束推理、ChainRule DSL、RV 引擎、基线自动机 |
 | `openclaw_guard/spec/` | NL2Spec、规约校验、正反例 trace、会话安全状态 |
 | `openclaw_guard/core/` | 动作、审计、基线等业务服务 |
@@ -68,12 +72,12 @@ OpenClaw before_tool_call
 - 基线 DFA 只有在设置 `OPENCLAW_RV_BASELINE_DFA_PATH` 或显式传入路径时才加载，默认不做基线偏离检测。
 - collectors 下的 ptrace/eBPF 仍是 capability 探测桩；不要把它们描述成已落地的系统级采集器。
 - NL2Spec 的当前实现以模板/关键词和确定性 ChainRule 合成为主，LLM 生成接口仍属于可选扩展路径。
-- 前端自动化测试、文档站 CI、审计归档轮转、熔断告警和 RV 状态持久化仍在路线图中。
+- 前端自动化测试、文档站 CI、审计归档轮转和熔断告警仍在路线图中；主体级 RV 状态持久化已落地，但仍需长期稳定性和跨版本迁移验证。
 
 ## 6. 维护规则
 
 1. 先看本文件、`docs/architecture/index.md`、`docs/ops/roadmap.md`，再看现行研究文档；历史材料统一在 `docs/archive/`，`testlab/` 仅作为历史实验与证据，不是运行时依赖。
 2. 修改 Hook 合约、RV 判定顺序、默认模式或版本号时，同时更新 API/架构/部署文档和测试基线。
-3. 报告测试数量必须注明运行日期和命令；历史报告中的旧计数是快照，不应覆盖当前 **472 / 18 / 4** 全量回归结果。
+3. 报告测试数量必须注明运行日期和命令；历史报告中的旧计数是快照，不应覆盖当前 **473 / 18 / 4** 全量回归结果。
 4. 运行时是否处于 fail-open 不能从静态文档推断，必须通过进程、健康接口和插件状态现场检查。
 5. 文档与前端构建验证命令分别为 `cd docs && npm run docs:build`、`cd frontend && npm run build`；2026-08-23 均已通过。

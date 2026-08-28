@@ -3,7 +3,7 @@
 > **版本**：v0.7.0-dev（含 PMKB 1.1.0、RV 阶段 A–F 和 OpenClaw 单一审批契约）
 > **分析日期**：2026-08-28（文档重组后复核）
 > **分析基准**：当前工作树；精确提交号以 Git 为准
-> **测试基线（2026-08-28）**：`python -m pytest -q` → **472 passed / 18 skipped / 4 subtests passed**
+> **测试基线（2026-08-28）**：`python -m pytest -q` → **473 passed / 18 skipped / 4 subtests passed**
 
 ---
 
@@ -12,6 +12,8 @@
 OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运行时安全保护系统。当前项目已跨过 v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆分懒加载、Preact 前端迁移），并在此基础上完成 RV 层拆分（`engine/` → `rv/` + `spec/`）与规约驱动能力（阶段 A–F）的落地。
 
 项目整体处于**核心链路可用、治理能力持续完善**阶段：检测、审批、审计、RV 和 PMKB 基础链路已落地，但仍存在三类系统性问题——**前端自动化测试与构建门禁不足**、**双轨 HTTP 层维护成本**、**约束规则与标签规则并行导致的治理风险**。本报告按三大维度展开，并给出后续推进顺序。当前事实与维护口径见 [项目理解与当前记忆](./project-memory.md)。
+
+本次升级的可核对结果集中在[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)：PMKB `1.1.0` 已进入 `before_tool_call` 热路径，提供 22 个 canonical operations、25 条规则、23 条最小权限 Trace、9 条权限关系和 27 个回归向量；它与历史 47 条 DetectionEngine 规则并存，尚未完成统一数据源迁移。
 
 ---
 
@@ -61,7 +63,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 9. **阶段 D：RV 参数化原语** — entity 匹配、时间间隔、state_counter、quantifier/bind_vars。
 10. **阶段 E：NL2Spec 生成** — `spec/nl2spec_generator.py` + `spec/spec_validator.py` + 正反例 trace 库（`eval_traces.py`）。
 11. **阶段 F：会话安全状态** — `spec/session_state.py`，接入 pipeline `_apply_session_escalation`，per-session 累计风险升级。
-12. **PMKB 1.1.0** — 网络案例基础规则通过 `PolicyBundle → TraceCompiler → PolicyEvaluator → RiskGraph` 接入运行时；基础规则立即生效，新规则使用离线回放和有限事件样本验证。
+12. **PMKB 1.1.0** — 网络案例基础规则通过 `PolicyBundle → TraceCompiler → PolicyEvaluator → PermissionClosure/Diff → RiskGraph` 接入运行时；基础规则立即生效，新规则使用离线回放和有限事件样本验证；主体级 RV 状态按受控键持久化并跨 session 聚合。
 
 ### 3.3 核心安全能力
 
@@ -180,4 +182,4 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 
 ---
 
-*本报告已于 2026-08-28 复核；全量回归为 **472 passed / 18 skipped / 4 subtests passed**（`python -m pytest -q`）。历史问题快照保留原日期和语境。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 为准。*
+*本报告已于 2026-08-28 复核；全量回归为 **473 passed / 18 skipped / 4 subtests passed**（`python -m pytest -q`）。历史问题快照保留原日期和语境。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 为准。*

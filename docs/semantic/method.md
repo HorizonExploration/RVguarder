@@ -1,5 +1,7 @@
 # OpenClaw-RVGuarder 语义理解增强方案
 
+> **当前实现提示（2026-08-28）**：本文保留语义层的设计与字段说明；当前 PMKB、Authorization Trace、权限组合和 RV 的系统级落地以[权限知识库与 RV 运行时架构结果](../architecture/permission-kb-runtime-architecture.md)为准。本文中的“建议/后续”不等于已上线能力。
+
 ## 1. 目标与问题
 
 当前项目已经具备稳定的执行前拦截主链，但“输入理解”仍主要停留在关键词、前缀和路径匹配层面，导致以下问题：
@@ -9,7 +11,7 @@
 - `conversation.py` 与 `tool_hook_bridge.py` 在“输入归类”阶段已经做了大量启发式判断，错误会一路传递到规则引擎。
 - 当前规则引擎适合快速拦截显式高危操作，但不适合处理“意图安全、落地危险”或“表面无害、组合后危险”的情况。
 
-本方案的目标不是替换现有 47 条规则，而是在保持现有快速规则引擎不变的前提下，增加一个可控、可回退、低延迟的语义增强层，使 Guard 对输入的理解从“关键词命中”提升为“意图、约束、Trace 和上下文联合判定”。
+本方案的目标不是替换现有 47 条历史规则，而是在保持快速检测路径可回退的前提下，通过语义增强和 PMKB 权限模型，使 Guard 对输入的理解从“关键词命中”提升为“意图、约束、Authorization Trace 和上下文联合判定”。
 
 ## 2. 当前真实链路
 
@@ -61,7 +63,7 @@
 
 - `ingest_event(...)` 是聊天侧的主入口
 - `handle_before_tool_call(...)` 是 Hook 侧的主入口
-- 两处都会执行：`event -> detector.evaluate(event) -> controller.decide(...)`
+- 两处都会执行：`event -> semantic/Trace -> detector.evaluate(event) -> AuthorizationPolicyEngine -> ConstraintEngine -> RV -> controller.decide(...)`
 
 ## 3. 当前局限的根因
 
@@ -107,26 +109,34 @@
         │
         ├─ DetectionEngine.evaluate()
         │    ├─ 确保语义载荷存在（兜底补齐）
-        │    ├─ 办公场景策略优先判定（_office_decision）
-        │    ├─ 语义标签规则匹配（_semantic_predicates）
+        │    ├─ 办公场景策略优先判定
+        │    ├─ 语义标签规则匹配
         │    └─ fallback 决策
         │
+        ├─ AuthorizationPolicyEngine（PMKB 1.1.0）
+        │    ├─ TraceCompiler / 覆盖状态
+        │    ├─ 单步规则与风险评分
+        │    ├─ PermissionClosure / PermissionDiff
+        │    └─ RiskGraph 危险权限组合
+        │
+        ├─ ConstraintEngine（可选升权）
+        │
+        ├─ RuntimeVerificationEngine + PrincipalSecurityState
+        │    └─ session / principal 跨步骤组合风险与不变量检测
+
         ├─ GuardController.decide(...)
         │    └─ 叠加白名单与审批状态
-        │
-        ├─ RuntimeVerificationEngine
-        │    └─ 跨步骤组合风险 + 不变量检测
         │
         └─ ControlledAction 保存 + 审计写入
 ```
 
-尚未实现（计划后续接入）：
+仍属后续增强（当前不作为自动放行依据）：
 
 ```text
         ├─ BackTranslationVerifier.verify()
         │    └─ 检查 trace 是否丢失原始约束
         │
-        └─ DecisionFusion（语义 + RV 联合）
+        └─ BackTranslationVerifier / 更强的 DecisionFusion 校验
 ```
 
 ## 6. 关键模块设计
@@ -161,7 +171,9 @@
 
 ### 6.2 SemanticEnhancer（已实现）
 
-职责：作为独立语义层模块，对每个进入主链的事件产出结构化语义结果与 `rv_trace`，供 `DetectionEngine` 和后续 RV 层直接消费。
+职责：作为独立语义层模块，对每个进入主链的事件产出结构化语义结果与 `rv_trace`，由
+`TraceCompiler` 编译为 PMKB 与 RV 共同消费的 Authorization Trace，再供 `DetectionEngine`
+和后续 RV 层使用。
 
 已实现模块：
 
@@ -283,7 +295,7 @@ class SemanticEnhancer:
 - 必须输出 `trace`
 - 必须列出 `missing_constraints`
 
-### 6.4 DecisionFusion（已实现核心逻辑）
+### 6.4 DecisionFusion（当前已实现的核心逻辑）
 
 当前实现的中决策融合策略（位于 `detection.py`）：
 
@@ -293,15 +305,18 @@ class SemanticEnhancer:
    - `mail_send + bulk_send -> escalate`
    - `mail_send + ai_generated_content + 无人审阅 -> ask`
    - `report_generate + missing_scope_constraint -> ask`
-2. 语义标签规则匹配（`_semantic_predicates()`）：
-   - 47 条规则保留，但匹配输入为语义标签集合而非原始字符串
+2. 语义标签规则匹配：
+   - 历史 47 条规则仍保留，但匹配输入为语义标签集合而非原始字符串
+   - PMKB 1.1.0 随后以 Authorization Trace 评估单步权限、最小权限差分和危险组合
    - 命中规则后取最强风险等级对应的决策
 3. fallback 决策（`_fallback_decision()`）：
    - 邮件/日报外发场景默认 `ask`
    - 命令/文件/网络/配置等敏感动作默认 `ask`
    - 只读命令和聊天消息按低风险 `allow`
 
-LLM 不直接替代规则引擎，而是作为语义标签的增强来源参与融合。当前版本中语义标签由本地规则化实现产出，后续接入 LLM 后可进一步提升标签精度。
+LLM 不直接替代规则引擎，也不直接做最终授权，而是作为语义标签的增强来源参与融合。未配置
+LLM 时本地规则化实现仍可输出 Trace；`unknown/partial/conflict` 进入澄清或 OpenClaw 审批，
+不会因分数相似而自动放行。
 
 ### 6.5 Back-translation
 
@@ -501,7 +516,9 @@ G( file_delete(target in high_value_path) -> ask )
 
 ### 7.6 语义层与 RV 的接口要求
 
-为兼顾架构简单性与后续可扩展性，本方案不强制增加一个独立“统一中间层模块”，而是约定由 `SemanticEnhancer` 直接产出 RV 可消费的 `rv_trace`。这样实现上是“语义层直接连接 RV 层”，设计上仍通过接口约定保持解耦。
+当前实现已在语义层和策略/RV 层之间使用 `TraceCompiler` 作为稳定适配边界。`SemanticEnhancer`
+保留语义实体、标签和置信度，`TraceCompiler` 将其编译为 PMKB 与 RV 共同消费的
+Authorization Trace；这样既避免下游重复解析，也能集中记录 coverage gap 和 provenance。
 
 为了让后续验证引擎可用，`SemanticEnhancer` 的输出必须满足以下要求：
 
@@ -539,9 +556,9 @@ G( file_delete(target in high_value_path) -> ask )
 说明：
 
 - `semantic` 用于保留语义理解结果和审计证据
-- `rv_trace` 是 RV 层唯一需要稳定依赖的字段
-- 当前阶段不单独抽出 `TraceTranslator` 模块，避免为了抽象而抽象
-- 如果未来出现“多 RV 引擎并存”或“同一份语义结果服务多种下游”的情况，再把转换逻辑独立成适配层即可
+- `AuthorizationTrace` 是 PMKB 与 RV 之间稳定依赖的结构化对象；`rv_trace` 仍作为历史兼容字段透传
+- 当前 `TraceCompiler` 已承担转换和覆盖计算，不再要求每个下游自行解释原始标签
+- 如果未来出现更多策略引擎，再扩展 Trace schema，而不是新增平行解析链
 
 这样语义层和 RV 层之间就不是松散文本接口，而是简洁但稳定的验证接口。
 

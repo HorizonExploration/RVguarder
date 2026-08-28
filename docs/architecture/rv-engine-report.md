@@ -4,6 +4,8 @@
 > 范围：`openclaw_guard/rv/`（运行时验证）+ `openclaw_guard/spec/`（规约生成与校验）两个子包
 > 关联文档：[RV 落地审计报告](./nl-automata-rv-landing-report.md)（落地核验）、[路线图](../ops/roadmap.md)（当前推进）；历史 NL→Automata 计划位于 `docs/archive/research/nl-automata-rv-upgrade-plan.md`
 
+> **当前实现更新（2026-08-28）**：本报告保留 RV 引擎的机制细节；PMKB、Authorization Trace、危险权限组合和主体跨 session 状态的现行交互以[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)为准。
+
 ---
 
 ## 0. 核心结论：自动机是「自动生成」的吗？
@@ -94,6 +96,20 @@ verdict 风险等级：ok(1) < ask(2) < escalate(3) < block(4)
 | 时间间隔 | `step_gap(older, newer)` | 阶段 D：两步时间差 |
 | 时间门槛 | `age_of_oldest()` | 窗口最老条目年龄 |
 | 序列化 | `to_dict()` / `from_dict()` | 状态持久化 |
+
+### 2.4 与 PMKB 和主体级 RV 的边界
+
+RV 不替代 PMKB 的单步权限判断，而是在 PMKB 产生 `PolicyDecision` 后继续验证行为序列：
+
+```text
+SemanticEnhancer → TraceCompiler → PMKB（单步/最小权限/RiskGraph） → RV（序列）
+```
+
+`RuntimeVerificationEngine` 的窗口仍按 `session_id` 隔离，避免会话之间相互污染；另外，
+`services.py` 中的 `PrincipalSecurityState` 按
+`(principal_id, agent_id, capability_lineage)` 保存主体能力风险，用于跨 session 关联敏感
+读取、权限授予与外联等事件。主体状态有 TTL、数量上限并写入 `runtime/rv-state.json`；缺少
+可信身份时不做跨 session 合并。两类 RV 结果都只能提升、不能降低 PMKB 或 Detection 的安全处置。
 
 ---
 

@@ -33,6 +33,25 @@ def test_docs_preserve_openclaw_single_approval_owner():
     assert "OpenClaw" in text and "唯一审批" in text
 
 
+def test_current_architecture_documents_describe_pmkb_semantic_and_rv_layers():
+    architecture = read_doc("docs/architecture/permission-kb-runtime-architecture.md")
+    readme = read_doc("README.md")
+    for token in (
+        "PolicyBundle",
+        "TraceCompiler",
+        "PermissionClosure",
+        "PermissionDiff",
+        "RiskGraph",
+        "PrincipalSecurityState",
+        "openclaw_approval",
+        "session_id",
+        "473 passed",
+    ):
+        assert token in architecture
+    for token in ("PMKB", "Authorization Trace", "SemanticEnhancer", "ChainRule DSL"):
+        assert token in readme
+
+
 def test_runtime_hook_docs_match_once_only_resolution_contract():
     runtime_hook = read_doc("docs/features/runtime-hook.md")
     spec = read_doc("docs/archive/specs/2026-08-27-openclaw-rvguarder-five-phase-upgrade-design.md")

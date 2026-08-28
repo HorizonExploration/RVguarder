@@ -4,6 +4,8 @@
 
 这一页说明龙虾卫士如何在**不修改 OpenClaw 源码**的前提下，把高风险工具调用真正拦在执行前，以及如何把 OpenClaw 原生审批结果及时同步到 Guard Dashboard。
 
+权限知识库、语义命中和双作用域 RV 的系统级结果见[权限知识库与 RV 运行时架构结果](../architecture/permission-kb-runtime-architecture.md)。
+
 ## 核心机制
 
 龙虾卫士不会去改 OpenClaw 内部逻辑，而是利用 OpenClaw 自带的插件能力：
@@ -57,7 +59,9 @@ OpenClaw 进入工具调用
   -> api.on("before_tool_call")
   -> 调用 Guard 本地 API (/api/hook/before-tool-call)
   -> Guard 转成行为事件
-  -> 风险判定
+  -> 语义归一化 / Authorization Trace
+  -> PMKB 规则、最小权限与危险组合判定
+  -> session/principal RV 验证
   -> allow / ask (require_approval) / block / escalate / revise (require_approval + revision_hint)
   -> require_approval 时 OpenClaw 挂起 agent，展示审批卡片
   -> 用户只在 OpenClaw 原生 UI 批准或拒绝

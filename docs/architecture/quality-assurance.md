@@ -311,6 +311,25 @@ def assert_json_response(resp):
 - `tests/test_rv_frontend_integration.py`（rv_status/rv_toggle/summary 全流程）
 - `tests/test_integration_storage_rv_matrix.py`（切换 `rule_mode` 的 API 断言）
 
+#### 4.6 PMKB、语义命中与权限组合回归（当前门禁）
+
+本次升级增加了“语义输入 → Authorization Trace → PMKB → RV”的专门回归，而不是只断言最终
+`allow/block`。最小矩阵如下：
+
+| 层 | 必测断言 | 当前证据 |
+|---|---|---|
+| bundle | schema、版本、源码/打包目录 parity | `tests/test_policy_catalog.py`、`tests/test_pmkb_network_baseline.py` |
+| 语义/Trace | canonical operation、实体、缺失特征和 coverage gap | `tests/test_authorization_trace.py`、`tests/test_pmkb_network_baseline.py` |
+| 单步规则 | `matched/partial/unknown/conflict`、评分和风险效果 | `tests/test_policy_evaluator.py` |
+| 最小权限 | closure、requested delta、冗余/越界和 scope expansion | `tests/test_permission_diff.py` |
+| 组合关系 | 4 类高危组合与 evidence lineage | `tests/test_permission_risk_graph.py` |
+| 集成决策 | PMKB 与 Detection/Constraint/RV 只升权合并、OpenClaw 单一审批 | `tests/test_policy_pipeline.py`、`tests/test_principal_rv_hook_integration.py` |
+| 跨 session | principal 键、TTL、持久化恢复和 session 隔离 | `tests/test_principal_capability_rv.py` |
+| 文档合同 | 当前架构和 README 不回退到旧版本/旧审批口径 | `tests/test_policy_docs.py` |
+
+当前全量基线为 `473 passed / 18 skipped / 4 subtests passed`；覆盖率、人工审批下降比例和命中率目标
+仍需用真实事件或离线回放另行测量，不把目标指标写成已经达成的结果。
+
 ### 4.4 回退测试
 
 每阶段完成后，必须运行一次全量 pytest 回归，确保无功能退化：

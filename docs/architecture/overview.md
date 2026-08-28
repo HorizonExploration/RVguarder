@@ -2,31 +2,45 @@
 
 Openclaw Guard 采用分层、非侵入、模块化设计，核心原则是：**不修改 OpenClaw 源码，不替换系统库，通过外部壳、本地插件和行为代理完成安全增强。**
 
-## 分层结构
+## 当前分层结构
 
 ```text
-管理层
-  ├─ Web 工作台
-  ├─ 报告与导出
-  └─ 配置与操作入口
-
-管控层
-  ├─ 白名单
-  ├─ 审批流
-  ├─ allow / ask / block / escalate / revise
-  └─ 二次确认
-
-检测层
-  ├─ 高危规则引擎
-  ├─ 风险分级
-  └─ 规则命中追踪
-
-监控层
-  ├─ 资产发现
-  ├─ 基线扫描
-  ├─ 行为采集
-  └─ ptrace / eBPF / Hook Bridge / OpenClaw 原生 Hook
+1. 接入边界
+   OpenClaw api.on(before_prompt_build / before_tool_call / after_tool_call)
+   → Hook Bridge / BehaviorEvent
+2. 语义理解与 Trace
+   SemanticEnhancer
+   → action / resource / scope / data / context / principal / identity
+   → TraceCompiler / canonical operation
+3. 规则知识库与权限模型（PMKB 1.1.0）
+   PolicyEvaluator
+   → 单步规则、覆盖状态、最小权限 Closure/Diff、RiskGraph 组合关系
+4. 运行时验证（RV）
+   ChainRule DSL（默认）/ FSM 回退
+   → session-local window + principal-global capability state
+5. 决策与审批
+   Detection / Constraint / RV 结果合并（只升权不降权）
+   → allow / revise / requireApproval / block
+6. 同步与取证
+   OpenClaw 原生审批结果 → onResolution → SSE/增量对账 → SQLite/JSONL 审计
 ```
+
+端到端的当前主链是：
+
+```text
+before_tool_call
+  → 语义归一化与 Authorization Trace
+  → PMKB 覆盖感知匹配
+  → 权限闭包/差分与危险组合检查
+  → session/principal RV
+  → 决策控制器
+  → OpenClaw 唯一审批入口
+  → resolution/SSE 只读同步与审计
+```
+
+本次升级的完整实现口径、数据文件和测试证据见
+[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)。PMKB 的案例规则明细见
+[PMKB 网络案例基线](../semantic/pmkb-network-case-baseline.md)。
 
 ## 当前代码映射
 
@@ -38,11 +52,13 @@ Openclaw Guard 采用分层、非侵入、模块化设计，核心原则是：**
 - `engine/behavior.py`：行为事件摄入
 - `engine/detection.py`：内置安全规则与检测引擎
 - `engine/whitelist.py`：Trie / Radix Tree 白名单匹配
+- `engine/semantic_enhancer.py`：本地/LLM 语义标注，输出 `entities`、`labels`、`classification`、`purpose`、`confidence`
+- `policy/`：版本化 PMKB bundle、`TraceCompiler`、规则评估、权限闭包/差分与危险组合图
 - `engine/control.py`：动作决策、审批状态流
-- `rv/runtime_verification.py`：RV 运行时验证引擎（规约驱动 DSL（默认）+ FSM 回退 + 滑动窗口，per-session 隔离，支持状态序列化）
+- `rv/runtime_verification.py`：RV 运行时验证引擎（规约驱动 DSL（默认）+ FSM 回退 + 滑动窗口，per-session 隔离）
 - `rv/rv_dsl.py` + `rv/rv_rules.json`：ChainRule 声明式规约与编译监视器（`OPENCLAW_RV_RULE_MODE=dsl` 为默认模式）
 - `rv/rv_monitors.py`：手写 FSM 监视器（规约模式关闭时的回退实现）
-- `engine/semantic_enhancer.py`：语义分析与上下文标注 (DeepSeek 驱动)
+- `services.py`：主体级 RV 状态、策略引擎和持久化装配；主体键为 `principal_id + agent_id + capability_lineage`
 - `core/audit_service.py`：SQLite + JSON 审计与哈希链
 - `storage/db_store.py`：DBStore 接口族（SQLiteStore / PostgreSQLStore / SQLAlchemyStore，`DB_STORE_MODE=sqlalchemy` 启用 ORM 存储）
 - `manager.py`：向后兼容子类（OpenclawGuardManager 继承 GuardServices，方法委托 `_*_impl`）
