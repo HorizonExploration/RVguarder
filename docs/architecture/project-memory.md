@@ -68,7 +68,7 @@ OpenClaw before_tool_call
 
 - `pyproject.toml` 与 `openclaw_guard.__version__` 仍为 `0.3.0`，而发布提交和文档产品版本为 `v0.6.0`；这是版本元数据未统一的问题。
 - 默认 HTTP 入口仍是 `legacy_web.py`，FastAPI 需要 `--fastapi`；双轨路由存在维护和行为漂移成本。
-- 约束引擎与 47 条检测规则仍是并行判定链，尚未完成全部规则迁移为统一 ConstraintRule 数据源。
+- 47 条检测规则已动态生成 ConstraintRule，并生成 `LEGACY-<old-id>` PMKB 兼容记录；DetectionEngine 仍保留快速单步防线，尚未完成可删除的退役闭环。
 - 基线 DFA 只有在设置 `OPENCLAW_RV_BASELINE_DFA_PATH` 或显式传入路径时才加载，默认不做基线偏离检测。
 - collectors 下的 ptrace/eBPF 仍是 capability 探测桩；不要把它们描述成已落地的系统级采集器。
 - NL2Spec 的当前实现以模板/关键词和确定性 ChainRule 合成为主，LLM 生成接口仍属于可选扩展路径。

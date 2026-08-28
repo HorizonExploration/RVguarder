@@ -13,7 +13,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 
 项目整体处于**核心链路可用、治理能力持续完善**阶段：检测、审批、审计、RV 和 PMKB 基础链路已落地，但仍存在三类系统性问题——**前端自动化测试与构建门禁不足**、**双轨 HTTP 层维护成本**、**约束规则与标签规则并行导致的治理风险**。本报告按三大维度展开，并给出后续推进顺序。当前事实与维护口径见 [项目理解与当前记忆](./project-memory.md)。
 
-本次升级的可核对结果集中在[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)：PMKB `1.1.0` 已进入 `before_tool_call` 热路径，提供 22 个 canonical operations、25 条规则、23 条最小权限 Trace、9 条权限关系和 27 个回归向量；它与历史 47 条 DetectionEngine 规则并存，尚未完成统一数据源迁移。
+本次升级的可核对结果集中在[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)：PMKB `1.1.0` 已进入 `before_tool_call` 热路径，提供 22 个 canonical operations、25 条持久化规则、47 条 `LEGACY-<old-id>` 兼容规则、23 条最小权限 Trace、9 条权限关系和 27 个回归向量；DetectionEngine 仍保留快速单步防线，尚未完成可删除的统一数据源退役。
 
 ---
 

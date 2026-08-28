@@ -90,6 +90,9 @@ def _configure_policy_fixtures(services, monkeypatch) -> None:
     monkeypatch.setattr(services.detector, "evaluate", detector_allow)
     monkeypatch.setattr(services.policy_engine, "compile_trace", compile_trace)
     monkeypatch.setattr(services.policy_engine, "evaluate", evaluate)
+    # The fixture supplies authoritative synthetic policy decisions; keep this
+    # integration focused on principal-RV state and controller ordering.
+    monkeypatch.setattr(services, "constraint_engine_enabled", lambda: False)
 
 
 def _build_services(project, config_path):

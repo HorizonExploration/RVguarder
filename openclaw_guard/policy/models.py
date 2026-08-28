@@ -181,11 +181,12 @@ class PolicyRule(GuardBaseModel):
     rollback_state: str = ""
     positive_examples: list[dict[str, Any]] = Field(default_factory=list)
     negative_examples: list[dict[str, Any]] = Field(default_factory=list)
+    legacy_rule_ids: list[str] = Field(default_factory=list)
 
     def model_post_init(self, __context: Any) -> None:
         """Freeze nested rule data after Pydantic has validated the record."""
         for field_name in (
             "match", "required_fields", "negative_conditions", "obligations",
-            "test_vectors", "positive_examples", "negative_examples",
+            "test_vectors", "positive_examples", "negative_examples", "legacy_rule_ids",
         ):
             object.__setattr__(self, field_name, _deep_freeze(getattr(self, field_name)))

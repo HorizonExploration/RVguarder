@@ -48,6 +48,14 @@ def test_catalog_rejects_duplicate_rule_ids(tmp_path):
 def test_rules_prefer_exact_operation_index_to_aliases():
     bundle = PolicyBundle.load(ROOT)
     assert [rule.id for rule in bundle.rules_for_operation("message.send")] == ["EX-10", "P0-MESSAGE-SEND"]
+
+
+def test_legacy_detection_rules_are_exposed_to_the_policy_bundle():
+    bundle = PolicyBundle.load(ROOT)
+    legacy = bundle.legacy_rules()
+
+    assert len(legacy) == 47
+    assert {rule.legacy_rule_ids[0] for rule in legacy} >= {"CMD-001", "NET-005", "CFG-002", "GEN-006"}
     assert [rule.id for rule in bundle.rules_for_operation("data.query")] == ["EX-19"]
     assert [rule.id for rule in bundle.rules_for_operation("file.bulk_transfer")] == ["EX-27"]
 

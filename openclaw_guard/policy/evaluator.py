@@ -19,7 +19,8 @@ class PolicyEvaluator:
     def match_rule(self, rule: PolicyRule, trace: AuthorizationTrace) -> MatchCandidate:
         match = rule.match
         operation = str(match.get("operation", ""))
-        exact = operation == trace.operation.family
+        wildcard = operation == "*"
+        exact = wildcard or operation == trace.operation.family
         alias = operation != "" and (
             operation in trace.operation.aliases
             or trace.operation.family in match.get("aliases", [])
@@ -27,6 +28,15 @@ class PolicyEvaluator:
         )
         if not exact and not alias:
             return MatchCandidate(rule_id=rule.id, status="unknown", reasons=["operation_mismatch"])
+
+        # Compatibility records are independent legacy detections.  A different
+        # action or absent semantic labels is non-applicability, not a conflict.
+        legacy_actions = match.get("legacy_action_types")
+        if legacy_actions and trace.operation.arguments.get("action_type") not in legacy_actions:
+            return MatchCandidate(rule_id=rule.id, status="unknown", reasons=["legacy_action_mismatch"])
+        legacy_labels = match.get("legacy_labels_all")
+        if legacy_labels and not self._equals(self._value("legacy_labels_all", trace), legacy_labels):
+            return MatchCandidate(rule_id=rule.id, status="unknown", reasons=["legacy_labels_mismatch"])
 
         missing: list[str] = []
         for field in rule.required_fields:
@@ -36,7 +46,7 @@ class PolicyEvaluator:
                     missing.append("context.recipient_zone")
         # Coverage evidence is additive: never throw away compiler-reported gaps.
         missing.extend(x for x in trace.coverage.missing_features if x not in missing)
-        reasons = ["operation_exact" if exact else "operation_alias"]
+        reasons = ["operation_wildcard" if wildcard else ("operation_exact" if exact else "operation_alias")]
         predicate_count = 0
         predicate_matches = 0
         conflict = False
@@ -93,6 +103,12 @@ class PolicyEvaluator:
 
     def evaluate(self, trace: AuthorizationTrace) -> PolicyDecision:
         rules = self.bundle.rules_for_operation(trace.operation.family)
+        # Native PMKB records remain authoritative for a mapped operation.  The
+        # legacy records are a compatibility fallback for an operation that
+        # lacks a native PMKB rule; this preserves existing calibrated P0
+        # decisions while making every legacy rule usable on uncovered tools.
+        if trace.operation.arguments.get("action_type") and not rules:
+            rules = [*rules, *self.bundle.legacy_rules()]
         candidates = [self.match_rule(rule, trace) for rule in rules]
         applicable = [c for c in candidates if c.status in {"matched", "partial"}]
         missing = list(dict.fromkeys(trace.coverage.missing_features + [x for c in candidates for x in c.missing_features]))
@@ -156,6 +172,10 @@ class PolicyEvaluator:
         if field.startswith("resource."): return getattr(trace.resource, field.split(".", 1)[1], None)
         if field.startswith("data."): return getattr(trace.data, field.split(".", 1)[1], None)
         if field.startswith("operation."): return getattr(trace.operation, field.split(".", 1)[1], None)
+        if field in {"legacy_action_type", "legacy_action_types"}:
+            return trace.operation.arguments.get("action_type")
+        if field == "legacy_labels_all":
+            return [str(label) for step in trace.legacy_steps for label in step.get("props", [])]
         return {"scope": trace.resource.scope, "classification": trace.data.classification,
                 "quantity": trace.data.quantity, "recipient_zone": trace.context.recipient_zone,
                 "purpose": trace.context.purpose}.get(field)
@@ -170,6 +190,7 @@ class PolicyEvaluator:
             if "in" in expected and actual not in expected["in"]:
                 return False
             return True
+        if isinstance(expected, list) and isinstance(actual, list): return set(expected).issubset(set(actual))
         if isinstance(expected, list): return actual in expected
         if isinstance(actual, list): return expected in actual
         return actual == expected

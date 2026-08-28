@@ -32,6 +32,7 @@ class TraceCompiler:
                  for item in (rv_trace or []) if isinstance(item, Mapping) or hasattr(item, "model_dump")]
         tool_id = str(event.metadata.get("tool_name") or event.api_name or _ACTION_TO_TOOL.get(event.action_type, event.action_type))
         params = dict(event.raw_payload.get("params", {})) if isinstance(event.raw_payload.get("params", {}), dict) else {}
+        params.setdefault("action_type", event.action_type)
         if event.command:
             params.setdefault("command", event.command)
             try:

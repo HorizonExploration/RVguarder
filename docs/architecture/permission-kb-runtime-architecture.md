@@ -20,7 +20,7 @@
 
 本次没有完成以下工作：
 
-- 47 条历史单步检测规则尚未建立任何可删除的正式迁移闭环（完成数 `0 / 47`），当前仍是双轨判定；详见[旧规则迁移矩阵](./legacy-rule-migration-matrix.md)；
+- 47 条历史单步检测规则已完成兼容迁移：ConstraintEngine 和 PMKB 均可按同一旧 ID 判定（完成数 `47 / 47`）；DetectionEngine 仍保留为快速单步防线，尚未达到可删除的退役闭环；详见[旧规则迁移矩阵](./legacy-rule-migration-matrix.md)；
 - 未实现从人工审批记录自动学习并永久生成 `allow` 规则；
 - 未提供完整的用户权限管理 UI 和企业级目录同步；
 - 尚无真实个人办公流量的人工审批下降实测，因此路线图中的 `-40%`、`-60%` 是验收目标，不是已达成结果。
@@ -75,6 +75,7 @@ OpenClaw before_tool_call
 | `schema/permissions.schema.json` | 1 | 约束 bundle 必须包含 operations、rules、traces、relations、vectors |
 | `catalog/operation-catalog.json` | 22 operations | 工具名/别名到 canonical permission family 的映射 |
 | `rules/p0-office.json` | 25 rules（其中 20 条 `P1-*`） | 单步权限规则、匹配条件、处置效果和来源 |
+| 运行时兼容规则 | 47 `LEGACY-<old-id>` records | 由 47 条 DetectionRule 的 action type + semantic labels 生成，同时进入 ConstraintEngine、PMKB 评估与权限监视器 |
 | `traces/p0-office.json` | 23 traces | 每条规则对应的最小必要权限范围和正反例 |
 | `relations/p0-combinations.json` | 9 relations | `toxic_with`、`conflicts`、`implies` 等权限关系 |
 | `tests/p0-vectors.json` | 27 vectors | 固定输入、预期效果和回归类别 |

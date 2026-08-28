@@ -328,114 +328,29 @@ class ConstraintEngine:
 
 
 # =============================================================================
-# 已迁移规则（10 条高频规则，与旧 lambda 行为对齐）
+# 已迁移规则（47 条 legacy DetectionEngine 规则）
 # =============================================================================
 
 
 def migrated_constraint_rules() -> list[ConstraintRule]:
-    """返回已迁移为 ConstraintRule 的 10 条高频规则。
+    """Compile all 47 legacy detection records into structured constraints.
 
-    每条规则行为与 detection.py 的 `builtin_rules()` 中对应 match_labels 规则一致。
+    During the compatibility phase the DetectionRule record is the source for
+    title/action/label facts, eliminating the former hand-maintained list of
+    only ten mirrors.  PMKB migration metadata records the same legacy IDs.
     """
+    from openclaw_guard.engine.detection import builtin_rules
+
     return [
         ConstraintRule(
-            rule_id="CMD-001",
-            title="阻断 rm -rf",
-            description="递归强删默认阻断。",
-            severity="critical",
-            risk_level="blocked",
-            decision="block",
-            action=ActionConstraint(action_types=["command_exec"]),
-            tags=TagConstraint(require_all=["command_rm_rf"]),
-        ),
-        ConstraintRule(
-            rule_id="CMD-002",
-            title="阻断 curl 管道执行",
-            description="curl|sh 供应链风险。",
-            severity="critical",
-            risk_level="blocked",
-            decision="block",
-            action=ActionConstraint(action_types=["command_exec"]),
-            tags=TagConstraint(require_all=["command_pipe_curl_sh"]),
-        ),
-        ConstraintRule(
-            rule_id="CMD-003",
-            title="阻断 wget 管道执行",
-            description="wget|bash 供应链风险。",
-            severity="critical",
-            risk_level="blocked",
-            decision="block",
-            action=ActionConstraint(action_types=["command_exec"]),
-            tags=TagConstraint(require_all=["command_pipe_wget_bash"]),
-        ),
-        ConstraintRule(
-            rule_id="CMD-004",
-            title="升级 sudo",
-            description="提权命令需要二次确认。",
-            severity="high",
-            risk_level="dangerous",
-            decision="escalate",
-            action=ActionConstraint(action_types=["command_exec"]),
-            tags=TagConstraint(require_all=["command_sudo"]),
-        ),
-        ConstraintRule(
-            rule_id="FILE-001",
-            title="阻断系统目录删除",
-            description="系统目录删除默认阻断。",
-            severity="critical",
-            risk_level="blocked",
-            decision="block",
-            action=ActionConstraint(action_types=["file_delete"]),
-            tags=TagConstraint(require_all=["path_system_root"]),
-        ),
-        ConstraintRule(
-            rule_id="FILE-002",
-            title="阻断敏感凭据目录删除",
-            description="删除 SSH/云凭据目录会破坏凭据。",
-            severity="critical",
-            risk_level="blocked",
-            decision="block",
-            action=ActionConstraint(action_types=["file_delete"]),
-            tags=TagConstraint(require_all=["path_sensitive_creds"]),
-        ),
-        ConstraintRule(
-            rule_id="NET-001",
-            title="确认外部 HTTP 访问",
-            description="外部网络访问需要审批。",
-            severity="high",
-            risk_level="caution",
-            decision="ask",
-            action=ActionConstraint(action_types=["network_egress"]),
-            tags=TagConstraint(require_all=["network_http"]),
-        ),
-        ConstraintRule(
-            rule_id="NET-005",
-            title="阻断敏感外传",
-            description="携带凭据外发默认阻断。",
-            severity="critical",
-            risk_level="blocked",
-            decision="block",
-            action=ActionConstraint(action_types=["network_egress"]),
-            tags=TagConstraint(require_all=["network_secret_payload"]),
-        ),
-        ConstraintRule(
-            rule_id="CFG-002",
-            title="阻断鉴权关闭",
-            description="关闭鉴权默认阻断。",
-            severity="critical",
-            risk_level="blocked",
-            decision="block",
-            action=ActionConstraint(action_types=["config_modify"]),
-            tags=TagConstraint(require_all=["config_auth_disable"]),
-        ),
-        ConstraintRule(
-            rule_id="SKL-005",
-            title="阻断持久化 skill",
-            description="自启动/守护能力默认阻断。",
-            severity="critical",
-            risk_level="blocked",
-            decision="block",
-            action=ActionConstraint(action_types=["skill_run"]),
-            tags=TagConstraint(require_all=["skill_persistence"]),
-        ),
+            rule_id=rule.rule_id,
+            title=rule.title,
+            description=rule.description,
+            severity=rule.severity,
+            risk_level=rule.risk_level,
+            decision=rule.decision,
+            action=ActionConstraint(action_types=rule.action_types),
+            tags=TagConstraint(require_all=rule.match_labels),
+        )
+        for rule in builtin_rules()
     ]

@@ -450,8 +450,8 @@ class TestConstraintEngine(unittest.TestCase):
         results = engine.evaluate([ir])
         self.assertEqual(results, [])
 
-    def test_migrated_rules_count_is_10(self):
-        self.assertEqual(len(migrated_constraint_rules()), 10)
+    def test_migrated_rules_cover_all_legacy_detection_rules(self):
+        self.assertEqual(len(migrated_constraint_rules()), 47)
 
     def test_all_props_backward_compatible(self):
         """确保 ToolCallIR 无 entities/constraints 时（向后兼容）仍正常工作。"""

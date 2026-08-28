@@ -36,7 +36,7 @@ Openclaw-RVGuarder（龙虾卫士）是一个面向 [OpenClaw](https://openclaw.
 | **审批结果同步** | OpenClaw 原生审批卡片唯一决策，Guard Dashboard SSE 只读同步 | ✅ |
 | **电路熔断器** | 后端不可达时自动开启熔断，优雅降级 fail-open，不封锁 OpenClaw | ✅ |
 | **语义理解增强** | DeepSeek LLM 驱动语义分析，7 维度 50+ 标签，理解自然语言意图 | ✅ |
-| **PMKB 权限建模** | PMKB 1.1.0：22 个操作、25 条规则、23 条 Trace、9 个危险组合关系；校验最小权限和权限聚合风险 | ✅ |
+| **PMKB 权限建模** | PMKB 1.1.0：22 个操作、25 条持久化规则 + 47 条兼容规则、23 条 Trace、9 个危险组合关系；校验最小权限和权限聚合风险 | ✅ |
 | **运行时验证 RV** | 滑动窗口 + ChainRule DSL（FSM 回退），检测链式攻击模式（搜索→删除→外发） | ✅ |
 | **跨 session 主体验证** | session-local 链路与 principal-global 能力状态分离，持久化主体级 RV 状态 | ✅ |
 | **基线安全扫描** | 配置、端口、用户、依赖全量扫描，输出 JSON/HTML/PDF 报告 | ✅ |

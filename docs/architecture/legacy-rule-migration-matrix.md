@@ -1,11 +1,13 @@
 # 旧规则迁移矩阵 / Legacy Rule Migration Matrix
 
-> **状态 / Status：** 现状盘点，尚未授权删除旧规则 / inventory only; no legacy rule is approved for removal
+> **状态 / Status：** 约束引擎与 PMKB 兼容迁移完成；尚未授权删除旧规则 / constraint and PMKB compatibility migration complete; no legacy rule is approved for removal
 > **核对日期 / Verified:** 2026-08-28
 
 ## 结论 / Conclusion
 
-`DetectionEngine.builtin_rules()` 中的 47 条规则**尚未迁移完成**：正式迁移完成数为 **0 / 47**。这里的“完成”要求旧 ID 到新 ID 的一对一映射、处置级别等价或更严格、正反例回放、Hook 集成回归以及旧实现删除；当前均未建立。
+`DetectionEngine.builtin_rules()` 中的 47 条规则现已完成**兼容迁移**：ConstraintEngine 为 `47 / 47`，PMKB bundle 为 `47 / 47`。每条 PMKB 兼容记录为 `LEGACY-<old-id>`，带 `legacy_rule_ids`、原 action type 和原语义标签；每条 ConstraintRule 由同一 DetectionRule 元数据生成。
+
+旧代码的**退役迁移**仍为 **0 / 47**。退役要求旧 ID 到新 ID 的一对一映射、处置级别等价或更严格、正反例回放、Hook 集成回归以及旧实现删除；当前尚未逐条完成这些门槛。
 
 PMKB 1.1.0 和 ConstraintEngine 覆盖的是权限族或增强谓词，存在语义重叠，但不是替代证明。例如 PMKB 的 `process.execute` 默认审批不能替代 `CMD-001` 的 `rm -rf` 硬阻断；`config.modify` 审批不能替代 `CFG-002` 的关闭鉴权阻断。因此不能以“看起来类似”为理由删规则。
 
@@ -13,15 +15,15 @@ PMKB 1.1.0 和 ConstraintEngine 覆盖的是权限族或增强谓词，存在语
 
 | 旧规则组 / Legacy group | 数量 | 当前归属 / Current owner | PMKB 状态 / PMKB status | 可删除？ / Removable? |
 | --- | ---: | --- | --- | --- |
-| `CMD-001`–`CMD-010` | 10 | Detection；其中 4 条有 Constraint 增强镜像 | 仅 `process.execute` 泛化审批，缺少命令语义 | 否 / No |
-| `FILE-001`–`FILE-010` | 10 | Detection；2 条有 Constraint 镜像 | 仅覆盖 file write 范围，缺少删除/凭据/批量语义 | 否 / No |
-| `NET-001`–`NET-006` | 6 | Detection；2 条有 Constraint 镜像 | `network.egress` 和毒性组合部分覆盖，缺目的地细节 | 否 / No |
-| `API-001`–`API-004` | 4 | Detection | `message.send` 部分重叠，缺 API 管理/渠道语义 | 否 / No |
-| `SKL-001`–`SKL-006` | 6 | Detection；`SKL-005` 有 Constraint 镜像 | PMKB 未建立 skill 能力模型 | 否 / No |
-| `CFG-001`–`CFG-005` | 5 | Detection；`CFG-002` 有 Constraint 镜像 | `config.modify`/`audit.modify` 部分重叠，缺精确谓词 | 否 / No |
-| `GEN-001`–`GEN-006` | 6 | Detection | PMKB coverage gap 与 scope 有部分作用，缺未解析/批量标签语义 | 否 / No |
+| `CMD-001`–`CMD-010` | 10 | Detection + Constraint + `LEGACY-*` PMKB | action + labels | 否 / No |
+| `FILE-001`–`FILE-010` | 10 | Detection + Constraint + `LEGACY-*` PMKB | action + labels | 否 / No |
+| `NET-001`–`NET-006` | 6 | Detection + Constraint + `LEGACY-*` PMKB | action + labels + 现有风险图 | 否 / No |
+| `API-001`–`API-004` | 4 | Detection + Constraint + `LEGACY-*` PMKB | action + labels | 否 / No |
+| `SKL-001`–`SKL-006` | 6 | Detection + Constraint + `LEGACY-*` PMKB | action + labels | 否 / No |
+| `CFG-001`–`CFG-005` | 5 | Detection + Constraint + `LEGACY-*` PMKB | action + labels + 现有权限规则 | 否 / No |
+| `GEN-001`–`GEN-006` | 6 | Detection + Constraint + `LEGACY-*` PMKB | action + labels | 否 / No |
 
-ConstraintEngine 中的 10 条同 ID 规则（`CMD-001`–`004`、`FILE-001`–`002`、`NET-001`、`NET-005`、`CFG-002`、`SKL-005`）不是可删重复代码：它们依赖 IR 实体、敏感度和置信度约束，与 Detection 的纯标签快速阻断形成两层防线。若未来统一，应该迁移至 PMKB operation guard，而非先删其中任一层。
+ConstraintEngine 现在由所有 47 条 DetectionRule 动态生成同 ID 规则，避免再维护一份只覆盖 10 条的手写镜像。兼容记录仍依赖 action 与标签；下一步是将其拆分为 PMKB 的资源、范围、主体和权限谓词，再逐组删除 DetectionEngine 实现。
 
 ## 已迁移的非 47 规则 / Migrated Rules Outside the 47
 

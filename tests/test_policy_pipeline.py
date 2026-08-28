@@ -80,6 +80,9 @@ def test_p0_internal_message_is_allowed_with_policy_evidence(services, monkeypat
         )
 
     monkeypatch.setattr(services.detector, "evaluate", detector_allow)
+    # This test isolates PMKB overlay behavior.  The migrated legacy
+    # channel-send constraint is independently entitled to require approval.
+    monkeypatch.setattr(services, "constraint_engine_enabled", lambda: False)
     result = services.handle_before_tool_call(internal_message_payload())
 
     evidence = result["action_record"]["decision"]["policy_decision"]
