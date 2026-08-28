@@ -111,8 +111,12 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
         allowed = normalized_decision == "allow-once"
         desired_state = "allowed" if allowed else "denied"
         existing = action.get("resolution") or {}
+        terminal_statuses = {"approved", "rejected", "blocked", "executed", "failed", "allow"}
         if existing:
-            if existing.get("decision_state") == desired_state:
+            if (
+                action.get("status") in terminal_statuses
+                and existing.get("decision_state") == desired_state
+            ):
                 return {
                     "ok": True,
                     "accepted": True,
@@ -123,6 +127,15 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
                     "event_seq": action.get("last_event_seq"),
                     "received_at": existing.get("received_at"),
                 }, HTTPStatus.OK
+            if action.get("status") not in terminal_statuses:
+                manager.audit_store.append("hook_resolution_conflict", {
+                    "action_id": action_id,
+                    "existing": existing,
+                    "incoming_decision": decision,
+                    "reason": "resolution_for_non_terminal_action",
+                })
+                manager.events.publish("action.conflict", {"action_id": action_id, "decision": decision})
+                return _error("resolution_conflict", HTTPStatus.CONFLICT)
             action_model = manager._find_action(action_id)
             action_model.sync_state = "conflict"
             manager._save_all(manager._replace_action(action_model))
@@ -130,6 +143,16 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
                 "action_id": action_id,
                 "existing": existing,
                 "incoming_decision": decision,
+            })
+            manager.events.publish("action.conflict", {"action_id": action_id, "decision": decision})
+            return _error("resolution_conflict", HTTPStatus.CONFLICT)
+
+        if action.get("status") != "pending_approval":
+            manager.audit_store.append("hook_resolution_conflict", {
+                "action_id": action_id,
+                "incoming_decision": decision,
+                "reason": "action_not_pending",
+                "status": action.get("status"),
             })
             manager.events.publish("action.conflict", {"action_id": action_id, "decision": decision})
             return _error("resolution_conflict", HTTPStatus.CONFLICT)

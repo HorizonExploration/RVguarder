@@ -273,21 +273,27 @@ def _apply_session_escalation(
     upgrade = state.record(getattr(decision, "action", "ok"), decision.reason)
     event.metadata["session_state"] = state.status()
 
-    # revise 干预（spec F1）：会话风险达到修正建议阈值时，返回带建议的 revise 拒绝
+    # 先应用 record() 的明确升级，再考虑 revise 建议，保证所有会话叠加单调升权。
+    severity = {"allow": 1, "ask": 2, "revise": 2, "escalate": 3, "block": 4}
+    current_action = getattr(decision, "action", "allow")
+    if upgrade:
+        if severity.get(upgrade, 1) > severity.get(current_action, 1):
+            decision.action = upgrade
+            decision.reason = (
+                f"[Session] 会话风险升级为 {upgrade}（累计风险 {state.total_score}）"
+            )
+            decision.rule_ids = list(decision.rule_ids) + [f"SESSION-{session_key}"]
+            current_action = upgrade
+
+    # revise 干预（spec F1）：只有在不降低既有裁决严重度时才可应用建议。
     hint = state.revision_hint()
-    if hint is not None and getattr(decision, "action", "allow") != "block":
-        decision.action = "revise"
+    if hint is not None:
+        # 即使当前裁决更强，也保留建议供审计和调用方展示；不得改变 action。
         decision.revision_hint = hint
+    if hint is not None and severity.get("revise", 2) >= severity.get(current_action, 1):
+        decision.action = "revise"
         decision.reason = (
             f"[Session] 建议修订后重试：{hint}（累计风险 {state.total_score}）"
-        )
-        decision.rule_ids = list(decision.rule_ids) + [f"SESSION-{session_key}"]
-        return decision
-
-    if upgrade:
-        decision.action = upgrade
-        decision.reason = (
-            f"[Session] 会话风险升级为 {upgrade}（累计风险 {state.total_score}）"
         )
         decision.rule_ids = list(decision.rule_ids) + [f"SESSION-{session_key}"]
     return decision

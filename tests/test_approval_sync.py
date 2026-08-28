@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from copy import deepcopy
 from pathlib import Path
 
 from openclaw_guard import api
@@ -77,6 +78,37 @@ class ApprovalSyncTests(unittest.TestCase):
         current = self.services.action_service.get_action(action["action_id"])
         self.assertEqual(current["status"], "approved")
         self.assertEqual(current["sync_state"], "conflict")
+
+    def test_late_resolution_does_not_mutate_non_pending_action(self) -> None:
+        """执行中或已结束的 Hook 动作拒绝乱序回调且保留原状态。"""
+        execution_states = {
+            "executing": "running",
+            "executed": "executed",
+            "blocked": "not_started",
+            "rejected": "not_started",
+        }
+        for status, execution_state in execution_states.items():
+            with self.subTest(status=status):
+                action = self._pending_hook()
+                action_model = self.services._find_action(action["action_id"])
+                assert action_model is not None
+                action_model.status = status
+                action_model.decision_state = "allowed" if status in {"executing", "executed"} else "denied"
+                action_model.execution_state = execution_state
+                action_model.sync_state = "local_only"
+                action_model.resolution = {}
+                self.services._save_all(self.services._replace_action(action_model))
+                before = deepcopy(self.services.action_service.get_action(action["action_id"]))
+
+                payload, response_status = api.resolve_hook_approval(
+                    self.services,
+                    {"actionId": action["action_id"], "decision": "allow-once"},
+                )
+
+                self.assertEqual(response_status, 409)
+                self.assertEqual(payload["error_code"], "resolution_conflict")
+                after = self.services.action_service.get_action(action["action_id"])
+                self.assertEqual(after, before)
 
     def test_event_bus_supports_cursor_replay(self) -> None:
         first = self.services.events.publish("action.resolved", {"action_id": "a1"})
