@@ -92,6 +92,7 @@ export default defineUserConfig({
             "/research/permission-model-kb-and-cross-session-rv-plan.md",
             "/research/agent-permission-rv-research-report-2026-08-25.md",
             "/research/nl-automata-rv-upgrade-plan.md",
+            "/research/pmkb-network-baseline-implementation-report-2026-08-28.md",
           ],
         },
       ],
@@ -101,6 +102,7 @@ export default defineUserConfig({
           children: [
             "/semantic/method.md",
             "/semantic/office-scenario-matrix.md",
+            "/semantic/pmkb-network-case-baseline.md",
           ],
         },
       ],

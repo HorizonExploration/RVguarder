@@ -330,7 +330,7 @@ class WebCliTests(unittest.TestCase):
             self.assertEqual(payload["event"]["action_type"], "file_delete")
             self.assertIn("待审批", payload["messages"][-1]["content"])
 
-    def test_sensitive_write_defaults_to_approval_even_without_specific_rule_match(self) -> None:
+    def test_outside_workspace_write_requires_boundary_approval(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp) / "OpenclawGuard"
             project.mkdir()

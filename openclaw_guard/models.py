@@ -24,7 +24,7 @@ Severity = Literal["critical", "high", "medium", "low", "info"]
 RiskLevel = Literal["safe", "caution", "dangerous", "blocked"]
 DecisionAction = Literal["allow", "ask", "block", "escalate", "revise"]
 ActionType = Literal[
-    "chat_message", "command_exec", "file_delete", "file_write",
+    "chat_message", "command_exec", "file_read", "file_delete", "file_write",
     "config_modify", "network_egress", "channel_send", "skill_run",
     "unknown",  # 兜底：来自外部原始 payload 的未识别类型
 ]

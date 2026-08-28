@@ -291,6 +291,12 @@ class HandleBeforeToolCallPipelineTests(unittest.TestCase):
         self.assertEqual(event.action_type, "unknown")
         self.assertIn("预检查", build_hook_source_message(event))
 
+    def test_read_tool_is_not_inferred_as_file_write(self) -> None:
+        event = build_hook_event(
+            {"toolName": "read", "params": {"file_path": "/tmp/test.txt"}, "runId": "r-read", "toolCallId": "c-read"}
+        )
+        self.assertEqual(event.action_type, "file_read")
+
     def test_real_tool_approval_still_creates_pending_action(self) -> None:
         with patch.object(self.services.audit_store, "append", return_value={}):
             result = handle_before_tool_call_pipeline(

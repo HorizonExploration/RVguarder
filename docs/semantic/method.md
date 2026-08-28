@@ -1087,7 +1087,7 @@ OpenClaw 本地运行时可验证的能力，不复制租户级 scope。Feishu-d
   "effective_permissions": [],
   "p_after": [],
   "combo_violations": [],
-  "policy_version": "1.0.0"
+  "policy_version": "1.1.0"
 }
 ```
 

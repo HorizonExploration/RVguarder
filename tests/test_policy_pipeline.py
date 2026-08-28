@@ -117,8 +117,8 @@ def test_unknown_tool_records_gap_and_does_not_create_silent_allow(services):
     assert result["action"] != "allow" or evidence["effect"] == "auto_allow_audit"
 
 
-def test_known_uncovered_operation_never_becomes_silent_allow(services, monkeypatch):
-    """Ignoring an approval effect without rule IDs would silently allow uncovered operations."""
+def test_known_operation_with_unknown_scope_never_becomes_silent_allow(services, monkeypatch):
+    """A newly covered operation still requires approval when its scope is unresolved."""
     def detector_allow(event):
         return DetectionDecision(
             event_id=event.event_id,
@@ -135,7 +135,7 @@ def test_known_uncovered_operation_never_becomes_silent_allow(services, monkeypa
     evidence = result["action_record"]["decision"]["policy_decision"]
     assert evidence["effect"] == "openclaw_approval"
     assert evidence["match_status"] == "unknown"
-    assert evidence["selected_rule_ids"] == []
+    assert evidence["candidate_rule_ids"] == ["P1-DIRECTORY-READ"]
     assert result["action"] == "require_approval"
 
 

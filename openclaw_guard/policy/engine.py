@@ -135,7 +135,12 @@ class AuthorizationPolicyEngine:
             if parsed:
                 return parsed
         # Versioned P0 traces are executable data, not documentation only.
-        rule_ids = set(self.policy_evaluator.evaluate(trace).candidate_rule_ids)
+        evaluated = self.policy_evaluator.evaluate(trace)
+        # Only traces for rules that actually apply to the normalized request
+        # define the least-privilege boundary.  Keeping every candidate trace
+        # would mix mutually exclusive scope variants (for example workspace
+        # and outside file writes) and falsely report a scope expansion.
+        rule_ids = set(evaluated.selected_rule_ids or evaluated.candidate_rule_ids)
         parsed: list[PermissionRef] = []
         for item in self.bundle.traces:
             if item.get("rule_id") not in rule_ids:

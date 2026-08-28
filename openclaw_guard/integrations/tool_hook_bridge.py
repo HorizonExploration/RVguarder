@@ -33,6 +33,7 @@ CHANNEL_KEYWORDS = ("channel", "message", "send", "post", "reply")
 SKILL_KEYWORDS = ("skill",)
 CONFIG_KEYWORDS = ("config", "openclaw.json", "settings")
 COMMAND_TOOL_KEYWORDS = ("shell", "exec", "command", "bash", "terminal", "run")
+READ_TOOL_NAMES = {"read", "file_read", "read_file", "file.read", "grep", "cat", "head", "tail", "list", "ls"}
 
 
 def build_hook_event(payload: dict[str, Any]) -> BehaviorEvent:
@@ -139,6 +140,8 @@ def _infer_action_type(
     lowered_tool = tool_name.lower()
     if lowered_tool == "before_prompt_build":
         return "unknown"
+    if lowered_tool in READ_TOOL_NAMES:
+        return "file_read"
     haystack = " ".join(
         [
             lowered_tool,

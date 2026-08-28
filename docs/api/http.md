@@ -344,7 +344,7 @@ Guard 前端使用的 Server-Sent Events（SSE）单向事件流。
     "redundant_permissions": [],
     "excessive_permissions": [],
     "combo_violations": [],
-    "policy_version": "1.0.0"
+    "policy_version": "1.1.0"
   }
 }
 ```

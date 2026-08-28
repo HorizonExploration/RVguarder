@@ -114,6 +114,8 @@ openclaw-guard run
 | 📋 [基线扫描](/features/baseline.html) | 安全扫描与报告 | Security scanning & reports |
 | 📝 [审计](/features/audit.html) | 审计链与导出 | Audit trail & export |
 | 🧠 [语义增强方案](/semantic/method.html) | 语义理解架构设计 | Semantic enhancement design |
+| 📚 [PMKB 网络案例基线](/semantic/pmkb-network-case-baseline.html) | 可直接接入运行时链路的案例型权限知识库 | Case-derived permission baseline wired into the runtime |
+| 🧾 [PMKB 升级结果报告](/research/pmkb-network-baseline-implementation-report-2026-08-28.html) | 本次案例型知识库接入、测试与边界 | PMKB baseline integration, tests, and boundaries |
 | 🧭 [项目理解与当前记忆](/architecture/project-memory.html) | 当前代码边界、已落地能力、已知边界与维护规则 | Current project facts and maintenance memory |
 | 🩺 [运维 FAQ](/ops/faq.html) | 常见问题 | Frequently asked questions |
 | 🗺️ [路线图](/ops/roadmap.html) | 开发计划 | Development roadmap |
