@@ -70,10 +70,28 @@ class TraceCompiler:
             gaps.append(resource_gap)
         coverage = CoverageResult(status="complete" if not missing else "partial", missing_features=missing,
                                   gaps=list(dict.fromkeys(gaps)))
-        principal = semantic.get("principal") if isinstance(semantic.get("principal"), dict) else {}
-        principal_id = str(principal.get("id") or event.metadata.get("principal_id") or event.user or event.process_name or "unknown")
-        principal_type = str(principal.get("type") or event.metadata.get("principal_type") or "agent")
+        trusted_identity = event.metadata.get("trusted_identity")
+        if not isinstance(trusted_identity, dict) or trusted_identity.get("trust") != "verified":
+            trusted_identity = {}
+        semantic_principal = semantic.get("principal") if isinstance(semantic.get("principal"), dict) else {}
+        principal_id = str(
+            trusted_identity.get("principal_id")
+            or (semantic_principal.get("id") if not event.metadata.get("hook_bridge") else "")
+            or "unknown"
+        )
+        principal_type = str(
+            trusted_identity.get("principal_type")
+            or (semantic_principal.get("type") if not event.metadata.get("hook_bridge") else "")
+            or "agent"
+        )
         if principal_type not in {"human", "agent", "skill", "service"}: principal_type = "agent"
+        agent_id = str(trusted_identity.get("agent_id") or "") or None
+        raw_lineage = trusted_identity.get("capability_lineage")
+        capability_lineage = (
+            [str(item) for item in raw_lineage if isinstance(item, str) and item]
+            if isinstance(raw_lineage, list)
+            else []
+        )
         confidence = {
             "operation": 1.0 if operation.family != "unknown_tool" else 0.2,
             "resource": 0.9 if resource_ids else 0.0,
@@ -82,9 +100,10 @@ class TraceCompiler:
         }
         return AuthorizationTrace(
             trace_id=str(event.event_id or uuid4()), principal=PrincipalRef(id=principal_id, type=principal_type,
-                trust="verified" if event.user else "unknown"), operation=operation,
+                trust="verified" if trusted_identity else "unknown"), operation=operation,
             resource=ResourceRef(type=resource_type, ids=resource_ids, scope=scope),
-            coverage=coverage, agent_id=event.process_name, session_id=str(event.metadata.get("session_id") or "") or None,
+            coverage=coverage, agent_id=agent_id, session_id=str(event.metadata.get("session_id") or "") or None,
+            capability_lineage=capability_lineage,
             data=DataRef(classification=classification, quantity=quantity),
             context=ContextRef(recipient_zone=recipient_zone, purpose=purpose),
             provenance=ProvenanceRef(source=str(semantic.get("origin") or event.source or "unknown"),

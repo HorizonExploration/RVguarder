@@ -43,6 +43,16 @@ def build_hook_event(payload: dict[str, Any]) -> BehaviorEvent:
     network_targets = _collect_urls(params)
     command = _extract_command(params)
     action_type = _infer_action_type(tool_name, params, target_paths, network_targets, command)
+    agent_id = str(payload.get("agentId") or "").strip()
+    trusted_identity = {}
+    if agent_id:
+        trusted_identity = {
+            "principal_id": agent_id,
+            "principal_type": "agent",
+            "agent_id": agent_id,
+            "capability_lineage": [f"openclaw-agent:{agent_id}"],
+            "trust": "verified",
+        }
     metadata = {
         "hook_bridge": True,
         "tool_name": tool_name,
@@ -50,7 +60,8 @@ def build_hook_event(payload: dict[str, Any]) -> BehaviorEvent:
         "tool_call_id": payload.get("toolCallId"),
         "session_key": payload.get("sessionKey"),
         "session_id": payload.get("sessionId"),
-        "agent_id": payload.get("agentId"),
+        "agent_id": agent_id or None,
+        "trusted_identity": trusted_identity,
         "hook_key": hook_key_from_payload(payload),
     }
     return BehaviorEvent(

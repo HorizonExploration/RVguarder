@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from datetime import datetime, timedelta, timezone
 from dataclasses import asdict
 from pathlib import Path
@@ -31,7 +32,8 @@ from openclaw_guard.policy.engine import AuthorizationPolicyEngine
 from openclaw_guard.rv.runtime_verification import RuntimeVerificationEngine
 from openclaw_guard.rv.constraints import ConstraintEngine, migrated_constraint_rules
 from openclaw_guard.spec.session_state import SessionSafetyState
-from openclaw_guard.models import ControlledAction
+from openclaw_guard.models import BehaviorEvent, ControlledAction, DetectionDecision
+from openclaw_guard.policy.models import AuthorizationTrace, PolicyDecision
 from openclaw_guard.integrations.openclaw_adapter import (
     ChatMessage,
     OpenClawRelayError,
@@ -376,8 +378,8 @@ class GuardServices:
         self.detector = DetectionEngine()
         self.semantic_enhancer = SemanticEnhancer(config_path=context.paths.runtime_dir / "guard-config.json")
         self.whitelist = WhitelistEngine(default_police_whitelist())
-        self.controller = GuardController(self.whitelist)
-        self.policy_engine = AuthorizationPolicyEngine(Path("policies/permissions"))
+        self.controller = GuardController(self.whitelist, decision_overlay=self.apply_principal_rv)
+        self.policy_engine = AuthorizationPolicyEngine()
 
         # AuditStore —— SQLite 连接（~50ms）
         db_url = settings.get_database_url()
@@ -400,13 +402,12 @@ class GuardServices:
         self.conversation_path = context.paths.runtime_dir / "conversation.json"
         self.preferences_path = context.paths.runtime_dir / "preferences.json"
         self.log_path = context.paths.runtime_dir / "guard.log"
+        self.rv_state_path = context.paths.runtime_dir / "rv-state.json"
+        self._rv_state_lock = threading.RLock()
 
         # ── 冷路径：LazyProxy 惰性加载 ──
         self.rv_engine = LazyProxy(
-            lambda: RuntimeVerificationEngine(
-                window_size=10,
-                rule_mode=str(self.preferences().get("rv_rule_mode") or "") or None,
-            )
+            self._build_runtime_verification_engine
         )  # type: ignore[assignment]
         # 阶段 B：约束推理引擎（懒加载，避免拖慢启动）
         self.constraint_engine = LazyProxy(
@@ -450,6 +451,132 @@ class GuardServices:
         from openclaw_guard.engine.pipeline import _annotate_event_context
 
         return _annotate_event_context(self, event, source_message=source_message, origin=origin)
+
+    def apply_principal_rv(
+        self,
+        event: BehaviorEvent,
+        decision: DetectionDecision,
+    ) -> DetectionDecision:
+        """Apply trusted principal/capability RV monotonically before control."""
+        if not event.metadata.get("hook_bridge"):
+            return decision
+
+        effect: str | None = None
+        reason = ""
+        trace_data = event.metadata.get("authorization_trace")
+        policy_data = decision.policy_decision
+        try:
+            trace = AuthorizationTrace.model_validate(trace_data)
+            policy_decision = PolicyDecision.model_validate(policy_data)
+        except Exception:
+            trace = None
+            policy_decision = None
+            effect = "block" if decision.action == "block" else "openclaw_approval"
+            reason = "normalized_evidence_invalid"
+
+        if trace is not None and policy_decision is not None:
+            identity_complete = bool(
+                trace.principal.trust == "verified"
+                and trace.principal.id
+                and trace.principal.id != "unknown"
+                and trace.agent_id
+                and trace.capability_lineage
+            )
+            if not identity_complete:
+                effect = (
+                    "block"
+                    if decision.action == "block" or policy_decision.effect == "block"
+                    else "openclaw_approval"
+                )
+                reason = "trusted_identity_incomplete"
+            else:
+                recorded_decision = policy_decision
+                if decision.action == "block":
+                    recorded_decision = policy_decision.model_copy(update={"effect": "block"})
+                elif decision.action != "allow" and policy_decision.effect == "auto_allow_audit":
+                    recorded_decision = policy_decision.model_copy(update={"effect": "openclaw_approval"})
+                with self._rv_state_lock:
+                    engine = self._principal_rv_engine()
+                    state = engine.state_for_principal(
+                        trace.principal.id,
+                        str(trace.agent_id),
+                        tuple(trace.capability_lineage),
+                    )
+                    effect = state.record(trace, recorded_decision)
+                    write_json(self.rv_state_path, engine.serialize_state())
+                reason = "principal_capability_state"
+
+        event.metadata["principal_rv"] = {
+            "effect": effect or "none",
+            "reason": reason or "no_escalation",
+        }
+        decision.trace = list(decision.trace) + [{
+            "stage": "principal_rv",
+            "effect": effect or "none",
+            "reason": reason or "no_escalation",
+        }]
+        if effect is None:
+            return decision
+
+        action_for_effect = {"openclaw_approval": "ask", "block": "block"}
+        severity = {"allow": 1, "ask": 2, "revise": 2, "escalate": 3, "block": 4}
+        overlay_action = action_for_effect[effect]
+        if severity[overlay_action] > severity.get(decision.action, 1):
+            prior_action = decision.action
+            decision.action = overlay_action
+            decision.reason = f"[Principal RV] {reason} (原有: {prior_action})"
+            decision.risk_level = "blocked" if overlay_action == "block" else "caution"
+            decision.rule_ids = list(dict.fromkeys([
+                *decision.rule_ids,
+                "RV-PRINCIPAL-CAPABILITY",
+            ]))
+        return decision
+
+    def record_approved_principal_action(self, action: ControlledAction) -> str | None:
+        """Record one OpenClaw-approved Hook action as an effective capability."""
+        trace_data = action.event.metadata.get("authorization_trace")
+        policy_data = action.decision.policy_decision
+        try:
+            trace = AuthorizationTrace.model_validate(trace_data)
+            policy_decision = PolicyDecision.model_validate(policy_data).model_copy(
+                update={"effect": "auto_allow_audit"}
+            )
+        except Exception:
+            return "openclaw_approval"
+        if not (
+            trace.principal.trust == "verified"
+            and trace.principal.id
+            and trace.principal.id != "unknown"
+            and trace.agent_id
+            and trace.capability_lineage
+        ):
+            return "openclaw_approval"
+        with self._rv_state_lock:
+            engine = self._principal_rv_engine()
+            state = engine.state_for_principal(
+                trace.principal.id,
+                str(trace.agent_id),
+                tuple(trace.capability_lineage),
+            )
+            effect = state.record(trace, policy_decision)
+            write_json(self.rv_state_path, engine.serialize_state())
+        return effect
+
+    def _principal_rv_engine(self) -> RuntimeVerificationEngine:
+        """Return the RV engine after restoring its durable runtime snapshot once."""
+        return self.rv_engine._get()
+
+    def _build_runtime_verification_engine(self) -> RuntimeVerificationEngine:
+        """Build RV and restore durable state before processing a new event."""
+        engine = RuntimeVerificationEngine(
+            window_size=10,
+            rule_mode=str(self.preferences().get("rv_rule_mode") or "") or None,
+        )
+        with self._rv_state_lock:
+            snapshot = read_json(self.rv_state_path)
+            if snapshot is not None:
+                engine.deserialize_state(snapshot)
+        return engine
 
     # ------------------------------------------------------------------
     # 状态 / 摘要查询

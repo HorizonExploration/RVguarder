@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from uuid import uuid4
 
 from openclaw_guard.models import BehaviorEvent, ControlledAction, DetectionDecision
@@ -8,10 +9,17 @@ from openclaw_guard.utils import utc_now_iso
 
 
 class GuardController:
-    def __init__(self, whitelist: WhitelistEngine) -> None:
+    def __init__(
+        self,
+        whitelist: WhitelistEngine,
+        decision_overlay: Callable[[BehaviorEvent, DetectionDecision], DetectionDecision] | None = None,
+    ) -> None:
         self.whitelist = whitelist
+        self.decision_overlay = decision_overlay
 
     def decide(self, event: BehaviorEvent, decision: DetectionDecision, source_message: str) -> ControlledAction:
+        if self.decision_overlay is not None:
+            decision = self.decision_overlay(event, decision)
         matches = self.whitelist.evaluate(event)
         final = decision
         trace = list(decision.trace)
