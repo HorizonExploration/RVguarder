@@ -10,6 +10,7 @@ export function ActionCard({ item }) {
   const rvMode = useStore((s) => s.rvMode);
 
   const d = item.decision || {};
+  const userMessage = d.user_message || item.user_message || d.reason || '';
   const ip = item.status === 'pending_approval';
   const canApprove = item.source !== 'hook_bridge' && !item.event?.metadata?.hook_bridge;
   const il = item._loading;
@@ -77,8 +78,8 @@ export function ActionCard({ item }) {
         <span class="status-chip">{t('status_' + (item.status || 'unknown'))}</span>
         {d.action === 'revise' && <span class="status-chip revise">{t('revisionHint')}</span>}
       </div>
-      <h4>{esc(item.target_summary || item.source_message || '')}</h4>
-      <p>{esc(d.reason || '')}</p>
+      <h4>{esc(d.user_title || item.target_summary || item.source_message || '')}</h4>
+      <p>{esc(userMessage)}</p>
       {item.source === 'hook_bridge' && (
         <div class="sync-hint">请在 OpenClaw 审批中心处理 · 同步状态：{esc(item.sync_state || 'local_only')}</div>
       )}

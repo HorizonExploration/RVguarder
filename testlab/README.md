@@ -1,9 +1,9 @@
-# RV 必要性实验
+# RV 与 AgentDojo 安全评测
 
 > 证明 OpenClaw-RVGuarder 的 Runtime Verification (RV) 运行时验证层
 > 在检测多步链式攻击方面相对静态单步检测的**关键优势**。
 
-## 实验概述
+## 历史 RV 实验
 
 | 实验 | 内容 | 结论 |
 |:-----|:-----|:-----|
@@ -11,7 +11,40 @@
 | **B** — 变体鲁棒性 | 10 种攻击链变体 | ✅ 检测率 100%，误报率 0% |
 | **C** — 抗干扰/误报 | 正常办公、混合场景、Session 隔离 | ✅ 零误报，隔离正确 |
 
-## 核心发现
+历史实验 A/B/C 保留用于 RV 机制必要性回溯，结果位于 `testlab/results/`，不作为 AgentDojo 端到端效果结论。
+
+## AgentDojo 升级评测
+
+新增入口：
+
+```bash
+# 先检查独立实验环境；当前已配置为 pydantic 2.13.5，应输出 ready: true
+python testlab/脚本工具/agentdojo_upgrade_eval.py \
+  --preflight \
+  --agent-python /home/yosoro126/miniconda3/envs/agentdojo/bin/python
+
+# 环境通过后，在 agentdojo 环境执行三组对照
+/home/yosoro126/miniconda3/envs/agentdojo/bin/python \
+  testlab/脚本工具/agentdojo_upgrade_eval.py \
+  --suite workspace --suite banking \
+  --attack direct --attack ignore_previous \
+  --attack important_instructions --attack tool_knowledge \
+  --arm noguard --arm legacy --arm candidate
+```
+
+实验使用 AgentDojo 官方 `get_suite()`、`load_attack()` 和 TaskSuite 评分，不再以手工拼接文本代替真实工具调用。三组对照为：
+
+| 对照组 | 工具执行 | 目的 |
+|---|---|---|
+| `noguard` | 直接执行 | AgentDojo 自然能力基线 |
+| `legacy` | DetectionEngine + 旧 FSM | 升级前兼容基线 |
+| `candidate` | Guard Hook + PMKB + RiskGraph + RV | 当前升级链路 |
+
+`ask` 只表示产生审批需求；默认 `approval-mode=deny` 时才计入“未执行阻止”，`allow-once` 仅用于任务恢复率实验。AgentDojo 的 `security` 字段表示注入目标是否成功，报告中的 `attack_prevention` 为其反向指标，二者不能混用。
+
+详细方案见 [`实验方案/agentdojo-实验方案.md`](实验方案/agentdojo-实验方案.md)，环境门禁见 [`实验准备/agentdojo-upgrade-environment.md`](实验准备/agentdojo-upgrade-environment.md)。
+
+## 核心发现（历史 RV 实验）
 
 ### 实验 A：静态单步检测 vs RV 多步链式检测
 

@@ -500,8 +500,8 @@ export default {{
             return {{
               requireApproval: {{
                 pluginId: PLUGIN_ID,
-                title: result.title || "龙虾卫士安全审批",
-                description: result.message || `拦截动作：${{event.toolName}}`,
+                title: result.title || "龙虾卫士安全确认",
+                description: result.message || "该工具调用需要确认，请查看操作目标和风险后决定。",
                 severity: result.severity || "warning",
                 allowedDecisions: ["allow-once", "deny"],
                 timeoutMs: 300000,
@@ -526,7 +526,7 @@ export default {{
 
           return {{
             block: true,
-            blockReason: String(result.blockReason || "Blocked by Openclaw Guard."),
+            blockReason: String(result.blockReason || result.message || "龙虾卫士已阻止该操作，请查看风险说明。"),
           }};
         }} catch (error) {{
           const detail = error instanceof Error ? error.message : String(error);
@@ -538,7 +538,7 @@ export default {{
           if (!circuitOpen) {{
             return {{
               block: true,
-              blockReason: `Guard backend unreachable (Fail-Closed). Detail: ${{detail}}`,
+              blockReason: `龙虾卫士服务暂时不可达，已按安全策略暂停该操作。详情：${{detail}}`,
             }};
           }}
           // circuit is open — fail-open: allow the tool call

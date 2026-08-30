@@ -12,19 +12,29 @@ from typing import Any, Callable
 
 from openclaw_guard.services import GuardServices
 from openclaw_guard.utils import json_dumps
-from openclaw_guard.utils import utc_now_iso
+from openclaw_guard.utils import sha256_text, utc_now_iso
 
 
 JsonResponse = tuple[dict[str, Any], int]
 
 
 def health(manager: GuardServices) -> JsonResponse:
+    bundle = manager.policy_engine.bundle
+    fingerprint = sha256_text(json.dumps(
+        {"version": bundle.version, "rules": [rule.id for rule in bundle.rules]},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ))[:16]
     return (
         {
             "ok": True,
             "product": "openclaw-guard",
             "profile": manager.context.target.profile,
             "has_target": bool(manager.context.target.config_path),
+            "policy_version": bundle.version,
+            "policy_rule_count": len(bundle.rules),
+            "policy_fingerprint": fingerprint,
         },
         HTTPStatus.OK,
     )

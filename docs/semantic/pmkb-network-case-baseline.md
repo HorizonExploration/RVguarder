@@ -25,7 +25,8 @@ policies/permissions/*.json
 | `data.export` | `table.export` | 普通导出审批；敏感/秘密数据阻断 | 防止数据外发 |
 | `network.egress` | `network.request` | OpenClaw 审批 | 目的地、范围和数据分类需可审计 |
 | `secret.read` / `credential.read` | — | OpenClaw 审批 | 凭据是令牌盗取和后续持久化的高价值目标 |
-| `process.execute` | — | OpenClaw 审批 | 终端被入侵后可借合法身份执行命令 |
+| `process.execute` | — | 默认 OpenClaw 审批；受管范围内确定性只读命令自动放行并审计 | 终端被入侵后可借合法身份执行命令；只读例外受命令分类器和作用域共同约束 |
+| `file.read` | `read`, `cat`, `grep`, `ls` | 受管目录内自动放行并审计；其他范围审批 | 只读命令不应因路径存在而误判为写入 |
 | `session.token.read` | `session.cookie.read`, `oauth.token.read` | 阻断 | 直接读取会话令牌可绕过再次认证 |
 | `identity.permission.grant` | `role.assign`, `oauth.scope.grant` | OpenClaw 审批 | 权限/应用 scope 变更必须复核 |
 | `identity.auth.modify` | `mfa.method.add`, `oauth.credential.add` | OpenClaw 审批 | MFA、设备或应用凭据变更可能形成持久化 |

@@ -285,13 +285,7 @@ class WebCliTests(unittest.TestCase):
                     "agentId": "agent-main",
                 }
             )
-            self.assertEqual(before["action"], "require_approval")
-            resolved, status = api.resolve_hook_approval(
-                manager,
-                {"actionId": before["action_record"]["action_id"], "decision": "allow-once"},
-            )
-            self.assertEqual(status, 200)
-            self.assertEqual(resolved["decision_state"], "allowed")
+            self.assertEqual(before["action"], "allow")
             after = manager.handle_after_tool_call(
                 {
                     "toolName": "shell",

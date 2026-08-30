@@ -9,7 +9,7 @@ from .catalog import PolicyBundle
 from .models import CapabilityGrant, PermissionRef
 
 
-_SCOPE_RANK = {"unknown": -1, "own": 0, "workspace": 1, "outside": 2,
+_SCOPE_RANK = {"unknown": -1, "own": 0, "workspace": 1, "managed_project": 1, "outside": 2,
                "external": 3, "bulk": 4}
 _CLASS_RANK = {"public": 0, "internal": 1, "sensitive": 2, "secret": 3}
 

@@ -171,6 +171,9 @@ class DetectionDecision(GuardBaseModel):
     revision_hint: str | None = None
     # Optional PMKB evidence; absent in legacy serialized action records.
     policy_decision: dict[str, Any] | None = None
+    # User-facing explanation kept separate from technical rule evidence.
+    user_title: str | None = None
+    user_message: str | None = None
 
 
 class ControlledAction(GuardBaseModel):

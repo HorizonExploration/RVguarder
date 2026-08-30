@@ -37,6 +37,7 @@ class SessionSafetyState:
         "ok": 0,
     }
     _THRESHOLDS_ORDER = ["safe", "warning", "elevated", "critical"]
+    _DECAY_SECONDS = 300.0
 
     def __init__(self, session_key: str = "_default") -> None:
         self.session_key = session_key
@@ -45,12 +46,19 @@ class SessionSafetyState:
         self._escalation_history: list[dict[str, Any]] = []
         self._escalate_to_block_count: int = 0
         self._ask_to_escalate_count: int = 0
+        self._last_activity_at: float = _time.monotonic()
 
     @property
     def current_state(self) -> str:
         return self._state
 
-    def record(self, verdict: str, reason: str | None = None) -> str | None:
+    def record(
+        self,
+        verdict: str,
+        reason: str | None = None,
+        *,
+        risk_class: str = "high",
+    ) -> str | None:
         """记录一次判定，返回升级后的裁决（如有）。
 
         Args:
@@ -60,7 +68,14 @@ class SessionSafetyState:
         Returns:
             None 表示不升级；否则返回升级后的裁决字符串
         """
-        score = self._SEVERITY_TO_SCORE.get(verdict, 0)
+        now = _time.monotonic()
+        self._decay(now)
+        # Routine/low-risk approvals are useful telemetry but are not evidence
+        # of an attack chain.  The default remains high for compatibility with
+        # callers that do not yet provide a classification.
+        counted = str(risk_class).lower() not in {"low", "routine", "safe"}
+        score = self._SEVERITY_TO_SCORE.get(verdict, 0) if counted else 0
+        self._last_activity_at = now
         self.total_score += score
         self._escalation_history.append({
             "verdict": verdict,
@@ -74,23 +89,23 @@ class SessionSafetyState:
         self._state = new_state
 
         # 连续 ask → escalate（spec F2）
-        if verdict == "ask":
+        if verdict == "ask" and counted:
             self._ask_to_escalate_count += 1
             if self._ask_to_escalate_count >= 3:
                 self._ask_to_escalate_count = 0
                 return "escalate"
-        else:
+        elif verdict != "ask":
             self._ask_to_escalate_count = max(0, self._ask_to_escalate_count - 1)
 
         # 连续 escalate → 升级为 block
-        if verdict == "escalate":
+        if verdict == "escalate" and counted:
             self._escalate_to_block_count += 1
             if self._escalate_to_block_count >= 3:
                 self._escalate_to_block_count = 0
                 return "block"
-        elif verdict == "block":
+        elif verdict == "block" and counted:
             self._escalate_to_block_count = 0
-        else:
+        elif verdict != "escalate":
             self._escalate_to_block_count = max(0, self._escalate_to_block_count - 1)
 
         # escalate + 累计 elevated → 升级为 block
@@ -98,6 +113,14 @@ class SessionSafetyState:
             return "block"
 
         return None
+
+    def _decay(self, now: float) -> None:
+        elapsed = max(0.0, now - self._last_activity_at)
+        if elapsed < self._DECAY_SECONDS or self.total_score <= 0:
+            return
+        periods = int(elapsed // self._DECAY_SECONDS)
+        self.total_score = max(0, self.total_score - periods * 3)
+        self._state = self._compute_state()
 
     def revision_hint(self) -> str | None:
         """生成 revise 裁决时的修正建议。
@@ -125,8 +148,10 @@ class SessionSafetyState:
         self._escalation_history.clear()
         self._escalate_to_block_count = 0
         self._ask_to_escalate_count = 0
+        self._last_activity_at = _time.monotonic()
 
     def status(self) -> dict[str, Any]:
+        self._decay(_time.monotonic())
         return {
             "session_key": self.session_key,
             "state": self._state,

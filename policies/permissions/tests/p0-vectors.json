@@ -25,5 +25,7 @@
   {"id":"p1-session-token-read","version":"1.1.0","category":"risk","rule_id":"P1-SESSION-TOKEN-READ","operation":"session.token.read","classification":"secret","expected_effect":"block"},
   {"id":"p1-permission-grant","version":"1.1.0","category":"privilege","rule_id":"P1-PERMISSION-GRANT","operation":"identity.permission.grant","expected_effect":"openclaw_approval"},
   {"id":"p1-auth-method-modify","version":"1.1.0","category":"privilege","rule_id":"P1-AUTH-METHOD-MODIFY","operation":"identity.auth.modify","expected_effect":"openclaw_approval"},
-  {"id":"p1-audit-modify","version":"1.1.0","category":"audit","rule_id":"P1-AUDIT-MODIFY","operation":"audit.modify","expected_effect":"openclaw_approval"}
+  {"id":"p1-audit-modify","version":"1.1.0","category":"audit","rule_id":"P1-AUDIT-MODIFY","operation":"audit.modify","expected_effect":"openclaw_approval"},
+  {"id":"p1-file-read","version":"1.1.0","category":"safe","rule_id":"P1-FILE-READ","operation":"file.read","scope":"workspace","classification":"internal","expected_effect":"auto_allow_audit"},
+  {"id":"p1-process-readonly","version":"1.1.0","category":"safe","rule_id":"P1-PROCESS-READONLY","operation":"process.execute","scope":"workspace","classification":"internal","command_safety":"read_only","expected_effect":"auto_allow_audit"}
 ]}

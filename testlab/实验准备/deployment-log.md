@@ -1,5 +1,7 @@
 # AgentDojo 部署操作记录
 
+> **历史部署快照（2026-05-31）**：安装记录保留用于追溯。当前环境需以 `agentdojo-upgrade-environment.md` 的 `--preflight` 为准；该记录中的旧环境曾使用 Pydantic 1.10.26，现已在独立环境升级到 Pydantic 2.13.5 并通过预检。
+
 ## 1. 部署时间
 2026-05-31
 
@@ -46,7 +48,7 @@
 | **OpenClaw Guard 环境** | `conda env: openclaw-guard`, Python 3.13 |
 | **AgentDojo 环境** | `conda env: agentdojo`, Python 3.11 |
 | **隔离方式** | 两个 Conda 环境完全独立，互不干扰 |
-| **交互方式** | AgentDojo 通过 HTTP API 向运行在 `127.0.0.1:8780` 的 OpenClaw Guard 发送测试用例 |
+| **交互方式（历史）** | 早期脚本曾通过 HTTP API 发送检测请求；当前 CandidateArm 仅在官方 AgentDojo 工具执行前调用 `/api/hook/before-tool-call`，NoGuard/Legacy 不调用该 HTTP 端点。 |
 
 ## 5. 注意事项
 

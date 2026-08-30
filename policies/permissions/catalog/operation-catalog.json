@@ -17,6 +17,7 @@
     {"family":"config.modify","tool_ids":["feishu.app.config.modify","config.modify"],"aliases":["app.config.modify"]},
     {"family":"secret.read","tool_ids":["secret.read"],"aliases":[]},
     {"family":"credential.read","tool_ids":["credential.read"],"aliases":[]},
+    {"family":"file.read","tool_ids":["read","file_read","read_file","file.read","grep","cat","head","tail","list","ls"],"aliases":["file.search"]},
     {"family":"process.execute","tool_ids":["process.execute"],"aliases":[]},
     {"family":"file.write","tool_ids":["file.write"],"aliases":[]},
     {"family":"session.token.read","tool_ids":["session.token.read","auth.session.read"],"aliases":["session.cookie.read","oauth.token.read"]},

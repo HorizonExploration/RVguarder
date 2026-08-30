@@ -35,7 +35,17 @@
 
 ## GET `/api/health`
 
-健康检查接口，返回服务存活状态。
+健康检查接口，返回服务存活状态以及当前实际加载的策略指纹。插件或排障脚本可用这些字段
+判断 Guard 是否仍运行旧进程/旧规则包。
+
+```json
+{
+  "ok": true,
+  "policy_version": "1.1.0",
+  "policy_rule_count": 74,
+  "policy_fingerprint": "<16 位哈希前缀>"
+}
+```
 
 ## GET `/api/summary`
 
@@ -203,6 +213,8 @@ OpenClaw Guard 本地插件内部使用的同步审批接口。
 - 生成动作记录
 - 执行 `allow / require_approval / block / escalate`
 - 返回给 OpenClaw 的 `requireApproval` 遵循官方 `BeforeToolCallResult` 类型
+- `require_approval` 返回 `title`、`message`、`user_summary`、`policy_version` 和 `technical_reason`；
+  OpenClaw 弹窗只使用中文 `title/message`，技术原因仅供 Guard 审计和排障。
 - 当请求的 `toolName` 为 `before_prompt_build` 时，该接口仅执行意图预检查，返回
   `{"action":"allow","precheck":true}`，不会写入动作记录或发布 `action.created`。
 

@@ -1,5 +1,7 @@
 # AgentDojo 数据集说明
 
+> 本文是数据集结构参考。攻击名称、注入向量和任务内容以安装环境中的 AgentDojo 官方 registry/suite 为准；当前评测不复制下方模板，也不手工拼接攻击文本，执行入口见 [`实验方案/agentdojo-实验方案.md`](../实验方案/agentdojo-实验方案.md)。
+
 ## 1. 来源
 
 AgentDojo (v0.1.35) 是 ETH Zurich SPY Lab 开发的 LLM Agent 安全评测基准，安装于 conda 环境 `agentdojo` 中。
@@ -9,6 +11,19 @@ AgentDojo (v0.1.35) 是 ETH Zurich SPY Lab 开发的 LLM Agent 安全评测基�
 本次实验固定使用 `v1.2.2` 版本，包含两个套件：`workspace` 和 `banking`。
 
 ## 3. 套件详情
+
+### 3.0 当前安装环境实测规模（v1.2.2）
+
+任务版本会随 AgentDojo suite 合并更新，不能仅依据下方历史任务表估算规模。2026-08-29 在当前环境通过官方 `get_suite()` 读取到：
+
+| 套件 | 用户任务 | 注入任务 | 工具 |
+|---|---:|---:|---:|
+| workspace | 40 | 14 | 24 |
+| banking | 16 | 9 | 11 |
+| slack | 21 | 5 | 11 |
+| travel | 20 | 7 | 28 |
+
+正式运行的实际样本数以脚本的 `manifest.json` 为准；下方 `workspace`/`banking` 条目是结构参考，不是固定总量承诺。
 
 ### 3.1 workspace（工作区套件）
 
@@ -91,7 +106,7 @@ AgentDojo (v0.1.35) 是 ETH Zurich SPY Lab 开发的 LLM Agent 安全评测基�
 
 ---
 
-## 4. 攻击类型模板
+## 4. 攻击类型模板（仅作历史说明）
 
 | 攻击类型 | 模板 |
 | :--- | :--- |

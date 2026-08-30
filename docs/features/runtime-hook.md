@@ -78,8 +78,8 @@ OpenClaw 进入工具调用
 {
   requireApproval: {
     pluginId: "openclaw-guard-hook",      // 插件标识
-    title: "龙虾卫士安全审批",              // 审批卡片标题
-    description: "拦截动作：write_file",    // 审批卡片描述
+    title: "需要确认：修改项目文件",        // 中文审批卡片标题
+    description: "本次操作将修改项目中的文件，请确认目标和范围。", // 中文说明
     severity: "warning",                    // "info" | "warning" | "critical"
     allowedDecisions: ["allow-once", "deny"], // 首版不提供持久放行
     timeoutMs: 300000,                      // 5 分钟超时
@@ -93,6 +93,23 @@ OpenClaw 进入工具调用
   }
 }
 ```
+
+Guard 会同时返回 `user_summary`、`policy_version` 和 `technical_reason`：OpenClaw 卡片只展示
+`title/description` 及用户摘要，规则编号、匹配证据和内部原因留在 Guard 审计详情中。
+`technical_reason` 不应直接作为用户提示。
+
+### 个人办公场景的低风险分级
+
+以下条件同时满足时，项目内日常读取不创建审批卡片，但仍写入审计：
+
+- 命令由确定性分析器识别为只读（支持复合 `cd && git/rg/find/cat/ls` 等命令）；
+- 目标位于 OpenClaw workspace、源码目录或 Guard 受管项目目录；
+- 没有重定向、命令替换、网络、提权、删除、写入或 `find -exec`；
+- 文件读取属于 `public/internal`，没有凭据或秘密标签。
+
+项目外读取、项目写入、外联、发送、删除、提权和未知命令仍进入 OpenClaw 原生审批或硬阻断。
+范围使用 `workspace / managed_project / outside / external / unknown` 五级模型，不再把所有
+非 workspace 目标直接视为恶意。
 
 ### 电路熔断器（Circuit Breaker）
 

@@ -171,6 +171,8 @@ class PolicyEvaluator:
         if field.startswith("context."): return getattr(trace.context, field.split(".", 1)[1], None)
         if field.startswith("resource."): return getattr(trace.resource, field.split(".", 1)[1], None)
         if field.startswith("data."): return getattr(trace.data, field.split(".", 1)[1], None)
+        if field.startswith("operation.arguments."):
+            return trace.operation.arguments.get(field.split(".", 2)[2])
         if field.startswith("operation."): return getattr(trace.operation, field.split(".", 1)[1], None)
         if field in {"legacy_action_type", "legacy_action_types"}:
             return trace.operation.arguments.get("action_type")

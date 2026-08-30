@@ -121,6 +121,15 @@ class TestSessionSafetyState(unittest.TestCase):
         self.assertIn("state", status)
         self.assertIn("total_score", status)
 
+    def test_low_risk_requests_do_not_poison_session(self):
+        """连续低风险请求不应把正常办公会话升级为 critical。"""
+        for _ in range(20):
+            result = self.ss.record("ask", "只读项目查询", risk_class="low")
+            self.assertIsNone(result)
+        self.assertEqual(self.ss.total_score, 0)
+        self.assertEqual(self.ss.current_state, "safe")
+        self.assertEqual(self.ss.status()["ask_to_escalate_count"], 0)
+
     def test_non_escalate_resets_counter(self):
         """非 escalate 不增加计数器。"""
         self.ss.record("ask")

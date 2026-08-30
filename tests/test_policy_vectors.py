@@ -36,11 +36,15 @@ def evaluate_vector(vector: dict[str, object]):
     trace = AuthorizationTrace(
         trace_id=str(vector["id"]),
         principal=PrincipalRef(id="vector-user", type="human", trust="verified"),
-        operation=OperationRef(family=operation),
+        operation=OperationRef(
+            family=operation,
+            arguments={"command_safety": vector["command_safety"]}
+            if vector.get("command_safety") else {},
+        ),
         resource=ResourceRef(
-            type="recipient" if external else "document",
+            type=("recipient" if external else ("command" if operation == "process.execute" else "document")),
             ids=["partner.example"] if external else ["office-doc"],
-            scope="external" if external else "workspace",
+            scope=str(vector.get("scope") or ("external" if external else "workspace")),
         ),
         coverage=CoverageResult(status=coverage_status),
         data=DataRef(classification=classification, quantity=quantity),

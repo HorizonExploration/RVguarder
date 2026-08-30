@@ -80,7 +80,11 @@ class AuthorizationPolicyEngine:
             effects.append("openclaw_approval")
         if grant_gaps:
             effects.append("openclaw_approval")
-        if diff.hard_violations:
+        # A scope expansion is reviewable evidence, not a destructive action by
+        # itself.  Keep it in the diff and require OpenClaw approval through
+        # excessive_permissions, while reserving a hard block for explicit
+        # hard-violation types produced by the risk graph/authorization model.
+        if any(item != "scope_expansion" for item in diff.hard_violations):
             effects.append("block")
         effect = max(effects, key=lambda candidate: _EFFECT_RANK[candidate])
         missing_features = list(dict.fromkeys([
@@ -199,7 +203,7 @@ class AuthorizationPolicyEngine:
         return grants, "event_metadata"
 
 
-_SCOPE_RANK = {"own": 0, "workspace": 1, "outside": 2, "external": 3, "bulk": 4}
+_SCOPE_RANK = {"own": 0, "workspace": 1, "managed_project": 1, "outside": 2, "external": 3, "bulk": 4}
 
 
 def _validate_grant_for_principal(grant: CapabilityGrant, principal_id: str) -> list[str]:

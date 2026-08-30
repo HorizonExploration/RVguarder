@@ -21,6 +21,7 @@ from openclaw_guard.integrations.tool_hook_bridge import (
     build_hook_source_message,
     hook_key_from_payload,
 )
+from openclaw_guard.engine.command_safety import analyze_command
 from openclaw_guard.utils import utc_now_iso
 if TYPE_CHECKING:
     from openclaw_guard.services import GuardServices
@@ -83,16 +84,23 @@ def _annotate_event_context(
         if isinstance(raw_grants, list):
             event.metadata["current_permissions"] = raw_grants
     workspace = services.context.target.workspace_path
-    if workspace and event.target_paths:
-        workspace_root = Path(workspace).expanduser()
-        outside = False
-        for item in event.target_paths:
-            try:
-                Path(item).expanduser().resolve().relative_to(workspace_root.resolve())
-            except Exception:
-                outside = True
-                break
-        event.metadata["outside_workspace"] = outside
+    roots: list[tuple[str, Path]] = []
+    if workspace:
+        roots.append(("workspace", Path(workspace).expanduser()))
+    if services.context.target.source_root:
+        roots.append(("managed_project", Path(services.context.target.source_root).expanduser()))
+    roots.append(("managed_project", Path(services.context.paths.project_dir).expanduser()))
+    command_safety = analyze_command(event.command)
+    event.metadata["command_safety"] = command_safety.to_dict()
+    scope_class = _classify_scope(
+        [*event.target_paths, *command_safety.path_hints],
+        roots=roots,
+        working_directory=event.working_directory,
+    )
+    if scope_class == "unknown" and command_safety.safe_read_only:
+        scope_class = "workspace" if workspace else "managed_project"
+    event.metadata["scope_class"] = scope_class
+    event.metadata["outside_workspace"] = event.metadata["scope_class"] in {"outside", "external", "unknown"}
     if len(event.target_paths) > 1:
         event.metadata["multi-target"] = True
     semantic_started = time.perf_counter()
@@ -104,6 +112,7 @@ def _annotate_event_context(
             "workspace_path": str(workspace) if workspace else None,
         },
     )
+    _merge_deterministic_semantics(event, semantic_payload)
     timings = _ensure_pipeline_timings(event)
     timings["semantic_ms"] = round((time.perf_counter() - semantic_started) * 1000.0, 3)
     event.metadata["semantic"] = semantic_payload["semantic"]
@@ -112,6 +121,64 @@ def _annotate_event_context(
     if policy_engine is not None:
         authorization_trace = policy_engine.compile_trace(event, source_message=source_message)
         event.metadata["authorization_trace"] = authorization_trace.model_dump()
+
+
+def _classify_scope(
+    paths: list[str],
+    *,
+    roots: list[tuple[str, Path]],
+    working_directory: str | None = None,
+) -> str:
+    """Classify targets against workspace and explicitly managed project roots."""
+    if not roots:
+        return "unknown"
+    default_base = Path(working_directory).expanduser() if working_directory else roots[0][1]
+    if not paths and not working_directory:
+        return "unknown"
+    candidates = list(paths) or [str(default_base)]
+    matched: list[str] = []
+    for raw in candidates:
+        path = Path(str(raw)).expanduser()
+        if not path.is_absolute():
+            path = default_base / path
+        try:
+            resolved = path.resolve()
+        except OSError:
+            resolved = path.absolute()
+        labels = []
+        for label, root in roots:
+            try:
+                resolved.relative_to(root.resolve())
+                labels.append(label)
+            except (OSError, ValueError):
+                continue
+        if not labels:
+            return "external" if str(raw).lower().startswith(("http://", "https://")) else "outside"
+        matched.append("workspace" if "workspace" in labels and "managed_project" not in labels else "managed_project")
+    if "managed_project" in matched:
+        return "managed_project"
+    return "workspace"
+
+
+def _merge_deterministic_semantics(event: Any, semantic_payload: dict[str, Any]) -> None:
+    """Overlay non-LLM command facts before PMKB/RV consume semantic labels."""
+    safety = event.metadata.get("command_safety")
+    if not isinstance(safety, dict):
+        return
+    semantic = semantic_payload.get("semantic")
+    if not isinstance(semantic, dict):
+        return
+    labels = {str(item) for item in semantic.get("labels", [])}
+    if safety.get("safe_read_only") is True:
+        labels.add("command_readonly")
+    semantic["labels"] = sorted(labels)
+    semantic["command_safety"] = safety
+    for step in semantic_payload.get("rv_trace", []):
+        if isinstance(step, dict):
+            props = {str(item) for item in step.get("props", [])}
+            if safety.get("safe_read_only") is True:
+                props.add("command_readonly")
+            step["props"] = sorted(props)
 
 
 def _apply_policy_engine(
@@ -275,7 +342,11 @@ def _apply_session_escalation(
         return decision
     session_key = _resolve_rv_session_key(event)
     state = services.session_state_for(session_key)
-    upgrade = state.record(getattr(decision, "action", "ok"), decision.reason)
+    upgrade = state.record(
+        getattr(decision, "action", "ok"),
+        decision.reason,
+        risk_class=_session_risk_class(event, decision),
+    )
     event.metadata["session_state"] = state.status()
 
     # 先应用 record() 的明确升级，再考虑 revise 建议，保证所有会话叠加单调升权。
@@ -302,6 +373,18 @@ def _apply_session_escalation(
         )
         decision.rule_ids = list(decision.rule_ids) + [f"SESSION-{session_key}"]
     return decision
+
+
+def _session_risk_class(event: Any, decision: Any) -> str:
+    """Classify evidence before it enters cumulative session risk."""
+    safety = event.metadata.get("command_safety") if isinstance(getattr(event, "metadata", None), dict) else None
+    if isinstance(safety, dict) and safety.get("safe_read_only") is True:
+        return "low"
+    if getattr(decision, "action", "") == "allow" and getattr(decision, "risk_level", "safe") in {"safe", "caution"}:
+        return "low"
+    if getattr(decision, "risk_level", "") == "safe":
+        return "low"
+    return "high"
 
 
 # ---------------------------------------------------------------------------
@@ -385,6 +468,10 @@ def handle_before_tool_call_pipeline(
     decision = _apply_session_escalation(services, event, decision)
     controller_started = time.perf_counter()
     controlled = services.controller.decide(event, decision, hook_source_message)
+    if controlled.status in {"blocked", "pending_approval"}:
+        user_title, user_message = _user_explanation(controlled.event, controlled.decision)
+        controlled.decision.user_title = user_title
+        controlled.decision.user_message = user_message
     timings = _ensure_pipeline_timings(event)
     timings["controller_ms"] = round((time.perf_counter() - controller_started) * 1000.0, 3)
     timings["total_ms"] = round((time.perf_counter() - started) * 1000.0, 3)
@@ -437,9 +524,16 @@ def handle_before_tool_call_pipeline(
     )
 
     if controlled.status == "blocked":
+        title, message = _user_explanation(controlled.event, controlled.decision)
+        policy = controlled.decision.policy_decision or {}
         return {
             "action": "block",
-            "blockReason": controlled.decision.reason,
+            "blockReason": message,
+            "title": title,
+            "message": message,
+            "technical_reason": controlled.decision.reason,
+            "user_summary": _user_summary(controlled.event, controlled.decision),
+            "policy_version": policy.get("policy_version", ""),
             "action_record": controlled.to_dict(),
         }
 
@@ -455,9 +549,15 @@ def handle_before_tool_call_pipeline(
         }
 
     if controlled.status == "pending_approval":
+        title, message = _user_explanation(controlled.event, controlled.decision)
+        policy = controlled.decision.policy_decision or {}
         return {
             "action": "require_approval",
-            "message": controlled.decision.reason,
+            "title": title,
+            "message": message,
+            "technical_reason": controlled.decision.reason,
+            "user_summary": _user_summary(controlled.event, controlled.decision),
+            "policy_version": policy.get("policy_version", ""),
             "severity": "critical" if controlled.decision.action in {"escalate", "revise"} else "warning",
             "revision_hint": controlled.decision.revision_hint,
             "action_record": controlled.to_dict(),
@@ -468,6 +568,40 @@ def handle_before_tool_call_pipeline(
         "params": payload.get("params") if isinstance(payload.get("params"), dict) else {},
         "action_record": controlled.to_dict(),
     }
+
+
+def _user_summary(event: Any, decision: Any) -> dict[str, str]:
+    operation = {
+        "command_exec": "执行命令",
+        "file_read": "读取文件",
+        "file_write": "修改文件",
+        "file_delete": "删除文件",
+        "network_egress": "访问网络",
+        "channel_send": "发送消息",
+        "config_modify": "修改配置",
+        "skill_run": "运行技能",
+    }.get(str(getattr(event, "action_type", "")), "调用工具")
+    scope = str(event.metadata.get("scope_class") or "未知范围")
+    risk = {"safe": "低风险", "caution": "需确认", "dangerous": "高风险", "blocked": "已阻断"}.get(str(getattr(decision, "risk_level", "")), "需确认")
+    return {"operation": operation, "target": scope, "risk": risk, "recommendation": "确认目标和范围后允许一次"}
+
+
+def _user_explanation(event: Any, decision: Any) -> tuple[str, str]:
+    summary = _user_summary(event, decision)
+    action_type = str(getattr(event, "action_type", ""))
+    target = ", ".join(str(item) for item in getattr(event, "target_paths", [])[:2])
+    labels = {
+        "command_exec": ("执行命令", "执行命令"),
+        "file_delete": ("删除文件", "删除文件"),
+        "file_write": ("修改文件", "修改文件"),
+        "network_egress": ("访问网络", "访问网络"),
+        "channel_send": ("发送消息", "发送消息"),
+    }
+    detail, title_detail = labels.get(action_type, (summary["operation"], summary["operation"]))
+    if getattr(decision, "action", "") == "block":
+        return f"已阻止：{title_detail}", f"检测到一次{detail}操作，目标范围为{summary['target']}，存在{summary['risk']}风险，已阻止执行。"
+    target_text = f"目标为 {target}。" if target else f"目标范围为{summary['target']}。"
+    return f"需要确认：{title_detail}", f"OpenClaw 请求{detail}。{target_text}当前判断为{summary['risk']}，请确认目标和范围后再继续。"
 
 
 def handle_after_tool_call_pipeline(

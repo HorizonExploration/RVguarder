@@ -483,12 +483,25 @@ class GuardServices:
                 and trace.capability_lineage
             )
             if not identity_complete:
-                effect = (
-                    "block"
-                    if decision.action == "block" or policy_decision.effect == "block"
-                    else "openclaw_approval"
+                low_risk_command = event.metadata.get("command_safety")
+                low_risk_file_read = event.action_type == "file_read"
+                exempt_low_risk = bool(
+                    ((isinstance(low_risk_command, dict) and low_risk_command.get("safe_read_only") is True)
+                     or low_risk_file_read)
+                    and event.metadata.get("scope_class") in {"workspace", "managed_project"}
+                    and policy_decision.effect == "auto_allow_audit"
+                    and decision.action == "allow"
                 )
-                reason = "trusted_identity_incomplete"
+                if exempt_low_risk:
+                    effect = None
+                    reason = "low_risk_identity_not_required"
+                else:
+                    effect = (
+                        "block"
+                        if decision.action == "block" or policy_decision.effect == "block"
+                        else "openclaw_approval"
+                    )
+                    reason = "trusted_identity_incomplete"
             else:
                 recorded_decision = policy_decision
                 if decision.action == "block":

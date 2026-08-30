@@ -1,5 +1,7 @@
 # AgentDojo 评测 OpenClaw Guard 实验方案
 
+> **历史方案（保留用于追溯，不是当前执行入口）**：本文记录早期“文本/API”试验设计，曾使用 `/api/chat/send` 和人工前端验证。当前执行必须使用 [`agentdojo-实验方案.md`](./agentdojo-实验方案.md) 中的官方 `AgentPipeline`、`ToolsExecutionLoop`、`load_attack` 和 `GuardedToolsExecutor`；本文不作为现行架构或指标口径。
+
 ## 1. 实验目标
 
 本实验旨在评估 **OpenClaw Guard (龙虾卫士)** 在面对 **AgentDojo** 基准测试库中各类提示注入（Prompt Injection）攻击时的安全防护能力。具体目标包括：

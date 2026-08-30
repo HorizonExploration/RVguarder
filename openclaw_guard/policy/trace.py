@@ -33,6 +33,9 @@ class TraceCompiler:
         tool_id = str(event.metadata.get("tool_name") or event.api_name or _ACTION_TO_TOOL.get(event.action_type, event.action_type))
         params = dict(event.raw_payload.get("params", {})) if isinstance(event.raw_payload.get("params", {}), dict) else {}
         params.setdefault("action_type", event.action_type)
+        command_safety = event.metadata.get("command_safety")
+        if isinstance(command_safety, dict):
+            params.setdefault("command_safety", str(command_safety.get("classification") or "unknown"))
         if event.command:
             params.setdefault("command", event.command)
             try:
@@ -48,11 +51,21 @@ class TraceCompiler:
             labels.update(str(x) for x in step.get("props", []) if isinstance(x, str))
         recipients = _entities(semantic, steps, "recipients")
         paths = _entities(semantic, steps, "paths") or list(event.target_paths)
+        if operation.family == "process.execute" and not paths and isinstance(command_safety, dict):
+            hints = command_safety.get("path_hints")
+            if isinstance(hints, list):
+                paths = [str(item) for item in hints if item]
         urls = _entities(semantic, steps, "urls") or list(event.network_targets)
+        if operation.family == "process.execute" and not (recipients or paths or urls) and (event.command or tool_id == "process.execute"):
+            paths = [event.command or tool_id]
         resource_ids = recipients or paths or urls
         resource_type = "recipient" if recipients else ("path" if paths else ("url" if urls else "unknown"))
+        if operation.family == "process.execute":
+            resource_type = "command"
         outside = bool(event.metadata.get("outside_workspace"))
-        scope = "external" if recipients and any(_external(x) for x in recipients) else ("outside" if outside else ("workspace" if paths else "unknown"))
+        scope = str(event.metadata.get("scope_class") or "")
+        if scope not in {"workspace", "managed_project", "outside", "external", "unknown"}:
+            scope = "external" if recipients and any(_external(x) for x in recipients) else ("outside" if outside else ("workspace" if paths else "unknown"))
         if urls and not paths:
             scope = "external"
 
@@ -96,7 +109,7 @@ class TraceCompiler:
         confidence = {
             "operation": 1.0 if operation.family != "unknown_tool" else 0.2,
             "resource": 0.9 if resource_ids else 0.0,
-            "scope": 0.95 if scope == "external" else (0.8 if scope in {"workspace", "outside"} else 0.0),
+            "scope": 0.95 if scope == "external" else (0.8 if scope in {"workspace", "managed_project", "outside"} else 0.0),
             "overall": _bounded_confidence(semantic.get("confidence", 0.0)),
         }
         return AuthorizationTrace(

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from openclaw_guard.models import BehaviorEvent
+from openclaw_guard.engine.command_safety import analyze_command
 
 logger = logging.getLogger(__name__)
 
@@ -743,10 +744,7 @@ def _contains_public_ip(targets: list[str]) -> bool:
 
 
 def _is_low_risk_command(command: str | None) -> bool:
-    if not command:
-        return False
-    normalized = command.strip().lower()
-    return normalized.startswith(_READONLY_COMMANDS)
+    return analyze_command(command).safe_read_only
 
 
 def _is_external_recipient(address: str) -> bool:

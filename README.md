@@ -36,7 +36,7 @@ Openclaw-RVGuarder（龙虾卫士）是一个面向 [OpenClaw](https://openclaw.
 | **审批结果同步** | OpenClaw 原生审批卡片唯一决策，Guard Dashboard SSE 只读同步 | ✅ |
 | **电路熔断器** | 后端不可达时自动开启熔断，优雅降级 fail-open，不封锁 OpenClaw | ✅ |
 | **语义理解增强** | DeepSeek LLM 驱动语义分析，7 维度 50+ 标签，理解自然语言意图 | ✅ |
-| **PMKB 权限建模** | PMKB 1.1.0：22 个操作、25 条持久化规则 + 47 条兼容规则、23 条 Trace、9 个危险组合关系；校验最小权限和权限聚合风险 | ✅ |
+| **PMKB 权限建模** | PMKB 1.1.0：23 个操作、27 条持久化规则 + 47 条兼容规则、25 条 Trace、9 个危险组合关系；校验最小权限和权限聚合风险 | ✅ |
 | **运行时验证 RV** | 滑动窗口 + ChainRule DSL（FSM 回退），检测链式攻击模式（搜索→删除→外发） | ✅ |
 | **跨 session 主体验证** | session-local 链路与 principal-global 能力状态分离，持久化主体级 RV 状态 | ✅ |
 | **基线安全扫描** | 配置、端口、用户、依赖全量扫描，输出 JSON/HTML/PDF 报告 | ✅ |
@@ -243,11 +243,11 @@ office rules、least-privilege traces、permission relations 和 test vectors �
 
 | 数据 | 当前基线 | 运行时用途 |
 |------|----------|------------|
-| operations | 22 | 将工具/动作归一化为 canonical operation |
-| rules | 25（其中 P1 20） | 单步规则、风险等级、效果和 required trace |
-| traces | 23 | 描述主体在办公场景的最小必要权限范围 |
+| operations | 23 | 将工具/动作归一化为 canonical operation |
+| rules | 27（另有 47 条 LEGACY 兼容记录） | 单步规则、风险等级、效果和 required trace |
+| traces | 25 | 描述主体在办公场景的最小必要权限范围 |
 | relations | 9 | 互斥、聚合和毒性权限组合 |
-| vectors | 27 | 规则、Trace、组合和回退路径回归样例 |
+| vectors | 29 | 规则、Trace、组合和回退路径回归样例 |
 
 处理顺序是：
 
@@ -308,7 +308,8 @@ SecurityChainMonitor 触发:
 再把它们转换为 PMKB 可匹配的 Authorization Trace，检测引擎和 RV 都消费同一份规范化结果：
 
 **标签体系（7 维度）**：
-- 基础标签：action_type, scenario, outside_workspace
+- 基础标签：action_type, scenario, scope_class（workspace / managed_project / outside / external / unknown）
+- 确定性操作标签：command_readonly；复合只读命令在受管范围内可自动放行并审计
 - 命令标签：command_rm_rf, command_sudo, command_pipe_curl_sh
 - 路径标签：path_system_root, path_sensitive_creds, path_high_value
 - 网络标签：network_http, network_webhook, network_secret_payload
@@ -332,7 +333,7 @@ SecurityChainMonitor 触发:
 python -m pytest -q
 ```
 
-当前回归基线（2026-08-28）：`541 passed / 18 skipped / 4 subtests passed`。
+当前回归基线（2026-08-29）：`490 passed / 18 skipped / 4 subtests passed`。
 
 测试覆盖：
 

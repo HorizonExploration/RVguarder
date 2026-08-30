@@ -1,6 +1,6 @@
 # 研究与规划索引
 
-> **核对日期：** 2026-08-28
+> **核对日期：** 2026-08-29
 > **原则：** 研究结论服务于当前代码；已被融合或替代的材料保留在 `docs/archive/research/` 供追溯。
 
 ## 当前有效
@@ -8,7 +8,7 @@
 | 文档 | 关注点 | 结论/用途 |
 | --- | --- | --- |
 | [权限模型知识库与跨会话 RV 最终方案](./permission-model-kb-and-cross-session-rv-plan.md) | 权限本体、PMKB、最小权限、危险组合和跨 session RV | 当前权限治理的总设计基线 |
-| [PMKB 网络案例基础知识库升级结果报告](./pmkb-network-baseline-implementation-report-2026-08-28.md) | `1.1.0` 基础规则、接入链路、测试和边界 | 当前可直接使用的知识库交付记录 |
+| [PMKB 网络案例基础知识库升级结果报告](./pmkb-network-baseline-implementation-report-2026-08-28.md) | `1.1.0` 基础规则、接入链路、首次验收和边界 | 首次交付历史快照；增量改造以现行架构结果为准 |
 | [权限语义与运行时验证专项研究报告](./agent-permission-rv-research-report-2026-08-25.md) | 权限风险分级、组合风险、攻击验证和指标 | 设计依据与后续研究输入 |
 
 ## 阅读提示

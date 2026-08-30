@@ -57,7 +57,7 @@ class OperationRef(GuardBaseModel):
 class ResourceRef(GuardBaseModel):
     type: str
     ids: list[str] = Field(default_factory=list)
-    scope: Literal["workspace", "outside", "external", "unknown"] = "unknown"
+    scope: Literal["workspace", "managed_project", "outside", "external", "unknown"] = "unknown"
 
 
 class DataRef(GuardBaseModel):

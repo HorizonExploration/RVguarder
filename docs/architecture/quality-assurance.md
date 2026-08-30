@@ -327,7 +327,7 @@ def assert_json_response(resp):
 | 跨 session | principal 键、TTL、持久化恢复和 session 隔离 | `tests/test_principal_capability_rv.py` |
 | 文档合同 | 当前架构和 README 不回退到旧版本/旧审批口径 | `tests/test_policy_docs.py` |
 
-当前全量基线为 `541 passed / 18 skipped / 4 subtests passed`；覆盖率、人工审批下降比例和命中率目标
+当前全量基线为 `490 passed / 18 skipped / 4 subtests passed`；覆盖率、人工审批下降比例和命中率目标
 仍需用真实事件或离线回放另行测量，不把目标指标写成已经达成的结果。
 
 ### 4.4 回退测试

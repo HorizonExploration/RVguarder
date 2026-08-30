@@ -1,9 +1,9 @@
 # 权限知识库与权限建模运行时升级结果
 
 > **状态：** 当前实现结果与架构事实源
-> **核对日期：** 2026-08-28
+> **核对日期：** 2026-08-29
 > **PMKB 版本：** `1.1.0`
-> **测试基线：** `python -m pytest -q` → `541 passed / 18 skipped / 4 subtests passed`
+> **测试基线：** `python -m pytest -q` → `490 passed / 18 skipped / 4 subtests passed`
 
 本文档说明本次升级实际交付的权限规则知识库（Permission Model Knowledge Base，PMKB）、权限建模、最小权限校验、危险权限组合检测和跨 session 运行时验证。它不是下一阶段愿景：已实现部分以代码和测试为证据，未实现部分明确列在“当前边界”中。
 
@@ -73,12 +73,12 @@ OpenClaw before_tool_call
 | 文件 | 当前数量 | 作用 |
 | --- | ---: | --- |
 | `schema/permissions.schema.json` | 1 | 约束 bundle 必须包含 operations、rules、traces、relations、vectors |
-| `catalog/operation-catalog.json` | 22 operations | 工具名/别名到 canonical permission family 的映射 |
-| `rules/p0-office.json` | 25 rules（其中 20 条 `P1-*`） | 单步权限规则、匹配条件、处置效果和来源 |
+| `catalog/operation-catalog.json` | 23 operations | 工具名/别名到 canonical permission family 的映射，含本地 `file.read` |
+| `rules/p0-office.json` | 27 rules（其中 22 条 `P1-*`） | 单步权限规则、匹配条件、处置效果和来源 |
 | 运行时兼容规则 | 47 `LEGACY-<old-id>` records | 由 47 条 DetectionRule 的 action type + semantic labels 生成，同时进入 ConstraintEngine、PMKB 评估与权限监视器 |
-| `traces/p0-office.json` | 23 traces | 每条规则对应的最小必要权限范围和正反例 |
+| `traces/p0-office.json` | 25 traces | 每条规则对应的最小必要权限范围和正反例 |
 | `relations/p0-combinations.json` | 9 relations | `toxic_with`、`conflicts`、`implies` 等权限关系 |
-| `tests/p0-vectors.json` | 27 vectors | 固定输入、预期效果和回归类别 |
+| `tests/p0-vectors.json` | 29 vectors | 固定输入、预期效果和回归类别 |
 
 每个规则记录至少包含：`id`、`version`、`effect`、`priority`、`match`、`required_fields`、`negative_conditions`、`source`、`test_vectors`、`rollback_state`、`positive_examples` 和 `negative_examples`。加载器会拒绝重复 ID、未知 operation、版本不一致或缺少必填字段的 bundle，并递归冻结已加载记录，防止运行时篡改。
 
@@ -94,7 +94,7 @@ OpenClaw before_tool_call
 | 执行体 | `agent_id`、`capability_lineage` | 区分同一用户下的 Agent 和能力来源，防止错误继承 |
 | 操作 | `operation.family/tool_id/aliases` | 由工具目录和 action fallback 解析；无法解析则为 `unknown_tool` |
 | 资源 | `resource.type/ids` | 路径、URL、收件人、文档、表等实体 |
-| 范围 | `resource.scope` | `workspace / outside / external / unknown`，不能把 unknown 当作宽泛许可 |
+| 范围 | `resource.scope` | `workspace / managed_project / outside / external / unknown`，不能把 unknown 当作宽泛许可 |
 | 数据 | `data.classification/quantity` | `public / internal / sensitive / secret` 和数量 |
 | 上下文 | `recipient_zone/purpose` | 内部/外部目的地和业务目的 |
 | 覆盖度 | `coverage.status/missing_features/gaps/conflicts` | `complete / partial / unknown / conflict` |
@@ -172,7 +172,7 @@ current_permissions
 - 已过期、撤销、主体不匹配或委派证据不完整的 grant 不进入闭包，并生成验证缺口；
 - scope、resource、field、purpose 和 TTL 都参与比较；
 - required Trace 的 `unknown` scope 不是通配符；
-- 发生 scope expansion 或超出 required Trace 时，至少进入 OpenClaw 审批；硬违规直接 `block`；
+- 发生 scope expansion 或超出 required Trace 时，至少进入 OpenClaw 审批；只有明确硬违规直接 `block`；
 - PermissionRef 是不可变、可哈希对象，避免运行时或测试修改 PMKB 证据。
 
 ### 5.2 危险组合 RiskGraph
@@ -197,8 +197,6 @@ RiskGraph 将稀疏权限关系作为超边索引，只检查被当前权限族�
 PMKB 规则与危险组合关系会在本地 bundle 装载时由 `PermissionAutomatonCompiler` 生成 `MonitorSpec`：每条规则对应一个 session 监视器，每条可执行关系对应一个 principal 监视器。运行时把 Authorization Trace 和 PolicyDecision 规范化为 `pmkb.permission` synthetic step，再由 `StepRequirement.policy` 读取 `selected_rule_ids`、`combo_violations`、effect、匹配状态、操作族、闭包后的权限族和风险分数。
 
 这不是用 DFA 重复实现 PolicyEvaluator：规则谓词、权限闭包、TTL/委派校验和 RiskGraph 仍以 PMKB 引擎的结果为权威；自动机负责将已验证的权限结论纳入 RV 标准监视器、作用域隔离、timing 和审计接口。因此未知或缺字段的请求不会因自动机存在而被放行。
-
-### 6.1 session-local RV
 
 ### 6.1 session-local RV
 
@@ -242,7 +240,7 @@ PMKB 效果到 Guard 动作的映射为：
 - `tests/test_permission_diff.py`、`test_permission_risk_graph.py`：最小权限、scope expansion 和危险组合；
 - `tests/test_principal_capability_rv.py`、`test_principal_rv_hook_integration.py`：跨 session 主体状态和持久化；
 - `tests/test_permission_rv_compiler.py`：PMKB 规则/关系自动机编译、effect 投影和 principal 作用域隔离；
-- 全量回归：`541 passed / 18 skipped / 4 subtests passed`（2026-08-28）。
+- 全量回归：`490 passed / 18 skipped / 4 subtests passed`（2026-08-29）。
 
 路线图目标 `complete coverage ≥85%`、`unknown rate ≤10%`、`low-risk auto-allow precision ≥99%`、`high-risk recall ≥98%`、人工审批量下降 40% 等，当前仅是发布和扩大自动放行范围的验收门槛，尚未由真实个人使用数据验证。
 
