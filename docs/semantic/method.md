@@ -1,6 +1,6 @@
 # OpenClaw-RVGuarder 语义理解增强方案
 
-> **历史设计提示（2026-09-02 更新）**：本文保留语义层的设计与字段说明，其中出现的 `DetectionEngine`、双轨 HTTP 或“后续迁移”均为历史叙述，不能视为当前实现。当前 PMKB、Authorization Trace、权限组合和 RV 以[权限知识库与 RV 运行时架构结果](../architecture/permission-kb-runtime-architecture.md)及[v0.7.0-dev 工程统一报告](../architecture/v070-engineering-unification-report-2026-09-02.md)为准。
+> **历史设计提示（2026-09-02 更新）**：本文保留语义层的设计与字段说明，其中出现的 `DetectionEngine`、双轨 HTTP 或“后续迁移”均为历史叙述，不能视为当前实现。当前 PMKB、Authorization Trace、权限组合和 RV 以[权限知识库与 RV 运行时架构结果](../architecture/permission-kb-runtime-architecture.md)及[v0.7.0-dev 工程统一报告](../architecture/v070-engineering-unification-report-2026-09-02.md)为准。本文不再作为生产模块清单或调用链路说明。
 
 ## 1. 目标与问题
 

@@ -43,6 +43,14 @@ Guard 页面不拥有审批权。`before_prompt_build` 仅记录预检查，不�
 4. `.env` 当前含真实访问凭据，必须留在本地并轮换已暴露的密钥；它不属于本次提交内容。
 5. `legacy_web.py` 作为历史文件仍可被直接手工导入。发布流程应只调用 `openclaw-guard run`，并在后续大版本考虑将冻结文件移至文档归档。
 
+## 本轮文档与仓库清查（2026-09-02）
+
+- 已将 README、现状分析、PMKB 架构、质量保障、RV 技术报告和研究简报中的旧入口、旧 PMKB 计数和 DetectionEngine 现状描述改为当前事实或明确标注为历史快照。
+- 已删除无生产/测试引用的一次性 `scripts/append_feishu_comparison.py`；该脚本含本地 OpenClaw 配置读取、固定飞书文档 token 和过时架构文案，不属于历史实验或评测证据。
+- `docs/archive/`、`testlab/` 历史实验脚本、AgentDojo 原始结果与报告、LEGACY 回放元数据均保留；它们不得作为当前生产模块清理。
+- 已清理 Python `__pycache__` 和 VuePress `.temp` 生成目录；运行中的 `runtime/guard.log` 未删除。
+- 未发现其他可在不改变生产行为的前提下删除的 tracked 模块。`collectors` 探测桩、`legacy_web.py` 和单独的基线训练脚本仍由架构/实验文档引用，暂不删除。
+
 ## 发布判定
 
 提交前必须通过：策略/LEGACY 回放、Hook 同步回归、完整 Python 测试、前端生产构建、VuePress 构建及 `git diff --check`。通过后，本次变更可作为 `v0.7.0-dev` 的工程统一基线；不在未经明确授权的情况下推送远端。

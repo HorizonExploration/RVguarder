@@ -4,7 +4,7 @@
 > 范围：`openclaw_guard/rv/`（运行时验证）+ `openclaw_guard/spec/`（规约生成与校验）两个子包
 > 关联文档：[RV 落地审计报告](./nl-automata-rv-landing-report.md)（落地核验）、[路线图](../ops/roadmap.md)（当前推进）；历史 NL→Automata 计划位于 `docs/archive/research/nl-automata-rv-upgrade-plan.md`
 
-> **当前实现更新（2026-08-28）**：本报告保留 RV 引擎的机制细节；PMKB、Authorization Trace、危险权限组合和主体跨 session 状态的现行交互以[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)为准。
+> **当前实现更新（2026-09-02）**：本报告保留 RV 引擎的机制细节；其中早期的“DetectionEngine 双轨”测试描述是历史快照。PMKB、Authorization Trace、危险权限组合和主体跨 session 状态的现行交互以[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)为准。
 
 ---
 
@@ -273,13 +273,13 @@ Ruleset
 | `tests/test_rv_fsm.py` | legacy FSM 监视器 |
 | `tests/test_baseline_learner.py` | 基线 DFA 学习/偏离检测/规模缩减 |
 | `tests/test_ir.py` | ToolCallIR 模型与透传 |
-| `tests/test_constraints.py` | 约束引擎/置信度门控/规则双轨一致性（10 条迁移规则与 detection 逐字段对齐） |
+| `tests/test_constraints.py` | 约束引擎/置信度门控/LEGACY 回放一致性 |
 | `tests/test_nl2spec.py` | 模板匹配/来源标记/校验器/trace 库 |
 | `tests/test_intervention.py` | 会话状态/升级链/revision_hint |
 | `tests/test_pipeline.py` | RV overlay / per-session 隔离 / 完整链路 |
 | `tests/test_perf_smoke.py` | 性能冒烟基准：约束引擎 0.07ms/次、RV 引擎 0.08ms/次、会话状态 1000 次 0.75ms（本机实测） |
 
-全量测试：**344 passed, 18 skipped, 0 failed**（2026-08-14）。
+历史全量测试：**344 passed, 18 skipped, 0 failed**（2026-08-14）；当前回归基线见[项目理解与当前记忆](./project-memory.md)。
 
 ---
 

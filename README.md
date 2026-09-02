@@ -346,7 +346,7 @@ OpenClaw 交接修复采用关键链路定向回归，避免无关测试掩盖�
 
 | 测试文件 | 覆盖内容 |
 |----------|----------|
-| `test_detection.py` | 规则引擎决策逻辑 |
+| `test_policy_decision_adapter.py` / `test_policy_evaluator.py` | PMKB 策略决策与兼容记录回放 |
 | `test_semantic_enhancer.py` | 语义增强器输出结构 |
 | `test_pmkb_network_baseline.py` / `test_policy_pipeline.py` / `test_policy_docs.py` | PMKB 规则、Trace、权限闭包/差分、文档合同 |
 | `test_principal_capability_rv.py` / `test_principal_rv_hook_integration.py` | 主体级跨 session RV、TTL 和状态持久化 |

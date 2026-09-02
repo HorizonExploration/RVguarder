@@ -3,7 +3,7 @@
 > **接收方：** OpenClaw 汇报优化助手
 > **日期：** 2026-08-31
 > **事实源：** `docs/architecture/permission-modeling-diagrams.md` 及其链接的当前架构文档
-> **状态更新（2026-09-02）：** 本文保留组会简报语境；其中关于 DetectionEngine、legacy_web 和版本未统一的描述已过时。当前事实见[工程统一报告](../architecture/v070-engineering-unification-report-2026-09-02.md)。
+> **状态更新（2026-09-02）：** 本文保留 2026-08-31 组会简报语境；其中关于 DetectionEngine、legacy_web、旧 PMKB 计数和未提交文件数量的描述均为历史快照，不是当前事实。当前事实见[工程统一报告](../architecture/v070-engineering-unification-report-2026-09-02.md)。
 
 ## 使用任务
 
@@ -15,7 +15,7 @@
 
 - 当前版本口径：`v0.7.0-dev` / PMKB `1.1.0`。
 - Authorization Trace 采用九维权限本体：主体、执行体、操作、资源、范围、数据、上下文、覆盖度、来源。
-- PMKB 当前规模：27 operations、31 authored rules、47 `LEGACY-*` 兼容记录、29 traces、9 relations、29 test vectors。
+- PMKB（2026-08-31 快照）规模：27 operations、31 authored rules、47 `LEGACY-*` 兼容记录、29 traces、9 relations、29 test vectors；当前规模以工程统一报告为准。
 - `PermissionClosure`、`PermissionDiff` 和 `RiskGraph` 已进入权限判断链路。
 - PMKB 可编译为权限监视器，并与 session-local / principal-global RV 协同。
 - OpenClaw 原生审批是唯一批准/拒绝入口；Guard Dashboard 只读同步、解释和审计。
@@ -35,7 +35,7 @@
 ## 不应出现的表达
 
 - 不要把 AgentDojo 首轮“100% 预防率”作为有效实验结论。
-- 不要说 DetectionEngine 已经删除；它仍是 legacy 兼容快速防线。
+- 本快照当时不应说 DetectionEngine 已经删除；2026-09-02 工程统一后，生产 DetectionEngine 已退役，LEGACY 记录仅保留用于回放。
 - 不要说已经完成真实流量下人工审批下降 40%；这仍是路线图验收目标。
 - 不要把 `unknown` scope、unknown tool 或不可信文本解释成宽泛授权。
 - 不要把 Guard 页面描述为第二个审批中心。

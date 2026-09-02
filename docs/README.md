@@ -53,7 +53,7 @@ features:
 
 本次升级的现行事实以[权限知识库与 RV 运行时架构结果](./architecture/permission-kb-runtime-architecture.html)为准：
 
-- PMKB `1.1.0` 已接入 `before_tool_call` 主链，当前基线包含 27 个操作、31 条持久化规则、47 条 `LEGACY-<old-id>` 兼容规则（bundle 共 78 条规则）、29 条最小权限 Trace、9 条权限关系和 29 个回归向量。
+- PMKB `1.1.0` 已接入 `before_tool_call` 主链，当前基线包含 28 个操作、32 条 authored 规则、47 条 `LEGACY-<old-id>` 兼容规则（bundle 共 79 条规则）、29 条最小权限 Trace、9 条权限关系和 29 个回归向量。
 - PMKB 规则与权限组合关系同时编译为 RV 权限监视器；规则按 session 隔离、关系按可信主体/Agent/授权谱系隔离，详见 [RV 权限自动机架构](./architecture/rv-permission-automata.html)。
 - 语义层先将输入规范化为 Authorization Trace，再进行覆盖感知规则命中；`unknown`、`partial`、`conflict` 不会被模糊匹配直接放行。
 - 权限闭包/差分和 RiskGraph 在单步规则之后运行，检查超出业务最小权限、互斥权限和危险聚合组合。
@@ -94,7 +94,7 @@ v0.7.0-dev builds on the v0.6.0 six-phase refactor and RV phases A–F with a ve
 ## 技术栈 · Tech Stack
 
 ```
-Backend:   Python 3.13+ · legacy HTTP(默认) · FastAPI(可选) · DeepSeek API · SQLite · SQLAlchemy(可选) · transitions(FSM) · RV 规约驱动(ChainRule DSL) · DB_STORE_MODE / OPENCLAW_RV_RULE_MODE
+Backend:   Python 3.13+ · FastAPI(唯一入口) · DeepSeek API · SQLite · SQLAlchemy(可选) · transitions(FSM) · RV 规约驱动(ChainRule DSL) · DB_STORE_MODE / OPENCLAW_RV_RULE_MODE
 Frontend:  Preact · Vite · Zustand · 单页 SPA · SSE + 增量轮询降级
 Plugin:    JavaScript · OpenClaw Plugin SDK (api.on) · registerGatewayMethod
 Core:      Runtime Verification (RV) · 滑动窗口 · 规约驱动 ChainRule DSL(默认) + FSM 回退 · 白名单 Trie 树

@@ -255,7 +255,7 @@ curl -i "http://127.0.0.1:8780/api/summary?ts=1"
 # - body 可被 jq 正常解析
 ```
 
-建议补充到测试套件的最小断言（legacy 与 fastapi 都应覆盖）：
+建议补充到测试套件的最小断言（FastAPI 唯一入口）：
 
 ```python
 def assert_json_response(resp):
@@ -264,7 +264,7 @@ def assert_json_response(resp):
     resp.json()
 ```
 
-同时建议固定一个“依赖可选性”门禁：在未安装 fastapi/uvicorn 的环境中，仍可正常运行 legacy 模式并通过测试收集（避免 import-time 失败）。
+FastAPI 与 uvicorn 已是默认必需依赖；门禁应验证依赖缺失时给出可操作的安装错误，不能静默切换到冻结的 legacy 服务。
 
 ---
 

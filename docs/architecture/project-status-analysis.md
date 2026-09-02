@@ -4,7 +4,7 @@
 > **分析日期**：2026-08-30（OpenClaw 交接与误拦截修复后复核）
 > **分析基准**：当前工作树；精确提交号以 Git 为准
 > **改造前全量基线（2026-08-30）**：`python -m pytest -q` → **513 passed / 18 skipped / 4 subtests passed**；本次变更只运行关键链路定向回归。
-> **状态更新（2026-09-02）：** 本文的双轨 HTTP 和 DetectionEngine 未退役结论已由后续工程统一工作解决；请以 [v0.7.0-dev 工程统一报告](./v070-engineering-unification-report-2026-09-02.md) 为当前结论。
+> **状态更新（2026-09-02）：** 本文保留 2026-08-30 的问题快照；当前实现、版本和验证结论以 [v0.7.0-dev 工程统一报告](./v070-engineering-unification-report-2026-09-02.md) 为准。
 
 ---
 
@@ -12,9 +12,11 @@
 
 OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运行时安全保护系统。当前项目已跨过 v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆分懒加载、Preact 前端迁移），并在此基础上完成 RV 层拆分（`engine/` → `rv/` + `spec/`）与规约驱动能力（阶段 A–F）的落地。
 
-项目整体处于**核心链路可用、治理能力持续完善**阶段：检测、审批、审计、RV 和 PMKB 基础链路已落地，但仍存在三类系统性问题——**前端自动化测试与构建门禁不足**、**双轨 HTTP 层维护成本**、**约束规则与标签规则并行导致的治理风险**。本报告按三大维度展开，并给出后续推进顺序。当前事实与维护口径见 [项目理解与当前记忆](./project-memory.md)。
+项目整体处于**核心链路可用、治理能力持续完善**阶段。本快照中的双轨 HTTP、生产 DetectionEngine 和旧规则双源问题已经在 2026-09-02 工程统一中解决；仍有效的问题主要是前端测试门禁、真实 OpenClaw 同步证据、约束规则原生化、生产存储集成和采集器能力边界。当前事实与维护口径见 [项目理解与当前记忆](./project-memory.md)。
 
-本次升级的可核对结果集中在[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)：PMKB `1.1.0` 已进入 `before_tool_call` 热路径，提供 27 个 canonical operations、31 条持久化规则、47 条 `LEGACY-<old-id>` 兼容规则（bundle 共 78 条规则）、29 条最小权限 Trace、9 条权限关系和 29 个回归向量；DetectionEngine 仍保留快速单步防线，尚未完成可删除的统一数据源退役。
+本次升级的可核对结果集中在[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)：PMKB `1.1.0` 已进入 `before_tool_call` 热路径，当前基线为 28 个 canonical operations、32 条 authored 规则、47 条 `LEGACY-<old-id>` 兼容规则（bundle 共 79 条规则）、29 条最小权限 Trace、9 条权限关系和 29 个回归向量；生产 DetectionEngine 已退役，LEGACY 仅用于兼容回放。
+
+> **阅读说明：** 第 4–6 节保留 2026-08-30 的问题快照，便于追踪改造前后差异。快照中的 B-1（双轨 HTTP）、C-1（规则双源）和 C-5（重复低风险命令逻辑）已解决；其余仍有效的风险以本节开头列出的工程统一报告为准。
 
 ---
 
@@ -23,7 +25,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 | 项 | 状态 |
 |---|---|
 | 产品定位 | OpenClaw 非侵入式安全护栏（执行前审批 + 语义分析 + 运行时验证 + 审计） |
-| 后端 | Python 3.13+ / Pydantic v2 / FastAPI（可选依赖）/ transitions FSM |
+| 后端 | Python 3.13+ / Pydantic v2 / FastAPI（唯一入口）/ transitions FSM |
 | 前端 | Vite 6 + Preact 10 + Zustand 5 + preact-router |
 | 存储 | SQLite（开发）/ PostgreSQL + Redis（生产，可选依赖） |
 | 测试 | Python 全量回归；最新数量以 `project-memory.md` 与 CI 输出为准 |
@@ -36,8 +38,8 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 | `engine/` | 单步检测、语义增强、控制决策、白名单、流水线编排 | 活跃 |
 | `rv/` | RV 运行时验证（FSM、约束推理、IR、基线自动机） | 本次拆分后新增 |
 | `spec/` | 规约生成/校验/会话状态（NL2Spec、SpecValidator、SessionSafetyState） | 本次拆分后新增 |
-| `web/` | FastAPI HTTP 层（7 个路由模块） | 实验性（`--fastapi` 启用） |
-| `legacy_web.py` | stdlib HTTP 兼容层 | 默认入口；与 FastAPI 保持双轨兼容 |
+| `web/` | FastAPI HTTP 层（7 个路由模块） | 唯一生产入口 |
+| `legacy_web.py` | stdlib HTTP 兼容层 | 冻结历史文件，不参与启动 |
 | `api/` | HTTP handler 桥接层（被 web/ 与 legacy_web 共用） | 保留 |
 | `core/` | ActionService / AuditService / BaselineService | 活跃 |
 | `integrations/` | OpenClaw 适配、Hook 运行时、发现、载荷转换 | 活跃 |
@@ -50,7 +52,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 
 ### 3.1 架构重构（v0.3.0 四阶段，已提交）
 
-1. **阶段一：HTTP 层替换** — FastAPI 应用工厂 + 依赖注入 + 统一异常处理，与旧版 `legacy_web.py` 双轨并存。
+1. **阶段一：HTTP 层替换** — FastAPI 应用工厂 + 依赖注入 + 统一异常处理；旧版 `legacy_web.py` 后续冻结为历史参考。
 2. **阶段二：Pydantic 模型迁移** — `models.py` 全部 10 个数据类迁移至 Pydantic v2，`to_dict()` 保留兼容别名。
 3. **阶段三：Manager 拆分 + 懒加载** — `GuardServices` 容器 + `LazyProxy` 惰性加载 + `pipeline.py` 流水线模块，核心组件延迟初始化优化启动。
 4. **阶段四：前端 Preact 迁移** — 17 源文件、5 页面、10 组件、Zustand 状态管理，替换 Vanilla JS。
@@ -69,7 +71,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 ### 3.3 核心安全能力
 
 - **47 条单步检测规则**（CMD/FILE/NET/API/SKL/CFG/GEN 七类）+ 6 个 FSM 跨步监视器。
-- **双层防线**：DetectionEngine（单步，<1ms）+ RV 引擎（跨步有状态，<5ms）。
+- **双层防线**：PMKB 单步策略（含 LEGACY 回放记录）+ RV 引擎（跨步有状态，<5ms）。
 - **SHA-256 审计哈希链**，SQLite + JSONL 双写。
 - **白名单 Trie 前缀树**，O(n) 匹配效率。
 - **OpenClaw 原生审批 + Guard 只读同步**（`requireApproval` + `onResolution` + SSE/增量查询）。
@@ -183,4 +185,4 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 
 ---
 
-*本报告已于 2026-08-30 复核；改造前全量回归为 **513 passed / 18 skipped / 4 subtests passed**（`python -m pytest -q`）。本次 OpenClaw 交接修复采用关键链路定向回归，历史问题快照保留原日期和语境。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 与 `runtime-hook.md` 为准。*
+*本报告于 2026-08-30 复核，后于 2026-09-02 增加状态说明；改造前全量回归为 **513 passed / 18 skipped / 4 subtests passed**，当前全量回归为 **545 passed / 18 skipped / 4 subtests passed**。历史问题快照保留原日期和语境，Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 与 `runtime-hook.md` 为准。*

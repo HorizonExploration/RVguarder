@@ -114,7 +114,7 @@ flowchart TB
 flowchart LR
     subgraph SRC[权限知识来源]
         CATALOG[operation-catalog.json\n28 operations / aliases]
-        RULES[rules/p0-office.json\n31 authored rules]
+        RULES[rules/p0-office.json\n32 authored rules]
         TRACE[traces/p0-office.json\n29 最小权限 Trace]
         REL[relations/p0-combinations.json\n9 toxic/conflict/implies]
         VEC[tests/p0-vectors.json\n29 正反例向量]
