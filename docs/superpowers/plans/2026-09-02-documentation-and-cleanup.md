@@ -59,3 +59,17 @@
 - [x] 运行 `pytest -q`、`cd frontend && npm run build`、`cd docs && npm run docs:build`。
 - [x] 运行 `git diff --check` 和旧事实扫描，确认当前文档只保留明确的历史快照描述。
 - [x] 汇总删除/保留清单、验证结果和剩余风险，不修改 `.env`。
+
+### Task 5: Remove confirmed dead code
+
+**Files:**
+- Modify: `openclaw_guard/services.py`
+- Modify: `openclaw_guard/web/app.py`
+- Modify: `openclaw_guard/policy/trace.py`
+- Modify: `openclaw_guard/engine/command_safety.py`
+- Modify: `scripts/train_baseline.py`
+
+- [x] 删除重复的类型检查导入、未使用类型导入和无占位符 f-string。
+- [x] 删除命令安全分析中无效果的空分支；保留抽象接口、兼容方法和异常恢复分支。
+- [x] 运行 `pyflakes openclaw_guard scripts`，确认仅剩包级 `__init__.py` 显式重导出提示。
+- [x] 运行全量 Python 测试并检查差异格式。

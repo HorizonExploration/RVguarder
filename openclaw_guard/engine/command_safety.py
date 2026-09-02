@@ -76,10 +76,6 @@ def analyze_command(command: str | None) -> CommandSafety:
     operators = [token for token in tokens if token in _OPERATORS or token.startswith((">", "<"))]
     if any(token.startswith((">", "<")) for token in operators):
         return CommandSafety("mutating", False, path_hints=_path_hints(tokens), reason_codes=("redirection",))
-    if any(token in {";", "&&", "||", "(" , ")"} for token in operators):
-        # Compound commands are safe only if each command segment is safe.
-        pass
-
     segments: list[list[str]] = [[]]
     for token in tokens:
         if token in _OPERATORS:

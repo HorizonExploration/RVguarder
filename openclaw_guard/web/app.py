@@ -11,7 +11,7 @@ from __future__ import annotations
 import threading
 import time
 import webbrowser
-from typing import Any, TYPE_CHECKING
+from typing import Any
 
 from fastapi import FastAPI
 
@@ -19,9 +19,6 @@ from openclaw_guard import __version__
 from openclaw_guard.services import GuardServices
 from openclaw_guard.web import errors
 from openclaw_guard.web.routes import actions, audit, baseline, events, health, hook, rv, static
-
-if TYPE_CHECKING:
-    import uvicorn  # noqa: F401
 
 def create_app(manager: GuardServices) -> FastAPI:
     """创建 FastAPI 应用（依赖注入 manager 到 app.state.manager）。

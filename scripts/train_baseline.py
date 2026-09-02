@@ -125,7 +125,7 @@ def main() -> None:
 
     if args.verbose:
         symbol_count = len(dfa.symbol_set)
-        print(f"\n=== Training Summary ===")
+        print("\n=== Training Summary ===")
         print(f"  Sessions:     {len(traces)}")
         print(f"  Total steps:  {total_steps}")
         print(f"  Unique symbols: {symbol_count}")

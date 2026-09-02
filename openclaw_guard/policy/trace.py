@@ -9,7 +9,7 @@ from uuid import uuid4
 from openclaw_guard.models import BehaviorEvent
 from openclaw_guard.policy.catalog import PolicyBundle
 from openclaw_guard.policy.models import (
-    AuthorizationTrace, ContextRef, CoverageResult, DataRef, OperationRef,
+    AuthorizationTrace, ContextRef, CoverageResult, DataRef,
     PrincipalRef, ProvenanceRef, ResourceRef,
 )
 

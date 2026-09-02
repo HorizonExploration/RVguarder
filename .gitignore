@@ -17,3 +17,6 @@ policies/
 htmlcov/
 .pytest_cache/
 .worktrees/
+
+# local secrets
+.env

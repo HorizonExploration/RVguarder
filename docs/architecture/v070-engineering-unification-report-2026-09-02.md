@@ -50,6 +50,7 @@ Guard 页面不拥有审批权。`before_prompt_build` 仅记录预检查，不�
 - `docs/archive/`、`testlab/` 历史实验脚本、AgentDojo 原始结果与报告、LEGACY 回放元数据均保留；它们不得作为当前生产模块清理。
 - 已清理 Python `__pycache__` 和 VuePress `.temp` 生成目录；运行中的 `runtime/guard.log` 未删除。
 - 未发现其他可在不改变生产行为的前提下删除的 tracked 模块。`collectors` 探测桩、`legacy_web.py` 和单独的基线训练脚本仍由架构/实验文档引用，暂不删除。
+- 代码静态清查已移除 `services.py`/`web/app.py` 的重复类型检查导入、`policy/trace.py` 的未使用类型导入、基线脚本无效 f-string，以及命令安全分析中的无效果空分支；包级 `__init__.py` 星号重导出属于兼容 API，保留不删。
 
 ## 发布判定
 

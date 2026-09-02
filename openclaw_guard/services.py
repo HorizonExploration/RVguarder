@@ -14,7 +14,7 @@ import threading
 from datetime import datetime, timedelta, timezone
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import Any
 
 from openclaw_guard.core.action_service import ActionService
 from openclaw_guard.core.baseline_service import BaselineService
@@ -50,18 +50,6 @@ from openclaw_guard.integrations.openclaw_adapter import (
 from openclaw_guard.utils import LazyProxy, append_jsonl, read_json, utc_now_iso, write_json
 from openclaw_guard.engine.whitelist import WhitelistEngine, default_police_whitelist
 from openclaw_guard.events import EventBus
-
-if TYPE_CHECKING:
-    from openclaw_guard.engine.pipeline import (  # noqa: F401 - 仅类型检查使用
-        _annotate_event_context,
-        _apply_rv_if_available,
-        _ensure_pipeline_timings,
-        _resolve_rv_session_key,
-        handle_after_tool_call_pipeline,
-        handle_before_tool_call_pipeline,
-        ingest_event_pipeline,
-    )
-
 
 # ------------------------------------------------------------------
 # 适配器耦合方法的模块级实现
