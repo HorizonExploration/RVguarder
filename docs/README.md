@@ -53,12 +53,12 @@ features:
 
 本次升级的现行事实以[权限知识库与 RV 运行时架构结果](./architecture/permission-kb-runtime-architecture.html)为准：
 
-- PMKB `1.1.0` 已接入 `before_tool_call` 主链，当前基线包含 23 个操作、27 条持久化规则、47 条 `LEGACY-<old-id>` 兼容规则（bundle 共 74 条规则）、25 条最小权限 Trace、9 条权限关系和 29 个回归向量。
+- PMKB `1.1.0` 已接入 `before_tool_call` 主链，当前基线包含 27 个操作、31 条持久化规则、47 条 `LEGACY-<old-id>` 兼容规则（bundle 共 78 条规则）、29 条最小权限 Trace、9 条权限关系和 29 个回归向量。
 - PMKB 规则与权限组合关系同时编译为 RV 权限监视器；规则按 session 隔离、关系按可信主体/Agent/授权谱系隔离，详见 [RV 权限自动机架构](./architecture/rv-permission-automata.html)。
 - 语义层先将输入规范化为 Authorization Trace，再进行覆盖感知规则命中；`unknown`、`partial`、`conflict` 不会被模糊匹配直接放行。
 - 权限闭包/差分和 RiskGraph 在单步规则之后运行，检查超出业务最小权限、互斥权限和危险聚合组合。
 - RV 保留 session-local 行为窗口，并增加以主体、agent 和能力血缘为键的 principal-global 跨 session 状态；审批仍只由 OpenClaw 原生审批中心完成。
-- 当前文档中的“目标指标”与“实测指标”分开记录；47 条历史规则已完成兼容迁移但旧 DetectionEngine 尚未退役，也没有自动学习写入生产规则。
+- 当前文档中的“目标指标”与“实测指标”分开记录；47 条历史规则已完成 PMKB 兼容迁移与逐条回放，生产 DetectionEngine 已退役，也没有自动学习写入生产规则。
 
 配套材料：[PMKB 网络案例基线](./semantic/pmkb-network-case-baseline.html)、[实现结果报告](./research/pmkb-network-baseline-implementation-report-2026-08-28.html)、[路线图](./ops/roadmap.html)。
 

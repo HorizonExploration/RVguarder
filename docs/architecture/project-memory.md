@@ -1,8 +1,8 @@
 # 项目理解与当前记忆
 
-> **核对日期**：2026-08-29（低风险日常办公策略升级后复核）
+> **核对日期**：2026-08-30（OpenClaw 交接与误拦截修复后复核）
 > **核对基准**：当前工作树（PMKB 网络案例基础知识库 `1.1.0`）
-> **测试基线（2026-08-29）**：`python -m pytest -q` → **490 passed / 18 skipped / 4 subtests passed**
+> **改造前全量基线（2026-08-30）**：`python -m pytest -q` → **513 passed / 18 skipped / 4 subtests passed**；本次改造采用关键链路定向回归。
 
 本文档是后续维护项目时的“当前事实源”。历史方案、阶段性审计报告和旧版本说明仍然保留，但如果它们与本文档或当前代码冲突，应以当前代码和本文档为准。
 
@@ -27,7 +27,7 @@ OpenClaw before_tool_call
   → Hook Bridge / BehaviorEvent
   → SemanticEnhancer（DeepSeek LLM 或本地规则降级）
   → TraceCompiler / PMKB PolicyEvaluator（Authorization Trace、最小权限、RiskGraph）
-  → DetectionEngine（47 条历史单步规则 + 办公场景策略）
+  → AuthorizationPolicyEngine（PMKB 原生规则 + 47 条 `LEGACY-*` 回放记录）
   → ConstraintEngine（可配置，升权不降权）
   → RuntimeVerificationEngine（默认 ChainRule DSL，FSM 回退）
   → SessionSafetyState + PrincipalSecurityState（会话与主体跨 session 累计风险）
@@ -49,26 +49,28 @@ OpenClaw before_tool_call
 | `openclaw_guard/core/` | 动作、审计、基线等业务服务 |
 | `openclaw_guard/integrations/` | OpenClaw 发现、Hook 生成、载荷转换、Gateway 适配 |
 | `openclaw_guard/storage/` | SQLite/PostgreSQL/可选 SQLAlchemy 存储与审计哈希链 |
-| `openclaw_guard/web/` | FastAPI 路由；`legacy_web.py` 仍是默认兼容入口 |
+| `openclaw_guard/web/` | FastAPI 路由；`legacy_web.py` 为冻结历史文件 |
 | `frontend/` | Vite + Preact + Zustand 工作台 |
 | `testlab/` | AgentDojo 与 RV 必要性/鲁棒性/干扰实验 |
 | `docs/` | VuePress 文档站、架构报告、研究记录和测试设计 |
 
 ## 4. 已落地能力
 
-- v0.3.0 架构重构：FastAPI 可选层、Pydantic v2、GuardServices + pipeline、Preact、可选 SQLAlchemyStore、ChainRule 规约驱动 RV。
+- v0.3.0 架构重构：Pydantic v2、GuardServices + pipeline、Preact、可选 SQLAlchemyStore、ChainRule 规约驱动 RV；HTTP 服务已在 v0.7.0-dev 收敛为 FastAPI 单入口。
 - RV 阶段 A–F：ToolCallIR、五类约束与置信度门控、基线自动机、实体/时间/计数参数化、NL2Spec + 反例校验、revise 干预与会话升级。
 - 运行时默认 `dsl` 规则模式；设置 `OPENCLAW_RV_RULE_MODE=fsm` 可回退到六个手写 FSM 监视器。
 - 规则检测、Hook 审批、resolution 幂等同步、审计双写、基线扫描和前端 RV 状态面板均有现行代码与测试覆盖。
 - PMKB 网络案例基线 `1.1.0` 已直接接入 `PolicyBundle → TraceCompiler → PolicyEvaluator → RiskGraph` 链路；源码目录与打包目录保持同版本、同内容，并为关键操作保留来源、Trace 和正反例向量。
+- OpenClaw 原生 `sessions_*`、`session_status`、`memory_*`、`agents_list`、`get_goal` 已显式映射为只读权限族；`sessions_send`、`sessions_spawn` 和计划/目标写入不继承只读信任。
+- Hook 审批文案在发送给 OpenClaw 前限制为标题 80、说明 240 字符；超过 6 分钟未回调的审批会标记为 `approval_timeout`，避免长命令 schema 失败和 Dashboard 孤儿动作。
 
 ## 5. 当前边界与待办
 
 这些不是“已完成能力”，维护时不要把它们写成完成状态：
 
-- `pyproject.toml` 与 `openclaw_guard.__version__` 仍为 `0.3.0`，而发布提交和文档产品版本为 `v0.6.0`；这是版本元数据未统一的问题。
-- 默认 HTTP 入口仍是 `legacy_web.py`，FastAPI 需要 `--fastapi`；双轨路由存在维护和行为漂移成本。
-- 47 条检测规则已动态生成 ConstraintRule，并生成 `LEGACY-<old-id>` PMKB 兼容记录；DetectionEngine 仍保留快速单步防线，尚未完成可删除的退役闭环。
+- 代码包版本为 `0.7.0.dev0`（展示为 `v0.7.0-dev`），PMKB bundle 为 `1.1.0`；二者分别标识产品构建与策略数据版本。
+- FastAPI 是唯一启动入口；`legacy_web.py` 不再作为回退路径。
+- 47 条历史单步规则已形成 `LEGACY-<old-id>` PMKB 记录并通过逐条回放门禁；DetectionEngine 已从生产路径删除，冻结元数据仅用于审计和历史评测。
 - 基线 DFA 只有在设置 `OPENCLAW_RV_BASELINE_DFA_PATH` 或显式传入路径时才加载，默认不做基线偏离检测。
 - collectors 下的 ptrace/eBPF 仍是 capability 探测桩；不要把它们描述成已落地的系统级采集器。
 - NL2Spec 的当前实现以模板/关键词和确定性 ChainRule 合成为主，LLM 生成接口仍属于可选扩展路径。
@@ -78,6 +80,6 @@ OpenClaw before_tool_call
 
 1. 先看本文件、`docs/architecture/index.md`、`docs/ops/roadmap.md`，再看现行研究文档；历史材料统一在 `docs/archive/`，`testlab/` 仅作为历史实验与证据，不是运行时依赖。
 2. 修改 Hook 合约、RV 判定顺序、默认模式或版本号时，同时更新 API/架构/部署文档和测试基线。
-3. 报告测试数量必须注明运行日期和命令；历史报告中的旧计数是快照，不应覆盖当前 **490 / 18 / 4** 全量回归结果。
+3. 报告测试数量必须注明运行日期和命令；历史报告中的旧计数是快照，不应覆盖当前改造前 **513 / 18 / 4** 全量回归结果。
 4. 运行时是否处于 fail-open 不能从静态文档推断，必须通过进程、健康接口和插件状态现场检查。
 5. 文档与前端构建验证命令分别为 `cd docs && npm run docs:build`、`cd frontend && npm run build`；2026-08-23 均已通过。

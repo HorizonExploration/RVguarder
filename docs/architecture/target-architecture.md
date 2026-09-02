@@ -1,6 +1,6 @@
 # 重构后目标架构设计
 
-> **文档性质：** 目标设计参考，不是当前实现的事实源。当前事实以 [`project-memory.md`](./project-memory.md) 和[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)为准。
+> **文档性质：** 历史目标设计参考，不是当前实现的事实源。本文中的 `--fastapi`、legacy 默认入口和 `DetectionEngine` 结构均已过时；当前事实以 [`project-memory.md`](./project-memory.md)、[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)和[v0.7.0-dev 工程统一报告](./v070-engineering-unification-report-2026-09-02.md)为准。
 > 版本：v1.0 (重构目标) | 日期：2026-08-01 | 现行参考复核：2026-08-28
 
 本文保留 v0.3–v0.6 重构阶段的目标结构，便于追溯，不代表 PMKB/RV 当前所有目标均已完成。当前

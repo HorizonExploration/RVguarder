@@ -103,11 +103,12 @@ class PolicyEvaluator:
 
     def evaluate(self, trace: AuthorizationTrace) -> PolicyDecision:
         rules = self.bundle.rules_for_operation(trace.operation.family)
-        # Native PMKB records remain authoritative for a mapped operation.  The
-        # legacy records are a compatibility fallback for an operation that
-        # lacks a native PMKB rule; this preserves existing calibrated P0
-        # decisions while making every legacy rule usable on uncovered tools.
-        if trace.operation.arguments.get("action_type") and not rules:
+        # LEGACY records are PMKB records, not a second runtime engine.  Keep
+        # them in the candidate set while their individual replay evidence is
+        # retained, including for a catalogued operation: otherwise a newly
+        # added broad allow/approval rule could silently weaken a historical
+        # hard block such as secret egress or rm -rf.
+        if trace.operation.arguments.get("action_type"):
             rules = [*rules, *self.bundle.legacy_rules()]
         candidates = [self.match_rule(rule, trace) for rule in rules]
         applicable = [c for c in candidates if c.status in {"matched", "partial"}]

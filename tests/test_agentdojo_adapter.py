@@ -13,6 +13,7 @@ from testlab.agentdojo_upgrade import (
     GuardOutcome,
     GuardRequestError,
     HTTPGuardClient,
+    adapt_openai_client_for_compatible_roles,
     build_tool_call_payload,
     classify_guard_response,
     compare_replay,
@@ -24,7 +25,110 @@ from testlab.agentdojo_upgrade import (
     summarize_guard_records,
     wilson_interval,
     redact_secrets,
+    normalize_openai_message_roles,
 )
+from testlab.脚本工具.agentdojo_upgrade_eval import parse_args
+from testlab.脚本工具.agentdojo_upgrade_eval import profile_task_selection
+from testlab.脚本工具.agentdojo_upgrade_eval import summarize_arm
+
+
+def test_demo_profile_uses_curated_risk_representatives() -> None:
+    assert profile_task_selection("workspace", "demo") == (
+        ["user_task_0", "user_task_12", "user_task_16", "user_task_19"],
+        ["injection_task_0", "injection_task_4", "injection_task_10"],
+    )
+    assert profile_task_selection("banking", "demo") == (
+        ["user_task_0", "user_task_1", "user_task_6", "user_task_13"],
+        ["injection_task_4", "injection_task_5", "injection_task_7"],
+    )
+
+
+def test_full_profile_reduces_original_matrix_by_about_sixty_percent() -> None:
+    workspace_users = [f"user_task_{i}" for i in range(40)]
+    workspace_injections = [f"injection_task_{i}" for i in range(14)]
+    banking_users = [f"user_task_{i}" for i in range(16)]
+    banking_injections = [f"injection_task_{i}" for i in range(9)]
+
+    selected_workspace = profile_task_selection("workspace", "full", workspace_users, workspace_injections)
+    selected_banking = profile_task_selection("banking", "full", banking_users, banking_injections)
+
+    workspace_episodes = len(selected_workspace[0]) * len(selected_workspace[1]) * 4 + len(selected_workspace[0])
+    banking_episodes = len(selected_banking[0]) * len(selected_banking[1]) * 4 + len(selected_banking[0])
+    assert (len(selected_workspace[0]), len(selected_workspace[1])) == (24, 8)
+    assert (len(selected_banking[0]), len(selected_banking[1])) == (11, 8)
+    assert workspace_episodes + banking_episodes == 1155
+
+
+def test_eval_defaults_to_report_sized_demo_profile() -> None:
+    args = parse_args([])
+
+    assert args.profile == "demo"
+    assert args.max_tool_iters is None
+
+
+def test_summary_excludes_error_episodes_from_effect_denominators() -> None:
+    summary = summarize_arm(
+        [
+            {"attack_success": False, "attack_prevented": True, "utility": True, "tool_traces": []},
+            {
+                "attack_success": False,
+                "attack_prevented": True,
+                "utility": False,
+                "tool_traces": [],
+                "error": "RateLimitError: 429",
+            },
+            {"attack_success": None, "utility": True, "tool_traces": []},
+        ]
+    )
+
+    assert summary["episodes"] == 3
+    assert summary["valid_episodes"] == 2
+    assert summary["errors"] == 1
+    assert summary["utility"] == {"successes": 2, "total": 2, "rate": 1.0, "ci95": [0.342372, 1.0]}
+    assert summary["attack_success"]["total"] == 1
+    assert summary["attack_prevention"]["total"] == 1
+
+
+def test_eval_pipeline_can_reuse_an_existing_llm_instance(monkeypatch: pytest.MonkeyPatch) -> None:
+    import testlab.脚本工具.agentdojo_upgrade_eval as eval_script
+
+    class FakePipeline:
+        def __init__(self, elements):
+            self.elements = elements
+            self.name = ""
+
+    class FakeExecutor:
+        pass
+
+    class FakeLoop:
+        def __init__(self, elements, max_iters):
+            self.elements = elements
+            self.max_iters = max_iters
+
+    dojo = {
+        "SystemMessage": lambda value: ("system", value),
+        "InitQuery": lambda: ("init",),
+        "load_system_message": lambda _value: "system prompt",
+        "AgentPipeline": FakePipeline,
+        "ToolsExecutionLoop": FakeLoop,
+    }
+    args = type("Args", (), {"model": "deepseek-chat", "approval_mode": "deny", "max_tool_iters": 2})()
+    shared_llm = object()
+
+    monkeypatch.setattr(eval_script, "build_guarded_tools_executor", lambda *a, **k: FakeExecutor())
+    monkeypatch.setattr(eval_script, "pipeline_name_for_attack", lambda model, arm: f"{model}:{arm}")
+    monkeypatch.setattr(eval_script, "_build_llm", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("rebuild")))
+
+    pipeline = eval_script._build_pipeline(
+        dojo,
+        args,
+        guard=object(),
+        context={"arm": "candidate"},
+        recorder=lambda _item: None,
+        llm=shared_llm,
+    )
+
+    assert shared_llm in pipeline.elements
 
 
 @dataclass
@@ -66,13 +170,66 @@ def test_build_tool_call_payload_preserves_identity_and_arguments() -> None:
     )
 
     assert payload == {
-        "toolName": "search_emails",
+        "toolName": "memory_search",
+        "agentdojoToolName": "search_emails",
+        "evaluationMode": "agentdojo",
         "params": {"query": "weekly report"},
         "toolCallId": "call-1",
         "sessionId": "session-1",
         "agentId": "agent-1",
         "goalId": "goal-1",
     }
+
+
+def test_agentdojo_read_tool_maps_to_safe_openclaw_capability() -> None:
+    payload = build_tool_call_payload(FakeToolCall("search_calendar_events", {"query": "meeting"}))
+
+    assert payload["toolName"] == "memory_search"
+    assert payload["agentdojoToolName"] == "search_calendar_events"
+    assert payload["evaluationMode"] == "agentdojo"
+
+
+def test_agentdojo_external_tool_keeps_high_risk_openclaw_capability() -> None:
+    payload = build_tool_call_payload(FakeToolCall("send_email", {"to": "outside@example.com"}))
+
+    assert payload["toolName"] == "feishu.im.send"
+    assert payload["agentdojoToolName"] == "send_email"
+    assert payload["evaluationMode"] == "agentdojo"
+
+
+def test_normalize_openai_message_roles_maps_developer_without_mutating_input() -> None:
+    messages = [{"role": "developer", "content": "rules"}, {"role": "user", "content": "task"}]
+
+    normalized = normalize_openai_message_roles(messages)
+
+    assert normalized == [{"role": "system", "content": "rules"}, messages[1]]
+    assert messages[0]["role"] == "developer"
+
+
+def test_openai_compatible_role_adapter_only_normalizes_chat_messages() -> None:
+    class Completions:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, object]] = []
+
+        def create(self, **kwargs: object) -> str:
+            self.calls.append(kwargs)
+            return "ok"
+
+    class Client:
+        def __init__(self) -> None:
+            self.completions = Completions()
+            self.other = "preserved"
+
+    raw = Client()
+    adapted = adapt_openai_client_for_compatible_roles(type("Client", (), {"chat": raw, "other": "preserved"})())
+    result = adapted.chat.completions.create(
+        model="deepseek-chat",
+        messages=[{"role": "developer", "content": "rules"}],
+    )
+
+    assert result == "ok"
+    assert raw.completions.calls[0]["messages"] == [{"role": "system", "content": "rules"}]
+    assert adapted.other == "preserved"
 
 
 @pytest.mark.parametrize(

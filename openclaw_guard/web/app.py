@@ -15,6 +15,7 @@ from typing import Any, TYPE_CHECKING
 
 from fastapi import FastAPI
 
+from openclaw_guard import __version__
 from openclaw_guard.services import GuardServices
 from openclaw_guard.web import errors
 from openclaw_guard.web.routes import actions, audit, baseline, events, health, hook, rv, static
@@ -29,7 +30,7 @@ def create_app(manager: GuardServices) -> FastAPI:
     """
     app = FastAPI(
         title="OpenClaw Guard",
-        version=getattr(manager, "__version__", "0.1.0"),
+        version=__version__,
         # 避免 SPA catch-all 遮蔽 /docs 等内置路径
         docs_url=None,
         redoc_url=None,

@@ -15,15 +15,15 @@
 | 电路熔断器 | v0.2.1 | 优雅期 → 熔断 OPEN（fail-open）→ 恢复 CLOSED 三态自动切换 |
 | RV 运行时验证 | v0.2.1 | 6 个 FSM 监视器（Mail/Report/Chain/Broadcast/DataExport/BatchFile），滑动窗口 10 步 |
 | 前端 RV 面板 | v0.2.1 | Trace 时间线、RV 状态面板、RV 模式开关 |
-| **FastAPI HTTP 层** | **v0.3.0** | `web/` 包替代 stdlib `http.server`，`--fastapi` flag 选择加入，统一异常处理 |
+| **FastAPI HTTP 层** | **v0.3.0 → v0.7.0-dev** | `web/` 包统一 HTTP 服务；v0.7.0-dev 起为默认且唯一入口 |
 | **Pydantic v2 模型** | **v0.3.0** | models.py 全部迁移至 BaseModel，自动验证 + 序列化，`to_dict()` 兼容别名 |
-| **旧版 HTTP 层保留** | **v0.3.0** | `legacy_web.py` 为默认 HTTP 服务，与 FastAPI 双轨并行 |
+| **HTTP 双轨收敛** | **v0.7.0-dev** | `legacy_web.py` 已冻结为历史参考，不参与启动或依赖缺失回退 |
 | **SQLAlchemyStore 可选存储** | **v0.3.0** | `storage/db_store.py` 内嵌 SQLAlchemyStore，`DB_STORE_MODE=sqlalchemy` 启用 ORM 存储 |
 | **RV 规约驱动** | **v0.3.0** | ChainRule DSL（`rv/rv_dsl.py` + `rv_rules.json`）编译监视器，默认 dsl 模式，FSM 为回退 |
 | **IR 结构化透传** | **v0.4.0** | ToolCallIR（11 字段）+ 语义层实体/约束/置信度透传，约束推理引擎（五类约束 + 加权评分 + 置信度门控），10 条高频规则已迁移（渐进） |
 | **基线自动机 + 参数化** | **v0.5.0** | BaselineLearner 偏离检测 + QEA 式 bind_vars + 实体守卫 + 时间原语 + 状态计数器 |
 | **NL2Spec + 干预闭环** | **v0.6.0** | Nl2SpecGenerator + SpecValidator 反例验证 + revise 干预 + SessionSafetyState 会话追踪 |
-| **PMKB 权限模型与跨 session RV** | **v0.7.0-dev** | PMKB 1.1.0（23 operations / 27 authored rules + 47 compatibility rules / 25 traces / 9 relations）、Authorization Trace、最小权限闭包/差分、RiskGraph、主体级状态持久化和 OpenClaw 单一审批契约 |
+| **PMKB 权限模型与跨 session RV** | **v0.7.0-dev** | PMKB 1.1.0（28 operations / 32 authored rules + 47 compatibility rules / 29 traces / 9 relations）、Authorization Trace、最小权限闭包/差分、RiskGraph、主体级状态持久化和 OpenClaw 单一审批契约 |
 
 ---
 

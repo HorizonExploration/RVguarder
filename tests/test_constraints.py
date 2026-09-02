@@ -466,21 +466,21 @@ class TestConstraintEngine(unittest.TestCase):
         self.assertTrue(any(r.rule_id == "CMD-001" for r, _ in results))
 
     def test_migrated_rules_align_with_detection(self):
-        """规则双轨一致性：迁移规则与 detection.builtin_rules() 同 rule_id 定义对齐。
+        """迁移规则与冻结 LEGACY 元数据按 rule_id 定义对齐。
 
         10 条迁移规则在 constraints.py 与 detection.py 两处定义（保留双定义），
         本测试兜底两处漂移：任一规则任一字段不一致即失败。
         """
-        from openclaw_guard.engine.detection import builtin_rules
+        from openclaw_guard.policy.legacy import legacy_rules
 
-        detection_by_id = {rule.rule_id: rule for rule in builtin_rules()}
+        detection_by_id = {rule.rule_id: rule for rule in legacy_rules()}
         self.assertGreaterEqual(len(detection_by_id), 10)
 
         for c_rule in migrated_constraint_rules():
             d_rule = detection_by_id.get(c_rule.rule_id)
             self.assertIsNotNone(
                 d_rule,
-                f"迁移规则 {c_rule.rule_id} 在 detection.builtin_rules() 中不存在",
+                f"迁移规则 {c_rule.rule_id} 在 LEGACY 元数据中不存在",
             )
             # 元数据一致
             self.assertEqual(c_rule.title, d_rule.title, f"{c_rule.rule_id} title 漂移")

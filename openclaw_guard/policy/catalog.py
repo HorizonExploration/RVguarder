@@ -268,12 +268,11 @@ def _string(value: dict[str, Any], field: str, path: str) -> str:
 def _legacy_detection_policy_rules() -> list[PolicyRule]:
     """Expose every legacy single-step guard as a versioned PMKB transition rule.
 
-    The DetectionRule metadata remains the temporary compatibility source until
-    its records are moved into a standalone bundle file.  Each generated rule
-    carries the legacy ID, exact action, and required semantic labels, so PMKB
-    evaluation and generated permission monitors can audit it immediately.
+    The records live in the frozen policy compatibility module.  They are
+    loaded as PMKB candidates for replay/audit only; runtime decisions are
+    produced by :class:`AuthorizationPolicyEngine`.
     """
-    from openclaw_guard.engine.detection import builtin_rules
+    from openclaw_guard.policy.legacy import legacy_rules
 
     effects = {"block": "block", "ask": "openclaw_approval", "escalate": "openclaw_approval"}
     return [
@@ -287,7 +286,7 @@ def _legacy_detection_policy_rules() -> list[PolicyRule]:
             rollback_state="detection-engine", positive_examples=[], negative_examples=[],
             legacy_rule_ids=[item.rule_id],
         )
-        for item in builtin_rules()
+        for item in legacy_rules()
     ]
 
 

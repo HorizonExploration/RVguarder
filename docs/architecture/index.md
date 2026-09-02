@@ -1,6 +1,6 @@
 # 架构文档索引
 
-> **核对日期：** 2026-08-29
+> **核对日期：** 2026-08-31
 > **文档状态：** 现行架构入口
 
 本目录只放面向当前实现的架构说明。历史选型、已完成重构计划和旧版本快照统一移至 `docs/archive/`，不再参与现行导航。当前实现、测试基线和已知边界以[项目理解与当前记忆](./project-memory.md)为最高优先级。
@@ -11,22 +11,23 @@
 | --- | --- | --- |
 | 0 | [项目理解与当前记忆](./project-memory.md) | 当前代码边界、运行链路、版本与维护规则 |
 | 1 | [架构总览](./overview.md) | 分层结构、组件职责和端到端决策流 |
-| 2 | [权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md) | 本次升级的现行实现、数据合同、语义命中、权限建模和跨 session RV |
-| 3 | [RV 权限自动机架构](./rv-permission-automata.md) | 三类自动机、PMKB 编译合同、作用域和旧结构迁移 |
-| 4 | [旧规则迁移矩阵](./legacy-rule-migration-matrix.md) | 47 条旧规则的迁移事实、删除门槛和分组计划 |
-| 5 | [RV 层技术报告](./rv-engine-report.md) | ToolCallIR、约束引擎、ChainRule、FSM 和会话状态 |
-| 6 | [RV 落地审计报告](./nl-automata-rv-landing-report.md) | RV 阶段 A–F 的代码核验和整改闭环 |
-| 7 | [前后端交接改造报告](./frontend-handoff-redesign-report.md) | OpenClaw 单一审批入口、SSE 同步和前端状态模型 |
-| 8 | [项目现状分析](./project-status-analysis.md) | 已完成能力、风险清单和后续优先级 |
-| 9 | [质量保障方案](./quality-assurance.md) | 测试分层、合约门禁、性能和回归策略 |
-| 10 | [目标架构参考](./target-architecture.md) | 仍有效的目标设计；与当前事实冲突时以当前记忆和代码为准 |
+| 2 | [权限建模与端到端架构图](./permission-modeling-diagrams.md) | 组会汇报用四张图：权限本体、PMKB、自动机和 OpenClaw 交接 |
+| 3 | [权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md) | 本次升级的现行实现、数据合同、语义命中、权限建模和跨 session RV |
+| 4 | [RV 权限自动机架构](./rv-permission-automata.md) | 三类自动机、PMKB 编译合同、作用域和旧结构迁移 |
+| 5 | [旧规则迁移矩阵](./legacy-rule-migration-matrix.md) | 47 条旧规则的迁移事实、删除门槛和分组计划 |
+| 6 | [RV 层技术报告](./rv-engine-report.md) | ToolCallIR、约束引擎、ChainRule、FSM 和会话状态 |
+| 7 | [RV 落地审计报告](./nl-automata-rv-landing-report.md) | RV 阶段 A–F 的代码核验和整改闭环 |
+| 8 | [前后端交接改造报告](./frontend-handoff-redesign-report.md) | OpenClaw 单一审批入口、SSE 同步和前端状态模型 |
+| 9 | [项目现状分析](./project-status-analysis.md) | 已完成能力、风险清单和后续优先级 |
+| 10 | [质量保障方案](./quality-assurance.md) | 测试分层、合约门禁、性能和回归策略 |
+| 11 | [目标架构参考](./target-architecture.md) | 仍有效的目标设计；与当前事实冲突时以当前记忆和代码为准 |
 
 ## 当前架构要点
 
 ```text
 OpenClaw before_tool_call
   → Hook Bridge / BehaviorEvent
-  → 语义与单步规则
+  → 语义与 PMKB 单步授权
   → PMKB / 约束推理
   → ChainRule RV（可回退 FSM）
   → session 级风险升级
@@ -40,7 +41,7 @@ OpenClaw before_tool_call
 - PMKB 同时校验单步规则、最小必要权限闭包/差分和危险权限组合；证据进入 Guard 页面，审批仍只回到 OpenClaw。
 - RV 分为行为 DSL、PMKB 权限自动机和可选基线 DFA 三族；PMKB 规则为 session 监视器，权限组合关系为 `(principal_id, agent_id, capability_lineage)` 隔离的 principal 监视器。
 - 默认 RV 模式为 DSL；`OPENCLAW_RV_RULE_MODE=fsm` 仅用于兼容回退。
-- 默认 HTTP 入口仍是 `legacy_web.py`，FastAPI 通过 `--fastapi` 启用；该双轨边界是已知维护风险。
+- FastAPI 是默认且唯一 HTTP 入口；`legacy_web.py` 已冻结，不参与运行或依赖缺失回退。
 
 ## 相关入口
 

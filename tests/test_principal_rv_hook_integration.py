@@ -61,16 +61,6 @@ def _trace(tool_name: str, *, session_id: str) -> AuthorizationTrace:
 
 def _configure_policy_fixtures(services, monkeypatch) -> None:
     """Keep the integration focused on controller wiring, not policy matching."""
-    def detector_allow(event):
-        return DetectionDecision(
-            event_id=event.event_id,
-            timestamp=utc_now_iso(),
-            action_type=event.action_type,
-            risk_level="safe",
-            action="allow",
-            reason="integration detector allow",
-        )
-
     def compile_trace(event, *, source_message=""):
         del source_message
         return _trace(
@@ -87,7 +77,6 @@ def _configure_policy_fixtures(services, monkeypatch) -> None:
             policy_version="test",
         )
 
-    monkeypatch.setattr(services.detector, "evaluate", detector_allow)
     monkeypatch.setattr(services.policy_engine, "compile_trace", compile_trace)
     monkeypatch.setattr(services.policy_engine, "evaluate", evaluate)
     # The fixture supplies authoritative synthetic policy decisions; keep this

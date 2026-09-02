@@ -81,8 +81,8 @@ export function TraceTimeline() {
                         {timings.semantic_ms !== undefined && (
                           <span class="tl-chip">语义 {esc(timings.semantic_ms)}ms</span>
                         )}
-                        {timings.detection_ms !== undefined && (
-                          <span class="tl-chip">检测 {esc(timings.detection_ms)}ms</span>
+                        {timings.policy_ms !== undefined && (
+                          <span class="tl-chip">PMKB {esc(timings.policy_ms)}ms</span>
                         )}
                         {timings.constraint_ms !== undefined && (
                           <span class="tl-chip">约束 {esc(timings.constraint_ms)}ms</span>

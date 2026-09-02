@@ -1,6 +1,6 @@
 """CLI 入口（argparse）。
 
-v0.3.0: 默认使用 legacy_web (stdlib)，--fastapi flag 切换到 FastAPI web/ 包。
+v0.7.0-dev: FastAPI 是唯一生产 HTTP 入口；legacy_web 仅保留作历史归档。
 """
 
 from __future__ import annotations
@@ -11,30 +11,20 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from openclaw_guard.manager import build_manager
-from openclaw_guard.legacy_web import launch_web
+def _select_launch_web(_args=None):
+    """Return the single supported FastAPI launcher.
 
-
-def _select_launch_web(args):
-    """根据 --fastapi flag 选择 HTTP 层实现。
-
-    默认使用旧版 legacy_web，--fastapi 切换到新 FastAPI 层。
+    A missing optional web dependency is an installation/configuration error;
+    silently falling back to the frozen stdlib server would recreate the
+    dual-track behavior this entry point is intended to eliminate.
     """
-    if getattr(args, "fastapi", False):
-        try:
-            from openclaw_guard.web import launch_web as _fastapi_launch
-        except ModuleNotFoundError as exc:
-            print(
-                json.dumps(
-                    {
-                        "error": "fastapi_deps_missing",
-                        "detail": str(exc),
-                        "hint": "请先安装依赖：pip install -e . 或 pip install fastapi uvicorn[standard]",
-                    },
-                    ensure_ascii=False,
-                )
-            )
-            return launch_web
-        return _fastapi_launch
+    try:
+        from openclaw_guard.web import launch_web
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "FastAPI HTTP 入口不可用；请安装 Web 依赖："
+            "pip install -e '.[web]'"
+        ) from exc
     return launch_web
 
 
@@ -149,7 +139,10 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--port", type=int, default=8780)
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--once", action="store_true")
-    parser.add_argument("--fastapi", action="store_true", help="使用 FastAPI HTTP 层（试验性）")
+    # Kept as a no-op compatibility flag for existing launch scripts.  The
+    # selector is always FastAPI; there is no legacy fallback or alternate
+    # production server behind this flag anymore.
+    parser.add_argument("--fastapi", action="store_true", help=argparse.SUPPRESS)
 
 
 def _add_maintenance_arguments(parser: argparse.ArgumentParser) -> None:

@@ -79,14 +79,13 @@ openclaw_guard/          # Python 后端主包
 ├── services.py          # GuardServices 容器 — 核心编排 + 组件懒加载 + 流水线委托（阶段三产物）
 ├── config.py            # AppContext / AppPaths / GuardSettings 数据类
 ├── models.py            # 核心数据模型（Pydantic BaseModel v2）
-├── legacy_web.py        # [保留] 旧版 ThreadingHTTPServer + 路由表
+├── legacy_web.py        # [冻结] 历史 ThreadingHTTPServer（不参与启动）
 ├── ui.py                # 前端静态资源管理
 ├── baseline.py           # 基线安全扫描器（BaselineScanner）
 ├── conversation.py       # 对话交互辅助
 ├── utils.py             # 工具函数：utc_now_iso, sha256_text, append_jsonl, write_json 等
 ├── engine/              # 安全检测引擎（核心）
 │   ├── pipeline.py      # 热路径流水线（ingest / before-tool-call / after-tool-call）
-│   ├── detection.py     # DetectionEngine — 47 条内置规则（CMD-001~GEN-006），语义谓词匹配，<1ms
 │   ├── semantic_enhancer.py  # SemanticEnhancer — LLM/本地双模，7 维度标签，含工具名幻觉校验
 │   ├── control.py       # GuardController — 决策 + 白名单 → 动作状态
 │   ├── whitelist.py     # WhitelistEngine — Trie 前缀匹配，含 default_police_whitelist()
@@ -105,7 +104,7 @@ openclaw_guard/          # Python 后端主包
     ├── spec_validator.py     # 规约校验 + 正反例 trace
     ├── session_state.py      # 会话安全状态（阶段 F）
     └── eval_traces.py        # 正反例 trace 库
-├── web/                 # 可选 FastAPI HTTP 层（--fastapi flag 启用）
+├── web/                 # 唯一 FastAPI HTTP 层
 │   ├── __init__.py      # 兼容旧导出（launch_web, _error_message）
 │   ├── app.py           # create_app() 工厂 + launch_web() 入口
 │   ├── dependencies.py  # DI: get_manager, body_payload, require_hook_token
@@ -155,11 +154,8 @@ pip install -e .
 # 构建前端
 cd frontend && npm install && npm run build
 
-# 启动 Guard 工作台（默认旧版 HTTP 层，http://127.0.0.1:8780）
+# 启动 Guard 工作台（FastAPI，http://127.0.0.1:8780）
 python -m openclaw_guard.main run
-
-# 使用 FastAPI HTTP 层（试验性）
-python -m openclaw_guard.main run --fastapi --port 8781
 
 # 仅输出摘要后退出（--once）
 python -m openclaw_guard.main run --once
@@ -195,7 +191,7 @@ python -m openclaw_guard.main doctor --json
 python -m pytest -q
 
 # 运行单个测试文件
-python -m pytest tests/test_detection.py -q
+python -m pytest tests/test_policy_decision_adapter.py -q
 python -m pytest tests/test_rv.py -q
 python -m pytest tests/test_rv_fsm.py -q
 
@@ -205,14 +201,14 @@ cd e2e && npm install && npm run install:browsers && npm test
 
 ## 架构约定
 
-### 检测流水线（两层防线）
+### 决策流水线（PMKB + RV）
 
 ```
-1. DetectionEngine（单步、无上下文、快速）— 47 条规则，<1ms
-   └─ 处理：硬阻断（rm -rf）、关键词匹配、路径前缀匹配
-2. RV 引擎（跨步、有状态、时序）— FSM 监视器 + 滑动窗口，<5ms
+1. PMKB（单步、版本化、可回放）— 原生规则 + 47 条 `LEGACY-*` 兼容记录
+   └─ 处理：授权 Trace、最小权限和单步硬约束
+2. RV 引擎（跨步、有状态、时序）— FSM 监视器 + 滑动窗口
    └─ 处理：链式攻击（搜索→删除→外发）、多步累积模式
-   └─ RV 判定高于 detection 时可覆盖其决策
+   └─ RV 判定只升权，不降低 PMKB 裁决
 ```
 
 ### 代码风格
@@ -222,14 +218,14 @@ cd e2e && npm install && npm run install:browsers && npm test
 - 数据模型使用 **Pydantic v2 BaseModel** 定义在 `models.py`（`to_dict()` 保留为兼容别名）
 - 服务层遵循「管理器协调，服务执行」模式：`Manager` 编排流程，`Service` 封装业务
 - 检测规则中文注释（规则 ID 英文：`CMD-001`, `FILE-001`, `NET-001` 等）
-- 文件顶部用 docstring 声明模块职责边界（如 `engine/detection.py` vs `rv/rv_monitors.py` 的分工约定）
+- 文件顶部用 docstring 声明模块职责边界（如 `policy/engine.py` 与 `rv/rv_monitors.py` 的分工约定）
 
 - 数据模型使用 **Pydantic v2 BaseModel** 定义在 `models.py`（`to_dict()` 保留为兼容别名）
 
 ### 关键模式
 
 - **非侵入式**：不修改 OpenClaw 源码，通过生成的 JS 插件 + HTTP 桥接通信
-- **双 HTTP 层**：默认 `legacy_web.py`（旧版 stdlib），`--fastapi` flag 切换到 `web/` 包（FastAPI）
+- **单 HTTP 层**：`web/` FastAPI 是唯一启动入口；`legacy_web.py` 只作冻结历史参考
 - **熔断器**：JS 插件内置，连续失败 N 次 → OPEN（放行所有），正常 → CLOSED
 - **审批同步**：OpenClaw 原生审批卡片是唯一决策入口，Guard Dashboard 通过 SSE/增量查询只读同步
 - **审计哈希链**：每条记录含 `previous_hash` + `record_hash = SHA-256(prev_hash + payload)`
@@ -251,7 +247,7 @@ cd e2e && npm install && npm run install:browsers && npm test
 - **许可证**: Apache 2.0
 - **作者**: Codex
 - **重构进度**: 
-  - ✅ 阶段一（HTTP 层替换） — FastAPI，默认关闭，`--fastapi` 启用
+  - ✅ 阶段一（HTTP 层收敛） — FastAPI 为默认且唯一入口，legacy_web 已冻结
   - ✅ 阶段二（Pydantic 模型迁移） — models.py 全部 Pydantic v2
   - ✅ 阶段三（Manager 拆分 + 懒加载） — GuardServices 容器 + LazyProxy + pipeline 模块
   - ✅ 阶段四（前端 Preact 迁移） — 17 源文件，5 页面，10 组件，Zustand 状态管理

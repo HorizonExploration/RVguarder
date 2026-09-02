@@ -1,9 +1,9 @@
 # 权限知识库与权限建模运行时升级结果
 
 > **状态：** 当前实现结果与架构事实源
-> **核对日期：** 2026-08-29
+> **核对日期：** 2026-08-30
 > **PMKB 版本：** `1.1.0`
-> **测试基线：** `python -m pytest -q` → `490 passed / 18 skipped / 4 subtests passed`
+> **测试基线：** 改造前全量回归 `513 passed / 18 skipped / 4 subtests passed`；本次改造采用 OpenClaw 交接链路定向回归，结果见第 8 节。
 
 本文档说明本次升级实际交付的权限规则知识库（Permission Model Knowledge Base，PMKB）、权限建模、最小权限校验、危险权限组合检测和跨 session 运行时验证。它不是下一阶段愿景：已实现部分以代码和测试为证据，未实现部分明确列在“当前边界”中。
 
@@ -20,7 +20,7 @@
 
 本次没有完成以下工作：
 
-- 47 条历史单步检测规则已完成兼容迁移：ConstraintEngine 和 PMKB 均可按同一旧 ID 判定（完成数 `47 / 47`）；DetectionEngine 仍保留为快速单步防线，尚未达到可删除的退役闭环；详见[旧规则迁移矩阵](./legacy-rule-migration-matrix.md)；
+- 47 条历史单步检测规则已完成兼容迁移并经逐条回放：ConstraintEngine 和 PMKB 均可按同一旧 ID 判定（完成数 `47 / 47`）；生产 DetectionEngine 已删除，冻结元数据只保留为回放证据；详见[旧规则迁移矩阵](./legacy-rule-migration-matrix.md)；
 - 未实现从人工审批记录自动学习并永久生成 `allow` 规则；
 - 未提供完整的用户权限管理 UI 和企业级目录同步；
 - 尚无真实个人办公流量的人工审批下降实测，因此路线图中的 `-40%`、`-60%` 是验收目标，不是已达成结果。
@@ -35,8 +35,7 @@ OpenClaw before_tool_call
        └─ rv_trace（历史步骤与实体）
   → PolicyBundle.load + TraceCompiler
        └─ AuthorizationTrace（操作、资源、主体、覆盖度、来源）
-  → DetectionEngine（历史单步规则）
-  → AuthorizationPolicyEngine（PMKB）
+  → AuthorizationPolicyEngine（PMKB 原生规则 + 历史兼容记录）
        ├─ PolicyEvaluator（规则匹配与风险评分）
        ├─ PermissionClosure + PermissionDiff（最小权限）
        └─ RiskGraph（危险权限组合）
@@ -73,10 +72,10 @@ OpenClaw before_tool_call
 | 文件 | 当前数量 | 作用 |
 | --- | ---: | --- |
 | `schema/permissions.schema.json` | 1 | 约束 bundle 必须包含 operations、rules、traces、relations、vectors |
-| `catalog/operation-catalog.json` | 23 operations | 工具名/别名到 canonical permission family 的映射，含本地 `file.read` |
-| `rules/p0-office.json` | 27 rules（其中 22 条 `P1-*`） | 单步权限规则、匹配条件、处置效果和来源 |
+| `catalog/operation-catalog.json` | 28 operations | 工具名/别名到 canonical permission family 的映射，含本地 `file.read` 与 `conversation.message` |
+| `rules/p0-office.json` | 31 rules（其中 22 条 `P1-*`） | 单步权限规则、匹配条件、处置效果和来源 |
 | 运行时兼容规则 | 47 `LEGACY-<old-id>` records | 由 47 条 DetectionRule 的 action type + semantic labels 生成，同时进入 ConstraintEngine、PMKB 评估与权限监视器 |
-| `traces/p0-office.json` | 25 traces | 每条规则对应的最小必要权限范围和正反例 |
+| `traces/p0-office.json` | 29 traces | 每条规则对应的最小必要权限范围和正反例 |
 | `relations/p0-combinations.json` | 9 relations | `toxic_with`、`conflicts`、`implies` 等权限关系 |
 | `tests/p0-vectors.json` | 29 vectors | 固定输入、预期效果和回归类别 |
 
@@ -230,6 +229,12 @@ PMKB 效果到 Guard 动作的映射为：
 
 `before_prompt_build` 只是非阻塞意图预检查，始终返回 allow 并写审计，不创建待审批动作；只有 `before_tool_call` 能创建 `pending_approval`。OpenClaw 的 `onResolution` 是唯一审批结果来源，Guard 通过 resolution/SSE/增量查询同步，不提供第二个批准按钮。
 
+本次 OpenClaw 交接修复补充了三项运行时约束：
+
+- 原生 `sessions_*`、`session_status`、`memory_*`、`agents_list`、`get_goal` 被映射为明确的只读 permission family，并按 `tool_origin=openclaw_native`、`risk_class=low` 进入 PMKB；控制面读取不会因为缺少文件路径或 Agent 身份而被误判为普通命令审批。
+- `sessions_send`、`sessions_spawn` 及计划/目标写入不继承上述只读信任，仍需要审批或进一步判定；Shell/exec 读取仍必须满足 workspace/managed_project 边界和只读特征。
+- 发送给 OpenClaw 的审批标题和说明分别限制为 80/240 字符，避免长命令触发 `plugin.approval.request` schema 错误；Guard 继续保留完整技术证据。超过 6 分钟没有回调的 Hook 审批会进入 `approval_timeout`，防止 Dashboard 永久显示孤儿待确认。
+
 ## 8. 验证证据与当前指标
 
 本次升级的测试证据包括：
@@ -240,7 +245,8 @@ PMKB 效果到 Guard 动作的映射为：
 - `tests/test_permission_diff.py`、`test_permission_risk_graph.py`：最小权限、scope expansion 和危险组合；
 - `tests/test_principal_capability_rv.py`、`test_principal_rv_hook_integration.py`：跨 session 主体状态和持久化；
 - `tests/test_permission_rv_compiler.py`：PMKB 规则/关系自动机编译、effect 投影和 principal 作用域隔离；
-- 全量回归：`490 passed / 18 skipped / 4 subtests passed`（2026-08-29）。
+- 改造前全量回归：`513 passed / 18 skipped / 4 subtests passed`（2026-08-30）。
+- 本次定向回归覆盖 Hook 配置清理、OpenClaw 原生工具映射、PMKB 命中、Trace 编译、session 升权、审批同步、超时收拢和审批文案边界；最终结果为 `192 passed / 4 subtests passed`，详见[审批交接优化结果报告](../research/openclaw-approval-chain-optimization-report-2026-08-30.md)。
 
 路线图目标 `complete coverage ≥85%`、`unknown rate ≤10%`、`low-risk auto-allow precision ≥99%`、`high-risk recall ≥98%`、人工审批量下降 40% 等，当前仅是发布和扩大自动放行范围的验收门槛，尚未由真实个人使用数据验证。
 

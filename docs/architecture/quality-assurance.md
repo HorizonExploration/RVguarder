@@ -228,7 +228,7 @@ async def client(services):
 python -m openclaw_guard.main run --port 8780
 
 # 新系统端口 8781
-python -m openclaw_guard.main run --fastapi --port 8781
+python -m openclaw_guard.main run --port 8781
 
 # 对比脚本
 for endpoint in health actions audit rv baseline; do
@@ -327,8 +327,12 @@ def assert_json_response(resp):
 | 跨 session | principal 键、TTL、持久化恢复和 session 隔离 | `tests/test_principal_capability_rv.py` |
 | 文档合同 | 当前架构和 README 不回退到旧版本/旧审批口径 | `tests/test_policy_docs.py` |
 
-当前全量基线为 `490 passed / 18 skipped / 4 subtests passed`；覆盖率、人工审批下降比例和命中率目标
+改造前全量基线为 `513 passed / 18 skipped / 4 subtests passed`；覆盖率、人工审批下降比例和命中率目标
 仍需用真实事件或离线回放另行测量，不把目标指标写成已经达成的结果。
+
+针对 OpenClaw 交接与误拦截修复，允许使用关键链路定向门禁：Hook 配置清理、原生工具映射、PMKB
+命中与 Trace 编译、session 升权、审批同步/超时和审批文案边界必须通过；与本次变更无关的实验性
+后端、前端或外部依赖测试可以跳过，但发布前仍应按风险决定是否补跑全量回归。
 
 ### 4.4 回退测试
 

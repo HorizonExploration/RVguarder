@@ -36,7 +36,7 @@ Openclaw-RVGuarder（龙虾卫士）是一个面向 [OpenClaw](https://openclaw.
 | **审批结果同步** | OpenClaw 原生审批卡片唯一决策，Guard Dashboard SSE 只读同步 | ✅ |
 | **电路熔断器** | 后端不可达时自动开启熔断，优雅降级 fail-open，不封锁 OpenClaw | ✅ |
 | **语义理解增强** | DeepSeek LLM 驱动语义分析，7 维度 50+ 标签，理解自然语言意图 | ✅ |
-| **PMKB 权限建模** | PMKB 1.1.0：23 个操作、27 条持久化规则 + 47 条兼容规则、25 条 Trace、9 个危险组合关系；校验最小权限和权限聚合风险 | ✅ |
+| **PMKB 权限建模** | PMKB 1.1.0：28 个操作、32 条原生规则 + 47 条兼容规则、29 条 Trace、9 个危险组合关系；校验最小权限和权限聚合风险 | ✅ |
 | **运行时验证 RV** | 滑动窗口 + ChainRule DSL（FSM 回退），检测链式攻击模式（搜索→删除→外发） | ✅ |
 | **跨 session 主体验证** | session-local 链路与 principal-global 能力状态分离，持久化主体级 RV 状态 | ✅ |
 | **基线安全扫描** | 配置、端口、用户、依赖全量扫描，输出 JSON/HTML/PDF 报告 | ✅ |
@@ -141,7 +141,7 @@ openclaw_guard/
 ├── api/                  # HTTP API 处理器（旧版 handler，被两个 HTTP 层共用）
 │   ├── __init__.py        # 路由注册与导出
 │   └── _handlers.py       # 各 API 端点实现
-├── web/                  # 可选 FastAPI HTTP 层（--fastapi flag 启用）
+├── web/                  # 唯一 FastAPI HTTP 层
 │   ├── app.py            # create_app() 工厂 + launch_web() 入口
 │   ├── dependencies.py   # 依赖注入 + Hook 鉴权
 │   ├── errors.py         # GuardError + 统一异常处理
@@ -153,11 +153,11 @@ openclaw_guard/
 ├── engine/               # 安全检测引擎
 │   ├── behavior.py        # 行为事件建模
 │   ├── control.py         # 决策与控制
-│   ├── detection.py       # 规则引擎（语义优先）
 │   ├── semantic_enhancer.py     # 语义分析增强
 │   └── whitelist.py       # 白名单匹配引擎
 ├── policy/                # PMKB、Authorization Trace 与权限关系运行时
 │   ├── catalog.py         # 版本化策略包加载/校验（PolicyBundle）
+│   ├── legacy.py          # 冻结 LEGACY 回放元数据（非运行时引擎）
 │   ├── trace.py           # TraceCompiler 与语义覆盖计算
 │   ├── evaluator.py       # 单步规则匹配与风险评分
 │   ├── permission_diff.py # 最小权限闭包/差分
@@ -177,9 +177,9 @@ openclaw_guard/
 │   ├── ebpf_adapter.py    # eBPF 接口（预留）
 │   ├── hook_bridge.py     # Hook 桥接采集
 │   └── ptrace_adapter.py  # ptrace 接口（预留）
-├── main.py               # CLI 入口（默认 legacy_web.py，--fastapi 切换）
+├── main.py               # CLI 入口（唯一 FastAPI 服务）
 ├── manager.py            # 业务编排
-├── legacy_web.py         # 旧版 ThreadingHTTPServer（默认 HTTP 层）
+├── legacy_web.py         # 冻结的历史 HTTP 实现（不参与启动）
 ├── ui.py                 # 前端资源管理
 ├── config.py             # 配置与上下文
 └── models.py             # Pydantic v2 数据模型
@@ -262,8 +262,14 @@ office rules、least-privilege traces、permission relations 和 test vectors �
 
 未知操作、缺失主体或缺失关键 Trace 特征不会因为模糊相似度而自动放行；结果会携带
 `match_status`、`missing_features`、`requested_delta`、`excessive_permissions`、
-`combo_violations`、`policy_version` 等证据。当前 PMKB 是办公个人场景的可用基线，尚未声称
-覆盖全部历史 47 条规则，也不会自动从用户行为学习写入生产规则。
+`combo_violations`、`policy_version` 等证据。当前 PMKB 是办公个人场景的可用基线；47 条历史
+单步规则已保留为 `LEGACY-<old-id>` 兼容记录并进入 PMKB 统一评估链路；生产 DetectionEngine 已退役，冻结元数据仅用于逐条回放与历史评测。
+PMKB 不会自动从用户行为学习写入生产规则。
+
+OpenClaw 原生 `sessions_*`、`session_status`、`memory_*`、`agents_list` 和 `get_goal` 已按只读
+权限族显式建模并自动放行审计；跨代理发送、生成/更新计划或目标等写入能力仍需要 OpenClaw 审批。
+插件发送审批卡片前将标题限制为 80 字符、说明限制为 240 字符，避免长命令触发 OpenClaw
+`plugin.approval.request` 参数上限；完整技术证据仍在 Guard 审计中。
 
 详见：[PMKB 网络案例基线](docs/semantic/pmkb-network-case-baseline.md)、[升级结果报告](docs/research/pmkb-network-baseline-implementation-report-2026-08-28.md)。
 
@@ -333,7 +339,8 @@ SecurityChainMonitor 触发:
 python -m pytest -q
 ```
 
-当前回归基线（2026-08-29）：`490 passed / 18 skipped / 4 subtests passed`。
+改造前全量回归基线（2026-08-30）：`513 passed / 18 skipped / 4 subtests passed`；本次
+OpenClaw 交接修复采用关键链路定向回归，避免无关测试掩盖问题。
 
 测试覆盖：
 

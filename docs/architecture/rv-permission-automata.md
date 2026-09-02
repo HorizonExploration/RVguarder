@@ -149,7 +149,7 @@ flowchart TB
 | --- | --- | --- |
 | `rv_rules.json` | 仍是行为链 DSL 的唯一来源 | 只保留跨步行为约束，不承载权限集合语义 |
 | `rv_monitors.py` | `fsm` 模式回退 | DSL 覆盖与行为一致性验证完成后移除重复业务 FSM |
-| `DetectionEngine` 的 47 条规则 | 已生成同 ID 的 ConstraintRule 和 `LEGACY-<old-id>` PMKB 记录，仍保留快速单步防线 | 把兼容记录拆分成主体、资源、范围和权限谓词后，逐组回放并删除旧实现 |
+| 47 条冻结 LEGACY 元数据 | 已生成同 ID 的 ConstraintRule 和 `LEGACY-<old-id>` PMKB 记录；生产 DetectionEngine 已删除 | 新规则优先建模为主体、资源、范围和权限谓词，LEGACY 仅保留回放证据 |
 | `ConstraintEngine` | 继续作可选风险升权 | 可表达的权限谓词迁入 PMKB + `StepRequirement.policy`，仅保留通用约束推理 |
 | `BaselineDFA` | 环境变量可选加载 | 保持异常信号，不能成为 allow 的依据 |
 | NL2Spec | 生成/校验行为 DSL 的工具 | 不可绕过 PMKB 自动写入生产权限规则 |

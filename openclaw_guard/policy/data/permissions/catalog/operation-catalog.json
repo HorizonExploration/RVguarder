@@ -23,6 +23,11 @@
     {"family":"session.token.read","tool_ids":["session.token.read","auth.session.read"],"aliases":["session.cookie.read","oauth.token.read"]},
     {"family":"identity.permission.grant","tool_ids":["permission.grant","oauth.scope.grant"],"aliases":["role.assign","app.permission.grant"]},
     {"family":"identity.auth.modify","tool_ids":["identity.auth.modify","auth.method.add"],"aliases":["mfa.method.add","oauth.credential.add"]},
-    {"family":"audit.modify","tool_ids":["audit.modify"],"aliases":["audit.disable","logging.modify"]}
+    {"family":"audit.modify","tool_ids":["audit.modify"],"aliases":["audit.disable","logging.modify"]},
+    {"family":"session.read","tool_ids":["sessions_history","sessions_list","session_status"],"aliases":[]},
+    {"family":"memory.read","tool_ids":["memory_search","memory_get"],"aliases":[]},
+    {"family":"goal.read","tool_ids":["get_goal"],"aliases":[]},
+    {"family":"agents.read","tool_ids":["agents_list"],"aliases":[]},
+    {"family":"conversation.message","tool_ids":["chat_message"],"aliases":[]}
   ]
 }

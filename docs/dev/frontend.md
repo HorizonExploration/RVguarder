@@ -24,7 +24,7 @@ runtime/ui/                     # 构建产物（后端静态托管目录）
 ```
 
 - `frontend/` 是开发工作区，使用 Vite 做开发服务器和构建
-- `runtime/ui/` 是构建产物目录，由 Python 后端的 `legacy_web.py` 或 `web/` 包静态托管
+- `runtime/ui/` 是构建产物目录，由 Python 后端的 FastAPI `web/` 包静态托管
 - 两者**不是**冗余：一个是源码，一个是输出
 
 ## 开发流程
@@ -137,4 +137,4 @@ def build_ui(target_dir: Path, summary=None) -> None:
     # 若运行目录缺少 UI，则从仓库内 runtime/ui 复制一份
 ```
 
-`openclaw_guard/legacy_web.py`（legacy）和 `openclaw_guard/web/routes/static.py`（FastAPI）负责托管 `runtime/ui/` 下的静态文件（`/`、`/assets/*`、前端路由的 SPA fallback）。
+`openclaw_guard/web/routes/static.py`（FastAPI）负责托管 `runtime/ui/` 下的静态文件（`/`、`/assets/*`、前端路由的 SPA fallback）；`legacy_web.py` 已冻结，不参与运行。

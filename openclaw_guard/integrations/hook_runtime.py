@@ -108,8 +108,29 @@ def _ensure_plugin_config(
         load["paths"] = paths
         changed = True
     plugin_path = str(plugin_dir)
-    if plugin_path not in paths:
-        paths.append(plugin_path)
+    cleaned_paths: list[Any] = []
+    seen_paths: set[str] = set()
+    for raw_path in paths:
+        path_value = str(raw_path)
+        # Pytest and temporary integration runs leave stale generated plugin
+        # paths in OpenClaw's config.  Remove only missing /tmp Guard paths;
+        # preserve all other plugin paths and historical directories.
+        is_stale_tmp_guard_path = (
+            path_value.startswith("/tmp/")
+            and path_value.endswith("/runtime/openclaw-guard-plugin")
+            and path_value != plugin_path
+            and not Path(path_value).exists()
+        )
+        if is_stale_tmp_guard_path or path_value in seen_paths:
+            changed = True
+            continue
+        seen_paths.add(path_value)
+        cleaned_paths.append(raw_path)
+    if plugin_path not in seen_paths:
+        cleaned_paths.append(plugin_path)
+        changed = True
+    if cleaned_paths != paths:
+        load["paths"] = cleaned_paths
         changed = True
 
     allow = plugins.get("allow")
@@ -309,6 +330,8 @@ const STATUS_METHOD = "__STATUS_METHOD__";
 const DEFAULT_GUARD_URL = "__GUARD_URL__";
 const DEFAULT_AUTH_TOKEN = "__AUTH_TOKEN__";
 const DEFAULT_DECISION_TIMEOUT_MS = __DECISION_TIMEOUT_MS__;
+const MAX_APPROVAL_DESCRIPTION_CHARS = 240;
+const MAX_APPROVAL_TITLE_CHARS = 80;
 
 function trimTrailingSlash(value) {{
   return String(value || "").replace(/\\/+$/, "");
@@ -324,6 +347,14 @@ function summarizeResult(value) {{
   }} catch (_error) {{
     return String(value);
   }}
+}}
+
+function boundedApprovalText(value, fallback, maxChars) {{
+  const text = String(value || fallback || "").trim();
+  if (text.length <= maxChars) {{
+    return text;
+  }}
+  return text.slice(0, Math.max(1, maxChars - 1)).trimEnd() + "…";
 }}
 
 async function postJson(url, payload, timeoutMs, authToken) {{
@@ -500,8 +531,8 @@ export default {{
             return {{
               requireApproval: {{
                 pluginId: PLUGIN_ID,
-                title: result.title || "龙虾卫士安全确认",
-                description: result.message || "该工具调用需要确认，请查看操作目标和风险后决定。",
+                title: boundedApprovalText(result.title, "龙虾卫士安全确认", MAX_APPROVAL_TITLE_CHARS),
+                description: boundedApprovalText(result.message, "该工具调用需要确认，请查看操作目标和风险后决定。", MAX_APPROVAL_DESCRIPTION_CHARS),
                 severity: result.severity || "warning",
                 allowedDecisions: ["allow-once", "deny"],
                 timeoutMs: 300000,
@@ -526,7 +557,7 @@ export default {{
 
           return {{
             block: true,
-            blockReason: String(result.blockReason || result.message || "龙虾卫士已阻止该操作，请查看风险说明。"),
+            blockReason: boundedApprovalText(result.blockReason || result.message, "龙虾卫士已阻止该操作，请查看风险说明。", MAX_APPROVAL_DESCRIPTION_CHARS),
           }};
         }} catch (error) {{
           const detail = error instanceof Error ? error.message : String(error);
@@ -538,7 +569,11 @@ export default {{
           if (!circuitOpen) {{
             return {{
               block: true,
-              blockReason: `龙虾卫士服务暂时不可达，已按安全策略暂停该操作。详情：${{detail}}`,
+              blockReason: boundedApprovalText(
+                `龙虾卫士服务暂时不可达，已按安全策略暂停该操作。详情：${{detail}}`,
+                "龙虾卫士服务暂时不可达，已按安全策略暂停该操作。",
+                MAX_APPROVAL_DESCRIPTION_CHARS,
+              ),
             }};
           }}
           // circuit is open — fail-open: allow the tool call

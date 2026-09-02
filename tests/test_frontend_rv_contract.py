@@ -16,6 +16,10 @@ class FrontendRvContractTests(unittest.TestCase):
             source,
         )
 
+    def test_dashboard_reconciles_expired_approval_events(self) -> None:
+        source = (Path(__file__).resolve().parents[1] / "frontend/src/pages/Dashboard.jsx").read_text(encoding="utf-8")
+        self.assertIn("'action.timeout'", source)
+
     def test_action_contains_pipeline_timings(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp) / "OpenclawGuard"
@@ -34,7 +38,7 @@ class FrontendRvContractTests(unittest.TestCase):
             )
             meta = (action.get("event") or {}).get("metadata") or {}
             timings = meta.get("pipeline_timings_ms") or {}
-            for key in ("semantic_ms", "detection_ms", "rv_ms", "controller_ms", "total_ms"):
+            for key in ("semantic_ms", "policy_ms", "rv_ms", "controller_ms", "total_ms"):
                 self.assertIn(key, timings)
                 self.assertIsInstance(timings[key], (int, float))
 

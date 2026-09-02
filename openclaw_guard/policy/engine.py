@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from openclaw_guard.models import BehaviorEvent
+from openclaw_guard.models import BehaviorEvent, DetectionDecision
 from openclaw_guard.policy.catalog import PolicyBundle, default_policy_root
 from openclaw_guard.policy.evaluator import PolicyEvaluator
 from openclaw_guard.policy.models import AuthorizationTrace, CapabilityGrant, PermissionRef, PolicyDecision
@@ -14,6 +14,7 @@ from openclaw_guard.policy.permission_diff import PermissionClosure, PermissionD
 from openclaw_guard.policy.risk_graph import RiskGraph
 from openclaw_guard.policy.trace import TraceCompiler
 from openclaw_guard.utils import sha256_text
+from openclaw_guard.utils import utc_now_iso
 
 
 _EFFECT_RANK = {
@@ -114,6 +115,44 @@ class AuthorizationPolicyEngine:
             "decision": decision.model_dump(mode="json", exclude={"replay_hash"}),
         }, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
         return decision
+
+    def decide(self, event: BehaviorEvent, *, source_message: str = "") -> DetectionDecision:
+        """Adapt the authoritative PMKB result to the existing controller DTO.
+
+        ``DetectionDecision`` remains the stable payload schema used by the
+        controller, audit store and OpenClaw hook.  Its name is historical;
+        no DetectionEngine is involved in producing this result.
+        """
+        policy = self.evaluate(event, source_message=source_message)
+        mapping = {
+            "auto_allow_audit": ("allow", "safe", "PMKB 已匹配低风险最小权限规则，允许执行并审计。"),
+            "clarify_then_retry": ("revise", "caution", "PMKB 信息不完整，需要补充范围后重试。"),
+            "openclaw_approval": ("ask", "caution", "PMKB 要求由 OpenClaw 进行人工审批。"),
+            "block": ("block", "blocked", "PMKB 命中阻断规则，已拒绝执行。"),
+        }
+        action, risk_level, reason = mapping[policy.effect]
+        rule_ids = list(policy.selected_rule_ids or policy.candidate_rule_ids)
+        trace = [{
+            "stage": "pmkb",
+            "effect": policy.effect,
+            "match_status": policy.match_status,
+            "selected_rule_ids": list(policy.selected_rule_ids),
+            "candidate_rule_ids": list(policy.candidate_rule_ids),
+            "combo_violations": list(policy.combo_violations),
+        }]
+        if rule_ids:
+            reason = f"{reason} 规则：{', '.join(rule_ids)}。"
+        return DetectionDecision(
+            event_id=event.event_id,
+            timestamp=utc_now_iso(),
+            action_type=event.action_type,
+            risk_level=risk_level,
+            action=action,
+            reason=reason,
+            rule_ids=rule_ids + list(policy.combo_violations),
+            trace=trace,
+            policy_decision=policy.model_dump(mode="json"),
+        )
 
     @staticmethod
     def _permission_grants(permissions: set[PermissionRef]) -> list[CapabilityGrant]:

@@ -1,7 +1,7 @@
 """GuardServices 容器 —— OpenClaw-RVGuarder 的服务编排层。
 
 替代原 manager.py 的上帝对象模式：
-- 热路径组件（detector / semantic / controller / whitelist / audit_store）在构造时急切初始化
+- 热路径组件（PMKB / semantic / controller / whitelist / audit_store）在构造时急切初始化
 - 冷路径组件（rv_engine / baseline_service / audit_service / runtime_hook）通过 LazyProxy 惰性加载
 - 热路径流水线（ingest / before_tool_call / after_tool_call）委托给 engine.pipeline 模块
 """
@@ -23,7 +23,6 @@ from openclaw_guard.engine.behavior import BehaviorCollectorManager
 from openclaw_guard.config import AppContext, GuardSettings, apply_env_overrides, default_paths
 from openclaw_guard.engine.control import GuardController
 from openclaw_guard.conversation import assistant_reply_for_action, infer_event_from_text, new_message
-from openclaw_guard.engine.detection import DetectionEngine
 from openclaw_guard.integrations.discovery import discover_openclaw
 from openclaw_guard.storage.audit_store import AuditStore
 from openclaw_guard.integrations.hook_runtime import ensure_runtime_hook_plugin
@@ -320,7 +319,7 @@ def _poll_chat_action_impl(services, action_id, *, timeout_ms=1000, wait_for_run
     if reply_text:
         reply_event = services.collectors.ingest(infer_event_from_text(reply_text))
         services._annotate_event_context(reply_event, source_message=reply_text, origin="reply")
-        reply_scan = services.detector.evaluate(reply_event)
+        reply_scan = services.policy_engine.decide(reply_event, source_message=reply_text)
         action.execution_result.update(
             {
                 "status": "completed",
@@ -375,7 +374,6 @@ class GuardServices:
 
         # ── 热路径：急切初始化 ──
         self.collectors = BehaviorCollectorManager()
-        self.detector = DetectionEngine()
         self.semantic_enhancer = SemanticEnhancer(config_path=context.paths.runtime_dir / "guard-config.json")
         self.whitelist = WhitelistEngine(default_police_whitelist())
         self.controller = GuardController(self.whitelist, decision_overlay=self.apply_principal_rv)
@@ -424,8 +422,10 @@ class GuardServices:
 
         # ActionService —— 依赖上述全部组件
         self.action_service = ActionService(
-            context, self.detector, self.whitelist, self.controller, self.semantic_enhancer,
-            self.actions_path, lambda t, p: self.audit_store.append(t, p),
+            context, self.whitelist, self.controller, self.semantic_enhancer,
+            self.actions_path,
+            lambda t, p: self.audit_store.append(t, p),
+            self.events.publish,
         )
 
     # ------------------------------------------------------------------
@@ -485,10 +485,22 @@ class GuardServices:
             if not identity_complete:
                 low_risk_command = event.metadata.get("command_safety")
                 low_risk_file_read = event.action_type == "file_read"
+                native_control_plane_read = bool(
+                    event.metadata.get("tool_origin") == "openclaw_native"
+                    and event.metadata.get("risk_class") == "low"
+                    and event.metadata.get("tool_group") in {"session", "memory", "planning", "agents"}
+                )
                 exempt_low_risk = bool(
-                    ((isinstance(low_risk_command, dict) and low_risk_command.get("safe_read_only") is True)
-                     or low_risk_file_read)
-                    and event.metadata.get("scope_class") in {"workspace", "managed_project"}
+                    (
+                        native_control_plane_read
+                        or (
+                            (
+                                (isinstance(low_risk_command, dict) and low_risk_command.get("safe_read_only") is True)
+                                or low_risk_file_read
+                            )
+                            and event.metadata.get("scope_class") in {"workspace", "managed_project"}
+                        )
+                    )
                     and policy_decision.effect == "auto_allow_audit"
                     and decision.action == "allow"
                 )
@@ -636,7 +648,7 @@ class GuardServices:
             },
             "policy": {
                 "template": self.context.settings.policy_template,
-                "builtin_rule_count": len(self.detector.rules),
+                "legacy_replay_rule_count": len(self.policy_engine.bundle.legacy_rules()),
                 "whitelist": asdict(default_police_whitelist()),
             },
             "rv": {
@@ -1227,6 +1239,7 @@ class GuardServices:
         }
 
     def _load_actions(self) -> list[ControlledAction]:
+        self.action_service.expire_pending_hook_actions()
         return self.action_service._load()
 
     def _save_action(self, action: ControlledAction) -> None:

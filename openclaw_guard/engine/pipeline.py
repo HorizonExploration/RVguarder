@@ -7,7 +7,7 @@
 - 共享私有工具函数: _annotate_event_context, _apply_rv_if_available 等
 
 所有函数接收 GuardServices 容器作为首个参数，
-从中读取 detector / controller / rv_engine / audit_store 等组件。
+从中读取 PMKB policy_engine / controller / rv_engine / audit_store 等组件。
 """
 
 from __future__ import annotations
@@ -25,6 +25,10 @@ from openclaw_guard.engine.command_safety import analyze_command
 from openclaw_guard.utils import utc_now_iso
 if TYPE_CHECKING:
     from openclaw_guard.services import GuardServices
+
+
+MAX_OPENCLAW_APPROVAL_DESCRIPTION_CHARS = 240
+MAX_OPENCLAW_APPROVAL_TITLE_CHARS = 80
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +114,7 @@ def _annotate_event_context(
             "source_message": source_message,
             "origin": origin,
             "workspace_path": str(workspace) if workspace else None,
+            "evaluation_mode": event.metadata.get("evaluation_mode"),
         },
     )
     _merge_deterministic_semantics(event, semantic_payload)
@@ -188,7 +193,9 @@ def _apply_policy_engine(
     *,
     source_message: str = "",
 ) -> Any:
-    """Attach PMKB evidence and only raise the pre-existing decision severity."""
+    """Attach PMKB evidence to a legacy-compatible decision if it is absent."""
+    if getattr(decision, "policy_decision", None):
+        return decision
     policy_engine = getattr(services, "policy_engine", None)
     if policy_engine is None:
         return decision
@@ -366,7 +373,7 @@ def _apply_session_escalation(
     if hint is not None:
         # 即使当前裁决更强，也保留建议供审计和调用方展示；不得改变 action。
         decision.revision_hint = hint
-    if hint is not None and severity.get("revise", 2) >= severity.get(current_action, 1):
+    if hint is not None and current_action in {"ask", "revise"}:
         decision.action = "revise"
         decision.reason = (
             f"[Session] 建议修订后重试：{hint}（累计风险 {state.total_score}）"
@@ -401,16 +408,15 @@ def ingest_event_pipeline(
 ) -> dict[str, Any]:
     """聊天路径安全判定流水线。
 
-    collect → annotate → detect → RV overlay → controller → save → audit.
+    collect → annotate → PMKB decision → RV overlay → controller → save → audit.
     """
     started = time.perf_counter()
     event = services.collectors.ingest(payload)
     _annotate_event_context(services, event, source_message=source_message, origin="chat")
-    detect_started = time.perf_counter()
-    decision = services.detector.evaluate(event)
+    policy_started = time.perf_counter()
+    decision = services.policy_engine.decide(event, source_message=source_message)
     timings = _ensure_pipeline_timings(event)
-    timings["detection_ms"] = round((time.perf_counter() - detect_started) * 1000.0, 3)
-    decision = _apply_policy_engine(services, event, decision, source_message=source_message)
+    timings["policy_ms"] = round((time.perf_counter() - policy_started) * 1000.0, 3)
     decision = _apply_constraint_engine(services, event, decision)
     decision = _apply_rv_if_available(services, event, decision)
     timings = _ensure_pipeline_timings(event)
@@ -444,11 +450,12 @@ def handle_before_tool_call_pipeline(
 ) -> dict[str, Any]:
     """Hook 路径安全判定流水线 —— OpenClaw 审批门。
 
-    build_hook_event → annotate → detect → RV overlay → controller → save → 返回 Hook 响应。
+    build_hook_event → annotate → PMKB decision → RV overlay → controller → save → 返回 Hook 响应。
     """
     started = time.perf_counter()
 
     # 自动收尾该会话中可能残留的"执行中"状态（防止 Hook 事件丢失导致卡死）
+    services.action_service.expire_pending_hook_actions()
     session_id = str(payload.get("sessionId") or "")
     if session_id:
         services._auto_complete_previous_actions(session_id)
@@ -456,11 +463,10 @@ def handle_before_tool_call_pipeline(
     event = build_hook_event(payload)
     hook_source_message = build_hook_source_message(event)
     _annotate_event_context(services, event, source_message=hook_source_message, origin="hook")
-    detect_started = time.perf_counter()
-    decision = services.detector.evaluate(event)
+    policy_started = time.perf_counter()
+    decision = services.policy_engine.decide(event, source_message=hook_source_message)
     timings = _ensure_pipeline_timings(event)
-    timings["detection_ms"] = round((time.perf_counter() - detect_started) * 1000.0, 3)
-    decision = _apply_policy_engine(services, event, decision, source_message=hook_source_message)
+    timings["policy_ms"] = round((time.perf_counter() - policy_started) * 1000.0, 3)
     decision = _apply_constraint_engine(services, event, decision)
     decision = _apply_rv_if_available(services, event, decision)
     timings = _ensure_pipeline_timings(event)
@@ -571,6 +577,13 @@ def handle_before_tool_call_pipeline(
 
 
 def _user_summary(event: Any, decision: Any) -> dict[str, str]:
+    native_operation = {
+        "session.read": "读取会话",
+        "memory.read": "搜索记忆",
+        "goal.read": "读取目标",
+        "plan.write": "更新计划",
+        "goal.write": "更新目标",
+    }.get(str(event.metadata.get("permission_family") or ""))
     operation = {
         "command_exec": "执行命令",
         "file_read": "读取文件",
@@ -581,6 +594,8 @@ def _user_summary(event: Any, decision: Any) -> dict[str, str]:
         "config_modify": "修改配置",
         "skill_run": "运行技能",
     }.get(str(getattr(event, "action_type", "")), "调用工具")
+    if native_operation:
+        operation = native_operation
     scope = str(event.metadata.get("scope_class") or "未知范围")
     risk = {"safe": "低风险", "caution": "需确认", "dangerous": "高风险", "blocked": "已阻断"}.get(str(getattr(decision, "risk_level", "")), "需确认")
     return {"operation": operation, "target": scope, "risk": risk, "recommendation": "确认目标和范围后允许一次"}
@@ -599,9 +614,22 @@ def _user_explanation(event: Any, decision: Any) -> tuple[str, str]:
     }
     detail, title_detail = labels.get(action_type, (summary["operation"], summary["operation"]))
     if getattr(decision, "action", "") == "block":
-        return f"已阻止：{title_detail}", f"检测到一次{detail}操作，目标范围为{summary['target']}，存在{summary['risk']}风险，已阻止执行。"
+        title = f"已阻止：{title_detail}"
+        message = f"检测到一次{detail}操作，目标范围为{summary['target']}，存在{summary['risk']}风险，已阻止执行。"
+        return _bound_user_explanation(title, message)
     target_text = f"目标为 {target}。" if target else f"目标范围为{summary['target']}。"
-    return f"需要确认：{title_detail}", f"OpenClaw 请求{detail}。{target_text}当前判断为{summary['risk']}，请确认目标和范围后再继续。"
+    title = f"需要确认：{title_detail}"
+    message = f"OpenClaw 请求{detail}。{target_text}当前判断为{summary['risk']}，请确认目标和范围后再继续。"
+    return _bound_user_explanation(title, message)
+
+
+def _bound_user_explanation(title: str, message: str) -> tuple[str, str]:
+    """Keep OpenClaw-visible approval fields within documented schema limits."""
+    bounded_title = title.strip()[:MAX_OPENCLAW_APPROVAL_TITLE_CHARS]
+    bounded_message = message.strip()
+    if len(bounded_message) > MAX_OPENCLAW_APPROVAL_DESCRIPTION_CHARS:
+        bounded_message = bounded_message[: MAX_OPENCLAW_APPROVAL_DESCRIPTION_CHARS - 1].rstrip() + "…"
+    return bounded_title, bounded_message
 
 
 def handle_after_tool_call_pipeline(
@@ -627,13 +655,23 @@ def handle_after_tool_call_pipeline(
         }
     )
     if error:
+        tool_name = str(payload.get("toolName") or "").lower()
+        capability_error = (
+            tool_name in {"memory_search", "memory_get"}
+            and any(marker in error.lower() for marker in ("index", "metadata", "not configured", "unavailable"))
+        )
         action.status = "failed"
         action.execution_state = "failed"
         action.execution_result.update(
             {
-                "error_code": "tool_execution_failed",
+                "error_code": "capability_error" if capability_error else "tool_execution_failed",
                 "message": error,
-                "user_message": "OpenClaw 工具执行失败，请查看动作详情。",
+                "error_class": "capability" if capability_error else "execution",
+                "user_message": (
+                    "OpenClaw 工具能力暂不可用，请检查索引或运行配置。"
+                    if capability_error
+                    else "OpenClaw 工具执行失败，请查看动作详情。"
+                ),
             }
         )
     elif action.status not in {"blocked", "rejected"}:

@@ -1,7 +1,7 @@
 # AgentDojo × OpenClaw-RVGuarder 升级评测实施方案
 
-> 版本：2026-08-29（执行版）
-> 状态：适配层、离线契约测试和运行说明已实现；独立 AgentDojo 环境已通过预检，真实 episode 还需配置模型密钥并启动 Guard。
+> 版本：2026-08-30（汇报版）
+> 状态：适配层、精简 profile、离线契约测试和运行说明已实现；默认使用汇报证据集，不再默认运行论文级全量矩阵。
 
 ## 1. 目的与边界
 
@@ -76,12 +76,12 @@ AgentDojo 的部分官方攻击会从 `pipeline.name` 识别固定模型名；�
 
 其余官方攻击可通过重复 `--attack` 加入；攻击模板由 `load_attack()` 产生，不在项目内复制模板。基线 episode 使用同一 user task、无 injection、`attack_type=baseline`，用于误报和效用比较。
 
-建议分两档运行：
+脚本提供两个受控 profile（历史 8616 episode 结果仍保留在结果目录中）：
 
-1. **冒烟档**：`--suite workspace --attack direct --max-user-tasks 1 --max-injection-tasks 1 --arm noguard --arm legacy --arm candidate`；
-2. **正式档**：workspace + banking、默认四类攻击、全部 user/injection task，必要时再加入其他官方攻击。
+1. **`demo`（默认汇报档）**：workspace、banking 各精选 4 个用户任务和 3 个注入任务，保留 `direct`、`tool_knowledge` 两类攻击及 baseline；两套件三组 Arm 共 **168 个 episode**，每个 episode 最多 2 次工具迭代。
+2. **`full`（缩减版全量档）**：workspace 选 24/40 用户、8/14 注入，banking 选 11/16 用户、8/9 注入，保留四类攻击及 baseline；每个 Arm **1155 个 episode**，相对原矩阵减少约 60%，每个 episode 最多 5 次工具迭代。
 
-不要把理论组合数当作实际样本数；每次运行以 `manifest.json` 中的 suite、attack、模型、参数和依赖探针为准。
+`--max-user-tasks` 和 `--max-injection-tasks` 可在 profile 内进一步缩小规模；显式 `--suite` 仍可运行 slack/travel。不要把理论组合数当作实际样本数；每次运行以 `manifest.json` 中的 profile、suite、attack、模型、参数和依赖探针为准。
 
 ## 5. 指标与判定规则
 
@@ -142,7 +142,7 @@ testlab/results/agentdojo-upgrade/<timestamp>/
 - `--preflight` 输出版本和 `ready`；
 - offline 测试覆盖 payload、决策分类、审批执行分离、脱敏、指标和 manifest。
 
-当前环境实测为 `agentdojo 0.1.35 + pydantic 2.13.5`，官方模块导入和 `workspace` suite smoke 已通过。真实 episode 尚未运行，因为当前 shell 未配置 `DEEPSEEK_API_KEY`/`DEEPSEEK_BASE_URL`，且 Guard 服务尚未完成可用性确认。见 `testlab/实验准备/agentdojo-upgrade-environment.md`。
+当前环境实测为 `agentdojo 0.1.35 + pydantic 2.13.5`，官方模块导入和 workspace suite smoke 已通过。真实模型评测依赖 OpenAI-compatible API 的可用额度；余额或 Token Plan 速率不足时，结果中的 `errors` 必须视为无效样本，不能用于效果结论。见 `testlab/实验准备/agentdojo-upgrade-environment.md`。
 
 ### 阶段二：官方 pipeline 适配（已实现，待可用环境 smoke）
 
@@ -179,14 +179,17 @@ cd /home/yosoro126/OpenClaw-RVGuarder
 /home/yosoro126/miniconda3/envs/agentdojo/bin/python \
   testlab/脚本工具/agentdojo_upgrade_eval.py --preflight
 
-# 冒烟实验（环境和 Guard 均就绪后）
-export DEEPSEEK_API_KEY='...'
-export DEEPSEEK_BASE_URL='https://api.deepseek.com/v1'
-export DEEPSEEK_MODEL='deepseek-chat'
+# 默认汇报证据集（环境和 Guard 均就绪后）
+# API key/base URL/model 从项目根目录 .env 加载；不要写入命令历史
 /home/yosoro126/miniconda3/envs/agentdojo/bin/python \
   testlab/脚本工具/agentdojo_upgrade_eval.py \
-  --suite workspace --attack direct \
-  --max-user-tasks 1 --max-injection-tasks 1 \
+  --profile demo \
+  --arm noguard --arm legacy --arm candidate
+
+# 缩减版 full（仅在需要更宽覆盖时显式运行）
+/home/yosoro126/miniconda3/envs/agentdojo/bin/python \
+  testlab/脚本工具/agentdojo_upgrade_eval.py \
+  --profile full \
   --arm noguard --arm legacy --arm candidate
 ```
 
@@ -194,4 +197,6 @@ export DEEPSEEK_MODEL='deepseek-chat'
 
 ## 9. 当前结论
 
-本次实现已经把旧的“手工文本 + `/api/chat/send`”试验路径替换为可复现的官方 AgentDojo 适配设计，并补上了三 Arm、审批与执行分离、跨 session 身份、脱敏 manifest 和 CI 可用指标。环境门禁现已通过，但不能在缺少模型密钥或 Guard 服务时虚构 benchmark 结果；配置运行前提后，先跑冒烟档，再根据 `metrics.json` 决定是否进行正式全量实验。
+本次实现已经把旧的“手工文本 + `/api/chat/send`”试验路径替换为可复现的官方 AgentDojo 适配设计，并补上了三 Arm、审批与执行分离、跨 session 身份、脱敏 manifest 和 CI 可用指标。环境门禁现已通过，默认先跑 `demo` 汇报档，仅在需要更宽覆盖时显式运行已缩减约 60% 的 `full` profile。
+
+最新 demo 实测（2026-08-30，MiniMax-M2.7-highspeed）已完成三组各 56 个有效 episode：NoGuard utility 62.5%，Legacy 37.5%，Candidate 37.5%；Candidate 产生 52 次审批、执行 44 次工具调用，Legacy 为 54 次审批、42 次执行，Candidate Guard P95 为 68.25ms。三组攻击成功数均为 0，说明本轮模型未完成攻击目标，不能据此单独宣称真实攻击防护率。完整指标和原始轨迹见 `testlab/results/agentdojo-upgrade/20260830T123022Z-combined/`。

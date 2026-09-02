@@ -66,10 +66,95 @@ class AgentDojoDependencyError(RuntimeError):
     """AgentDojo 环境不可用。"""
 
 
+def normalize_openai_message_roles(messages: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    """将 AgentDojo 的 ``developer`` 系统消息映射为兼容的 ``system``。
+
+    AgentDojo 0.1.35 遵循新版 OpenAI 角色约定，把系统消息编码为
+    ``developer``。部分 OpenAI-compatible 服务（包括 DeepSeek Chat）仍只
+    接受 ``system``，因此评测边界需要做一次不改变内容的角色归一化。
+    """
+    normalized: list[Mapping[str, Any]] = []
+    for message in messages:
+        if isinstance(message, Mapping) and message.get("role") == "developer":
+            item = dict(message)
+            item["role"] = "system"
+            normalized.append(item)
+        else:
+            normalized.append(message)
+    return normalized
+
+
+class _OpenAIChatCompletionsRoleAdapter:
+    """只包装 chat.completions.create，避免修改 AgentDojo 或 OpenAI SDK。"""
+
+    def __init__(self, delegate: Any) -> None:
+        self._delegate = delegate
+
+    def create(self, *args: Any, **kwargs: Any) -> Any:
+        if "messages" in kwargs:
+            kwargs["messages"] = normalize_openai_message_roles(kwargs["messages"])
+        return self._delegate.create(*args, **kwargs)
+
+
+class _OpenAIChatRoleAdapter:
+    def __init__(self, delegate: Any) -> None:
+        self.completions = _OpenAIChatCompletionsRoleAdapter(delegate.completions)
+
+
+class OpenAICompatibleRoleAdapter:
+    """为 OpenAI-compatible 评测端点适配 AgentDojo 的系统消息角色。"""
+
+    def __init__(self, client: Any) -> None:
+        self._client = client
+        self.chat = _OpenAIChatRoleAdapter(client.chat)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._client, name)
+
+
+def adapt_openai_client_for_compatible_roles(client: Any) -> OpenAICompatibleRoleAdapter:
+    """返回一个不修改原客户端的兼容角色代理。"""
+    return OpenAICompatibleRoleAdapter(client)
+
+
 def _get_value(value: Any, key: str, default: Any = None) -> Any:
     if isinstance(value, Mapping):
         return value.get(key, default)
     return getattr(value, key, default)
+
+
+_AGENTDOJO_TOOL_MAP = {
+    # AgentDojo's read-only synthetic tools are represented as the existing
+    # low-risk OpenClaw memory capability. The original function name remains
+    # in ``agentdojoToolName`` for audit and task-runtime correlation.
+    "get_current_day": "memory_search",
+    "search_calendar_events": "memory_search",
+    "get_day_calendar_events": "memory_search",
+    "get_unread_emails": "memory_search",
+    "get_sent_emails": "memory_search",
+    "get_received_emails": "memory_search",
+    "get_draft_emails": "memory_search",
+    "search_emails": "memory_search",
+    "search_contacts_by_name": "memory_search",
+    "search_contacts_by_email": "memory_search",
+    "list_files": "memory_search",
+    "search_files": "memory_search",
+    "search_files_by_filename": "memory_search",
+    "get_file_by_id": "memory_search",
+    # Mutating/external synthetic tools use existing high-risk capability IDs.
+    "send_email": "feishu.im.send",
+    "share_file": "feishu.im.send",
+    "create_file": "feishu.docs.write",
+    "append_to_file": "feishu.docs.write",
+    "create_calendar_event": "feishu.calendar.modify",
+    "cancel_calendar_event": "feishu.calendar.modify",
+    "reschedule_calendar_event": "feishu.calendar.modify",
+    "add_calendar_event_participants": "feishu.calendar.modify",
+}
+
+
+def _agentdojo_tool_name(tool_name: str) -> str:
+    return _AGENTDOJO_TOOL_MAP.get(tool_name.lower(), tool_name)
 
 
 def build_tool_call_payload(
@@ -89,7 +174,12 @@ def build_tool_call_payload(
         except json.JSONDecodeError:
             raw_args = {}
     params = copy.deepcopy(raw_args) if isinstance(raw_args, Mapping) else {}
-    payload: dict[str, Any] = {"toolName": tool_name, "params": dict(params)}
+    payload: dict[str, Any] = {
+        "toolName": _agentdojo_tool_name(tool_name),
+        "agentdojoToolName": tool_name,
+        "evaluationMode": "agentdojo",
+        "params": dict(params),
+    }
     optional = {
         "toolCallId": _get_value(tool_call, "id"),
         "sessionId": session_id,

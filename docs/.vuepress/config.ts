@@ -34,6 +34,7 @@ export default defineUserConfig({
           children: [
             "/architecture/index.md",
             "/architecture/overview.md",
+            "/architecture/permission-modeling-diagrams.md",
             "/architecture/permission-kb-runtime-architecture.md",
             "/architecture/rv-permission-automata.md",
             "/architecture/legacy-rule-migration-matrix.md",
@@ -42,6 +43,7 @@ export default defineUserConfig({
             "/architecture/rv-engine-report.md",
             "/architecture/nl-automata-rv-landing-report.md",
             "/architecture/project-status-analysis.md",
+            "/architecture/v070-engineering-unification-report-2026-09-02.md",
             "/architecture/target-architecture.md",
             "/architecture/quality-assurance.md",
           ],
@@ -95,6 +97,7 @@ export default defineUserConfig({
             "/research/permission-model-kb-and-cross-session-rv-plan.md",
             "/research/agent-permission-rv-research-report-2026-08-25.md",
             "/research/pmkb-network-baseline-implementation-report-2026-08-28.md",
+            "/research/openclaw-architecture-brief-2026-08-31.md",
           ],
         },
       ],

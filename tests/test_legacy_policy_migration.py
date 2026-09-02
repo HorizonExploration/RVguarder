@@ -1,11 +1,11 @@
-"""Regression proof for legacy DetectionEngine rule migration."""
+"""Deletion gate: every LEGACY record replays equivalently through PMKB."""
 
 from pathlib import Path
 
 from openclaw_guard.policy.catalog import PolicyBundle
 from openclaw_guard.policy.evaluator import PolicyEvaluator
 from openclaw_guard.policy.models import AuthorizationTrace, CoverageResult, OperationRef, PrincipalRef, ResourceRef
-from openclaw_guard.engine.detection import builtin_rules
+from openclaw_guard.policy.legacy import legacy_rules
 
 
 def test_legacy_rm_rf_is_blocked_by_the_pmkb_compatibility_record():
@@ -25,13 +25,13 @@ def test_legacy_rm_rf_is_blocked_by_the_pmkb_compatibility_record():
     assert "LEGACY-CMD-001" in decision.selected_rule_ids
 
 
-def test_every_legacy_rule_has_an_executable_pmkb_compatibility_record():
+def test_every_legacy_record_replays_to_an_equivalent_pmkb_effect():
     root = Path(__file__).parents[1] / "policies" / "permissions"
     evaluator = PolicyEvaluator(PolicyBundle.load(root))
     expected_effect = {"block": "block", "ask": "openclaw_approval", "escalate": "openclaw_approval"}
     rank = {"auto_allow_audit": 0, "clarify_then_retry": 1, "openclaw_approval": 2, "block": 3}
 
-    for rule in builtin_rules():
+    for rule in legacy_rules():
         for action_type in rule.action_types:
             trace = AuthorizationTrace(
                 trace_id=f"legacy-{rule.rule_id}-{action_type}",

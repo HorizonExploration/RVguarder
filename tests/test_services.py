@@ -48,14 +48,14 @@ class BuildServicesTests(unittest.TestCase):
             services = build_services(project, config_path=config_path)
 
             from openclaw_guard.engine.behavior import BehaviorCollectorManager
-            from openclaw_guard.engine.detection import DetectionEngine
             from openclaw_guard.engine.control import GuardController
             from openclaw_guard.engine.whitelist import WhitelistEngine
+            from openclaw_guard.policy.engine import AuthorizationPolicyEngine
             from openclaw_guard.storage.audit_store import AuditStore
             from openclaw_guard.core.action_service import ActionService
 
             self.assertIsInstance(services.collectors, BehaviorCollectorManager)
-            self.assertIsInstance(services.detector, DetectionEngine)
+            self.assertIsInstance(services.policy_engine, AuthorizationPolicyEngine)
             self.assertIsInstance(services.controller, GuardController)
             self.assertIsInstance(services.whitelist, WhitelistEngine)
             self.assertIsInstance(services.audit_store, AuditStore)

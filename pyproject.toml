@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openclaw-guard"
-version = "0.3.0"
+version = "0.7.0.dev0"
 description = "Openclaw Guard (龙虾卫士), a non-intrusive security protection system for OpenClaw."
 requires-python = ">=3.13"
 authors = [
@@ -17,13 +17,15 @@ dependencies = [
   "transitions",
   "requests",
   "pydantic>=2.0",
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.30.0",
 ]
 
 [project.scripts]
 openclaw-guard = "openclaw_guard.main:main"
 
 [project.optional-dependencies]
-web = ["fastapi>=0.115.0", "uvicorn[standard]>=0.30.0"]
+web = []
 postgres = ["psycopg2-binary", "sqlalchemy[asyncio]>=2.0"]
 redis = ["redis>=5.0"]
 test = ["httpx"]

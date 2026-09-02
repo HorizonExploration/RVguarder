@@ -1,0 +1,31 @@
+{
+  "benchmark_version": "v1.2.2",
+  "suites": [
+    "workspace"
+  ],
+  "attacks": [
+    "direct"
+  ],
+  "model": "deepseek-chat",
+  "config": {
+    "approval_mode": "deny",
+    "guard_url": "http://127.0.0.1:8780",
+    "guard_timeout": 15.0,
+    "llm_timeout": 90.0,
+    "temperature": 0.0,
+    "max_tool_iters": 5,
+    "progress_every": 1,
+    "workers": 2,
+    "api_key_configured": "[REDACTED]",
+    "agent_python": "/home/yosoro126/miniconda3/envs/agentdojo/bin/python"
+  },
+  "config_hash": "0eba52104c996f647eb14260b6661baa3822e1d5a36b5e39c9746aac5bb4e7da",
+  "dependency_probe": {
+    "python": "3.11.15",
+    "agentdojo": "0.1.35",
+    "pydantic": "2.13.5",
+    "ready": true,
+    "errors": []
+  },
+  "created_at": "2026-08-30T09:09:29.362731+00:00"
+}

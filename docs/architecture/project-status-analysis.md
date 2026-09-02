@@ -1,9 +1,10 @@
 # OpenClaw-RVGuarder 项目现状分析报告
 
 > **版本**：v0.7.0-dev（含 PMKB 1.1.0、RV 阶段 A–F 和 OpenClaw 单一审批契约）
-> **分析日期**：2026-08-29（低风险日常办公策略升级后复核）
+> **分析日期**：2026-08-30（OpenClaw 交接与误拦截修复后复核）
 > **分析基准**：当前工作树；精确提交号以 Git 为准
-> **测试基线（2026-08-29）**：`python -m pytest -q` → **490 passed / 18 skipped / 4 subtests passed**
+> **改造前全量基线（2026-08-30）**：`python -m pytest -q` → **513 passed / 18 skipped / 4 subtests passed**；本次变更只运行关键链路定向回归。
+> **状态更新（2026-09-02）：** 本文的双轨 HTTP 和 DetectionEngine 未退役结论已由后续工程统一工作解决；请以 [v0.7.0-dev 工程统一报告](./v070-engineering-unification-report-2026-09-02.md) 为当前结论。
 
 ---
 
@@ -13,7 +14,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 
 项目整体处于**核心链路可用、治理能力持续完善**阶段：检测、审批、审计、RV 和 PMKB 基础链路已落地，但仍存在三类系统性问题——**前端自动化测试与构建门禁不足**、**双轨 HTTP 层维护成本**、**约束规则与标签规则并行导致的治理风险**。本报告按三大维度展开，并给出后续推进顺序。当前事实与维护口径见 [项目理解与当前记忆](./project-memory.md)。
 
-本次升级的可核对结果集中在[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)：PMKB `1.1.0` 已进入 `before_tool_call` 热路径，提供 23 个 canonical operations、27 条持久化规则、47 条 `LEGACY-<old-id>` 兼容规则（bundle 共 74 条规则）、25 条最小权限 Trace、9 条权限关系和 29 个回归向量；DetectionEngine 仍保留快速单步防线，尚未完成可删除的统一数据源退役。
+本次升级的可核对结果集中在[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)：PMKB `1.1.0` 已进入 `before_tool_call` 热路径，提供 27 个 canonical operations、31 条持久化规则、47 条 `LEGACY-<old-id>` 兼容规则（bundle 共 78 条规则）、29 条最小权限 Trace、9 条权限关系和 29 个回归向量；DetectionEngine 仍保留快速单步防线，尚未完成可删除的统一数据源退役。
 
 ---
 
@@ -182,4 +183,4 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 
 ---
 
-*本报告已于 2026-08-29 复核；全量回归为 **490 passed / 18 skipped / 4 subtests passed**（`python -m pytest -q`）。历史问题快照保留原日期和语境。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 为准。*
+*本报告已于 2026-08-30 复核；改造前全量回归为 **513 passed / 18 skipped / 4 subtests passed**（`python -m pytest -q`）。本次 OpenClaw 交接修复采用关键链路定向回归，历史问题快照保留原日期和语境。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 与 `runtime-hook.md` 为准。*

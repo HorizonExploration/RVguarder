@@ -45,7 +45,7 @@ def test_current_architecture_documents_describe_pmkb_semantic_and_rv_layers():
         "PrincipalSecurityState",
         "openclaw_approval",
         "session_id",
-            "490 passed",
+            "513 passed",
     ):
         assert token in architecture
     for token in ("PMKB", "Authorization Trace", "SemanticEnhancer", "ChainRule DSL"):

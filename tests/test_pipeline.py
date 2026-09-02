@@ -32,6 +32,60 @@ from openclaw_guard.models import BehaviorEvent, DetectionDecision
 from openclaw_guard.services import build_services
 
 
+def test_user_explanation_is_bounded_for_openclaw_approval_payloads() -> None:
+    from openclaw_guard.utils import utc_now_iso
+
+    event = BehaviorEvent(
+        event_id="long-explanation",
+        timestamp=utc_now_iso(),
+        action_type="file_write",
+        process_name="openclaw",
+        pid=None,
+        user="openclaw",
+        target_paths=["/workspace/" + "x" * 600],
+        metadata={"scope_class": "workspace"},
+    )
+    decision = DetectionDecision(
+        event_id="long-explanation",
+        timestamp=utc_now_iso(),
+        action_type="file_write",
+        risk_level="dangerous",
+        action="ask",
+        reason="long target",
+    )
+
+    from openclaw_guard.engine.pipeline import _user_explanation
+
+    _title, message = _user_explanation(event, decision)
+    assert len(message) <= 240
+    assert message.endswith("…")
+
+
+def test_native_tool_user_summary_uses_openclaw_operation_language() -> None:
+    from openclaw_guard.utils import utc_now_iso
+
+    event = build_hook_event(
+        {
+            "toolName": "memory_search",
+            "params": {"query": "daily"},
+            "runId": "summary-run",
+            "toolCallId": "summary-call",
+        }
+    )
+    decision = DetectionDecision(
+        event_id=event.event_id,
+        timestamp=utc_now_iso(),
+        action_type=event.action_type,
+        risk_level="caution",
+        action="ask",
+        reason="summary test",
+    )
+
+    from openclaw_guard.engine.pipeline import _user_summary
+
+    assert _user_summary(event, decision)["operation"] == "搜索记忆"
+
+
 class EnsurePipelineTimingsTests(unittest.TestCase):
     """_ensure_pipeline_timings 单元测试。"""
 
@@ -46,11 +100,11 @@ class EnsurePipelineTimingsTests(unittest.TestCase):
 
     def test_returns_existing_timings(self) -> None:
         class Event:
-            metadata = {"pipeline_timings_ms": {"detection_ms": 1.5}}
+            metadata = {"pipeline_timings_ms": {"policy_ms": 1.5}}
 
         event = Event()
         timings = _ensure_pipeline_timings(event)
-        self.assertEqual(timings["detection_ms"], 1.5)
+        self.assertEqual(timings["policy_ms"], 1.5)
 
     def test_handles_none_metadata(self) -> None:
         class Event:
@@ -232,6 +286,36 @@ class ApplySessionEscalationTests(unittest.TestCase):
         self.assertEqual(result.action, "revise")
         self.assertIsNotNone(result.revision_hint)
 
+    def test_critical_session_does_not_revise_safe_allow(self) -> None:
+        """会话达到 critical 后，当前安全读取仍应保持 allow。"""
+        from openclaw_guard.utils import utc_now_iso
+
+        def make_decision(action: str, risk_level: str) -> DetectionDecision:
+            return DetectionDecision(
+                event_id="evt-safe-after-critical",
+                timestamp=utc_now_iso(),
+                action_type="file_read",
+                risk_level=risk_level,
+                action=action,
+                reason="session regression",
+            )
+
+        for _ in range(3):
+            _apply_session_escalation(
+                self.services,
+                self._event(),
+                make_decision("block", "blocked"),
+            )
+
+        result = _apply_session_escalation(
+            self.services,
+            self._event(),
+            make_decision("allow", "safe"),
+        )
+
+        self.assertEqual(result.action, "allow")
+        self.assertIsNotNone(result.revision_hint)
+
     def test_block_upgrade_is_applied_before_revision_hint(self) -> None:
         """record() 返回 block 时，critical hint 不能提前返回 revise。"""
         from openclaw_guard.utils import utc_now_iso
@@ -315,7 +399,8 @@ class HandleBeforeToolCallPipelineTests(unittest.TestCase):
 
         actions = iter(("block", "block", "escalate"))
 
-        def detector_decision(event: BehaviorEvent) -> DetectionDecision:
+        def policy_decision(event: BehaviorEvent, *, source_message: str = "") -> DetectionDecision:
+            del source_message
             action = next(actions)
             return DetectionDecision(
                 event_id=event.event_id,
@@ -333,7 +418,7 @@ class HandleBeforeToolCallPipelineTests(unittest.TestCase):
             "sessionKey": "agent:agent-hook-e2e:main",
             "agentId": "agent-hook-e2e",
         }
-        with patch.object(self.services.detector, "evaluate", side_effect=detector_decision):
+        with patch.object(self.services.policy_engine, "decide", side_effect=policy_decision):
             results = [
                 handle_before_tool_call_pipeline(
                     self.services,
@@ -364,6 +449,68 @@ class HandleBeforeToolCallPipelineTests(unittest.TestCase):
         # read 通常是安全的 → proposed → allow
         self.assertIn(result["action"], ("allow", "require_approval"))
 
+    def test_native_control_plane_read_is_not_blocked_by_missing_agent_identity(self) -> None:
+        with patch.object(self.services.audit_store, "append", return_value={}):
+            result = handle_before_tool_call_pipeline(
+                self.services,
+                {
+                    "toolName": "memory_search",
+                    "params": {"query": "daily"},
+                    "runId": "native-read-run",
+                    "toolCallId": "native-read-call",
+                    "sessionId": "native-read-session",
+                },
+            )
+
+        self.assertEqual(result["action"], "allow")
+        self.assertEqual(
+            result["action_record"]["decision"]["trace"][-1]["reason"],
+            "low_risk_identity_not_required",
+        )
+
+    def test_all_native_read_tools_remain_allowed_in_full_hook_pipeline(self) -> None:
+        native_read_tools = (
+            "sessions_history",
+            "sessions_list",
+            "session_status",
+            "memory_search",
+            "memory_get",
+            "agents_list",
+            "get_goal",
+        )
+        with patch.object(self.services.audit_store, "append", return_value={}):
+            results = [
+                handle_before_tool_call_pipeline(
+                    self.services,
+                    {
+                        "toolName": tool_name,
+                        "params": {"query": "daily"},
+                        "runId": f"native-run-{tool_name}",
+                        "toolCallId": f"native-call-{tool_name}",
+                        "sessionId": f"native-session-{tool_name}",
+                    },
+                )
+                for tool_name in native_read_tools
+            ]
+
+        self.assertEqual([result["action"] for result in results], ["allow"] * len(native_read_tools))
+
+    def test_native_memory_read_with_external_path_does_not_use_read_only_trust(self) -> None:
+        with patch.object(self.services.audit_store, "append", return_value={}):
+            result = handle_before_tool_call_pipeline(
+                self.services,
+                {
+                    "toolName": "memory_search",
+                    "params": {"query": "read /etc/shadow"},
+                    "runId": "native-unsafe-run",
+                    "toolCallId": "native-unsafe-call",
+                    "sessionId": "native-unsafe-session",
+                },
+            )
+
+        self.assertIn(result["action"], {"require_approval", "block"})
+        self.assertNotEqual(result["action_record"]["event"]["metadata"]["tool_origin"], "openclaw_native")
+
 
 class HandleAfterToolCallPipelineTests(unittest.TestCase):
     """handle_after_tool_call_pipeline 测试。"""
@@ -386,6 +533,29 @@ class HandleAfterToolCallPipelineTests(unittest.TestCase):
         )
         self.assertFalse(result["ok"])
         self.assertEqual(result["error"], "action_not_found")
+
+    def test_memory_index_failure_is_recorded_as_capability_error(self) -> None:
+        payload = {
+            "toolName": "memory_search",
+            "params": {"query": "daily"},
+            "runId": "memory-error-run",
+            "toolCallId": "memory-error-call",
+            "sessionId": "memory-error-session",
+        }
+        with patch.object(self.services.audit_store, "append", return_value={}):
+            before = handle_before_tool_call_pipeline(self.services, payload)
+            result = handle_after_tool_call_pipeline(
+                self.services,
+                {
+                    **payload,
+                    "error": "memory_search index metadata is missing",
+                },
+            )
+
+        self.assertIn(before["action"], {"allow", "require_approval"})
+        self.assertTrue(result["ok"])
+        execution_result = result["action"]["execution_result"]
+        self.assertEqual(execution_result["error_code"], "capability_error")
 
 
 if __name__ == "__main__":

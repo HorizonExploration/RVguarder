@@ -339,7 +339,7 @@ def migrated_constraint_rules() -> list[ConstraintRule]:
     title/action/label facts, eliminating the former hand-maintained list of
     only ten mirrors.  PMKB migration metadata records the same legacy IDs.
     """
-    from openclaw_guard.engine.detection import builtin_rules
+    from openclaw_guard.policy.legacy import legacy_rules
 
     return [
         ConstraintRule(
@@ -352,5 +352,5 @@ def migrated_constraint_rules() -> list[ConstraintRule]:
             action=ActionConstraint(action_types=rule.action_types),
             tags=TagConstraint(require_all=rule.match_labels),
         )
-        for rule in builtin_rules()
+        for rule in legacy_rules()
     ]

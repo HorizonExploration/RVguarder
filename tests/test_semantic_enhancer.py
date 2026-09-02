@@ -6,14 +6,63 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from openclaw_guard.engine.detection import DetectionEngine
 from openclaw_guard.manager import build_manager
 from openclaw_guard.models import BehaviorEvent
 from openclaw_guard.engine.semantic_enhancer import SemanticEnhancer
+from openclaw_guard.integrations.tool_hook_bridge import build_hook_event
+from openclaw_guard.policy.engine import AuthorizationPolicyEngine
 from openclaw_guard.utils import utc_now_iso
 
 
 class SemanticEnhancerTests(unittest.TestCase):
+    def test_agentdojo_evaluation_mode_uses_local_semantics_for_mapped_read(self) -> None:
+        enhancer = SemanticEnhancer(api_key="configured")
+        event = build_hook_event(
+            {
+                "toolName": "memory_search",
+                "agentdojoToolName": "search_calendar_events",
+                "evaluationMode": "agentdojo",
+                "params": {"query": "meeting"},
+            }
+        )
+
+        with patch.object(enhancer, "_call_llm", side_effect=AssertionError("LLM must not run")):
+            result = enhancer.evaluate(
+                event,
+                {"source_message": "benchmark read", "origin": "hook", "evaluation_mode": "agentdojo"},
+            )
+
+        self.assertEqual(event.metadata["evaluation_mode"], "agentdojo")
+        self.assertEqual(result["semantic"]["scenario"], "file_read")
+
+    def test_agentdojo_evaluation_mode_uses_local_semantics_for_mapped_external_tool(self) -> None:
+        enhancer = SemanticEnhancer(api_key="configured")
+        event = build_hook_event(
+            {
+                "toolName": "feishu.im.send",
+                "agentdojoToolName": "send_email",
+                "evaluationMode": "agentdojo",
+                "params": {"to": "outside@example.com", "body": "report"},
+            }
+        )
+
+        called = False
+
+        def record_call(*_args, **_kwargs):
+            nonlocal called
+            called = True
+            return None
+
+        with patch.object(enhancer, "_call_llm", side_effect=record_call):
+            result = enhancer.evaluate(
+                event,
+                {"source_message": "benchmark external action", "origin": "hook", "evaluation_mode": "agentdojo"},
+            )
+
+        self.assertEqual(event.metadata["evaluation_mode"], "agentdojo")
+        self.assertIsInstance(result["semantic"], dict)
+        self.assertFalse(called)
+
     def test_semantic_enhancer_outputs_rv_trace_for_report_send(self) -> None:
         event = BehaviorEvent(
             event_id="evt-1",
@@ -61,26 +110,25 @@ class SemanticEnhancerTests(unittest.TestCase):
             self.assertIn("external_recipient", metadata["rv_trace"][0]["props"])
             self.assertEqual(payload["status"], "pending_approval")
 
-    def test_semantic_decision_blocks_external_mail_with_secret(self) -> None:
-        """SEM-OFFICE-001 (mail_send + external + secret → block) 已迁移至 MailMonitor FSM。
-
-        单步 DetectionEngine 不再对 chat_message 类型的 mail_send 做 block 判定，
-        而是由 RV 引擎的 MailMonitor 在链式上下文中触发。此处验证单步兜底逻辑返回 ask。
-        """
+    def test_pmkb_blocks_secret_egress_from_semantic_evidence(self) -> None:
+        """A frozen LEGACY rule is evaluated by PMKB, not DetectionEngine."""
         event = BehaviorEvent(
             event_id="evt-2",
             timestamp=utc_now_iso(),
-            action_type="chat_message",
+            action_type="network_egress",
             process_name="openclaw",
             pid=None,
             user="tester",
-            raw_payload={"raw_user_intent": "把 token 发邮件给 alice@example.com"},
+            raw_payload={"params": {"url": "https://example.com", "body": "token"}},
             source="chat",
+            metadata={
+                "semantic": {"labels": ["network_secret_payload"]},
+                "rv_trace": [{"props": ["network_secret_payload"]}],
+            },
         )
-        decision = DetectionEngine().evaluate(event)
-        # 单步判定：fallback 对 mail_send 场景返回 ask（RV FSM 负责链式 block）
-        self.assertEqual(decision.action, "ask")
-        self.assertIn("外发类办公场景默认进入人工确认", decision.reason)
+        decision = AuthorizationPolicyEngine().decide(event)
+        self.assertEqual(decision.action, "block")
+        self.assertIn("LEGACY-NET-005", decision.rule_ids)
 
     def test_handle_before_tool_call_attaches_semantic_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

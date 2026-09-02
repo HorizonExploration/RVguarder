@@ -1,5 +1,7 @@
 from pathlib import Path
 import json
+import shutil
+import subprocess
 
 import pytest
 
@@ -81,6 +83,65 @@ def test_generated_openclaw_approval_contract_is_single_owner_and_once_only():
     assert DEFAULT_DECISION_TIMEOUT_MS == 15_000
     assert "180000" not in source
     assert "DEFAULT_DECISION_TIMEOUT_MS = 15000" in source
+
+
+def test_generated_openclaw_approval_description_is_bounded():
+    source = _plugin_source(guard_url="http://127.0.0.1:8780", auth_token="token")
+    assert "MAX_APPROVAL_DESCRIPTION_CHARS = 240" in source
+    assert "boundedApprovalText(result.message" in source
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 Node.js 验证生成插件运行时行为")
+def test_generated_openclaw_plugin_bounds_long_approval_description_at_runtime(tmp_path):
+    plugin_path = tmp_path / "openclaw-guard-plugin.mjs"
+    plugin_path.write_text(_plugin_source(guard_url="http://guard.test", auth_token="token"), encoding="utf-8")
+    script = r'''
+const plugin = (await import(process.argv[1])).default;
+const callbacks = {};
+globalThis.fetch = async (url) => ({
+  ok: true,
+  text: async () => JSON.stringify(url.includes("before-tool-call") ? {
+    action: "require_approval",
+    title: "T".repeat(300),
+    message: "M".repeat(1000),
+    action_record: { action_id: "approval-1" },
+  } : {}),
+});
+const api = {
+  pluginConfig: { guardUrl: "http://guard.test", authToken: "token" },
+  on(name, handler) { callbacks[name] = handler; },
+  registerGatewayMethod() {},
+  logger: { info() {}, warn() {} },
+};
+plugin.register(api);
+const result = await callbacks.before_tool_call(
+  { toolName: "shell_exec", params: {}, runId: "run-1", toolCallId: "call-1" },
+  {},
+);
+if (result.requireApproval.title.length > 80) process.exit(1);
+if (result.requireApproval.description.length > 240) process.exit(2);
+if (!result.requireApproval.description.endsWith("…")) process.exit(3);
+globalThis.fetch = async () => { throw new Error("E".repeat(1000)); };
+const failedCallbacks = {};
+plugin.register({
+  pluginConfig: { guardUrl: "http://guard.test", authToken: "token", failClosed: true },
+  on(name, handler) { failedCallbacks[name] = handler; },
+  registerGatewayMethod() {},
+  logger: { info() {}, warn() {} },
+});
+const blocked = await failedCallbacks.before_tool_call(
+  { toolName: "shell_exec", params: {}, runId: "run-2", toolCallId: "call-2" },
+  {},
+);
+if (blocked.blockReason.length > 240) process.exit(4);
+'''
+    completed = subprocess.run(
+        ["node", "--input-type=module", "-e", script, str(plugin_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr or completed.stdout
 
 
 def test_persistent_allow_always_resolution_is_rejected(services):

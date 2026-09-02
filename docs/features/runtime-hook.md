@@ -154,8 +154,27 @@ Hook 动作只有 OpenClaw 原生审批入口；Guard Dashboard 不显示批准/
 1. 插件 `onResolution` 回调触发，POST `/api/hook/resolve-approval`
 2. 后端 `resolve_hook_approval` 处理：字段名兼容 `actionId`/`action_id`，决策值兼容 `allow-once`/`allow_once`
 3. 后端幂等更新 `decision_state`、`sync_state` 和审计记录
-4. 发布 `action.resolved` SSE 事件，前端按 `action_id` 增量刷新
+4. 发布 `action.resolved` SSE 事件，前端按 `action_id` 增量刷新；超时收拢发布 `action.timeout`，前端同样增量刷新
 5. SSE 断线时通过 `GET /api/actions/{action_id}` 和轻量 summary 对账
+
+### 本次同步与误拦截修复
+
+审批所有权仍只有 OpenClaw 原生 UI，但 Guard 对 OpenClaw 自带工具做了显式分类，避免把控制面读取误判为普通命令或文件操作：
+
+| OpenClaw 工具组 | 典型工具 | PMKB 权限族 | 默认行为 |
+|---|---|---|---|
+| session | `sessions_history`、`sessions_list`、`session_status` | `session.read` | 低风险自动放行并审计 |
+| memory | `memory_search`、`memory_get` | `memory.read` | 低风险自动放行并审计 |
+| agents | `agents_list` | `agents.read` | 低风险自动放行并审计 |
+| planning | `get_goal` | `goal.read` | 低风险自动放行并审计 |
+| planning | `update_plan`、`create_goal`、`update_goal` | `plan.write` / `goal.write` | 保持审批 |
+
+`sessions_send`、`sessions_spawn` 等跨代理/跨会话写入能力不会继承只读信任，仍按未知或写入风险处理。Shell/exec 的读取仍需满足工作区边界和只读分析条件，不能因为“读取”字样而自动放行。
+原生只读信任还会检查参数：出现外部 URL、绝对/父级路径，或指向不同 session/主体的目标时，会退出原生低风险 profile，回到普通审批/阻断路径。
+
+为兼容 OpenClaw `plugin.approval.request` 的描述字段限制，插件会在发送前将审批标题限制为 80 字符、用户说明限制为 240 字符，并保留省略号；完整规则编号、Trace 和技术原因只写入 Guard 审计详情。这样长命令不会因为说明字段过长而被 OpenClaw schema 当成参数错误拒绝。
+
+Guard 还会在查询或处理新 Hook 前收拢超过 6 分钟未回调的 `pending_approval` 动作，标记为 `approval_timeout`，避免 OpenClaw 已结束而 Dashboard 永久显示待确认。同步状态 `timeout` 表示审批回调未在窗口内返回，不等同于安全规则 `block`。
 
 ## 首次启用
 

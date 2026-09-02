@@ -1,11 +1,11 @@
 # HTTP 接口
 
-当前本地 Web 工作台使用内建 HTTP 服务，主要接口如下。
+当前本地 Web 工作台仅使用 FastAPI HTTP 服务，主要接口如下。
 
 ## 服务模式
 
-- 默认使用 stdlib `legacy_web`（`openclaw_guard/legacy_web.py`，`ThreadingHTTPServer`），零额外依赖
-- 传入 `--fastapi` 时切换到 FastAPI + uvicorn（`openclaw_guard/web/` 包）；若 FastAPI 缺失则自动回退到 legacy 模式
+- 默认且唯一使用 FastAPI + uvicorn（`openclaw_guard/web/` 包）
+- `legacy_web.py` 是冻结历史实现，既不作为默认入口，也不作为依赖缺失时的回退路径
 
 ## 配置入口（影响行为）
 
@@ -42,7 +42,7 @@
 {
   "ok": true,
   "policy_version": "1.1.0",
-  "policy_rule_count": 74,
+  "policy_rule_count": 79,
   "policy_fingerprint": "<16 位哈希前缀>"
 }
 ```
@@ -257,7 +257,7 @@ OpenClaw 原生审批卡片 `onResolution` 回调使用的接口。
 Guard 前端使用的 Server-Sent Events（SSE）单向事件流。
 
 - 支持 `after_seq` 查询参数和 `Last-Event-ID` 断线补偿
-- 事件类型包括 `action.created`、`action.resolved`、`action.updated`、`action.conflict`
+- 事件类型包括 `action.created`、`action.resolved`、`action.updated`、`action.timeout`、`action.conflict`
 - SSE 不可用时，前端使用轻量摘要和单动作查询进行降级对账
 
 ## POST `/api/skills/upsert`

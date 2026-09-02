@@ -55,9 +55,9 @@ openclaw-guard doctor
 
 ## 依赖现状
 
-- `pyproject.toml` 中 `fastapi>=0.115.0` 与 `uvicorn[standard]>=0.30.0` 目前声明在必需依赖中
-- 但默认运行模式为 stdlib `legacy_web`（`ThreadingHTTPServer`），并不依赖 FastAPI；仅在 `openclaw-guard run --fastapi` 时才使用 FastAPI + uvicorn（缺失时自动回退 legacy 模式）
-- 若希望保持轻量（仅 legacy 模式），可将 fastapi/uvicorn 移入 optional 依赖
+- `fastapi>=0.115.0` 与 `uvicorn[standard]>=0.30.0` 是必需依赖；`pip install -e .` 即会安装默认服务所需组件
+- `openclaw-guard run` 仅启动 FastAPI + uvicorn；依赖缺失会报出安装提示，不会静默切换到旧服务
+- `legacy_web.py` 仅保留作历史代码参考，不应在部署脚本或生产环境中调用
 
 ## 卸载
 

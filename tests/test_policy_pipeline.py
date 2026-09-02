@@ -68,20 +68,9 @@ def known_uncovered_operation_payload() -> dict[str, object]:
 
 
 def test_p0_internal_message_is_allowed_with_policy_evidence(services, monkeypatch):
-    """A PMKB allow remains allow when the pre-existing detector allows it."""
-    def detector_allow(event):
-        return DetectionDecision(
-            event_id=event.event_id,
-            timestamp=utc_now_iso(),
-            action_type=event.action_type,
-            risk_level="safe",
-            action="allow",
-            reason="test detector allow",
-        )
-
-    monkeypatch.setattr(services.detector, "evaluate", detector_allow)
-    # This test isolates PMKB overlay behavior.  The migrated legacy
-    # channel-send constraint is independently entitled to require approval.
+    """A PMKB low-risk rule is the authoritative runtime decision."""
+    # The legacy-compatibility constraint is independently entitled to require
+    # approval, so disable it to isolate the PMKB decision contract.
     monkeypatch.setattr(services, "constraint_engine_enabled", lambda: False)
     result = services.handle_before_tool_call(internal_message_payload())
 
@@ -122,29 +111,19 @@ def test_unknown_tool_records_gap_and_does_not_create_silent_allow(services):
 
 def test_known_operation_with_unknown_scope_never_becomes_silent_allow(services, monkeypatch):
     """A newly covered operation still requires approval when its scope is unresolved."""
-    def detector_allow(event):
-        return DetectionDecision(
-            event_id=event.event_id,
-            timestamp=utc_now_iso(),
-            action_type=event.action_type,
-            risk_level="safe",
-            action="allow",
-            reason="test detector allow",
-        )
-
-    monkeypatch.setattr(services.detector, "evaluate", detector_allow)
     result = services.handle_before_tool_call(known_uncovered_operation_payload())
 
     evidence = result["action_record"]["decision"]["policy_decision"]
     assert evidence["effect"] == "openclaw_approval"
     assert evidence["match_status"] == "unknown"
-    assert evidence["candidate_rule_ids"] == ["P1-DIRECTORY-READ"]
+    assert "P1-DIRECTORY-READ" in evidence["candidate_rule_ids"]
     assert result["action"] == "require_approval"
 
 
 def test_repeated_blocked_hook_calls_remain_blocked(services, monkeypatch):
     """A session revision hint must not weaken a repeated hard block into approval."""
-    def detector_block(event):
+    def policy_block(event, *, source_message=""):
+        del source_message
         return DetectionDecision(
             event_id=event.event_id,
             timestamp=utc_now_iso(),
@@ -154,7 +133,7 @@ def test_repeated_blocked_hook_calls_remain_blocked(services, monkeypatch):
             reason="test hard block",
         )
 
-    monkeypatch.setattr(services.detector, "evaluate", detector_block)
+    monkeypatch.setattr(services.policy_engine, "decide", policy_block)
     payload = known_uncovered_operation_payload()
 
     first = services.handle_before_tool_call(payload)

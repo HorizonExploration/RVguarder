@@ -42,7 +42,7 @@ function usePolling() {
           if (payload.action_id) upsertAction(await fetchAction(payload.action_id));
         } catch (_) { /* 回退轮询负责最终对账 */ }
       };
-      ['action.created', 'action.resolved', 'action.updated', 'action.conflict'].forEach((name) => {
+      ['action.created', 'action.resolved', 'action.updated', 'action.timeout', 'action.conflict'].forEach((name) => {
         source.addEventListener(name, handleEvent);
       });
       source.onerror = () => { /* EventSource 自动重连 */ };

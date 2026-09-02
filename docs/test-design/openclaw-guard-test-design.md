@@ -54,7 +54,7 @@
 | 测试维度 | 覆盖对象 | 现有覆盖 | 需新增 |
 |:---------|:---------|:---------|:-------|
 | 单元测试 | WindowManager、各 Monitor 单体 | ✅ 基本覆盖 | 边界补充 |
-| 单元测试 | DetectionEngine 规则匹配 | ✅ 47条规则 | P0/P1 场景规则 |
+| 单元测试 | PMKB + LEGACY 规则回放 | ✅ 47条规则 | P0/P1 场景规则 |
 | 单元测试 | SemanticEnhancer（本地/LLM/降级） | ✅ 基本覆盖 | P0/P1 场景标签 |
 | 场景测试 | 邮件收发（mail_send/mail_read） | ✅ 5场景 | 回归加固 |
 | 场景测试 | 日报/报表（report_generate/send） | ✅ 5场景 | 回归加固 |
@@ -97,7 +97,7 @@ test_{module}_{scenario}_{condition}_{expected}.py
 |:-----|:---------|:-------|
 | WindowManager | `test_rv.py` | push/clear/序列匹配/累积计数/窗口大小 |
 | 各 Monitor | `test_rv.py` | 每个状态转移组合 |
-| DetectionEngine | `test_detection.py` | 每条规则/组合规则 |
+| PMKB LEGACY 回放 | `test_legacy_policy_migration.py`、`test_policy_decision_adapter.py` | 每条规则/组合规则 |
 | SemanticEnhancer | `test_semantic_enhancer.py` | LLM/本地/降级/标签提取 |
 
 ### 2.2 L2 — 场景测试（Scenario）
@@ -125,7 +125,7 @@ test_{module}_{scenario}_{condition}_{expected}.py
 
 | 集成点 | 测试文件 | 覆盖内容 |
 |:-------|:---------|:---------|
-| Manager + SemanticEnhancer + DetectionEngine | `test_semantic_enhancer.py` | 全管道路径 |
+| Manager + SemanticEnhancer + AuthorizationPolicyEngine | `test_semantic_enhancer.py` | 全管道路径 |
 | Manager + RuntimeVerificationEngine | `test_rv.py` | RV 引擎接入 |
 | Hook 桥 + Guard | `test_detection.py` | 工具调用检测 |
 | 链式风险全链路 | `test_scenario_chain.py` | 跨场景组合 |
@@ -1071,7 +1071,7 @@ AI 助手将文档生成分享链接或直接外发给他人。核心风险：
 
 | 编号 | 契约 | 测试点 |
 |:-----|:-----|:-------|
-| FC-01 | 决策结果含 Pipeline Timings | `semantic_ms` / `detection_ms` / `rv_ms` / `controller_ms` / `total_ms` |
+| FC-01 | 决策结果含 Pipeline Timings | `semantic_ms` / `policy_ms` / `rv_ms` / `controller_ms` / `total_ms` |
 | FC-02 | Summary 不暴露敏感信息 | 无 `appSecret`/`token`/`raw` 字段 |
 | FC-03 | 状态枚举一致性 | `pending_approval` / `approved` / `blocked` / `allowed` |
 | FC-04 | 前端可消费 RV 结果 | `rv_verdict` 字段存在且为 `ok/ask/block/escalate` |
@@ -1148,7 +1148,7 @@ AI 助手将文档生成分享链接或直接外发给他人。核心风险：
 | 编号 | 测试点 | 方法 | 阈值 |
 |:-----|:-------|:-----|:-----|
 | PERF-01 | 本地语义增强延迟 | 调用 1000 次取 P99 | `< 5ms` |
-| PERF-02 | DetectionEngine 规则匹配延迟 | 全规则集匹配 1000 次取 P99 | `< 10ms` |
+| PERF-02 | PMKB 规则匹配延迟 | 全规则集匹配 1000 次取 P99 | `< 10ms` |
 | PERF-03 | WindowManager push 延迟 | push 10000 次取 P99 | `< 1ms` |
 | PERF-04 | RV Engine 全监视器评估延迟 | 全监视器评估 1000 次取 P99 | `< 5ms` |
 | PERF-05 | 全链路延迟（不含 LLM） | 输入到决策输出 | `< 20ms` |

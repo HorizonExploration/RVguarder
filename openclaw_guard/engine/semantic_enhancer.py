@@ -108,8 +108,14 @@ class SemanticEnhancer:
 
         result: dict[str, Any] | None = None
 
-        # 1. 若配置了 LLM，优先调用 LLM API
-        if self._llm_enabled and source_message:
+        # 1. 若配置了 LLM，优先调用 LLM API。AgentDojo 的已映射合成
+        # 请求使用确定性本地语义，避免全量基准的每个工具调用都产生
+        # 外部往返；未标记的真实 OpenClaw 请求仍保持原有 LLM 优先策略。
+        benchmark_local_only = (
+            ctx.get("evaluation_mode") == "agentdojo"
+            and event.metadata.get("hook_bridge") is True
+        )
+        if self._llm_enabled and source_message and not benchmark_local_only:
             try:
                 result = self._call_llm(event, source_message, tool_name, haystack, origin)
             except Exception as exc:

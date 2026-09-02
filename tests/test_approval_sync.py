@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from openclaw_guard import api
@@ -109,6 +110,39 @@ class ApprovalSyncTests(unittest.TestCase):
                 self.assertEqual(payload["error_code"], "resolution_conflict")
                 after = self.services.action_service.get_action(action["action_id"])
                 self.assertEqual(after, before)
+
+    def test_stale_hook_approval_is_expired_after_openclaw_timeout(self) -> None:
+        action = self._pending_hook()
+        action_model = self.services._find_action(action["action_id"])
+        assert action_model is not None
+        action_model.created_at = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+        self.services._save_all(self.services._replace_action(action_model))
+
+        expired = self.services.action_service.expire_pending_hook_actions()
+
+        self.assertEqual(expired, 1)
+        current = self.services.action_service.get_action(action["action_id"])
+        assert current is not None
+        self.assertEqual(current["status"], "failed")
+        self.assertEqual(current["execution_result"]["error_code"], "approval_timeout")
+
+    def test_summary_expires_stale_hook_and_publishes_timeout_event(self) -> None:
+        action = self._pending_hook()
+        action_model = self.services._find_action(action["action_id"])
+        assert action_model is not None
+        action_model.created_at = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+        self.services._save_all(self.services._replace_action(action_model))
+        before_seq = self.services.events.latest_seq
+
+        summary = self.services.summary(compact=True)
+
+        self.assertEqual(summary["actions"]["counts"]["pending"], 0)
+        events = self.services.events.since(before_seq)
+        self.assertEqual([item["type"] for item in events], ["action.timeout"])
+        self.assertEqual(events[0]["action_id"], action["action_id"])
+        current = self.services.action_service.get_action(action["action_id"])
+        assert current is not None
+        self.assertEqual(current["last_event_seq"], events[0]["seq"])
 
     def test_event_bus_supports_cursor_replay(self) -> None:
         first = self.services.events.publish("action.resolved", {"action_id": "a1"})

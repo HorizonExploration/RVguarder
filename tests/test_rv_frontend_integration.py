@@ -102,12 +102,10 @@ class TestRvApiIntegration(unittest.TestCase):
                 "rv_trace": [{"event": "file_delete", "props": ["file_delete", "high_value_path"]}],
             },
         )
-        from openclaw_guard.engine.detection import DetectionEngine
-        from openclaw_guard.engine.control import GuardController
-        from openclaw_guard.engine.whitelist import WhitelistEngine, default_police_whitelist
+        from openclaw_guard.policy.engine import AuthorizationPolicyEngine
 
-        detector = DetectionEngine()
-        decision = detector.evaluate(event)
+        decision = AuthorizationPolicyEngine().decide(event)
+        self.assertIn(decision.action, {"allow", "ask", "block", "revise"})
         # Apply RV
         rv_result = self.manager.rv_engine.evaluate(event.metadata.get("rv_trace", []))
         self.assertIn("verdict", rv_result)

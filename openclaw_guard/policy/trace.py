@@ -59,7 +59,15 @@ class TraceCompiler:
         if operation.family == "process.execute" and not (recipients or paths or urls) and (event.command or tool_id == "process.execute"):
             paths = [event.command or tool_id]
         resource_ids = recipients or paths or urls
+        native_low = (
+            event.metadata.get("tool_origin") == "openclaw_native"
+            and event.metadata.get("risk_class") == "low"
+        )
+        if native_low and not resource_ids:
+            resource_ids = [f"openclaw:{tool_id}"]
         resource_type = "recipient" if recipients else ("path" if paths else ("url" if urls else "unknown"))
+        if native_low:
+            resource_type = "control_plane"
         if operation.family == "process.execute":
             resource_type = "command"
         outside = bool(event.metadata.get("outside_workspace"))
@@ -68,6 +76,8 @@ class TraceCompiler:
             scope = "external" if recipients and any(_external(x) for x in recipients) else ("outside" if outside else ("workspace" if paths else "unknown"))
         if urls and not paths:
             scope = "external"
+        if native_low and scope == "unknown":
+            scope = "workspace"
 
         classification = _classification(semantic, labels, steps)
         quantity = _quantity(semantic, steps, len(resource_ids))
