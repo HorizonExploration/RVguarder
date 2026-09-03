@@ -3,7 +3,7 @@
 > **状态：** 当前实现结果与架构事实源
 > **核对日期：** 2026-09-03
 > **PMKB 版本：** `1.1.0`
-> **测试基线：** 清理前全量回归 `550 passed / 18 skipped / 4 subtests passed`（2026-09-03）；旧基线 `513 passed / 18 skipped / 4 subtests passed` 仅作历史对照。
+> **测试基线：** 合并后全量回归 `506 passed / 18 skipped / 4 subtests passed`（2026-09-03）；旧基线 `513 passed / 18 skipped / 4 subtests passed` 仅作历史对照。
 
 > **2026-09-03 更新：** 下文关于 ConstraintEngine、SessionSafetyState、`revise` 和
 > `before_prompt_build` 的描述是旧阶段快照。生产链路只使用 PMKB、显式工具 profile、成功执行
@@ -252,7 +252,7 @@ PMKB 效果到 Guard 动作的映射为：
 - `tests/test_permission_diff.py`、`test_permission_risk_graph.py`：最小权限、scope expansion 和危险组合；
 - `tests/test_principal_capability_rv.py`、`test_principal_rv_hook_integration.py`：跨 session 主体状态和持久化；
 - `tests/test_permission_rv_compiler.py`：PMKB 规则/关系自动机编译、effect 投影和 principal 作用域隔离；
-- 当前全量回归：`550 passed / 18 skipped / 4 subtests passed`（2026-09-03 清理前基线）；旧基线 `513 passed / 18 skipped / 4 subtests passed` 仅作历史对照。
+- 当前全量回归：`506 passed / 18 skipped / 4 subtests passed`（2026-09-03 合并后）；旧基线 `513 passed / 18 skipped / 4 subtests passed` 仅作历史对照。
 - 本次定向回归覆盖 Hook 配置清理、OpenClaw 原生工具映射、PMKB 命中、Trace 编译、session 升权、审批同步、超时收拢和审批文案边界；最终结果为 `192 passed / 4 subtests passed`，详见[审批交接优化结果报告](../research/openclaw-approval-chain-optimization-report-2026-08-30.md)。
 
 路线图目标 `complete coverage ≥85%`、`unknown rate ≤10%`、`low-risk auto-allow precision ≥99%`、`high-risk recall ≥98%`、人工审批量下降 40% 等，当前仅是发布和扩大自动放行范围的验收门槛，尚未由真实个人使用数据验证。

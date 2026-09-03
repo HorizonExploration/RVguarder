@@ -44,7 +44,7 @@ Guard 页面不拥有审批权。生产插件不注册 `before_prompt_build`；�
 - **竞态修复**：`action.resolved` SSE 事件改为在决策状态写入动作存储后发布，前端收到事件立即回读时不会再看到旧的 `local_only/pending` 状态；前端摘要哈希也纳入同步序号和指标。
 - **规则原生化**：新增 3 条 PMKB 原生条件：`NATIVE-PROCESS-DESTRUCTIVE`（确定性命令分类 destructive → block）、`NATIVE-PROCESS-PRIVILEGED`（privileged → OpenClaw approval）、`NATIVE-NETWORK-SECRET-EXTERNAL`（secret + external → block）。它们不读取 `legacy_labels_all`/`legacy_action_types`；47 条 LEGACY 仍保留作逐条回放证据，后续按迁移矩阵继续替换。
 - **小规模验证**：新增审批持久化顺序、回调指标和 3 个 PMKB 原生规则向量；本轮不运行大规模 AgentDojo，仅运行定向单元测试与一次本地等价 Hook→resolution 冒烟。
-- **验证结果**：`pytest -q` → **550 passed / 18 skipped / 4 subtests passed**（199.73s）；`frontend npm run build` 和 `docs npm run docs:build` 均通过；本地等价冒烟回调返回 `200`、`sync_state=callback_received`。
+- **验证结果**：合并后 `pytest -q` → **506 passed / 18 skipped / 4 subtests passed**（约 177s）；`frontend npm run build` 和 `docs npm run docs:build` 均通过；本地等价冒烟回调返回 `200`、`sync_state=callback_received`。
 
 ## 已知问题与后续优先级
 

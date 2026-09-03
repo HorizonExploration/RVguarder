@@ -189,4 +189,4 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 
 ---
 
-*本报告于 2026-08-30 复核，后于 2026-09-03 更新清理结果；历史问题快照保留原日期和语境，当前全量回归为 **550 passed / 18 skipped / 4 subtests passed**。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 与 `runtime-hook.md` 为准。*
+*本报告于 2026-08-30 复核，后于 2026-09-03 更新合并结果；历史问题快照保留原日期和语境，当前全量回归为 **506 passed / 18 skipped / 4 subtests passed**。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 与 `runtime-hook.md` 为准。*

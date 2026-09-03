@@ -2,7 +2,7 @@
 
 > **核对日期**：2026-09-03（生产入口清理、原生工具建模与 RV 提交边界复核）
 > **核对基准**：当前工作树（PMKB 网络案例基础知识库 `1.1.0`）
-> **清理前全量基线（2026-09-03）**：`python -m pytest -q` → **550 passed / 18 skipped / 4 subtests passed**。
+> **合并后全量回归（2026-09-03）**：`python -m pytest -q` → **506 passed / 18 skipped / 4 subtests passed**。
 
 本文档是后续维护项目时的“当前事实源”。历史方案、阶段性审计报告和旧版本说明仍然保留，但如果它们与本文档或当前代码冲突，应以当前代码和本文档为准。
 
@@ -65,7 +65,7 @@ OpenClaw before_tool_call
 - Hook 审批文案在发送给 OpenClaw 前限制为标题 80、说明 240 字符；超过 6 分钟未回调的审批会标记为 `approval_timeout`，避免长命令 schema 失败和 Dashboard 孤儿动作。
 - 审批回调由 OpenClaw 单一审批中心拥有；Guard 只读同步。回调在写入动作状态后再发布 `action.resolved`，摘要提供 `sync.approval` 聚合指标（最近 128 个延迟样本），前端摘要哈希会响应同步序号变化。
 - PMKB 已新增 `NATIVE-PROCESS-DESTRUCTIVE`、`NATIVE-PROCESS-PRIVILEGED`、`NATIVE-NETWORK-SECRET-EXTERNAL` 三条字段谓词规则；47 条 `LEGACY-*` 继续作为历史回放证据，尚未删除。
-- 2026-09-03 已完成原生工具、RV 窗口重放、主体成功提交的定向回归；清理前全量回归为 **550 passed / 18 skipped / 4 subtests passed**，合并后将重新记录最终计数；未运行大规模 AgentDojo。
+- 2026-09-03 已完成原生工具、RV 窗口重放、主体成功提交的定向回归；合并后全量回归为 **506 passed / 18 skipped / 4 subtests passed**；未运行大规模 AgentDojo。
 
 ## 5. 当前边界与待办
 

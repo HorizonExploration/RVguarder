@@ -340,7 +340,7 @@ SecurityChainMonitor 触发:
 python -m pytest -q
 ```
 
-清理前全量回归基线（2026-09-03）：`550 passed / 18 skipped / 4 subtests passed`。
+合并后全量回归（2026-09-03）：`506 passed / 18 skipped / 4 subtests passed`。
 
 测试覆盖：
 
