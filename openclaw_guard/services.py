@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import json
-import os
 import threading
 from collections import deque
 from datetime import datetime, timedelta, timezone
@@ -30,8 +29,6 @@ from openclaw_guard.integrations.hook_runtime import ensure_runtime_hook_plugin
 from openclaw_guard.engine.semantic_enhancer import SemanticEnhancer
 from openclaw_guard.policy.engine import AuthorizationPolicyEngine
 from openclaw_guard.rv.runtime_verification import RuntimeVerificationEngine
-from openclaw_guard.rv.constraints import ConstraintEngine, migrated_constraint_rules
-from openclaw_guard.spec.session_state import SessionSafetyState
 from openclaw_guard.models import BehaviorEvent, ControlledAction, DetectionDecision
 from openclaw_guard.policy.models import AuthorizationTrace, PolicyDecision
 from openclaw_guard.integrations.openclaw_adapter import (
@@ -407,12 +404,6 @@ class GuardServices:
         self.rv_engine = LazyProxy(
             self._build_runtime_verification_engine
         )  # type: ignore[assignment]
-        # 阶段 B：约束推理引擎（懒加载，避免拖慢启动）
-        self.constraint_engine = LazyProxy(
-            lambda: ConstraintEngine(migrated_constraint_rules())
-        )  # type: ignore[assignment]
-        # 阶段 F：per-session 安全状态（会话级风险升级）
-        self._session_states: dict[str, SessionSafetyState] = {}
         self.baseline_service = LazyProxy(lambda: BaselineService(context, self.latest_baseline_path))  # type: ignore[assignment]
         self.audit_service = LazyProxy(lambda: AuditService(self.audit_store))  # type: ignore[assignment]
         self.runtime_hook = LazyProxy(lambda: ensure_runtime_hook_plugin(self.context))  # type: ignore[assignment]
@@ -527,8 +518,7 @@ class GuardServices:
                         str(trace.agent_id),
                         tuple(trace.capability_lineage),
                     )
-                    effect = state.record(trace, recorded_decision)
-                    write_json(self.rv_state_path, engine.serialize_state())
+                    effect = state.evaluate(trace, recorded_decision)
                 reason = "principal_capability_state"
 
         event.metadata["principal_rv"] = {
@@ -544,7 +534,7 @@ class GuardServices:
             return decision
 
         action_for_effect = {"openclaw_approval": "ask", "block": "block"}
-        severity = {"allow": 1, "ask": 2, "revise": 2, "escalate": 3, "block": 4}
+        severity = {"allow": 1, "ask": 2, "block": 3}
         overlay_action = action_for_effect[effect]
         if severity[overlay_action] > severity.get(decision.action, 1):
             prior_action = decision.action
@@ -557,8 +547,8 @@ class GuardServices:
             ]))
         return decision
 
-    def record_approved_principal_action(self, action: ControlledAction) -> str | None:
-        """Record one OpenClaw-approved Hook action as an effective capability."""
+    def record_executed_principal_action(self, action: ControlledAction) -> str | None:
+        """Record a Hook action only after OpenClaw reports successful execution."""
         trace_data = action.event.metadata.get("authorization_trace")
         policy_data = action.decision.policy_decision
         try:
@@ -590,6 +580,11 @@ class GuardServices:
     def _principal_rv_engine(self) -> RuntimeVerificationEngine:
         """Return the RV engine after restoring its durable runtime snapshot once."""
         return self.rv_engine._get()
+
+    def persist_rv_state(self) -> None:
+        """Persist committed automaton state after a successful tool callback."""
+        with self._rv_state_lock:
+            write_json(self.rv_state_path, self._principal_rv_engine().serialize_state())
 
     def _build_runtime_verification_engine(self) -> RuntimeVerificationEngine:
         """Build RV and restore durable state before processing a new event."""
@@ -893,47 +888,6 @@ class GuardServices:
         return {"ok": True, "session_key": session_key}
 
     # ------------------------------------------------------------------
-    # 阶段 B：约束推理引擎
-    # ------------------------------------------------------------------
-
-    def constraint_engine_enabled(self) -> bool:
-        """约束推理引擎开关（`OPENCLAW_RV_CONSTRAINT_MODE`，默认 on）。"""
-        return os.getenv("OPENCLAW_RV_CONSTRAINT_MODE", "on").strip().lower() not in {"0", "off", "false"}
-
-    def constraint_engine_status(self) -> dict[str, Any]:
-        return {
-            "enabled": self.constraint_engine_enabled(),
-            "rule_count": len(self.constraint_engine.rules),
-            "rule_ids": [rule.rule_id for rule in self.constraint_engine.rules],
-        }
-
-    # ------------------------------------------------------------------
-    # 阶段 F：会话安全状态
-    # ------------------------------------------------------------------
-
-    def session_state_enabled(self) -> bool:
-        """会话级风险升级开关（`OPENCLAW_RV_SESSION_STATE`，默认 on）。"""
-        return os.getenv("OPENCLAW_RV_SESSION_STATE", "on").strip().lower() not in {"0", "off", "false"}
-
-    def session_state_for(self, session_key: str) -> SessionSafetyState:
-        key = session_key or "_default"
-        if key not in self._session_states:
-            self._session_states[key] = SessionSafetyState(key)
-        return self._session_states[key]
-
-    def reset_session_state(self, session_key: str) -> dict[str, Any]:
-        removed = self._session_states.pop(session_key, None)
-        return {"ok": True, "reset": removed is not None, "session_key": session_key}
-
-    def session_states_summary(self) -> dict[str, Any]:
-        return {
-            "enabled": self.session_state_enabled(),
-            "sessions": [
-                state.status() for state in self._session_states.values()
-            ],
-        }
-
-    # ------------------------------------------------------------------
     # 阶段 E：NL2Spec 规约编译
     # ------------------------------------------------------------------
 
@@ -1054,7 +1008,7 @@ class GuardServices:
         event = infer_event_from_text(text)
         action = self.ingest_event(event, text, auto_execute=False)
         decision = (action.get("decision") or {}).get("action")
-        if decision in {"ask", "escalate", "block"}:
+        if decision in {"ask", "block"}:
             msg = new_message(
                 "system",
                 assistant_reply_for_action(action),
@@ -1131,7 +1085,7 @@ class GuardServices:
                     daemon=True,
                 ).start()
         if action.event.metadata.get("chat_relay"):
-            if action.decision.action in {"ask", "escalate"}:
+            if action.decision.action == "ask":
                 guard = self.execution_guard_status()
                 if not guard["ready"]:
                     action.status = "blocked"

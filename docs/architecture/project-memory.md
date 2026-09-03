@@ -1,6 +1,6 @@
 # 项目理解与当前记忆
 
-> **核对日期**：2026-09-03（生产旧入口与过时文档清理后复核）
+> **核对日期**：2026-09-03（生产入口清理、原生工具建模与 RV 提交边界复核）
 > **核对基准**：当前工作树（PMKB 网络案例基础知识库 `1.1.0`）
 > **清理前全量基线（2026-09-03）**：`python -m pytest -q` → **550 passed / 18 skipped / 4 subtests passed**。
 
@@ -14,7 +14,7 @@ OpenClaw-RVGuarder（龙虾卫士）是面向 OpenClaw 的非侵入式运行时�
 
 1. 执行前语义分析与规则检测；
 2. 跨调用运行时验证（RV）；
-3. 内部风险结果经合并后映射为 `allow` / `ask` / `block`；`escalate` 只作为内部升权信号，`revise` 只保留兼容证据，不创建第二审批源；
+3. 内部风险结果经合并后映射为 `allow` / `ask` / `block`；RV 内部 `escalate` 只作为升权信号，不创建第二审批源；
 4. OpenClaw 原生页面是 Hook 审批唯一入口，Guard Dashboard 通过 resolution/SSE 只读同步状态；
 5. 执行后审计、哈希链校验和基线扫描。
 
@@ -27,16 +27,15 @@ OpenClaw before_tool_call
   → Hook Bridge / BehaviorEvent
   → SemanticEnhancer（DeepSeek LLM 或本地规则降级）
   → TraceCompiler / PMKB PolicyEvaluator（Authorization Trace、最小权限、RiskGraph）
-  → AuthorizationPolicyEngine（PMKB 原生规则 + 47 条 `LEGACY-*` 回放记录）
-  → ConstraintEngine（可配置，升权不降权）
-  → RuntimeVerificationEngine（默认 ChainRule DSL，FSM 回退）
-  → SessionSafetyState + PrincipalSecurityState（会话与主体跨 session 累计风险）
+  → AuthorizationPolicyEngine（PMKB 原生规则 + LEGACY 回放兼容记录）
+  → RuntimeVerificationEngine.preview（已提交窗口的纯回放）
+  → PrincipalSecurityState.evaluate（已提交主体证据的只读校验）
   → GuardController
   → requireApproval / block / allow
-  → after_tool_call 审计
+  → after_tool_call 成功后提交 RV trace 与主体权限证据，再审计
 ```
 
-聊天入口和 Hook 入口共用 `openclaw_guard/engine/pipeline.py`。RV 使用 `session_id`（缺失时回退 `_default`）隔离滑动窗口和监视器实例，避免不同 Agent 会话互相污染。
+聊天入口和 Hook 入口共用 `openclaw_guard/engine/pipeline.py`。RV 使用 `session_id`（缺失时回退 `_default`）隔离滑动窗口；每次由 TTL 内的窗口快照重建自动机，避免跨会话污染与过期状态残留。
 
 ## 3. 代码边界
 
@@ -44,8 +43,8 @@ OpenClaw before_tool_call
 |---|---|
 | `openclaw_guard/engine/` | 语义增强、命令安全事实、控制决策、白名单、热路径编排 |
 | `openclaw_guard/policy/` | PMKB bundle、TraceCompiler、规则评估、权限闭包/差分、RiskGraph |
-| `openclaw_guard/rv/` | ToolCallIR、约束推理、ChainRule DSL、RV 引擎、基线自动机 |
-| `openclaw_guard/spec/` | NL2Spec、规约校验、正反例 trace、会话安全状态 |
+| `openclaw_guard/rv/` | ToolCallIR、ChainRule DSL、RV 引擎、基线自动机 |
+| `openclaw_guard/spec/` | NL2Spec、规约校验、正反例 trace、主体权限证据状态 |
 | `openclaw_guard/core/` | 动作、审计、基线等业务服务 |
 | `openclaw_guard/integrations/` | OpenClaw 发现、Hook 生成、载荷转换、Gateway 适配 |
 | `openclaw_guard/storage/` | SQLite/PostgreSQL/可选 SQLAlchemy 存储与审计哈希链 |
@@ -57,21 +56,22 @@ OpenClaw before_tool_call
 ## 4. 已落地能力
 
 - v0.3.0 架构重构：Pydantic v2、GuardServices + pipeline、Preact、可选 SQLAlchemyStore、ChainRule 规约驱动 RV；HTTP 服务已在 v0.7.0-dev 收敛为 FastAPI 单入口。
-- RV 阶段 A–F：ToolCallIR、五类约束与置信度门控、基线自动机、实体/时间/计数参数化、NL2Spec + 反例校验、revise 干预与会话升级。
+- RV：ToolCallIR、基线自动机、实体/时间/计数参数化、NL2Spec + 反例校验；ConstraintEngine、累计会话分数与 revise 干预已从生产路径删除。
 - 运行时默认 `dsl` 规则模式；设置 `OPENCLAW_RV_RULE_MODE=fsm` 可回退到六个手写 FSM 监视器。
 - 规则检测、Hook 审批、resolution 幂等同步、审计双写、基线扫描和前端 RV 状态面板均有现行代码与测试覆盖。
 - PMKB 网络案例基线 `1.1.0` 已直接接入 `PolicyBundle → TraceCompiler → PolicyEvaluator → RiskGraph` 链路；源码目录与打包目录保持同版本、同内容，并为关键操作保留来源、Trace 和正反例向量。
-- OpenClaw 原生 `sessions_*`、`session_status`、`memory_*`、`agents_list`、`get_goal` 已显式映射为只读权限族；`sessions_send`、`sessions_spawn` 和计划/目标写入不继承只读信任。
+- OpenClaw 官方 runtime、filesystem、web、browser、sessions、memory、messaging、automation、agents、human-input、credentials、nodes 和 UI 工具通过显式 profile 建模；低风险 profile 必须满足结构化参数边界才继承只读信任。未知工具或越权参数固定为 `unknown` 并一次审批，不通过自由文本猜测动作类型。
+- Hook 透传 `toolKind`、`toolInputKind`、`derivedPaths`；after 回调只有在 `runId + toolCallId + session/agent/tool` 上下文一致且动作未终态时才能提交执行、principal 和 RV 状态，重复回调会被拒绝。
 - Hook 审批文案在发送给 OpenClaw 前限制为标题 80、说明 240 字符；超过 6 分钟未回调的审批会标记为 `approval_timeout`，避免长命令 schema 失败和 Dashboard 孤儿动作。
 - 审批回调由 OpenClaw 单一审批中心拥有；Guard 只读同步。回调在写入动作状态后再发布 `action.resolved`，摘要提供 `sync.approval` 聚合指标（最近 128 个延迟样本），前端摘要哈希会响应同步序号变化。
 - PMKB 已新增 `NATIVE-PROCESS-DESTRUCTIVE`、`NATIVE-PROCESS-PRIVILEGED`、`NATIVE-NETWORK-SECRET-EXTERNAL` 三条字段谓词规则；47 条 `LEGACY-*` 继续作为历史回放证据，尚未删除。
-- 2026-09-03 清理前验证：`pytest -q` 为 **550 passed / 18 skipped / 4 subtests passed**；前端 Vite 构建和 VuePress 文档构建均通过；未运行大规模 AgentDojo。
+- 2026-09-03 已完成原生工具、RV 窗口重放、主体成功提交的定向回归；清理前全量回归为 **550 passed / 18 skipped / 4 subtests passed**，合并后将重新记录最终计数；未运行大规模 AgentDojo。
 
 ## 5. 当前边界与待办
 
 这些不是“已完成能力”，维护时不要把它们写成完成状态：
 
-- 代码包版本为 `0.7.0.dev0`（展示为 `v0.7.0-dev`），PMKB bundle 为 `1.1.0`；二者分别标识产品构建与策略数据版本。
+- 代码包版本为 `0.7.0.dev0`（展示为 `v0.7.0-dev`），PMKB bundle 为 `1.1.0`（47 个 canonical operations）；二者分别标识产品构建与策略数据版本。
 - FastAPI 是唯一启动入口；旧版 stdlib HTTP 实现已从生产包移除，历史源文件保留在 Git 归档中。
 - 47 条历史单步规则已形成 `LEGACY-<old-id>` PMKB 记录并通过逐条回放门禁；DetectionEngine 已从生产路径删除，冻结元数据仅用于审计和历史评测。
 - 基线 DFA 只有在设置 `OPENCLAW_RV_BASELINE_DFA_PATH` 或显式传入路径时才加载，默认不做基线偏离检测。

@@ -5,7 +5,7 @@
 
 ## 结论 / Conclusion
 
-47 条历史单步规则已完成**兼容迁移**：ConstraintEngine 为 `47 / 47`，PMKB bundle 为 `47 / 47`。每条 PMKB 兼容记录为 `LEGACY-<old-id>`，带 `legacy_rule_ids`、原 action type 和原语义标签；每条 ConstraintRule 由冻结的 `policy/legacy.py` 元数据生成。
+47 条历史单步规则保留为 PMKB `LEGACY-<old-id>` 兼容记录，带 `legacy_rule_ids`、原 action type 和原语义标签。ConstraintEngine 已从生产路径删除；`policy/legacy.py` 仅用于兼容回放，native PMKB 等价验证完成后再退役。
 
 旧代码的**退役迁移**为 **47 / 47**。`tests/test_legacy_policy_migration.py` 对每个 action type 和标签集合回放 PMKB，要求处置级别等价或更严格；通过后已删除生产 `DetectionEngine` 实现。
 

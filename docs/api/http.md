@@ -212,12 +212,11 @@ OpenClaw Guard 本地插件内部使用的同步审批接口。
 
 - 接收 OpenClaw 的 `before_tool_call`
 - 生成动作记录
-- 执行 `allow / require_approval / block / escalate`
+- 执行 `allow / require_approval / block`；内部 RV `escalate` 在 Hook 出口统一折叠为 `require_approval`
 - 返回给 OpenClaw 的 `requireApproval` 遵循官方 `BeforeToolCallResult` 类型
 - `require_approval` 返回 `title`、`message`、`user_summary`、`policy_version` 和 `technical_reason`；
   OpenClaw 弹窗只使用中文 `title/message`，技术原因仅供 Guard 审计和排障。
-- 当请求的 `toolName` 为 `before_prompt_build` 时，该接口仅执行意图预检查，返回
-  `{"action":"allow","precheck":true}`，不会写入动作记录或发布 `action.created`。
+- `before_prompt_build` 不属于生产插件注册的 Hook；该接口只处理实际 `before_tool_call`。
 
 ## POST `/api/hook/after-tool-call`
 
@@ -336,6 +335,8 @@ Guard 前端使用的 Server-Sent Events（SSE）单向事件流。
 |--------|------|
 | `message_empty` | 输入不能为空 |
 | `action_not_found` | 未找到对应动作记录 |
+| `action_already_terminal` | 同一 after_tool_call 已经提交过，拒绝重复提交 |
+| `hook_context_mismatch` | after_tool_call 与 before_tool_call 的工具、运行或身份上下文不一致 |
 | `gateway_unreachable` | 无法连接 OpenClaw gateway |
 | `hook_unauthorized` | Hook 鉴权失败 |
 | `internal_error` | 服务内部错误 |
@@ -362,7 +363,7 @@ Guard 前端使用的 Server-Sent Events（SSE）单向事件流。
 }
 ```
 
-`effect` 依次支持 `auto_allow_audit`、`clarify_then_retry`、`openclaw_approval` 和
+`effect` 依次支持 `auto_allow_audit`、`openclaw_approval` 和
 `block`；`match_status` 为 `matched`、`partial`、`unknown` 或 `conflict`。`requested_delta`、
 `redundant_permissions` 和 `excessive_permissions` 是 `PermissionRef` 对象数组；若 UI
 需要显示 `data.export(scope=own)`，必须明确这是 display transform，不是 API 序列化值。

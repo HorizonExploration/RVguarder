@@ -22,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 Severity = Literal["critical", "high", "medium", "low", "info"]
 RiskLevel = Literal["safe", "caution", "dangerous", "blocked"]
-DecisionAction = Literal["allow", "ask", "block", "escalate", "revise"]
+DecisionAction = Literal["allow", "ask", "block"]
 ActionType = Literal[
     "chat_message", "command_exec", "file_read", "file_delete", "file_write",
     "config_modify", "network_egress", "channel_send", "skill_run",
@@ -167,8 +167,6 @@ class DetectionDecision(GuardBaseModel):
     trace: list[dict[str, Any]] = Field(default_factory=list)
     requires_second_confirmation: bool = False
     confirmation_word: str | None = None
-    # 阶段 F：revise 干预携带的修正建议文本（session 风险升级时透出）
-    revision_hint: str | None = None
     # Optional PMKB evidence; absent in legacy serialized action records.
     policy_decision: dict[str, Any] | None = None
     # User-facing explanation kept separate from technical rule evidence.

@@ -39,7 +39,7 @@ class GuardController:
                 policy_decision=decision.policy_decision,
             )
         status = "proposed"
-        if final.action in {"ask", "escalate", "revise"}:
+        if final.action == "ask":
             status = "pending_approval"
         elif final.action == "block":
             status = "blocked"

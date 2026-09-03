@@ -41,7 +41,7 @@ OpenClaw 准备调用工具
 - 显式 `implies` 闭包后的 least-privilege 范围；
 - 互斥、聚合和毒性权限组合的 `combo_violations`。
 
-最终 effect 只允许向更高风险合并：`auto_allow_audit`、`clarify_then_retry`、
+最终 effect 只允许向更高风险合并：`auto_allow_audit`、
 `openclaw_approval`、`block`。响应会携带 `policy_version`、`missing_features`、
 `risk_score`、`risk_reasons` 和 timing，供 Guard 页面解释和审计；Guard 页面不创建第二个
 审批按钮，需确认时只返回 OpenClaw 原生 `requireApproval`。
@@ -65,6 +65,7 @@ OpenClaw 准备调用工具
 - `block`：直接阻断
 - `escalate`：内部 RV 升权信号，最终映射为 OpenClaw `requireApproval`
 - `revise`：历史兼容字段，不作为当前审批动作或前端按钮
+RV 自动机内部的 `escalate` 只在公开控制面折叠为 `ask`，不创建第二种审批或重试回合。
 
 ## 动作状态机
 
@@ -83,7 +84,7 @@ OpenClaw 准备调用工具
 - `rm -rf`：默认 `block`
 - 工作区外删除：默认 `ask`
 - 修改关键配置：默认 `ask` 或 `block`
-- 危险外联：`ask` / `escalate`
+- 危险外联：`ask`
 - 高危 skill：至少 `ask`
 
 ## 当前已经接上的执行前拦截

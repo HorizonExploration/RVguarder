@@ -14,7 +14,7 @@ HOOK_PLUGIN_ID = "openclaw-guard-hook"
 HOOK_METHOD_STATUS = "openclaw_guard.hook_status"
 # Keep the synchronous before_tool_call bridge bounded. Interactive approval
 # has its own timeout and is intentionally configured separately below.
-DEFAULT_DECISION_TIMEOUT_MS = 15_000
+DEFAULT_DECISION_TIMEOUT_MS = 2_000
 
 
 def ensure_runtime_hook_plugin(context: AppContext) -> dict[str, Any]:
@@ -478,30 +478,6 @@ export default {{
       api.logger.warn(`[${{PLUGIN_ID}}] registerGatewayMethod not available, status check via plugins list`);
     }
 
-    // before_prompt_build: intent precheck (non-blocking)
-    api.on(
-      "before_prompt_build",
-      (event, hookCtx) => {{
-        postJson(
-          `${{guardUrl}}/api/hook/before-tool-call`,
-          {{
-            toolName: "before_prompt_build",
-            params: event.params || {{}},
-            runId: event.runId || hookCtx.runId || "",
-            toolCallId: event.promptId || "",
-            agentId: event.context?.agentId || hookCtx.agentId || "",
-            sessionKey: event.context?.sessionKey || hookCtx.sessionKey || "",
-            sessionId: event.context?.sessionId || hookCtx.sessionId || "",
-          }},
-          5000,
-          authToken,
-        ).catch(err => {{
-          api.logger.warn(`[${{PLUGIN_ID}}] Intent pre-check skipped (non-blocking): ${{err.message}}`);
-        }});
-      }},
-      {{ registrationId: "openclaw_guard_intent_precheck" }},
-    );
-
     // before_tool_call: main approval gate
     api.on(
       "before_tool_call",
@@ -513,6 +489,9 @@ export default {{
             {{
               toolName: event.toolName || "tool",
               params: event.params || {{}},
+              toolKind: event.toolKind || "",
+              toolInputKind: event.toolInputKind || "",
+              derivedPaths: event.derivedPaths || [],
               runId: event.runId || hookCtx.runId || "",
               toolCallId: event.toolCallId || "",
               agentId: event.context?.agentId || hookCtx.agentId || "",
@@ -594,6 +573,9 @@ export default {{
             {{
               toolName: event.toolName || "tool",
               params: event.params || {{}},
+              toolKind: event.toolKind || "",
+              toolInputKind: event.toolInputKind || "",
+              derivedPaths: event.derivedPaths || [],
               runId: event.runId || hookCtx.runId || "",
               toolCallId: event.toolCallId || "",
               agentId: event.context?.agentId || hookCtx.agentId || "",

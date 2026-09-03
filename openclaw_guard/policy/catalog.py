@@ -127,7 +127,7 @@ class PolicyBundle:
                     raise PolicyBundleError(f"{path}.{field}")
             if not isinstance(item["version"], str) or not item["version"]:
                 raise PolicyBundleError(f"{path}.version")
-            if item["effect"] not in {"auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block"}:
+            if item["effect"] not in {"auto_allow_audit", "openclaw_approval", "block"}:
                 raise PolicyBundleError(f"{path}.effect: unknown effect {item['effect']}")
             try:
                 rules.append(PolicyRule.model_validate(item))
@@ -182,7 +182,7 @@ class PolicyBundle:
             if relation["id"] in relation_ids:
                 raise PolicyBundleError(f"{path}: duplicate relation id {relation['id']}")
             relation_ids.add(relation["id"])
-            if relation["effect"] not in {"auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block", "implies"}:
+            if relation["effect"] not in {"auto_allow_audit", "openclaw_approval", "block", "implies"}:
                 raise PolicyBundleError(f"{path}.effect: unknown effect {relation['effect']}")
             endpoints = relation["requires"]
             if not all(isinstance(endpoint, str) and endpoint for endpoint in endpoints):
@@ -203,7 +203,7 @@ class PolicyBundle:
             vector_ids.add(vector["id"])
             if vector["rule_id"] not in rule_ids:
                 raise PolicyBundleError(f"{path}.rule_id")
-            if vector["expected_effect"] not in {"auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block"}:
+            if vector["expected_effect"] not in {"auto_allow_audit", "openclaw_approval", "block"}:
                 raise PolicyBundleError(f"{path}.expected_effect: unknown effect {vector['expected_effect']}")
             operation = vector.get("operation")
             if (operation and vector["category"] != "unknown"

@@ -36,7 +36,7 @@ Openclaw-RVGuarder（龙虾卫士）是一个面向 [OpenClaw](https://openclaw.
 | **审批结果同步** | OpenClaw 原生审批卡片唯一决策，Guard Dashboard SSE 只读同步 | ✅ |
 | **电路熔断器** | 后端不可达时自动开启熔断，优雅降级 fail-open，不封锁 OpenClaw | ✅ |
 | **语义理解增强** | DeepSeek LLM 驱动语义分析，7 维度 50+ 标签，理解自然语言意图 | ✅ |
-| **PMKB 权限建模** | PMKB 1.1.0：28 个操作、35 条原生规则 + 47 条兼容规则、29 条 Trace、9 个危险组合关系；校验最小权限和权限聚合风险 | ✅ |
+| **PMKB 权限建模** | PMKB 1.1.0：47 个操作、35 条原生规则 + 47 条兼容规则、29 条 Trace、9 个危险组合关系；校验最小权限和权限聚合风险 | ✅ |
 | **运行时验证 RV** | 滑动窗口 + ChainRule DSL（FSM 回退），检测链式攻击模式（搜索→删除→外发） | ✅ |
 | **跨 session 主体验证** | session-local 链路与 principal-global 能力状态分离，持久化主体级 RV 状态 | ✅ |
 | **基线安全扫描** | 配置、端口、用户、依赖全量扫描，输出 JSON/HTML/PDF 报告 | ✅ |
@@ -223,7 +223,6 @@ runtime/openclaw-guard-plugin/
 |------|------|------|
 | `before_tool_call` | 同步拦截 | 物理挂起工具调用，返回 requireApproval |
 | `after_tool_call` | 异步审计 | 回写执行结果、耗时、错误 |
-| `before_prompt_build` | 非阻塞 | 意图预警（可选） |
 | `gateway_start` | 生命周期 | 初始化熔断器与健康检查 |
 | `gateway_stop` | 生命周期 | 清理健康检查定时器 |
 
@@ -242,7 +241,7 @@ office rules、least-privilege traces、permission relations 和 test vectors �
 
 | 数据 | 当前基线 | 运行时用途 |
 |------|----------|------------|
-| operations | 28 | 将工具/动作归一化为 canonical operation |
+| operations | 47 | 将工具/动作归一化为 canonical operation |
 | rules | 35（另有 47 条 LEGACY 兼容记录） | 单步规则、风险等级、效果和 required trace |
 | traces | 29 | 描述主体在办公场景的最小必要权限范围 |
 | relations | 9 | 互斥、聚合和毒性权限组合 |
@@ -256,7 +255,7 @@ office rules、least-privilege traces、permission relations 和 test vectors �
   → TraceCompiler（action、resource、scope、data、context、principal、identity）
   → PolicyEvaluator（matched / partial / unknown / conflict）
   → PermissionClosure + PermissionDiff + RiskGraph
-  → effect：auto_allow_audit / clarify_then_retry / openclaw_approval / block
+  → effect：auto_allow_audit / openclaw_approval / block
 ```
 
 未知操作、缺失主体或缺失关键 Trace 特征不会因为模糊相似度而自动放行；结果会携带
@@ -265,8 +264,11 @@ office rules、least-privilege traces、permission relations 和 test vectors �
 单步规则已保留为 `LEGACY-<old-id>` 兼容记录并进入 PMKB 统一评估链路；生产 DetectionEngine 已退役，冻结元数据仅用于逐条回放与历史评测。
 PMKB 不会自动从用户行为学习写入生产规则。
 
-OpenClaw 原生 `sessions_*`、`session_status`、`memory_*`、`agents_list` 和 `get_goal` 已按只读
-权限族显式建模并自动放行审计；跨代理发送、生成/更新计划或目标等写入能力仍需要 OpenClaw 审批。
+OpenClaw 原生 runtime、filesystem、web、browser、sessions、memory、messaging、automation、
+agents、human-input、nodes 和 UI 工具均有显式 profile。只有参数边界明确且属于当前主体的
+低风险读取才会自动放行审计；跨 session 读取、外联、浏览器交互、发送/生成子代理、计划和
+网关修改等能力仍需要 OpenClaw 审批。未知工具或已知工具的越权参数保持 `unknown`，不会被
+自由文本推断为危险动作，也不会静默放行。
 插件发送审批卡片前将标题限制为 80 字符、说明限制为 240 字符，避免长命令触发 OpenClaw
 `plugin.approval.request` 参数上限；完整技术证据仍在 Guard 审计中。
 
@@ -300,10 +302,10 @@ SecurityChainMonitor 触发:
 |--------|------|------|
 | MailMonitor | 邮件外发 + 敏感内容 | block |
 | ReportMonitor | 日报外发 + 内部来源 | block |
-| SecurityChainMonitor | 搜索→删除 / 关审计→改配置 / 下载→外传 | block/escalate |
+| SecurityChainMonitor | 搜索→删除 / 关审计→改配置 / 下载→外传 | ask/block |
 | BroadcastMonitor | 消息群发/广播 | ask/block |
-| DataExportMonitor | 数据库查询后导出 | escalate/block |
-| BatchFileMonitor | 文件批量操作 | ask/escalate |
+| DataExportMonitor | 数据库查询后导出 | ask/block |
+| BatchFileMonitor | 文件批量操作 | ask/block |
 
 ---
 

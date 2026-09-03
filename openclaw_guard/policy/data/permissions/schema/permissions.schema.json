@@ -7,7 +7,7 @@
     "version": {"type": "string", "minLength": 1},
     "type": {"const": "policy-bundle"},
     "required": {"type": "array", "items": {"type": "string"}},
-    "effects": {"enum": ["auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block"]},
+    "effects": {"enum": ["auto_allow_audit", "openclaw_approval", "block"]},
     "match_status": {"enum": ["matched", "partial", "unknown", "conflict"]},
     "permission": {
       "type": "object",

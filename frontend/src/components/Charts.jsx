@@ -8,16 +8,12 @@ import { esc } from '../i18n';
 
 const ACTION_COLORS = {
   block: '#f04438',
-  escalate: '#7c3aed',
-  revise: '#7c3aed',
   ask: '#f79009',
   allow: '#12b76a',
 };
 
 const ACTION_LABELS = {
   block: '拦截',
-  escalate: '升级',
-  revise: '修订',
   ask: '询问',
   allow: '放行',
 };
@@ -71,7 +67,7 @@ export function Donut({ data, size = 116, thickness = 12 }) {
 /** 近期风险趋势柱状图（旧→新）。items 为 actions items。 */
 export function RiskBars({ items, max = 24 }) {
   const recent = items.slice(0, max).reverse();
-  const lvl = { allow: 1, ask: 2, escalate: 3, block: 4, revise: 3 };
+  const lvl = { allow: 1, ask: 2, block: 3 };
   const w = 8;
   const gap = 3;
   const h = 64;
@@ -88,7 +84,7 @@ export function RiskBars({ items, max = 24 }) {
       {recent.map((it, i) => {
         const action = (it.decision || {}).action || 'allow';
         const v = lvl[action] || 1;
-        const bh = Math.max(4, (v / 4) * (h - 8));
+        const bh = Math.max(4, (v / 3) * (h - 8));
         const x = i * (w + gap);
         return (
           <rect
@@ -111,7 +107,7 @@ export function InsightsCard() {
   const summary = useStore((s) => s.summary);
   const items = (summary.actions || {}).items || [];
 
-  const dist = { block: 0, escalate: 0, ask: 0, revise: 0, allow: 0 };
+  const dist = { block: 0, ask: 0, allow: 0 };
   items.forEach((it) => {
     const a = (it.decision || {}).action || 'allow';
     if (dist[a] !== undefined) dist[a] += 1;

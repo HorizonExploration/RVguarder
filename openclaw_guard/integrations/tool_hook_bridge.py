@@ -27,21 +27,88 @@ PATH_KEYS = {
 }
 URL_KEYS = {"url", "uri", "endpoint", "baseUrl", "webhook"}
 COMMAND_KEYS = {"command", "commandText", "commandPreview", "cmd", "shellCommand", "script"}
-DELETE_KEYWORDS = ("delete", "remove", "unlink", "rm", "trash", "wipe", "clean")
-WRITE_KEYWORDS = ("write", "save", "create", "update", "edit", "overwrite", "patch")
-CHANNEL_KEYWORDS = ("channel", "message", "send", "post", "reply")
-SKILL_KEYWORDS = ("skill",)
-CONFIG_KEYWORDS = ("config", "openclaw.json", "settings")
-COMMAND_TOOL_KEYWORDS = ("shell", "exec", "command", "bash", "terminal", "run")
-READ_TOOL_NAMES = {"read", "file_read", "read_file", "file.read", "grep", "cat", "head", "tail", "list", "ls"}
 OPENCLAW_NATIVE_TOOL_PROFILES = {
-    "before_prompt_build": {
-        "action_type": "unknown",
-        "tool_group": "prompting",
-        "tool_origin": "openclaw_native",
-        "permission_family": "prompt.precheck",
-        "risk_class": "low",
-        "summary": "提示词构建前预检查",
+    "read": {
+        "action_type": "file_read", "tool_group": "filesystem", "tool_origin": "openclaw_native",
+        "permission_family": "file.read", "risk_class": "low", "safe_params_required": True, "summary": "读取文件",
+    },
+    "file_read": {
+        "action_type": "file_read", "tool_group": "filesystem", "tool_origin": "openclaw_native",
+        "permission_family": "file.read", "risk_class": "low", "safe_params_required": True, "summary": "读取文件",
+    },
+    "write": {
+        "action_type": "file_write", "tool_group": "filesystem", "tool_origin": "openclaw_native",
+        "permission_family": "file.write", "risk_class": "high", "summary": "写入文件",
+    },
+    "edit": {
+        "action_type": "file_write", "tool_group": "filesystem", "tool_origin": "openclaw_native",
+        "permission_family": "file.write", "risk_class": "high", "summary": "编辑文件",
+    },
+    "apply_patch": {
+        "action_type": "file_write", "tool_group": "filesystem", "tool_origin": "openclaw_native",
+        "permission_family": "file.write", "risk_class": "high", "summary": "修改文件",
+    },
+    "file_delete": {
+        "action_type": "file_delete", "tool_group": "filesystem", "tool_origin": "openclaw_native",
+        "permission_family": "file.delete", "risk_class": "high", "summary": "删除文件",
+    },
+    "shell": {
+        "action_type": "command_exec", "tool_group": "execution", "tool_origin": "openclaw_native",
+        "permission_family": "process.execute", "risk_class": "high", "summary": "执行命令",
+    },
+    "shell_exec": {
+        "action_type": "command_exec", "tool_group": "execution", "tool_origin": "openclaw_native",
+        "permission_family": "process.execute", "risk_class": "high", "summary": "执行命令",
+    },
+    "exec": {
+        "action_type": "command_exec", "tool_group": "execution", "tool_origin": "openclaw_native",
+        "permission_family": "process.execute", "risk_class": "high", "summary": "执行命令",
+    },
+    "process": {
+        "action_type": "command_exec", "tool_group": "execution", "tool_origin": "openclaw_native",
+        "permission_family": "process.execute", "risk_class": "high", "summary": "管理进程",
+    },
+    "terminal": {
+        "action_type": "command_exec", "tool_group": "execution", "tool_origin": "openclaw_native",
+        "permission_family": "process.execute", "risk_class": "high", "summary": "操作终端",
+    },
+    "code_execution": {
+        "action_type": "command_exec", "tool_group": "execution", "tool_origin": "openclaw_native",
+        "permission_family": "process.execute", "risk_class": "high", "summary": "执行代码",
+    },
+    "network.request": {
+        "action_type": "network_egress", "tool_group": "network", "tool_origin": "openclaw_native",
+        "permission_family": "network.egress", "risk_class": "high", "summary": "访问网络",
+    },
+    "web_search": {
+        "action_type": "network_egress", "tool_group": "web", "tool_origin": "openclaw_native",
+        "permission_family": "network.egress", "risk_class": "medium", "summary": "搜索网页",
+    },
+    "x_search": {
+        "action_type": "network_egress", "tool_group": "web", "tool_origin": "openclaw_native",
+        "permission_family": "network.egress", "risk_class": "medium", "summary": "搜索 X",
+    },
+    "web_fetch": {
+        "action_type": "network_egress", "tool_group": "web", "tool_origin": "openclaw_native",
+        "permission_family": "network.egress", "risk_class": "high", "summary": "抓取网页",
+    },
+    "browser": {
+        "action_type": "network_egress", "tool_group": "browser", "tool_origin": "openclaw_native",
+        "permission_family": "browser.interact", "risk_class": "high", "summary": "操作浏览器",
+    },
+    "feishu.im.send": {
+        "action_type": "channel_send", "tool_group": "messaging", "tool_origin": "openclaw_native",
+        "permission_family": "channel.send", "risk_class": "high", "summary": "发送消息",
+    },
+    "message": {
+        "action_type": "channel_send", "tool_group": "messaging", "tool_origin": "openclaw_native",
+        "permission_family": "message.send", "risk_class": "high", "summary": "发送消息",
+    },
+    # Compatibility adapter used by the local chat/office fixtures.  It is
+    # explicit rather than inferred, but is not advertised as a native tool.
+    "mail-send": {
+        "action_type": "network_egress", "tool_group": "messaging", "tool_origin": "hook_bridged",
+        "permission_family": "network.egress", "risk_class": "high", "summary": "发送邮件",
     },
     "sessions_history": {
         "action_type": "file_read",
@@ -49,7 +116,12 @@ OPENCLAW_NATIVE_TOOL_PROFILES = {
         "tool_origin": "openclaw_native",
         "permission_family": "session.read",
         "risk_class": "low",
+        "safe_params_required": True,
         "summary": "读取会话历史",
+    },
+    "sessions": {
+        "action_type": "config_modify", "tool_group": "session", "tool_origin": "openclaw_native",
+        "permission_family": "session.manage", "risk_class": "high", "summary": "管理会话",
     },
     "sessions_list": {
         "action_type": "file_read",
@@ -57,7 +129,36 @@ OPENCLAW_NATIVE_TOOL_PROFILES = {
         "tool_origin": "openclaw_native",
         "permission_family": "session.read",
         "risk_class": "low",
+        "safe_params_required": True,
         "summary": "列出会话",
+    },
+    "sessions_search": {
+        "action_type": "file_read", "tool_group": "session", "tool_origin": "openclaw_native",
+        "permission_family": "session.read", "risk_class": "low", "safe_params_required": True, "summary": "搜索会话",
+    },
+    "sessions_send": {
+        "action_type": "channel_send", "tool_group": "session", "tool_origin": "hook_bridged",
+        "permission_family": "session.send", "risk_class": "high", "summary": "发送到会话",
+    },
+    "sessions_spawn": {
+        "action_type": "skill_run", "tool_group": "session", "tool_origin": "hook_bridged",
+        "permission_family": "agent.spawn", "risk_class": "high", "summary": "创建子代理",
+    },
+    "sessions_yield": {
+        "action_type": "config_modify", "tool_group": "session", "tool_origin": "openclaw_native",
+        "permission_family": "session.control", "risk_class": "medium", "summary": "暂停会话",
+    },
+    "conversations_list": {
+        "action_type": "file_read", "tool_group": "session", "tool_origin": "openclaw_native",
+        "permission_family": "conversation.read", "risk_class": "low", "safe_params_required": True, "summary": "列出外部会话",
+    },
+    "conversations_send": {
+        "action_type": "channel_send", "tool_group": "session", "tool_origin": "openclaw_native",
+        "permission_family": "conversation.send", "risk_class": "high", "summary": "发送外部会话消息",
+    },
+    "conversations_turn": {
+        "action_type": "channel_send", "tool_group": "session", "tool_origin": "openclaw_native",
+        "permission_family": "conversation.send", "risk_class": "high", "summary": "发起外部会话交互",
     },
     "memory_search": {
         "action_type": "file_read",
@@ -65,6 +166,7 @@ OPENCLAW_NATIVE_TOOL_PROFILES = {
         "tool_origin": "openclaw_native",
         "permission_family": "memory.read",
         "risk_class": "low",
+        "safe_params_required": True,
         "summary": "搜索记忆",
     },
     "memory_get": {
@@ -73,6 +175,7 @@ OPENCLAW_NATIVE_TOOL_PROFILES = {
         "tool_origin": "openclaw_native",
         "permission_family": "memory.read",
         "risk_class": "low",
+        "safe_params_required": True,
         "summary": "读取记忆",
     },
     "session_status": {
@@ -81,6 +184,7 @@ OPENCLAW_NATIVE_TOOL_PROFILES = {
         "tool_origin": "openclaw_native",
         "permission_family": "session.read",
         "risk_class": "low",
+        "safe_params_required": True,
         "summary": "读取会话状态",
     },
     "agents_list": {
@@ -89,6 +193,7 @@ OPENCLAW_NATIVE_TOOL_PROFILES = {
         "tool_origin": "openclaw_native",
         "permission_family": "agents.read",
         "risk_class": "low",
+        "safe_params_required": True,
         "summary": "列出代理",
     },
     "get_goal": {
@@ -97,6 +202,7 @@ OPENCLAW_NATIVE_TOOL_PROFILES = {
         "tool_origin": "openclaw_native",
         "permission_family": "goal.read",
         "risk_class": "low",
+        "safe_params_required": True,
         "summary": "读取目标",
     },
     "update_plan": {
@@ -123,23 +229,74 @@ OPENCLAW_NATIVE_TOOL_PROFILES = {
         "risk_class": "medium",
         "summary": "更新目标",
     },
+    "progress_card": {
+        "action_type": "file_write", "tool_group": "agents", "tool_origin": "openclaw_native",
+        "permission_family": "progress.write", "risk_class": "low", "summary": "更新进度卡片",
+    },
+    "cron": {
+        "action_type": "config_modify", "tool_group": "automation", "tool_origin": "openclaw_native",
+        "permission_family": "automation.modify", "risk_class": "high", "summary": "管理定时任务",
+    },
+    "gateway": {
+        "action_type": "config_modify", "tool_group": "automation", "tool_origin": "openclaw_native",
+        "permission_family": "gateway.modify", "risk_class": "critical", "summary": "管理网关",
+    },
+    "ask_user": {
+        "action_type": "chat_message", "tool_group": "human_input", "tool_origin": "openclaw_native",
+        "permission_family": "user.interaction", "risk_class": "low", "summary": "请求用户输入",
+    },
+    "secrets": {
+        "action_type": "file_read", "tool_group": "credentials", "tool_origin": "openclaw_native",
+        "permission_family": "credential.read", "risk_class": "high", "summary": "读取凭据",
+    },
+    "nodes": {
+        "action_type": "config_modify", "tool_group": "nodes", "tool_origin": "openclaw_native",
+        "permission_family": "node.control", "risk_class": "high", "summary": "管理节点",
+    },
+    "computer": {
+        "action_type": "config_modify", "tool_group": "nodes", "tool_origin": "openclaw_native",
+        "permission_family": "computer.control", "risk_class": "critical", "summary": "控制计算机",
+    },
+    "canvas": {
+        "action_type": "file_write", "tool_group": "ui", "tool_origin": "openclaw_native",
+        "permission_family": "ui.modify", "risk_class": "medium", "summary": "修改画布",
+    },
+    "screen": {
+        "action_type": "file_read", "tool_group": "ui", "tool_origin": "openclaw_native",
+        "permission_family": "screen.read", "risk_class": "medium", "safe_params_required": True, "summary": "读取屏幕",
+    },
+    "dashboard": {
+        "action_type": "file_read", "tool_group": "ui", "tool_origin": "openclaw_native",
+        "permission_family": "dashboard.read", "risk_class": "low", "safe_params_required": True, "summary": "读取控制面板",
+    },
 }
 
 
-def build_hook_event(payload: dict[str, Any]) -> BehaviorEvent:
+def build_hook_event(
+    payload: dict[str, Any],
+    *,
+    managed_project_root: str | Path | None = None,
+) -> BehaviorEvent:
     tool_name = str(payload.get("toolName") or payload.get("tool_name") or "tool")
     params = payload.get("params")
     params = params if isinstance(params, dict) else {}
     tool_profile = _native_tool_profile(tool_name, params=params, payload=payload)
-    target_paths = _collect_paths(params)
+    profile_safe = bool(
+        tool_profile
+        and (
+            tool_profile.get("safe_params_required") is not True
+            or _native_params_are_safe(params, payload, managed_project_root)
+        )
+    )
+    derived_paths = payload.get("derivedPaths")
+    derived_paths = [str(item) for item in derived_paths if item] if isinstance(derived_paths, list) else []
+    target_paths = list(dict.fromkeys([*_collect_paths(params), *derived_paths]))[:8]
     network_targets = _collect_urls(params)
     command = _extract_command(params)
-    action_type = str(tool_profile.get("action_type")) if tool_profile else _infer_action_type(
-        tool_name,
-        params,
-        target_paths,
-        network_targets,
-        command,
+    action_type = (
+        str(tool_profile.get("action_type")) if profile_safe
+        else "unknown" if tool_profile
+        else _infer_action_type(tool_name, params, target_paths, network_targets, command)
     )
     agent_id = str(payload.get("agentId") or "").strip()
     trusted_identity = {}
@@ -154,6 +311,10 @@ def build_hook_event(payload: dict[str, Any]) -> BehaviorEvent:
     metadata = {
         "hook_bridge": True,
         "tool_name": tool_name,
+        "tool_kind": str(payload.get("toolKind") or "") or None,
+        "tool_input_kind": str(payload.get("toolInputKind") or "") or None,
+        "derived_paths": derived_paths,
+        "tool_action": _native_tool_action(tool_name, params),
         "run_id": payload.get("runId"),
         "tool_call_id": payload.get("toolCallId"),
         "session_key": payload.get("sessionKey"),
@@ -162,9 +323,17 @@ def build_hook_event(payload: dict[str, Any]) -> BehaviorEvent:
         "trusted_identity": trusted_identity,
         "hook_key": hook_key_from_payload(payload),
         "tool_group": tool_profile.get("tool_group") if tool_profile else _infer_tool_group(action_type),
-        "tool_origin": tool_profile.get("tool_origin") if tool_profile else "hook_bridged",
-        "permission_family": tool_profile.get("permission_family") if tool_profile else _infer_permission_family(action_type),
-        "risk_class": tool_profile.get("risk_class") if tool_profile else _infer_risk_class(action_type, command),
+        "tool_origin": tool_profile.get("tool_origin") if profile_safe else "hook_bridged",
+        "permission_family": (
+            tool_profile.get("permission_family") if profile_safe
+            else "unknown" if tool_profile
+            else _infer_permission_family(action_type)
+        ),
+        "risk_class": (
+            tool_profile.get("risk_class") if profile_safe
+            else "unknown" if tool_profile
+            else _infer_risk_class(action_type, command)
+        ),
         # AgentDojo is an authenticated, local synthetic benchmark boundary.
         # Keep the marker explicit so the semantic layer can select its
         # deterministic path without changing unmarked OpenClaw requests.
@@ -193,8 +362,6 @@ def build_hook_event(payload: dict[str, Any]) -> BehaviorEvent:
 
 def build_hook_source_message(event: BehaviorEvent) -> str:
     tool_name = str(event.metadata.get("tool_name") or event.action_type)
-    if tool_name == "before_prompt_build":
-        return "OpenClaw 提示词构建前预检查"
     native_summary = _native_tool_summary(tool_name)
     if native_summary:
         return f"OpenClaw 请求{native_summary}"
@@ -249,36 +416,9 @@ def _infer_action_type(
     network_targets: list[str],
     command: str | None,
 ) -> str:
-    lowered_tool = tool_name.lower()
-    if lowered_tool == "before_prompt_build":
-        return "unknown"
-    if lowered_tool in READ_TOOL_NAMES:
-        return "file_read"
-    haystack = " ".join(
-        [
-            lowered_tool,
-            command or "",
-            " ".join(target_paths),
-            " ".join(network_targets),
-            json.dumps(params, ensure_ascii=False),
-        ]
-    ).lower()
-
-    if _matches_any(haystack, DELETE_KEYWORDS) or (command and _matches_any(command.lower(), ("rm ", "rm -", "unlink", "del "))):
-        return "file_delete"
-    if any(path.endswith("openclaw.json") for path in target_paths) or _matches_any(haystack, CONFIG_KEYWORDS):
-        return "config_modify"
-    if network_targets or _matches_any(lowered_tool, CHANNEL_KEYWORDS) and _matches_any(haystack, ("http://", "https://", "webhook")):
-        return "network_egress"
-    if command or _matches_any(lowered_tool, COMMAND_TOOL_KEYWORDS):
-        return "command_exec"
-    if _matches_any(lowered_tool, CHANNEL_KEYWORDS):
-        return "channel_send"
-    if _matches_any(lowered_tool, SKILL_KEYWORDS):
-        return "skill_run"
-    if target_paths or _matches_any(haystack, WRITE_KEYWORDS):
-        return "file_write"
-    return "command_exec"
+    """Unknown tools stay unknown; parameters are evidence, not a tool schema."""
+    del tool_name, params, target_paths, network_targets, command
+    return "unknown"
 
 
 def _native_tool_profile(
@@ -286,10 +426,8 @@ def _native_tool_profile(
     *,
     params: dict[str, Any] | None = None,
     payload: dict[str, Any] | None = None,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     profile = dict(OPENCLAW_NATIVE_TOOL_PROFILES.get(tool_name.lower(), {}))
-    if profile and params is not None and not _native_params_are_safe(params, payload or {}):
-        return {}
     return profile
 
 
@@ -298,7 +436,25 @@ def _native_tool_summary(tool_name: str) -> str:
     return str(profile.get("summary") or "")
 
 
-def _native_params_are_safe(params: dict[str, Any], payload: dict[str, Any]) -> bool:
+def _native_tool_action(tool_name: str, params: dict[str, Any]) -> str:
+    """Normalize sub-actions for compound OpenClaw tools without free-text inference."""
+    if tool_name.lower() == "message":
+        value = params.get("action") or params.get("operation")
+        return str(value).strip().lower() if isinstance(value, str) and value.strip() else "send"
+    if tool_name.lower() == "browser":
+        value = params.get("action") or params.get("operation")
+        return str(value).strip().lower() if isinstance(value, str) and value.strip() else "navigate"
+    if tool_name.lower() in {"sessions", "cron", "gateway", "nodes", "computer"}:
+        value = params.get("action") or params.get("operation") or params.get("method")
+        return str(value).strip().lower() if isinstance(value, str) and value.strip() else "invoke"
+    return "invoke"
+
+
+def _native_params_are_safe(
+    params: dict[str, Any],
+    payload: dict[str, Any],
+    managed_project_root: str | Path | None = None,
+) -> bool:
     """Keep native read trust conditional on local, same-principal parameters."""
     current_sessions = {
         str(payload.get(key) or "").strip()
@@ -310,7 +466,10 @@ def _native_params_are_safe(params: dict[str, Any], payload: dict[str, Any]) -> 
         for key in ("agentId", "agent_id", "principalId", "principal_id")
         if str(payload.get(key) or "").strip()
     }
-    session_keys = {"sessionkey", "session_key", "targetsession", "target_session"}
+    session_keys = {
+        "sessionkey", "session_key", "sessionid", "session_id",
+        "targetsession", "target_session", "targetsessionid", "target_session_id",
+    }
     principal_keys = {
         "agentid",
         "agent_id",
@@ -342,6 +501,14 @@ def _native_params_are_safe(params: dict[str, Any], payload: dict[str, Any]) -> 
         if re.search(r"https?://|file://", text, re.IGNORECASE):
             return False
         if re.search(r"(^|\s)(?:/|~[/\\]|[A-Za-z]:[\\/])", text):
+            if managed_project_root:
+                try:
+                    candidate = Path(text).expanduser().resolve()
+                    root = Path(managed_project_root).expanduser().resolve()
+                    if candidate == root or root in candidate.parents:
+                        return True
+                except (OSError, RuntimeError, ValueError):
+                    pass
             return False
         if re.search(r"(?:^|[/\\])\.\.(?:[/\\]|$)", text):
             return False
@@ -396,7 +563,7 @@ def _infer_risk_class(action_type: str, command: str | None) -> str:
         return "medium"
     if action_type == "file_read":
         return "low"
-    return "medium"
+    return "unknown"
 
 
 def _collect_paths(payload: Any) -> list[str]:

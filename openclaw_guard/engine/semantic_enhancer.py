@@ -104,6 +104,14 @@ class SemanticEnhancer:
         source_message = str(ctx.get("source_message") or event.raw_payload.get("raw_user_intent") or "").strip()
         tool_name = str(event.metadata.get("tool_name") or "")
         origin = str(ctx.get("origin") or event.source or "unknown")
+
+        # A Hook event with no trusted native profile is a coverage gap.  Do
+        # not let arbitrary tool parameters or user text manufacture
+        # dangerous labels; the policy layer will route the unknown operation
+        # to the single OpenClaw approval gate.
+        if event.metadata.get("hook_bridge") is True and event.action_type == "unknown":
+            return _unknown_hook_result(tool_name=tool_name, origin=origin)
+
         haystack = _build_haystack(event, source_message, tool_name)
 
         result: dict[str, Any] | None = None
@@ -706,6 +714,37 @@ def _looks_like_mail_send(event: BehaviorEvent, haystack: str) -> bool:
     return any(token in haystack for token in mail_tokens) and (
         any(token in haystack for token in send_tokens) or event.action_type in {"network_egress", "channel_send"}
     )
+
+
+def _unknown_hook_result(*, tool_name: str, origin: str) -> dict[str, Any]:
+    semantic = {
+        "version": "v2",
+        "engine": "hook-unknown",
+        "origin": origin,
+        "scenario": "",
+        "intent": {"category": "unknown", "goal": ""},
+        "entities": {
+            "paths": [],
+            "urls": [],
+            "recipients": [],
+            "tool_name": tool_name or None,
+        },
+        "constraints": {},
+        "confidence": 0.0,
+        "labels": [],
+        "coverage": {"status": "unknown", "gaps": ["tool_mapping"]},
+    }
+    return {
+        "semantic": semantic,
+        "rv_trace": [{
+            "step_id": "unknown-tool",
+            "event": "unknown",
+            "props": [],
+            "entities": [{"kind": "tool_name", "values": [tool_name] if tool_name else []}],
+            "constraints": [],
+            "confidence": 0.0,
+        }],
+    }
 
 
 def _looks_like_mail_read(event: BehaviorEvent, haystack: str) -> bool:

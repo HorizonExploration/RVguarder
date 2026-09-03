@@ -141,7 +141,7 @@ class MatchCandidate(GuardBaseModel):
 
 class PolicyDecision(GuardBaseModel):
     effect: Literal[
-        "auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block",
+        "auto_allow_audit", "openclaw_approval", "block",
     ]
     match_status: Literal["matched", "partial", "unknown", "conflict"]
     match_confidence: float = 0.0
@@ -169,7 +169,7 @@ class PolicyRule(GuardBaseModel):
     id: str
     version: str
     effect: Literal[
-        "auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block",
+        "auto_allow_audit", "openclaw_approval", "block",
     ]
     priority: int = 0
     match: dict[str, Any] = Field(default_factory=dict)

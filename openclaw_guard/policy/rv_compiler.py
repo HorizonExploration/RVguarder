@@ -10,7 +10,6 @@ from openclaw_guard.rv.rv_dsl import ChainRule, MonitorSpec, PolicyGuard, Rulese
 
 _VERDICT_FOR_EFFECT = {
     "auto_allow_audit": "ok",
-    "clarify_then_retry": "ask",
     "openclaw_approval": "ask",
     "block": "block",
 }

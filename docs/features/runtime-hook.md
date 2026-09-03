@@ -12,26 +12,23 @@
 
 - 生成一个本地插件包（`runtime/openclaw-guard-plugin/`）
 - 写入 `plugins.load.paths` 和 `plugins.entries`
-- 在插件里注册（使用官方 `api.on()` API 注册 5 个钩子）：
-  - `before_prompt_build` — 意图预警（非阻塞）
-  - `before_tool_call` — 工具调用拦截主钩子
+- 在插件里注册（使用官方 `api.on()` API 注册 4 个钩子）：
+  - `before_tool_call` — 工具调用拦截主钩子（透传 `toolKind`、`toolInputKind`、`derivedPaths`）
   - `after_tool_call` — 执行结果回写
   - `gateway_start` — gateway 启动时初始化健康检查定时器
   - `gateway_stop` — gateway 停止时清理健康检查定时器
 - 额外通过 `api.registerGatewayMethod()` 注册：
   - `openclaw_guard.hook_status` — Gateway 健康检查方法
 
-其中 `before_prompt_build` 只用于提示词构建前的意图预检查：它始终返回
-`allow`，只保留审计/遥测信息，不创建 Guard 动作记录，也不会出现在待确认列表。
 只有 `before_tool_call` 进入动作生命周期并可能返回 `requireApproval`；这样 OpenClaw
 原生审批卡片是唯一审批入口。
 
 ### 授权策略与审批所有权
 
-PMKB 在 Hook 前生成 Authorization Trace 和只读 `policy_decision` 证据。四级路由为
-`auto_allow_audit`、`clarify_then_retry`、`openclaw_approval`、`block`；任何 hard-block
+PMKB 在 Hook 前生成 Authorization Trace 和只读 `policy_decision` 证据。三级路由为
+`auto_allow_audit`、`openclaw_approval`、`block`；任何 hard-block
 优先级都不能被 Hook 降级。`principal`、`agent_id` 和 `capability_lineage` 必须一致才
-允许跨 session 关联，未知身份或能力缺失只能进入澄清/审批。
+允许跨 session 关联，未知身份、未知工具或能力缺失只能进入 OpenClaw 审批；Guard 不会发起额外澄清回合。
 
 对于需要确认的动作，OpenClaw 原生审批卡片是唯一审批（唯一审批）入口。Guard Dashboard
 只读显示 `effect`、`match_status`、`missing_features`、`requested_delta`、
@@ -55,19 +52,18 @@ api.on("before_tool_call", async (event, hookCtx) => {
 
 ```text
 OpenClaw 进入工具调用
-  -> api.on("before_prompt_build")（非阻塞预检查，allow + 审计，不创建待审批动作）
   -> api.on("before_tool_call")
   -> 调用 Guard 本地 API (/api/hook/before-tool-call)
   -> Guard 转成行为事件
-  -> 语义归一化 / Authorization Trace
+  -> 显式工具 profile / 参数动作分类 / Authorization Trace
   -> PMKB 规则、最小权限与危险组合判定
-  -> session/principal RV 验证
-  -> allow / ask (requireApproval) / block（内部 escalate 只升权，不产生额外审批入口）
+  -> RV 预判（临时回放有效窗口，行为/权限/主体监视器均不持久化）
+  -> allow / ask (require_approval) / block
   -> require_approval 时 OpenClaw 挂起 agent，展示审批卡片
   -> 用户只在 OpenClaw 原生 UI 批准或拒绝
   -> Guard 通过 onResolution 回调写入状态并发布 SSE 事件
   -> 批准后继续原工具调用
-  -> after_tool_call 回写执行结果
+  -> 仅同一 runId + toolCallId + session/agent 上下文的 after_tool_call 成功后，才提交 RV 状态、主体权限证据并回写执行结果
 ```
 
 ## requireApproval 返回格式
@@ -107,7 +103,7 @@ Guard 会同时返回 `user_summary`、`policy_version` 和 `technical_reason`�
 - 没有重定向、命令替换、网络、提权、删除、写入或 `find -exec`；
 - 文件读取属于 `public/internal`，没有凭据或秘密标签。
 
-项目外读取、项目写入、外联、发送、删除、提权和未知命令仍进入 OpenClaw 原生审批或硬阻断。
+项目外读取、项目写入、外联、浏览器交互、发送、删除、提权、复合工具越权参数和未知工具仍进入 OpenClaw 原生审批或硬阻断。
 范围使用 `workspace / managed_project / outside / external / unknown` 五级模型，不再把所有
 非 workspace 目标直接视为恶意。
 
@@ -163,13 +159,18 @@ Hook 动作只有 OpenClaw 原生审批入口；Guard Dashboard 不显示批准/
 
 | OpenClaw 工具组 | 典型工具 | PMKB 权限族 | 默认行为 |
 |---|---|---|---|
-| session | `sessions_history`、`sessions_list`、`session_status` | `session.read` | 低风险自动放行并审计 |
-| memory | `memory_search`、`memory_get` | `memory.read` | 低风险自动放行并审计 |
-| agents | `agents_list` | `agents.read` | 低风险自动放行并审计 |
-| planning | `get_goal` | `goal.read` | 低风险自动放行并审计 |
-| planning | `update_plan`、`create_goal`、`update_goal` | `plan.write` / `goal.write` | 保持审批 |
+| filesystem | `read`、`write`、`edit`、`apply_patch` | `file.read` / `file.write` | 受管只读可审计，其余审批 |
+| runtime | `exec`、`process`、`terminal`、`code_execution` | `process.execute` | 审批或硬阻断 |
+| web / browser | `web_search`、`x_search`、`web_fetch`、`browser` | `network.egress` / `browser.interact` | 外联与交互审批 |
+| session | `sessions_*`、`session_status`、`conversations_*` | `session.read` / `session.send` / `conversation.*` | 同主体只读可审计，跨会话审批 |
+| memory | `memory_search`、`memory_get` | `memory.read` | 满足边界时自动放行并审计 |
+| messaging | `message` | `message.send` | 发送、编辑、删除审批 |
+| automation | `cron`、`gateway` | `automation.modify` / `gateway.modify` | 保持审批 |
+| agents / planning | `agents_list`、`get_goal`、`progress_card`、`update_plan`、`create_goal`、`update_goal` | `agents.read` / `goal.*` / `plan.write` | 读取可审计，写入审批 |
+| human input / credentials | `ask_user`、`secrets` | `user.interaction` / `credential.read` | 凭据访问审批 |
+| nodes / UI | `nodes`、`computer`、`canvas`、`screen`、`dashboard` | `node.control` / `computer.control` / `ui.*` | 控制类审批，观察类受边界约束 |
 
-`sessions_send`、`sessions_spawn` 等跨代理/跨会话写入能力不会继承只读信任，仍按未知或写入风险处理。Shell/exec 的读取仍需满足工作区边界和只读分析条件，不能因为“读取”字样而自动放行。
+`sessions_send`、`sessions_spawn` 等跨代理/跨会话写入能力不会继承只读信任，仍按写入风险处理。Shell/exec 的读取仍需满足工作区边界和只读分析条件，不能因为“读取”字样而自动放行。
 原生只读信任还会检查参数：出现外部 URL、绝对/父级路径，或指向不同 session/主体的目标时，会退出原生低风险 profile，回到普通审批/阻断路径。
 
 为兼容 OpenClaw `plugin.approval.request` 的描述字段限制，插件会在发送前将审批标题限制为 80 字符、用户说明限制为 240 字符，并保留省略号；完整规则编号、Trace 和技术原因只写入 Guard 审计详情。这样长命令不会因为说明字段过长而被 OpenClaw schema 当成参数错误拒绝。
@@ -234,9 +235,9 @@ npm run openclaw gateway
 
 ## 对照官方资料
 
-- [OpenClaw Plugin Hooks 官方文档](https://github.com/openclaw/openclaw/blob/main/docs/plugins/hooks.md)
-- [OpenClaw Hooks](https://docs.openclaw.ai/automation/hooks)
-- [OpenClaw Session Management](https://docs.openclaw.ai/concepts/session)
+- [OpenClaw 工具总览](https://docs.openclaw.ai/tools)
+- [OpenClaw 工具配置与分组](https://docs.openclaw.ai/gateway/config-tools)
+- [OpenClaw Plugin Hooks 官方文档](https://docs.openclaw.ai/plugins/hooks)
 
 ---
 
@@ -255,11 +256,11 @@ RV（Runtime Verification，运行时验证）模式是龙虾卫士的一项可�
 | 日报外发 + 内部来源 | 内部日报发到外部 | block |
 | 搜索文件 → 删除 | 先搜索高价值路径后删除 | block |
 | 关闭审计 → 改配置 | 先关审计后改配置 | block |
-| 下载附件 → 外传 | 下载后外发或发邮件 | escalate |
-| 读取凭据 → 网络连接 | 读敏感凭据后外联 | escalate |
+| 下载附件 → 外传 | 下载后外发或发邮件 | ask / block |
+| 读取凭据 → 网络连接 | 读敏感凭据后外联 | ask / block |
 | 批量删除累积 | 10 次以上 ask / 50 次以上 block | ask / block |
-| 数据库查询后导出 | 查敏感表后导出 | escalate |
-| 批量上传到外部 | 大批量文件发往外网 | escalate |
+| 数据库查询后导出 | 查敏感表后导出 | ask / block |
+| 批量上传到外部 | 大批量文件发往外网 | ask / block |
 | 共享链接权限变更 | 改为公开或移除密码 | ask |
 
 ### 开启/关闭 RV 模式

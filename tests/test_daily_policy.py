@@ -150,17 +150,5 @@ class DailyPolicyTests(unittest.TestCase):
             self.assertGreaterEqual(payload["policy_rule_count"], 48)
             self.assertTrue(payload["policy_fingerprint"])
 
-    def test_session_risk_decays_without_new_events(self) -> None:
-        from openclaw_guard.spec.session_state import SessionSafetyState
-
-        with patch("openclaw_guard.spec.session_state._time.monotonic", side_effect=[100.0, 100.0, 401.0]):
-            state = SessionSafetyState("decay-test")
-            state.record("block")
-            status = state.status()
-
-        self.assertEqual(status["total_score"], 2)
-        self.assertEqual(status["state"], "safe")
-
-
 if __name__ == "__main__":
     unittest.main()

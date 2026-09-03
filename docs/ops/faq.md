@@ -37,7 +37,7 @@ npm run openclaw gateway
 
 ## 5. 为什么 OpenClaw 只弹一个审批，但 Guard 里出现多个待确认动作
 
-Guard Dashboard 不是第二个审批中心。`before_prompt_build` 只做非阻塞预检查，不应创建待审批动作；真正需要用户决定的动作只来自 `before_tool_call`，并由 OpenClaw 原生审批卡片处理。
+Guard Dashboard 不是第二个审批中心。生产插件只让 `before_tool_call` 进入安全动作生命周期；真正需要用户决定的动作由 OpenClaw 原生审批卡片处理。
 
 如果旧的临时插件路径残留在 `plugins.load.paths`，或 OpenClaw 审批回调超时，Dashboard 可能短暂保留历史待确认项。重新启动 Guard 会清理不存在的 `/tmp/.../runtime/openclaw-guard-plugin` 路径；超过 6 分钟没有回调的 Hook 审批会自动标记为 `approval_timeout`。请查看动作的 `sync_state`，不要把 `timeout` 当成规则阻断。
 
@@ -47,7 +47,7 @@ Guard Dashboard 不是第二个审批中心。`before_prompt_build` 只做非阻
 
 ## 7. 为什么读取会话/记忆仍被要求审批
 
-当前版本只对 OpenClaw 原生的 `sessions_*`、`session_status`、`memory_*`、`agents_list` 和 `get_goal` 做低风险只读建模，并继续审计。Shell/exec 读取仍必须落在 workspace 或受管项目内；`sessions_send`、`sessions_spawn`、计划/目标写入等能力不属于只读白名单，会继续审批。
+当前版本对 OpenClaw 官方 runtime、文件、web、browser、session、memory、message、automation、agent 和节点工具做显式建模。低风险读取还必须满足当前主体、当前会话和受管范围约束；`sessions_send`、`sessions_spawn`、`message`、浏览器交互、计划/目标写入、定时任务和网关管理会继续进入 OpenClaw 审批。未知工具或参数越权不会依据文本猜测动作。
 
 ## 8. 可以修改 OpenClaw 源码吗
 

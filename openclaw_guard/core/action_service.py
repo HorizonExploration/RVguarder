@@ -70,16 +70,6 @@ class ActionService:
                     action = ControlledAction(**item)
                     if action.event and action.event.metadata.get("hook_bridge"):
                         action.source = "hook_bridge"
-                    if action.event and action.event.metadata.get("tool_name") == "before_prompt_build":
-                        # Older versions persisted this non-blocking precheck as
-                        # pending_approval even though OpenClaw never exposes a
-                        # resolution callback for it. Keep the history visible,
-                        # but make it non-pending when loading legacy records.
-                        action.execution_result.setdefault("precheck", True)
-                        if action.status in {"pending_approval", "proposed"}:
-                            action.status = "allow"
-                            action.decision_state = "allowed"
-                            action.sync_state = "not_applicable"
                     if action.status == "pending_approval":
                         action.decision_state = "pending"
                     elif action.status in {"approved", "allow", "executed", "executing"}:

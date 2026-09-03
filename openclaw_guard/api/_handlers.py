@@ -181,19 +181,6 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
         if action.get("status") == "pending_approval":
             if allowed:
                 manager.action_service.approve(action_id, None)
-                action_model = manager._find_action(action_id)
-                principal_effect = manager.record_approved_principal_action(action_model)
-                if principal_effect == "block":
-                    action_model.status = "blocked"
-                    action_model.decision_state = "denied"
-                    action_model.sync_state = "conflict"
-                    manager._save_all(manager._replace_action(action_model))
-                    manager.audit_store.append("principal_rv_block_after_approval", {
-                        "action_id": action_id,
-                        "decision": normalized_decision,
-                    })
-                    manager.record_approval_sync("conflicts", _approval_latency_ms(action))
-                    return _error("principal_rv_block", HTTPStatus.CONFLICT)
             else:
                 manager.action_service.reject(action_id)
         action_model = manager._find_action(action_id)

@@ -215,10 +215,9 @@ def _apply_policy_engine(
     action_for_effect = {
         "block": "block",
         "openclaw_approval": "ask",
-        "clarify_then_retry": "revise",
         "auto_allow_audit": "allow",
     }
-    severity = {"allow": 1, "ask": 2, "revise": 2, "escalate": 3, "block": 4}
+    severity = {"allow": 1, "ask": 2, "block": 3}
     prior_action = getattr(decision, "action", "allow")
     policy_action = action_for_effect[policy_decision.effect]
     if severity[policy_action] > severity.get(prior_action, 1):
@@ -226,7 +225,7 @@ def _apply_policy_engine(
         decision.reason = f"[PMKB] {policy_decision.effect} (原有: {prior_action})"
         if policy_action == "block":
             decision.risk_level = "blocked"
-        elif policy_action in {"ask", "revise"}:
+        elif policy_action == "ask":
             decision.risk_level = "caution"
         decision.rule_ids = list(decision.rule_ids) + list(policy_decision.selected_rule_ids) + list(policy_decision.combo_violations)
     return decision
@@ -260,7 +259,7 @@ def _apply_rv_if_available(
     session_key = _resolve_rv_session_key(event)
 
     rv_started = time.perf_counter()
-    rv_result = services.rv_engine.evaluate(
+    rv_result = services.rv_engine.preview(
         rv_trace,
         session_key=session_key,
         authorization_trace=event.metadata.get("authorization_trace"),
@@ -271,15 +270,15 @@ def _apply_rv_if_available(
     event.metadata["rv_result"] = rv_result
     event.metadata["rv_session_key"] = session_key
 
-    rv_severity = {"block": 4, "escalate": 3, "ask": 2, "ok": 1}
-    det_severity = {"block": 4, "escalate": 3, "ask": 2, "allow": 1}
+    rv_severity = {"block": 3, "escalate": 2, "ask": 2, "ok": 1}
+    det_severity = {"block": 3, "ask": 2, "allow": 1}
 
     rv_level = rv_severity.get(rv_result["verdict"], 0)
     det_action = getattr(decision, "action", "allow")
     det_level = det_severity.get(det_action, 1)
 
     if rv_level > det_level:
-        decision.action = rv_result["verdict"]
+        decision.action = "ask" if rv_result["verdict"] == "escalate" else rv_result["verdict"]
         decision.reason = (
             f"[RV] {rv_result.get('reason', '')} "
             f"(原有: {det_action})"
@@ -289,109 +288,6 @@ def _apply_rv_if_available(
                 f"RV-{rv_result['triggered_by']}"
             ]
     return decision
-
-
-def _apply_constraint_engine(
-    services: GuardServices,
-    event: Any,
-    decision: Any,
-) -> Any:
-    """在 detection 判定后叠加约束推理引擎判定（升权不降权，阶段 B）。
-
-    约束引擎消费 rv_trace 中的结构化字段（entities/constraints/confidence），
-    与 detection 的标签布尔匹配并行。仅在命中更高风险等级时覆盖决策，
-    可通过 `OPENCLAW_RV_CONSTRAINT_MODE=off` 关闭。
-    """
-    engine = getattr(services, "constraint_engine", None)
-    if engine is None or not services.constraint_engine_enabled():
-        return decision
-    rv_trace = event.metadata.get("rv_trace", [])
-    if not rv_trace:
-        return decision
-
-    c_started = time.perf_counter()
-    results = engine.evaluate_steps(rv_trace)
-    timings = _ensure_pipeline_timings(event)
-    timings["constraint_ms"] = round((time.perf_counter() - c_started) * 1000.0, 3)
-    if not results:
-        return decision
-
-    rule, score = results[0]
-    severity = {"block": 4, "escalate": 3, "ask": 2, "ok": 1}
-    det_action = getattr(decision, "action", "allow")
-    matched = severity.get(rule.decision, 0) > severity.get(det_action, 1)
-    event.metadata["constraint_result"] = {
-        "rule_id": rule.rule_id,
-        "title": rule.title,
-        "decision": rule.decision,
-        "score": round(score, 4),
-        "matched": matched,
-    }
-    if matched:
-        decision.action = rule.decision
-        decision.reason = f"[Constraint] {rule.title} (score={score:.2f}) 原有: {det_action}"
-        decision.rule_ids = list(decision.rule_ids) + [rule.rule_id]
-    return decision
-
-
-def _apply_session_escalation(
-    services: GuardServices,
-    event: Any,
-    decision: Any,
-) -> Any:
-    """应用会话级风险升级（阶段 F）。
-
-    按 session_key 维护 SessionSafetyState：记录每次判定累计风险，
-    连续 escalate 或累计风险升级裁决（escalate→block），并附修正建议。
-    可通过 `OPENCLAW_RV_SESSION_STATE=off` 关闭。
-    """
-    if not services.session_state_enabled():
-        return decision
-    session_key = _resolve_rv_session_key(event)
-    state = services.session_state_for(session_key)
-    upgrade = state.record(
-        getattr(decision, "action", "ok"),
-        decision.reason,
-        risk_class=_session_risk_class(event, decision),
-    )
-    event.metadata["session_state"] = state.status()
-
-    # 先应用 record() 的明确升级，再考虑 revise 建议，保证所有会话叠加单调升权。
-    severity = {"allow": 1, "ask": 2, "revise": 2, "escalate": 3, "block": 4}
-    current_action = getattr(decision, "action", "allow")
-    if upgrade:
-        if severity.get(upgrade, 1) > severity.get(current_action, 1):
-            decision.action = upgrade
-            decision.reason = (
-                f"[Session] 会话风险升级为 {upgrade}（累计风险 {state.total_score}）"
-            )
-            decision.rule_ids = list(decision.rule_ids) + [f"SESSION-{session_key}"]
-            current_action = upgrade
-
-    # revise 干预（spec F1）：只有在不降低既有裁决严重度时才可应用建议。
-    hint = state.revision_hint()
-    if hint is not None:
-        # 即使当前裁决更强，也保留建议供审计和调用方展示；不得改变 action。
-        decision.revision_hint = hint
-    if hint is not None and current_action in {"ask", "revise"}:
-        decision.action = "revise"
-        decision.reason = (
-            f"[Session] 建议修订后重试：{hint}（累计风险 {state.total_score}）"
-        )
-        decision.rule_ids = list(decision.rule_ids) + [f"SESSION-{session_key}"]
-    return decision
-
-
-def _session_risk_class(event: Any, decision: Any) -> str:
-    """Classify evidence before it enters cumulative session risk."""
-    safety = event.metadata.get("command_safety") if isinstance(getattr(event, "metadata", None), dict) else None
-    if isinstance(safety, dict) and safety.get("safe_read_only") is True:
-        return "low"
-    if getattr(decision, "action", "") == "allow" and getattr(decision, "risk_level", "safe") in {"safe", "caution"}:
-        return "low"
-    if getattr(decision, "risk_level", "") == "safe":
-        return "low"
-    return "high"
 
 
 # ---------------------------------------------------------------------------
@@ -417,11 +313,9 @@ def ingest_event_pipeline(
     decision = services.policy_engine.decide(event, source_message=source_message)
     timings = _ensure_pipeline_timings(event)
     timings["policy_ms"] = round((time.perf_counter() - policy_started) * 1000.0, 3)
-    decision = _apply_constraint_engine(services, event, decision)
     decision = _apply_rv_if_available(services, event, decision)
     timings = _ensure_pipeline_timings(event)
     timings.setdefault("rv_ms", 0.0)
-    decision = _apply_session_escalation(services, event, decision)
     controller_started = time.perf_counter()
     controlled = services.controller.decide(event, decision, source_message or payload.get("raw_user_intent", ""))
     timings = _ensure_pipeline_timings(event)
@@ -460,18 +354,16 @@ def handle_before_tool_call_pipeline(
     if session_id:
         services._auto_complete_previous_actions(session_id)
 
-    event = build_hook_event(payload)
+    event = build_hook_event(payload, managed_project_root=services.context.paths.project_dir)
     hook_source_message = build_hook_source_message(event)
     _annotate_event_context(services, event, source_message=hook_source_message, origin="hook")
     policy_started = time.perf_counter()
     decision = services.policy_engine.decide(event, source_message=hook_source_message)
     timings = _ensure_pipeline_timings(event)
     timings["policy_ms"] = round((time.perf_counter() - policy_started) * 1000.0, 3)
-    decision = _apply_constraint_engine(services, event, decision)
     decision = _apply_rv_if_available(services, event, decision)
     timings = _ensure_pipeline_timings(event)
     timings.setdefault("rv_ms", 0.0)
-    decision = _apply_session_escalation(services, event, decision)
     controller_started = time.perf_counter()
     controlled = services.controller.decide(event, decision, hook_source_message)
     if controlled.status in {"blocked", "pending_approval"}:
@@ -481,25 +373,6 @@ def handle_before_tool_call_pipeline(
     timings = _ensure_pipeline_timings(event)
     timings["controller_ms"] = round((time.perf_counter() - controller_started) * 1000.0, 3)
     timings["total_ms"] = round((time.perf_counter() - started) * 1000.0, 3)
-
-    # before_prompt_build is an intent precheck. OpenClaw does not wait for
-    # this hook and therefore cannot display or resolve an approval card.
-    # Keep the analysis in the audit trail, but never create a pending action.
-    if event.metadata.get("tool_name") == "before_prompt_build":
-        services.audit_store.append(
-            "hook_intent_precheck",
-            {
-                "event": event.to_dict(),
-                "decision": controlled.decision.to_dict(),
-                "timings": dict(timings),
-            },
-        )
-        services._log(
-            "hook_intent_precheck",
-            tool_name="before_prompt_build",
-            decision=controlled.decision.action,
-        )
-        return {"action": "allow", "precheck": True}
 
     hook_key = str(event.metadata.get("hook_key") or hook_key_from_payload(payload))
     controlled.event.metadata["hook_key"] = hook_key
@@ -564,8 +437,7 @@ def handle_before_tool_call_pipeline(
             "technical_reason": controlled.decision.reason,
             "user_summary": _user_summary(controlled.event, controlled.decision),
             "policy_version": policy.get("policy_version", ""),
-            "severity": "critical" if controlled.decision.action in {"escalate", "revise"} else "warning",
-            "revision_hint": controlled.decision.revision_hint,
+            "severity": "warning",
             "action_record": controlled.to_dict(),
         }
 
@@ -644,6 +516,35 @@ def handle_after_tool_call_pipeline(
     action = services._find_action_by_hook_key(hook_key)
     if action is None:
         return {"ok": False, "error": "action_not_found", "hook_key": hook_key}
+    expected = action.event.metadata
+    context_pairs = (
+        ("tool_name", payload.get("toolName")),
+        ("run_id", payload.get("runId")),
+        ("tool_call_id", payload.get("toolCallId")),
+        ("agent_id", payload.get("agentId")),
+        ("session_key", payload.get("sessionKey")),
+        ("session_id", payload.get("sessionId")),
+    )
+    mismatches = [
+        key for key, actual in context_pairs
+        if str(expected.get(key) or "").strip()
+        and str(actual or "").strip()
+        and str(expected.get(key)).strip() != str(actual).strip()
+    ]
+    if mismatches:
+        return {
+            "ok": False,
+            "error": "hook_context_mismatch",
+            "fields": mismatches,
+            "hook_key": hook_key,
+        }
+    if action.status in {"executed", "failed"} or action.execution_state in {"executed", "failed"}:
+        return {
+            "ok": False,
+            "error": "action_already_terminal",
+            "hook_key": hook_key,
+            "action": action.to_dict(),
+        }
     error = str(payload.get("error") or "").strip()
     result_summary = str(payload.get("resultSummary") or "").strip()
     action.execution_result.update(
@@ -678,6 +579,17 @@ def handle_after_tool_call_pipeline(
         action.status = "executed"
         action.execution_state = "executed"
         action.execution_result.update({"status": "completed"})
+        action.event.metadata["principal_rv_commit_effect"] = services.record_executed_principal_action(action) or "none"
+        rv_trace = action.event.metadata.get("rv_trace", [])
+        if isinstance(rv_trace, list) and rv_trace and services.rv_enabled():
+            rv_result = services.rv_engine.evaluate(
+                rv_trace,
+                session_key=_resolve_rv_session_key(action.event),
+                authorization_trace=action.event.metadata.get("authorization_trace"),
+                policy_decision=action.decision.policy_decision,
+            )
+            action.event.metadata["rv_commit_result"] = rv_result
+            services.persist_rv_state()
 
     # 如果动作已经被拦截或拒绝，但仍然收到了 after_tool_call
     if action.status in {"blocked", "rejected"} and not error:
