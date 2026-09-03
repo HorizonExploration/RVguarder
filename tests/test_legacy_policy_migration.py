@@ -29,7 +29,7 @@ def test_every_legacy_record_replays_to_an_equivalent_pmkb_effect():
     root = Path(__file__).parents[1] / "policies" / "permissions"
     evaluator = PolicyEvaluator(PolicyBundle.load(root))
     expected_effect = {"block": "block", "ask": "openclaw_approval", "escalate": "openclaw_approval"}
-    rank = {"auto_allow_audit": 0, "clarify_then_retry": 1, "openclaw_approval": 2, "block": 3}
+    rank = {"auto_allow_audit": 0, "openclaw_approval": 1, "block": 2}
 
     for rule in legacy_rules():
         for action_type in rule.action_types:

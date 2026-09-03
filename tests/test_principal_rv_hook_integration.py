@@ -79,9 +79,6 @@ def _configure_policy_fixtures(services, monkeypatch) -> None:
 
     monkeypatch.setattr(services.policy_engine, "compile_trace", compile_trace)
     monkeypatch.setattr(services.policy_engine, "evaluate", evaluate)
-    # The fixture supplies authoritative synthetic policy decisions; keep this
-    # integration focused on principal-RV state and controller ordering.
-    monkeypatch.setattr(services, "constraint_engine_enabled", lambda: False)
 
 
 def _build_services(project, config_path):
@@ -156,12 +153,29 @@ def test_controller_blocks_toxic_chain_for_same_agent_across_hook_sessions(tmp_p
     services = _build_services(project, project / "openclaw.json")
     _configure_policy_fixtures(services, monkeypatch)
 
-    first = services.handle_before_tool_call(_hook_payload("secret.read", session_id="session-a"))
+    first_payload = _hook_payload("secret.read", session_id="session-a")
+    first = services.handle_before_tool_call(first_payload)
+    services.handle_after_tool_call(first_payload)
     second = services.handle_before_tool_call(_hook_payload("network.request", session_id="session-b"))
 
     assert first["action"] == "allow"
     assert second["action"] == "block"
     assert second["action_record"]["event"]["metadata"]["principal_rv"]["effect"] == "block"
+
+
+def test_principal_grant_is_committed_only_after_successful_execution(tmp_path, monkeypatch):
+    """before_tool_call may inspect prior grants but must not create a new one."""
+    project = tmp_path / "guard"
+    services = _build_services(project, project / "openclaw.json")
+    _configure_policy_fixtures(services, monkeypatch)
+
+    before = services.handle_before_tool_call(_hook_payload("secret.read", session_id="session-a"))
+    action = services._find_action(before["action_record"]["action_id"])
+    state = services.rv_engine.state_for_principal("agent-real", "agent-real", ("openclaw-agent:agent-real",))
+
+    assert not state.effective_grants
+    assert services.record_executed_principal_action(action) is None
+    assert state.effective_grants
 
 
 def test_principal_snapshot_restores_toxic_chain_after_restart(tmp_path, monkeypatch):
@@ -171,7 +185,9 @@ def test_principal_snapshot_restores_toxic_chain_after_restart(tmp_path, monkeyp
     first_services = _build_services(project, config_path)
     _configure_policy_fixtures(first_services, monkeypatch)
 
-    first = first_services.handle_before_tool_call(_hook_payload("secret.read", session_id="session-a"))
+    first_payload = _hook_payload("secret.read", session_id="session-a")
+    first = first_services.handle_before_tool_call(first_payload)
+    first_services.handle_after_tool_call(first_payload)
     assert first["action"] == "allow"
     assert (project / "runtime" / "rv-state.json").exists()
 
@@ -184,8 +200,8 @@ def test_principal_snapshot_restores_toxic_chain_after_restart(tmp_path, monkeyp
     assert second["action"] == "block"
 
 
-def test_openclaw_approved_read_is_recorded_for_later_principal_rv(tmp_path, monkeypatch):
-    """Approval resolution must feed the normalized read back into principal state."""
+def test_executed_approved_read_is_recorded_for_later_principal_rv(tmp_path, monkeypatch):
+    """审批本身不扩权，只有成功执行的动作进入主体状态。"""
     project = tmp_path / "guard"
     services = _build_services(project, project / "openclaw.json")
     _configure_policy_fixtures(services, monkeypatch)
@@ -203,22 +219,56 @@ def test_openclaw_approved_read_is_recorded_for_later_principal_rv(tmp_path, mon
     action = services._find_action(first["action_record"]["action_id"])
 
     assert first["action"] == "require_approval"
-    assert services.record_approved_principal_action(action) is None
+    assert services.record_executed_principal_action(action) is None
     second = services.handle_before_tool_call(_hook_payload("network.request", session_id="session-b"))
     assert second["action"] == "block"
 
 
-def test_snapshot_is_restored_before_current_session_rv_event(tmp_path, monkeypatch):
-    """Lazy snapshot restore must not overwrite the first RV event after restart."""
+def test_snapshot_restore_keeps_unexecuted_candidate_out_of_rv_window(tmp_path, monkeypatch):
+    """重启后的待审批调用不能污染已提交的会话攻击链。"""
     project = tmp_path / "guard"
     config_path = project / "openclaw.json"
     first_services = _build_services(project, config_path)
     _configure_policy_fixtures(first_services, monkeypatch)
-    first_services.handle_before_tool_call(_hook_payload("secret.read", session_id="session-a"))
+    first_payload = _hook_payload("secret.read", session_id="session-a")
+    first_services.handle_before_tool_call(first_payload)
+    first_services.handle_after_tool_call(first_payload)
 
     restored_services = _build_services(project, config_path)
     _configure_policy_fixtures(restored_services, monkeypatch)
     restored_services.handle_before_tool_call(_hook_payload("network.request", session_id="session-a"))
-
     summary = restored_services.rv_engine.result_summary("session_session-a")
-    assert summary["window_size"] == 2
+    assert summary["window_size"] == 1
+
+
+def test_after_tool_call_duplicate_cannot_commit_principal_or_rv_twice(tmp_path, monkeypatch):
+    """同一 OpenClaw after 回调只能提交一次执行状态。"""
+    project = tmp_path / "guard"
+    services = _build_services(project, project / "openclaw.json")
+    _configure_policy_fixtures(services, monkeypatch)
+
+    payload = _hook_payload("secret.read", session_id="session-a")
+    before = services.handle_before_tool_call(payload)
+    first = services.handle_after_tool_call(payload)
+    second = services.handle_after_tool_call(payload)
+
+    assert before["action"] == "allow"
+    assert first["ok"] is True
+    assert second["ok"] is False
+    assert second["error"] == "action_already_terminal"
+
+
+def test_after_tool_call_context_mismatch_cannot_close_before_action(tmp_path, monkeypatch):
+    """相同 run/tool id 但身份或工具上下文不一致时不得提交。"""
+    project = tmp_path / "guard"
+    services = _build_services(project, project / "openclaw.json")
+    _configure_policy_fixtures(services, monkeypatch)
+
+    payload = _hook_payload("secret.read", session_id="session-a")
+    services.handle_before_tool_call(payload)
+    mismatched = {**payload, "toolName": "network.request", "agentId": "agent-other"}
+
+    result = services.handle_after_tool_call(mismatched)
+
+    assert result["ok"] is False
+    assert result["error"] == "hook_context_mismatch"

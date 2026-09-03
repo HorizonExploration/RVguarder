@@ -105,7 +105,7 @@ class TestRvApiIntegration(unittest.TestCase):
         from openclaw_guard.policy.engine import AuthorizationPolicyEngine
 
         decision = AuthorizationPolicyEngine().decide(event)
-        self.assertIn(decision.action, {"allow", "ask", "block", "revise"})
+        self.assertIn(decision.action, {"allow", "ask", "block"})
         # Apply RV
         rv_result = self.manager.rv_engine.evaluate(event.metadata.get("rv_trace", []))
         self.assertIn("verdict", rv_result)

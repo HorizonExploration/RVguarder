@@ -42,7 +42,7 @@
 {
   "ok": true,
   "policy_version": "1.1.0",
-  "policy_rule_count": 79,
+  "policy_rule_count": 82,
   "policy_fingerprint": "<16 位哈希前缀>"
 }
 ```
@@ -65,6 +65,7 @@
 - `chat`
 - `hook`
 - `execution_guard`
+- `sync.approval`：OpenClaw 审批回调聚合计数与 `latency_ms`（count/last/min/max/p95）
 - `skills`
 - `channels`
 - `preferences`：偏好设置（含 RV 模式等）
@@ -211,12 +212,11 @@ OpenClaw Guard 本地插件内部使用的同步审批接口。
 
 - 接收 OpenClaw 的 `before_tool_call`
 - 生成动作记录
-- 执行 `allow / require_approval / block / escalate`
+- 执行 `allow / require_approval / block`；内部 RV `escalate` 在 Hook 出口统一折叠为 `require_approval`
 - 返回给 OpenClaw 的 `requireApproval` 遵循官方 `BeforeToolCallResult` 类型
 - `require_approval` 返回 `title`、`message`、`user_summary`、`policy_version` 和 `technical_reason`；
   OpenClaw 弹窗只使用中文 `title/message`，技术原因仅供 Guard 审计和排障。
-- 当请求的 `toolName` 为 `before_prompt_build` 时，该接口仅执行意图预检查，返回
-  `{"action":"allow","precheck":true}`，不会写入动作记录或发布 `action.created`。
+- `before_prompt_build` 不属于生产插件注册的 Hook；该接口只处理实际 `before_tool_call`。
 
 ## POST `/api/hook/after-tool-call`
 
@@ -250,7 +250,7 @@ OpenClaw 原生审批卡片 `onResolution` 回调使用的接口。
 - `decision` 支持 `allow-once` / `deny` / `timeout` / `cancelled`（兼容 `allow_once` 旧格式）；`allow-always` 不在首版审批契约内并返回 `400 unsupported_resolution`
 - 权限证据同时返回 `effective_permissions`、`p_after`、`scope_expansions` 和 `hard_violations`，用于核对主体当前授权、申请后授权集合及最小权限越界。
 - 相同决策重复回调幂等返回；相反决策会返回 `409 resolution_conflict`
-- 响应包含 `decision_state`、`sync_state`、`event_seq` 和 `received_at`
+- 响应包含 `decision_state`、`sync_state`、`event_seq`、`received_at` 和 `latency_ms`
 
 ## GET `/api/events`
 
@@ -335,6 +335,8 @@ Guard 前端使用的 Server-Sent Events（SSE）单向事件流。
 |--------|------|
 | `message_empty` | 输入不能为空 |
 | `action_not_found` | 未找到对应动作记录 |
+| `action_already_terminal` | 同一 after_tool_call 已经提交过，拒绝重复提交 |
+| `hook_context_mismatch` | after_tool_call 与 before_tool_call 的工具、运行或身份上下文不一致 |
 | `gateway_unreachable` | 无法连接 OpenClaw gateway |
 | `hook_unauthorized` | Hook 鉴权失败 |
 | `internal_error` | 服务内部错误 |
@@ -361,7 +363,7 @@ Guard 前端使用的 Server-Sent Events（SSE）单向事件流。
 }
 ```
 
-`effect` 依次支持 `auto_allow_audit`、`clarify_then_retry`、`openclaw_approval` 和
+`effect` 依次支持 `auto_allow_audit`、`openclaw_approval` 和
 `block`；`match_status` 为 `matched`、`partial`、`unknown` 或 `conflict`。`requested_delta`、
 `redundant_permissions` 和 `excessive_permissions` 是 `PermissionRef` 对象数组；若 UI
 需要显示 `data.export(scope=own)`，必须明确这是 display transform，不是 API 序列化值。

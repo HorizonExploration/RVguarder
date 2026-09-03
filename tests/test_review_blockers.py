@@ -80,9 +80,9 @@ def test_generated_openclaw_approval_contract_is_single_owner_and_once_only():
     assert 'allowedDecisions: ["allow-once", "deny"]' in source
     assert "timeoutBehavior" not in source
     assert 'registrationId: "openclaw_guard_before_tool_call"' in source
-    assert DEFAULT_DECISION_TIMEOUT_MS == 15_000
+    assert DEFAULT_DECISION_TIMEOUT_MS == 2_000
     assert "180000" not in source
-    assert "DEFAULT_DECISION_TIMEOUT_MS = 15000" in source
+    assert "DEFAULT_DECISION_TIMEOUT_MS = 2000" in source
 
 
 def test_generated_openclaw_approval_description_is_bounded():

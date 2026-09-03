@@ -16,14 +16,17 @@
 OpenClaw before_tool_call
   → Hook Bridge / BehaviorEvent
   → SemanticEnhancer + TraceCompiler
-  → AuthorizationPolicyEngine（PMKB 1.1.0 + LEGACY compatibility records）
-  → Constraint/RV/session-principal risk overlays（只升权）
+  → AuthorizationPolicyEngine（PMKB 1.1.0 + LEGACY replay records）
+  → RV preview（有效窗口纯回放，不提交候选）
   → GuardController
   → OpenClaw 原生审批 / block / allow
-  → onResolution + SSE + 审计
+  → onResolution + SSE 只读同步
+  → after_tool_call 成功后提交 RV / 主体证据
+  → 审计
 ```
 
-Guard 页面不拥有审批权。`before_prompt_build` 仅记录预检查，不能产生待审批动作；真正的审批只来自 `before_tool_call`，由 OpenClaw 原生审批页响应。
+Guard 页面不拥有审批权。生产插件不注册 `before_prompt_build`；真正的审批只来自
+`before_tool_call`，由 OpenClaw 原生审批页响应。
 
 ## 本次统一项
 
@@ -35,13 +38,20 @@ Guard 页面不拥有审批权。`before_prompt_build` 仅记录预检查，不�
 | 历史代码 | `DetectionEngine` 从生产模块删除；`policy/legacy.py` 只含冻结回放元数据 | 无生产导入检查、全量回归 |
 | 评测证据 | 8 月 30 日 AgentDojo manifest、metrics、trace、report 入库 | 结果目录与 testlab 文档引用 |
 
+## 本轮 1/2 改造结果
+
+- **审批同步**：`resolve_hook_approval` 现在记录回调总数、accepted/idempotent/conflict/orphan/invalid/error、延迟的 count/min/max/p95，并通过 `/api/summary` 的 `sync.approval` 暴露；延迟样本仅保留最近 128 个聚合值，不保存额外敏感载荷。
+- **竞态修复**：`action.resolved` SSE 事件改为在决策状态写入动作存储后发布，前端收到事件立即回读时不会再看到旧的 `local_only/pending` 状态；前端摘要哈希也纳入同步序号和指标。
+- **规则原生化**：新增 3 条 PMKB 原生条件：`NATIVE-PROCESS-DESTRUCTIVE`（确定性命令分类 destructive → block）、`NATIVE-PROCESS-PRIVILEGED`（privileged → OpenClaw approval）、`NATIVE-NETWORK-SECRET-EXTERNAL`（secret + external → block）。它们不读取 `legacy_labels_all`/`legacy_action_types`；47 条 LEGACY 仍保留作逐条回放证据，后续按迁移矩阵继续替换。
+- **小规模验证**：新增审批持久化顺序、回调指标和 3 个 PMKB 原生规则向量；本轮不运行大规模 AgentDojo，仅运行定向单元测试与一次本地等价 Hook→resolution 冒烟。
+- **验证结果**：`pytest -q` → **550 passed / 18 skipped / 4 subtests passed**（199.73s）；`frontend npm run build` 和 `docs npm run docs:build` 均通过；本地等价冒烟回调返回 `200`、`sync_state=callback_received`。
+
 ## 已知问题与后续优先级
 
-1. `ConstraintEngine` 仍从同一冻结 LEGACY 元数据生成升权规则。它不会形成第二个 allow 路径，但应继续把高频标签条件重构为 PMKB 的资源、范围、主体与权限谓词，逐步减少兼容规则比例。
-2. AgentDojo 证据包含成功与失败运行。带 `error.json`、没有 metrics 的运行只能说明环境/配额失败，不能用作安全效果结论；正式对比只能引用具备 manifest、metrics、raw episodes 和 report 的完整批次。
-3. OpenClaw 的审批状态仍依赖 Gateway 的 `onResolution` 回调与 SSE/增量对账。网络断开、Gateway 未重启或回调超时会使 Dashboard 延迟，但不会把 Dashboard 重新变成审批中心。
-4. `.env` 当前含真实访问凭据，必须留在本地并轮换已暴露的密钥；它不属于本次提交内容。
-5. `legacy_web.py` 作为历史文件仍可被直接手工导入。发布流程应只调用 `openclaw-guard run`，并在后续大版本考虑将冻结文件移至文档归档。
+1. AgentDojo 证据包含成功与失败运行。带 `error.json`、没有 metrics 的运行只能说明环境/配额失败，不能用作安全效果结论；正式对比只能引用具备 manifest、metrics、raw episodes 和 report 的完整批次。
+2. OpenClaw 的审批状态仍依赖 Gateway 的 `onResolution` 回调；本地竞态已通过先持久化后发布 SSE 修复，但网络断开、Gateway 未重启或回调超时仍会使 Dashboard 延迟，且不会把 Dashboard 重新变成审批中心。
+3. `.env` 当前含真实访问凭据，必须留在本地并轮换已暴露的密钥；它不属于本次提交内容。
+4. `legacy_web.py` 已冻结为兼容历史文件（发布入口仍只调用 `openclaw-guard run`）；后续可在单独版本中移至文档归档。
 
 ## 本轮文档与仓库清查（2026-09-02）
 

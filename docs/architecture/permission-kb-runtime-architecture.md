@@ -5,6 +5,11 @@
 > **PMKB 版本：** `1.1.0`
 > **测试基线：** 改造前全量回归 `513 passed / 18 skipped / 4 subtests passed`；本次改造采用 OpenClaw 交接链路定向回归，结果见第 8 节。
 
+> **2026-09-03 更新：** 下文关于 ConstraintEngine、SessionSafetyState、`revise` 和
+> `before_prompt_build` 的描述是旧阶段快照。生产链路只使用 PMKB、显式工具 profile、成功执行
+> 后提交的主体证据，以及从有效窗口重放的 RV；以
+> [三态控制面与 RV 提交边界](./three-state-rv-runtime-plan-2026-09-03.md)为准。
+
 本文档说明本次升级实际交付的权限规则知识库（Permission Model Knowledge Base，PMKB）、权限建模、最小权限校验、危险权限组合检测和跨 session 运行时验证。它不是下一阶段愿景：已实现部分以代码和测试为证据，未实现部分明确列在“当前边界”中。
 
 ## 1. 结论与范围
@@ -18,9 +23,9 @@
 5. 按可信 `principal + agent + capability_lineage` 保存跨 session 的主体能力风险状态，并在重启后恢复快照；
 6. 保留 OpenClaw 原生审批作为唯一用户确认入口，Guard Dashboard 只读展示证据和同步状态。
 
-本次没有完成以下工作：
+当前仍未完成以下工作：
 
-- 47 条历史单步检测规则已完成兼容迁移并经逐条回放：ConstraintEngine 和 PMKB 均可按同一旧 ID 判定（完成数 `47 / 47`）；生产 DetectionEngine 已删除，冻结元数据只保留为回放证据；详见[旧规则迁移矩阵](./legacy-rule-migration-matrix.md)；
+- 47 条历史单步检测规则已完成兼容迁移并经逐条回放（`47 / 47`）；生产 DetectionEngine 和 ConstraintEngine 已删除，冻结 LEGACY 元数据仅保留为兼容回放证据；详见[旧规则迁移矩阵](./legacy-rule-migration-matrix.md)；
 - 未实现从人工审批记录自动学习并永久生成 `allow` 规则；
 - 未提供完整的用户权限管理 UI 和企业级目录同步；
 - 尚无真实个人办公流量的人工审批下降实测，因此路线图中的 `-40%`、`-60%` 是验收目标，不是已达成结果。
@@ -39,14 +44,14 @@ OpenClaw before_tool_call
        ├─ PolicyEvaluator（规则匹配与风险评分）
        ├─ PermissionClosure + PermissionDiff（最小权限）
        └─ RiskGraph（危险权限组合）
-  → ConstraintEngine（可选约束升权）
-  → PermissionAutomatonCompiler（PMKB → 权限监视器）
-  → RuntimeVerificationEngine（行为 DSL + session/principal 权限监视器）
-  → SessionSafetyState / PrincipalSecurityState（累计风险）
+  → RuntimeVerificationEngine.preview（有效窗口纯回放，不提交候选）
   → GuardController
-  → allow / revise / requireApproval / block
+  → allow / ask / block
   → OpenClaw 原生审批、onResolution、SSE 只读同步
-  → after_tool_call 审计
+  → after_tool_call 成功回调
+  → RuntimeVerificationEngine.evaluate（提交行为窗口）
+  → PrincipalSecurityState（成功执行后的主体证据）
+  → 审计
 ```
 
 代码对应关系：
@@ -72,9 +77,9 @@ OpenClaw before_tool_call
 | 文件 | 当前数量 | 作用 |
 | --- | ---: | --- |
 | `schema/permissions.schema.json` | 1 | 约束 bundle 必须包含 operations、rules、traces、relations、vectors |
-| `catalog/operation-catalog.json` | 28 operations | 工具名/别名到 canonical permission family 的映射，含本地 `file.read` 与 `conversation.message` |
-| `rules/p0-office.json` | 32 authored rules（其中 22 条 `P1-*`） | 单步权限规则、匹配条件、处置效果和来源 |
-| 运行时兼容规则 | 47 `LEGACY-<old-id>` records | 由 47 条 DetectionRule 的 action type + semantic labels 生成，同时进入 ConstraintEngine、PMKB 评估与权限监视器 |
+| `catalog/operation-catalog.json` | 47 operations | OpenClaw 原生工具、业务工具名/别名到 canonical permission family 的映射 |
+| `rules/p0-office.json` | 35 authored rules（其中 22 条 `P1-*`，3 条 `NATIVE-*`） | 单步权限规则、匹配条件、处置效果和来源 |
+| 运行时兼容规则 | 47 `LEGACY-<old-id>` records | 冻结的历史 action/semantic 元数据，仅用于 PMKB 兼容回放；不再进入独立检测引擎 |
 | `traces/p0-office.json` | 29 traces | 每条规则对应的最小必要权限范围和正反例 |
 | `relations/p0-combinations.json` | 9 relations | `toxic_with`、`conflicts`、`implies` 等权限关系 |
 | `tests/p0-vectors.json` | 29 vectors | 固定输入、预期效果和回归类别 |
@@ -211,7 +216,7 @@ PMKB 规则与危险组合关系会在本地 bundle 装载时由 `PermissionAuto
 
 `goal_id` 可用于任务分区，但不能单独证明身份。可信身份不完整时不会合并跨 session 状态；不同主体、Agent 或能力谱系一定创建独立状态。状态保存在 `runtime/rv-state.json`，有 TTL 和数量上限，重启后恢复。
 
-审批通过的 Hook 动作会记录为主体有效能力，后续 session 的行为可以与此前已批准的敏感读取、权限授予或外联行为组合评估。principal RV 的效果只能把原决策提升为审批或阻断，不能降级既有安全结论。
+只有成功执行的 Hook 动作才会记录为主体有效能力，后续 session 的行为可以与此前已执行的敏感读取、权限授予或外联行为组合评估。principal RV 的效果只能把原决策提升为审批或阻断，不能降级既有安全结论。
 
 ## 7. 决策与 OpenClaw 交接
 
@@ -220,14 +225,16 @@ PMKB 效果到 Guard 动作的映射为：
 | PMKB effect | Guard action | OpenClaw 行为 |
 | --- | --- | --- |
 | `auto_allow_audit` | `allow` | 继续执行并记录审计 |
-| `clarify_then_retry` | `revise` | 返回修正提示，不执行当前请求 |
 | `openclaw_approval` | `ask` | 返回 `requireApproval`，由 OpenClaw 原生页面确认 |
 | `block` | `block` | 直接阻断 |
 
-决策合并按严重度单调提升：`allow < ask/revise < escalate < block`。Guard 页面只读显示：
+决策合并按严重度单调提升：`allow < ask < block`。RV 自动机内部的 `escalate` 在公开出口折叠为
+`ask`，不扩大控制面动作集合。Guard 页面只读显示：
 `policy_version`、`effect`、`match_status`、`missing_features`、`requested_delta`、`excessive_permissions`、`combo_violations`、`risk_score`、`replay_hash` 和 timing。
 
-`before_prompt_build` 只是非阻塞意图预检查，始终返回 allow 并写审计，不创建待审批动作；只有 `before_tool_call` 能创建 `pending_approval`。OpenClaw 的 `onResolution` 是唯一审批结果来源，Guard 通过 resolution/SSE/增量查询同步，不提供第二个批准按钮。
+生产插件只注册 `before_tool_call` 和 `after_tool_call` 相关链路，不注册
+`before_prompt_build` 预检查。只有 `before_tool_call` 能创建 `pending_approval`；OpenClaw 的
+`onResolution` 是唯一审批结果来源，Guard 通过 resolution/SSE/增量查询同步，不提供第二个批准按钮。
 
 本次 OpenClaw 交接修复补充了三项运行时约束：
 

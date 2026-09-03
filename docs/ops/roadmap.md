@@ -22,8 +22,8 @@
 | **RV 规约驱动** | **v0.3.0** | ChainRule DSL（`rv/rv_dsl.py` + `rv_rules.json`）编译监视器，默认 dsl 模式，FSM 为回退 |
 | **IR 结构化透传** | **v0.4.0** | ToolCallIR（11 字段）+ 语义层实体/约束/置信度透传，约束推理引擎（五类约束 + 加权评分 + 置信度门控），10 条高频规则已迁移（渐进） |
 | **基线自动机 + 参数化** | **v0.5.0** | BaselineLearner 偏离检测 + QEA 式 bind_vars + 实体守卫 + 时间原语 + 状态计数器 |
-| **NL2Spec + 干预闭环** | **v0.6.0** | Nl2SpecGenerator + SpecValidator 反例验证 + revise 干预 + SessionSafetyState 会话追踪 |
-| **PMKB 权限模型与跨 session RV** | **v0.7.0-dev** | PMKB 1.1.0（28 operations / 32 authored rules + 47 compatibility rules / 29 traces / 9 relations）、Authorization Trace、最小权限闭包/差分、RiskGraph、主体级状态持久化和 OpenClaw 单一审批契约 |
+| **NL2Spec + RV 收敛** | **v0.7.0-dev** | Nl2SpecGenerator + SpecValidator 反例验证；生产 RV 仅回放成功执行窗口，不含 revise 或累计会话评分 |
+| **PMKB 权限模型与跨 session RV** | **v0.7.0-dev** | PMKB 1.1.0（28 operations / 35 authored rules + 47 compatibility rules / 29 traces / 9 relations）、Authorization Trace、最小权限闭包/差分、RiskGraph、主体级状态持久化和 OpenClaw 单一审批契约 |
 
 ---
 

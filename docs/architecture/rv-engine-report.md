@@ -5,6 +5,9 @@
 > 关联文档：[RV 落地审计报告](./nl-automata-rv-landing-report.md)（落地核验）、[路线图](../ops/roadmap.md)（当前推进）；历史 NL→Automata 计划位于 `docs/archive/research/nl-automata-rv-upgrade-plan.md`
 
 > **当前实现更新（2026-09-02）**：本报告保留 RV 引擎的机制细节；其中早期的“DetectionEngine 双轨”测试描述是历史快照。PMKB、Authorization Trace、危险权限组合和主体跨 session 状态的现行交互以[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)为准。
+> **2026-09-03 补充：** ConstraintEngine、SessionSafetyState 与 revise 已不在生产路径；当前 RV
+> 仅在工具成功后提交 trace，并从 TTL 有效窗口重放自动机。现行控制面说明见
+> [三态控制面与 RV 提交边界](./three-state-rv-runtime-plan-2026-09-03.md)。
 
 ---
 
@@ -38,7 +41,6 @@ openclaw_guard/
     ├── rv_rules.json             # 默认规约（8 个 MonitorSpec，单一规则源）
     ├── rv_monitors.py            # 手写 FSM 监视器（legacy 回退，fsm 模式）
     ├── ir.py                     # ToolCallIR 结构化中间表示
-    ├── constraints.py            # 约束推理引擎（ConstraintEngine）
     ├── baseline_learner.py       # 基线 DFA 学习器（前缀树 + 状态合并）
     ├── baseline_monitor.py       # 基线偏离检测监视器
     └── trace_abstractor.py       # trace → φ 三元组抽象
@@ -46,7 +48,7 @@ openclaw_guard/
     ├── nl2spec_generator.py      # NL → Ruleset 生成器（模板引擎 + LLM 预留）
     ├── spec_validator.py         # SpecValidator 反例验证闭环
     ├── eval_traces.py            # 办公场景正/负例 trace 库
-    └── session_state.py          # SessionSafetyState 会话安全状态
+    └── session_state.py          # PrincipalSecurityState 主体授权证据状态
 ```
 
 ### 职责边界
@@ -54,7 +56,7 @@ openclaw_guard/
 | 子包 | 定位 | 触发时机 | 是否在线热路径 |
 |------|------|---------|:---:|
 | `rv/` | 跨步链式风险判定 | 每个事件步 `evaluate()` | ✅ 热路径 |
-| `spec/` | 规约的「生产者/校验器/状态」 | 离线生成、校验 + 会话追踪（已接入 pipeline） | ⚠️ 半离线（session_state 在线跟踪） |
+| `spec/` | 规约的「生产者/校验器/主体证据」 | 离线生成、校验；成功回调后更新主体证据 | ⚠️ 仅主体证据更新在线 |
 
 ---
 
@@ -64,7 +66,7 @@ openclaw_guard/
 
 `RuntimeVerificationEngine`（`rv/runtime_verification.py`）是 RV 层的中心，负责：
 
-1. **per-session 窗口隔离**：`evaluate(rv_trace, session_key=...)` 为每个 OpenClaw 会话维护独立的 `WindowManager` 与监视器实例。
+1. **per-session 窗口隔离**：`preview/evaluate(rv_trace, session_key=...)` 为每个 OpenClaw 会话维护独立的 `WindowManager`；preview 只回放，evaluate 才提交。
 2. **规则模式选择**：`rule_mode` 参数 → `OPENCLAW_RV_RULE_MODE` 环境变量 → 默认 `dsl`。
 3. **懒加载初始化**：监视器模板首次 `evaluate` 时才编译，避免拖慢启动。
 4. **判定融合**：取所有监视器中风险等级最高的 `verdict` 作为最终结果。
@@ -72,7 +74,7 @@ openclaw_guard/
 ### 2.2 判定融合（升权不降权）
 
 ```
-verdict 风险等级：ok(1) < ask(2) < escalate(3) < block(4)
+verdict 风险等级：ok(1) < ask(2) < escalate(3) < block(4)；公开控制面将 `escalate` 折叠为 `ask`。
 ```
 
 在 `engine/pipeline.py` 的 `_apply_rv_if_available()` 中，RV 判定与单步检测判定比较：
@@ -80,7 +82,9 @@ verdict 风险等级：ok(1) < ask(2) < escalate(3) < block(4)
 - `rv_level > det_level` 时，RV 覆盖原有决策（`block` 覆盖 `ask` 等）
 - RV 只「升权不降权」，不会把 `block` 降级为 `allow`
 
-两条流水线（聊天路径 `ingest_event_pipeline`、Hook 路径 `handle_before_tool_call_pipeline`）都在 `detector.evaluate()` 之后、`controller.decide()` 之前接入 RV。
+Hook 路径在 `controller.decide()` 前调用 `preview()`，只有 `after_tool_call` 成功回调才调用
+`evaluate()` 提交行为窗口；被拒绝、阻断或失败的调用不进入攻击链。聊天路径沿用同一
+三态合并规则。
 
 ### 2.3 窗口能力
 
@@ -236,18 +240,21 @@ Ruleset
 
 ---
 
-## 7. 会话安全状态（spec/session_state.py）
+## 7. 主体授权证据状态（spec/session_state.py）
 
-`SessionSafetyState` 实现干预升级与会话级风险追踪：
+`PrincipalSecurityState` 只保存可信主体在成功执行后的有限授权证据，不做会话累计分数或
+`revise` 重试干预：
 
 | 项 | 值 |
 |----|----|
-| 风险评分累计 | block=5 / escalate=3 / ask=1 |
-| 状态桶 | safe(0) / warning(3) / elevated(7) / critical(15) |
-| 自动升级 | 连续 3 次 ask → escalate；连续 3 次 escalate → block |
-| revise 干预 | 达修正阈值返回 `revise` 并透出 `revision_hint()`（已落地） |
+| 记录边界 | 仅 `after_tool_call` 成功后的可信 principal/agent/lineage |
+| 状态内容 | 有效 grant、敏感 lineage、撤销记录和 TTL |
+| 预判 | `evaluate()` 只读，不扩展授权；`record()` 成功后提交 |
+| 风险输出 | 只返回 `openclaw_approval` 或 `block`，不生成 revise |
 
-> 已接入 `pipeline.py` 主流程：`_apply_session_escalation()` 在 RV 判定后对每个会话维护 `SessionSafetyState`，累计风险、连续 ask→escalate→block 自动升级，并在达修正阈值时返回 `revise` 并透出 `revision_hint`；`event.metadata["session_state"]` 透出会话状态。
+> `GuardServices.apply_principal_rv()` 在执行前只读检查主体状态；`record_executed_principal_action()`
+> 在成功回调后写入状态并持久化到 `runtime/rv-state.json`。状态按
+> `(principal_id, agent_id, capability_lineage)` 隔离并受 TTL/数量上限约束。
 
 ---
 
@@ -273,11 +280,10 @@ Ruleset
 | `tests/test_rv_fsm.py` | legacy FSM 监视器 |
 | `tests/test_baseline_learner.py` | 基线 DFA 学习/偏离检测/规模缩减 |
 | `tests/test_ir.py` | ToolCallIR 模型与透传 |
-| `tests/test_constraints.py` | 约束引擎/置信度门控/LEGACY 回放一致性 |
 | `tests/test_nl2spec.py` | 模板匹配/来源标记/校验器/trace 库 |
-| `tests/test_intervention.py` | 会话状态/升级链/revision_hint |
 | `tests/test_pipeline.py` | RV overlay / per-session 隔离 / 完整链路 |
-| `tests/test_perf_smoke.py` | 性能冒烟基准：约束引擎 0.07ms/次、RV 引擎 0.08ms/次、会话状态 1000 次 0.75ms（本机实测） |
+| `tests/test_three_state_control.py` | 三态控制面、未知工具、preview/TTL 与 Hook 注册边界 |
+| `tests/test_perf_smoke.py` | RV 与流水线性能冒烟基准 |
 
 历史全量测试：**344 passed, 18 skipped, 0 failed**（2026-08-14）；当前回归基线见[项目理解与当前记忆](./project-memory.md)。
 
@@ -287,9 +293,9 @@ Ruleset
 
 1. **LLM 自动生成未落地**：`nl2spec_generator.py` 的 `use_llm=True` 仅预留接口，当前「自然语言 → 规约」只有模板关键词匹配。
 2. **基线自动机默认不启用**：`BaselineMonitor` 需显式配置 `OPENCLAW_RV_BASELINE_DFA_PATH` 加载 DFA，默认引擎不加载。
-3. **约束推理引擎已接入，lambda 规则并存**：`ConstraintEngine` 已接入 `pipeline.py`（`_apply_constraint_engine`，按 `OPENCLAW_RV_CONSTRAINT_MODE` 开关），与 `detection.py` 的 lambda 规则并存，尚未完全替换（渐进迁移）。10 条迁移规则在两处保留定义，已由 `tests/test_constraints.py::test_migrated_rules_align_with_detection` 一致性测试兜底，任一字段漂移即失败。
-4. **规约与 office policy 存在重叠**：`rv_rules.json` 的 MailMonitor/ReportMonitor 与 `detection.py` 的 `_office_decision()` 有规则重复（已集中为单一 JSON，但双源并存）。
-5. **窗口大小边界**：默认 10 步，攻击链起手事件可能被挤出窗口，需按场景调优。
+3. **权限规则与行为规约边界**：PMKB 负责单步权限语义，`rv_rules.json` 负责跨步行为约束；两者通过 synthetic step 传递证据，不共享可变 FSM 状态。
+4. **窗口大小边界**：默认 10 步，攻击链起手事件可能被挤出窗口；TTL 和窗口上限需要按场景调优。
+5. **真实 OpenClaw 证据仍需补齐**：回调延迟、Gateway 重启和网络断开场景已有本地回归，仍需真机观测数据验证。
 
 ---
 

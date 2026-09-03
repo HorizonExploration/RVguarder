@@ -141,7 +141,7 @@ class MatchCandidate(GuardBaseModel):
 
 class PolicyDecision(GuardBaseModel):
     effect: Literal[
-        "auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block",
+        "auto_allow_audit", "openclaw_approval", "block",
     ]
     match_status: Literal["matched", "partial", "unknown", "conflict"]
     match_confidence: float = 0.0
@@ -169,7 +169,7 @@ class PolicyRule(GuardBaseModel):
     id: str
     version: str
     effect: Literal[
-        "auto_allow_audit", "clarify_then_retry", "openclaw_approval", "block",
+        "auto_allow_audit", "openclaw_approval", "block",
     ]
     priority: int = 0
     match: dict[str, Any] = Field(default_factory=dict)
@@ -182,6 +182,9 @@ class PolicyRule(GuardBaseModel):
     positive_examples: list[dict[str, Any]] = Field(default_factory=list)
     negative_examples: list[dict[str, Any]] = Field(default_factory=list)
     legacy_rule_ids: list[str] = Field(default_factory=list)
+    # Rules with strict predicates must not elevate on a missing predicate;
+    # the evaluator still reports the missing feature for fail-closed review.
+    partial_behavior: Literal["candidate", "ignore"] = "candidate"
 
     def model_post_init(self, __context: Any) -> None:
         """Freeze nested rule data after Pydantic has validated the record."""

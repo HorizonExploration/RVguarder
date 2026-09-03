@@ -3,6 +3,9 @@
 > **状态：** 当前实现
 > **核对日期：** 2026-08-28
 > **适用版本：** PMKB `1.1.0`、RV 默认 DSL 模式
+> **2026-09-03 更新：** 本页的 `clarify_then_retry`、权限监视器持久状态与 ConstraintEngine
+> 迁移描述属于此前方案。当前生产 RV 仅重放成功执行的 TTL 有效窗口，PMKB 保持单步权限权威；
+> 以[三态控制面与 RV 提交边界](./three-state-rv-runtime-plan-2026-09-03.md)为准。
 
 本文档说明当前 RV 层实际运行的三类自动机、PMKB 如何编译为权限监视器，以及旧 FSM/规则层的迁移边界。它与[权限知识库与权限建模运行时架构结果](./permission-kb-runtime-architecture.md)互补：后者描述权限决策语义，本页描述这些语义怎样进入 RV 编译和在线监控。
 
@@ -49,7 +52,7 @@ flowchart LR
 决策顺序有两个不可变约束：
 
 1. PMKB 在 RV 前完成语义判断，未知/冲突/缺字段不能被权限自动机变成放行；
-2. 合并只允许风险提高：`allow < ask/revise < escalate < block`。自动机不能覆盖既有 `block`，也不能把 PMKB 审批结论降成 allow。
+2. 合并只允许风险提高：`allow < ask < block`。自动机不能覆盖既有 `block`，也不能把 PMKB 审批结论降成 allow；内部 `escalate` 在出口折叠为 `ask`。
 
 ## 3. PMKB 到自动机的编译合同
 
@@ -80,7 +83,7 @@ flowchart TD
 - 实际 `PolicyDecision.effect` 与规则 effect 相同；
 - `match_status` 为 `matched` 或 `partial`。
 
-effect 映射为 RV verdict：`auto_allow_audit → ok`、`clarify_then_retry/openclaw_approval → ask`、`block → block`。比较实际 effect 而非只比较候选规则至关重要：例如低风险内部消息的策略例外已经由评估器校准为 allow，权限监视器不能把它重新升级为审批。
+effect 映射为 RV verdict：`auto_allow_audit → ok`、`openclaw_approval → ask`、`block → block`。比较实际 effect 而非只比较候选规则至关重要：例如低风险内部消息的策略例外已经由评估器校准为 allow，权限监视器不能把它重新升级为审批。
 
 ### 3.2 组合关系监视器
 
@@ -149,8 +152,8 @@ flowchart TB
 | --- | --- | --- |
 | `rv_rules.json` | 仍是行为链 DSL 的唯一来源 | 只保留跨步行为约束，不承载权限集合语义 |
 | `rv_monitors.py` | `fsm` 模式回退 | DSL 覆盖与行为一致性验证完成后移除重复业务 FSM |
-| 47 条冻结 LEGACY 元数据 | 已生成同 ID 的 ConstraintRule 和 `LEGACY-<old-id>` PMKB 记录；生产 DetectionEngine 已删除 | 新规则优先建模为主体、资源、范围和权限谓词，LEGACY 仅保留回放证据 |
-| `ConstraintEngine` | 继续作可选风险升权 | 可表达的权限谓词迁入 PMKB + `StepRequirement.policy`，仅保留通用约束推理 |
+| 47 条冻结 LEGACY 元数据 | 已生成同 ID 的 `LEGACY-<old-id>` PMKB 记录；生产 DetectionEngine/ConstraintEngine 已删除 | 新规则优先建模为主体、资源、范围和权限谓词，LEGACY 仅保留回放证据 |
+| `ConstraintEngine` | 已从生产路径退役 | 仅在历史实验/回放材料中保留，不再作为在线依赖 |
 | `BaselineDFA` | 环境变量可选加载 | 保持异常信号，不能成为 allow 的依据 |
 | NL2Spec | 生成/校验行为 DSL 的工具 | 不可绕过 PMKB 自动写入生产权限规则 |
 

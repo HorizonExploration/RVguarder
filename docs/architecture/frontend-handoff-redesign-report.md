@@ -51,20 +51,18 @@ Guard 侧批准会先更新本地 action，然后在后台线程调用 Gateway �
 - OpenClaw 原生审批卡片的状态变化依赖 Gateway 处理，Guard 页面无法判断当前处于“已发送”还是“已生效”；
 - 两个页面同时具有审批权，可能产生重复或冲突决策。
 
-#### OpenClaw 页面批准后 Guard 页面变化慢
+#### OpenClaw 页面批准后 Guard 页面变化慢（历史问题与当前修复）
 
-OpenClaw 的 `onResolution` 回调会调用 `/api/hook/resolve-approval`，Guard 接口更新本地 action 后没有事件推送；Guard 前端主要依赖 Dashboard 每 1.5 秒轮询 `/api/summary`。
+旧实现主要依赖完整 `/api/summary` 轮询，且曾在发布 `action.resolved` SSE 事件前未完成动作落盘，导致前端立即回读时可能看到旧状态。当前前端以 SSE 为主、10 秒轻量摘要为降级对账；后端已改为**先持久化决策、再发布事件**，并在 `sync.approval` 输出回调计数和延迟指标。
 
-而 `/api/summary` 并不是轻量接口，它会同时加载动作、基线、Chat 状态、Hook 状态、Skills、Channels、审计链和 RV 状态。见 [services.py](../../openclaw_guard/services.py) 的 `summary()`。
-
-因此实际延迟由以下因素叠加：
+因此剩余延迟主要来自 OpenClaw Gateway 回调、网络断开或回调超时，而非 Guard 的事件发布竞态：
 
 ```text
 OpenClaw resolution
   → HTTP 回调
-  → Guard 写入动作/审计
-  → 等待下一次 summary 轮询
-  → 前端重新渲染
+  → Guard 持久化动作/审计
+  → 发布 action.resolved SSE
+  → 前端按 action_id 增量回读
 ```
 
 ## 三、目标职责划分
@@ -231,7 +229,8 @@ GET  /api/summary                 # 轻量摘要，不再承载完整状态
   "decision_state": "allowed",
   "sync_state": "callback_received",
   "event_seq": 7,
-  "received_at": "2026-08-23T12:00:00Z"
+  "received_at": "2026-08-23T12:00:00Z",
+  "latency_ms": 148.2
 }
 ```
 
@@ -342,6 +341,7 @@ GET /api/events?topics=actions,hook,rv
 - 新增 `GET /api/actions/{action_id}` 和 `GET /api/events`，FastAPI 与 legacy HTTP 均支持 SSE；
 - 前端以 SSE 为主、10 秒轻量摘要为降级对账，不再以 1.5 秒完整 summary 作为主要刷新机制；
 - summary 支持 `view=compact`，首页只请求概览数据，Skills 页按需加载完整 summary；
+- `sync.approval` 提供回调总数、accepted/idempotent/conflict/orphan/invalid/error 计数及最近 128 个延迟样本的 p95；
 - 统一前端错误信息读取 `detail`、`message`、`error` 和错误对象本身；
 - 新增审批同步回归测试，并更新 E2E 预期为“Hook 页面只读”。
 

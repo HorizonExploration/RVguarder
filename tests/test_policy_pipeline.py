@@ -69,9 +69,6 @@ def known_uncovered_operation_payload() -> dict[str, object]:
 
 def test_p0_internal_message_is_allowed_with_policy_evidence(services, monkeypatch):
     """A PMKB low-risk rule is the authoritative runtime decision."""
-    # The legacy-compatibility constraint is independently entitled to require
-    # approval, so disable it to isolate the PMKB decision contract.
-    monkeypatch.setattr(services, "constraint_engine_enabled", lambda: False)
     result = services.handle_before_tool_call(internal_message_payload())
 
     evidence = result["action_record"]["decision"]["policy_decision"]
@@ -81,11 +78,11 @@ def test_p0_internal_message_is_allowed_with_policy_evidence(services, monkeypat
     assert evidence["grant_source"] == "empty_default"
 
 
-def test_p0_auto_allow_does_not_downgrade_existing_ask(services):
-    """Removing monotonic overlay protection would silently bypass an approval."""
+def test_p0_auto_allow_is_not_overridden_by_retired_constraint_engine(services):
+    """PMKB is the sole single-step authority after constraint retirement."""
     result = services.handle_before_tool_call(internal_message_payload())
 
-    assert result["action"] == "require_approval"
+    assert result["action"] == "allow"
     assert result["action_record"]["decision"]["policy_decision"]["effect"] == "auto_allow_audit"
 
 
@@ -106,7 +103,8 @@ def test_unknown_tool_records_gap_and_does_not_create_silent_allow(services):
     evidence = result["action_record"]["decision"]["policy_decision"]
     assert evidence["match_status"] in {"partial", "unknown"}
     assert "tool_mapping" in evidence["missing_features"]
-    assert result["action"] != "allow" or evidence["effect"] == "auto_allow_audit"
+    assert result["action"] == "require_approval"
+    assert evidence["effect"] == "openclaw_approval"
 
 
 def test_known_operation_with_unknown_scope_never_becomes_silent_allow(services, monkeypatch):

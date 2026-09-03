@@ -7,8 +7,7 @@ from .catalog import PolicyBundle
 from .models import AuthorizationTrace, MatchCandidate, PolicyDecision, PolicyRule
 
 
-_EFFECT_RANK = {"auto_allow_audit": 0, "clarify_then_retry": 1,
-               "openclaw_approval": 2, "block": 3}
+_EFFECT_RANK = {"auto_allow_audit": 0, "openclaw_approval": 1, "block": 2}
 _CLASS_RANK = {"public": 0, "internal": 1, "sensitive": 2, "secret": 3}
 
 
@@ -111,7 +110,13 @@ class PolicyEvaluator:
         if trace.operation.arguments.get("action_type"):
             rules = [*rules, *self.bundle.legacy_rules()]
         candidates = [self.match_rule(rule, trace) for rule in rules]
-        applicable = [c for c in candidates if c.status in {"matched", "partial"}]
+        rule_by_id = {rule.id: rule for rule in rules}
+        applicable = [
+            c for c in candidates
+            if c.status == "matched"
+            or (c.status == "partial" and rule_by_id.get(c.rule_id, None)
+                and rule_by_id[c.rule_id].partial_behavior == "candidate")
+        ]
         missing = list(dict.fromkeys(trace.coverage.missing_features + [x for c in candidates for x in c.missing_features]))
         conflicts = list(trace.coverage.conflicts)
         if any(c.status == "conflict" for c in candidates):
@@ -143,9 +148,8 @@ class PolicyEvaluator:
             status = trace.coverage.status
             if effect == "auto_allow_audit":
                 effect = "openclaw_approval"
-        if (status == "partial" and not high_impact and len(missing) <= 2
-                and _EFFECT_RANK[effect] < _EFFECT_RANK["clarify_then_retry"]):
-            effect = "clarify_then_retry"
+        if status == "partial" and not high_impact and len(missing) <= 2:
+            effect = "block"
         return PolicyDecision(effect=effect, match_status=status,
                               match_confidence=max((c.score for c in applicable), default=0.0),
                               risk_score=self._risk_score(trace), selected_rule_ids=selected,

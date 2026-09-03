@@ -1,5 +1,10 @@
 # OpenClaw-RVGuarder 项目现状分析报告
 
+> **2026-09-03 实现更新：** 本文下方保留的阶段 A–F 为历史快照。生产运行时已收敛为
+> `allow / ask / block`，移除了 ConstraintEngine、SessionSafetyState、`revise` 与
+> `before_prompt_build` 预检查；RV 仅对成功执行的工具调用提交状态。当前架构说明见
+> [三态控制面与 RV 提交边界](./three-state-rv-runtime-plan-2026-09-03.md)。
+
 > **版本**：v0.7.0-dev（含 PMKB 1.1.0、RV 阶段 A–F 和 OpenClaw 单一审批契约）
 > **分析日期**：2026-08-30（OpenClaw 交接与误拦截修复后复核）
 > **分析基准**：当前工作树；精确提交号以 Git 为准
@@ -12,9 +17,9 @@
 
 OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运行时安全保护系统。当前项目已跨过 v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆分懒加载、Preact 前端迁移），并在此基础上完成 RV 层拆分（`engine/` → `rv/` + `spec/`）与规约驱动能力（阶段 A–F）的落地。
 
-项目整体处于**核心链路可用、治理能力持续完善**阶段。本快照中的双轨 HTTP、生产 DetectionEngine 和旧规则双源问题已经在 2026-09-02 工程统一中解决；仍有效的问题主要是前端测试门禁、真实 OpenClaw 同步证据、约束规则原生化、生产存储集成和采集器能力边界。当前事实与维护口径见 [项目理解与当前记忆](./project-memory.md)。
+项目整体处于**核心链路可用、治理能力持续完善**阶段。本快照中的双轨 HTTP、生产 DetectionEngine、ConstraintEngine 和旧规则双源问题已经收敛；仍有效的问题主要是前端测试门禁、真实 OpenClaw 同步证据、生产存储集成和采集器能力边界。当前事实与维护口径见 [项目理解与当前记忆](./project-memory.md)。
 
-本次升级的可核对结果集中在[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)：PMKB `1.1.0` 已进入 `before_tool_call` 热路径，当前基线为 28 个 canonical operations、32 条 authored 规则、47 条 `LEGACY-<old-id>` 兼容规则（bundle 共 79 条规则）、29 条最小权限 Trace、9 条权限关系和 29 个回归向量；生产 DetectionEngine 已退役，LEGACY 仅用于兼容回放。
+本次升级的可核对结果集中在[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)：PMKB `1.1.0` 已进入 `before_tool_call` 热路径，当前基线为 47 个 canonical operations、35 条 authored 规则、47 条 `LEGACY-<old-id>` 兼容规则（bundle 共 82 条规则）、29 条最小权限 Trace、9 条权限关系和 29 个回归向量；生产 DetectionEngine 已退役，LEGACY 仅用于兼容回放。
 
 > **阅读说明：** 第 4–6 节保留 2026-08-30 的问题快照，便于追踪改造前后差异。快照中的 B-1（双轨 HTTP）、C-1（规则双源）和 C-5（重复低风险命令逻辑）已解决；其余仍有效的风险以本节开头列出的工程统一报告为准。
 
@@ -36,8 +41,8 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 | 子包 | 职责 | 状态 |
 |---|---|---|
 | `engine/` | 单步检测、语义增强、控制决策、白名单、流水线编排 | 活跃 |
-| `rv/` | RV 运行时验证（FSM、约束推理、IR、基线自动机） | 本次拆分后新增 |
-| `spec/` | 规约生成/校验/会话状态（NL2Spec、SpecValidator、SessionSafetyState） | 本次拆分后新增 |
+| `rv/` | RV 运行时验证（FSM、IR、基线自动机、PMKB 权限投影） | 活跃 |
+| `spec/` | 规约生成/校验与主体证据状态（NL2Spec、SpecValidator、PrincipalSecurityState） | 活跃 |
 | `web/` | FastAPI HTTP 层（7 个路由模块） | 唯一生产入口 |
 | `legacy_web.py` | stdlib HTTP 兼容层 | 冻结历史文件，不参与启动 |
 | `api/` | HTTP handler 桥接层（被 web/ 与 legacy_web 共用） | 保留 |
@@ -179,7 +184,7 @@ OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运�
 
 ## 七、结论
 
-项目已完成 v0.3.0 的架构现代化改造，并成功落地 RV 层拆分、规约驱动能力（阶段 A–F）与 PMKB 1.1.0 基础规则，具备可运行的检测、审批、审计、基线扫描和跨 session 风险链路。当前主要风险集中在**规则治理的单一数据源收敛**、**前端资源体积与测试缺口**、**双轨 HTTP 的维护成本**三大方向。
+项目已完成 v0.3.0 的架构现代化改造，并成功落地 RV 层拆分、规约驱动能力（阶段 A–F）与 PMKB 1.1.0 基础规则，具备可运行的检测、审批、审计、基线扫描和跨 session 风险链路。当前主要风险集中在**前端资源体积与测试缺口**、**真实 OpenClaw 交接证据**、**生产存储集成**和**采集器能力边界**；三态控制面与 RV 提交边界见专项计划。
 
 建议按 P0 → P1 → P2 → P3 顺序推进，优先消除规则双源与死代码，再补前端工程化与双轨收敛，最后完善采集器与 LLM 能力，使项目从「架构转型后期」稳步进入「能力完善期」。
 

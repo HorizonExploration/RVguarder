@@ -15,6 +15,10 @@ def legacy_rules() -> list[DetectionRule]:
     rules: list[DetectionRule] = []
 
     def add(rule_id: str, title: str, description: str, action_types: list[str], severity: str, risk: str, decision: str, *, match_labels: list[str] | None = None) -> None:
+        # Historical "escalate" means a single OpenClaw approval in the
+        # three-state control plane; it must never recreate a fourth action.
+        if decision == "escalate":
+            decision = "ask"
         rules.append(DetectionRule(rule_id=rule_id, title=title, description=description,
                                    action_types=action_types, severity=severity,
                                    risk_level=risk, decision=decision,

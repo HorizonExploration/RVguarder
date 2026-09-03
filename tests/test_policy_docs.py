@@ -21,7 +21,6 @@ def test_docs_name_p0_rules_and_effect_routes():
         "EX-19",
         "EX-27",
         "auto_allow_audit",
-        "clarify_then_retry",
         "openclaw_approval",
         "policy_version",
     ):

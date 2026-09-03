@@ -6,7 +6,7 @@ Openclaw Guard 采用分层、非侵入、模块化设计，核心原则是：**
 
 ```text
 1. 接入边界
-   OpenClaw api.on(before_prompt_build / before_tool_call / after_tool_call)
+   OpenClaw api.on(before_tool_call / after_tool_call)
    → Hook Bridge / BehaviorEvent
 2. 语义理解与 Trace
    SemanticEnhancer
@@ -19,8 +19,8 @@ Openclaw Guard 采用分层、非侵入、模块化设计，核心原则是：**
    ChainRule DSL（默认）/ FSM 回退
    → session-local window + principal-global capability state
 5. 决策与审批
-   PMKB / Constraint / RV 结果合并（只升权不降权）
-   → allow / revise / requireApproval / block
+   PMKB / RV 结果合并（只升权不降权）
+   → allow / requireApproval / block
 6. 同步与取证
    OpenClaw 原生审批结果 → onResolution → SSE/增量对账 → SQLite/JSONL 审计
 ```

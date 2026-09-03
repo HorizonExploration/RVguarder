@@ -40,18 +40,15 @@ export function TraceTimeline() {
               const em = (item.event || {}).metadata || {};
               const sem = em.semantic || {};
               const rv = em.rv_result || {};
-              const constraint = em.constraint_result || null;
               const timings = em.pipeline_timings_ms || {};
               const sc = sem.scenario || item.event?.action_type || 'unknown';
               const labels = sem.labels || [];
               const rsn = dec.reason || item.target_summary || '';
-              const decAction = dec.action || 'allow';
 
               const isRunning = st === 'executing';
               const isBad = st === 'blocked' || st === 'rejected' || st === 'failed' || st === 'denied';
-              // 高危待审（escalate/revise）用 warn 节点；普通 ask 用 pending 节点
-              const isWarning = st === 'pending_approval' && (decAction === 'escalate' || decAction === 'revise');
-              const isPending = st === 'pending_approval' && !isWarning;
+              const isWarning = false;
+              const isPending = st === 'pending_approval';
               const isDone = !isRunning && !isPending && !isBad && !isWarning;
 
               let cls = 'tl-step-wrap';
@@ -84,9 +81,6 @@ export function TraceTimeline() {
                         {timings.policy_ms !== undefined && (
                           <span class="tl-chip">PMKB {esc(timings.policy_ms)}ms</span>
                         )}
-                        {timings.constraint_ms !== undefined && (
-                          <span class="tl-chip">约束 {esc(timings.constraint_ms)}ms</span>
-                        )}
                         {timings.rv_ms !== undefined && (
                           <span class="tl-chip">RV {esc(timings.rv_ms)}ms</span>
                         )}
@@ -115,18 +109,6 @@ export function TraceTimeline() {
                           {rv.reason && (
                             <div><strong>判定依据:</strong> {esc(rv.reason)}</div>
                           )}
-                        </div>
-                      </div>
-                    )}
-                    {constraint && (
-                      <div class="tl-rv">
-                        <div class="tl-rv-head">
-                          <span class={'badge ' + (constraint.decision === 'ok' ? 'ok' : constraint.decision === 'ask' ? 'warn' : constraint.decision === 'escalate' ? 'warn' : 'danger')}>
-                            约束引擎: {esc(constraint.title)}
-                          </span>
-                        </div>
-                        <div class="tl-rv-body">
-                          <div><strong>规则:</strong> {esc(constraint.rule_id)} · 决策 {esc(constraint.decision)} · score {esc(constraint.score)}{constraint.matched ? '' : '（未覆盖）'}</div>
                         </div>
                       </div>
                     )}

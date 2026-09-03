@@ -47,28 +47,6 @@ export function ActionCard({ item }) {
     }
   };
 
-  const handleAdopt = async () => {
-    setActionLoading(item.action_id, true);
-    try {
-      await rejectAction(item.action_id);
-      optimisticUpdate(item.action_id, 'rejected');
-      if (revisionHint && typeof navigator !== 'undefined' && navigator.clipboard) {
-        try { await navigator.clipboard.writeText(revisionHint); } catch (_) { /* 剪贴板不可用则忽略 */ }
-      }
-      showToast('✅ 已采用修正建议，建议已复制到剪贴板');
-      const s = await fetchSummary();
-      setSummary(s);
-    } catch (error) {
-      setActionLoading(item.action_id, false);
-      showToast(apiErrorMessage(error, t('error_default')));
-      const s = await fetchSummary();
-      setSummary(s);
-    }
-  };
-
-  const revisionHint = d.revision_hint;
-  const sessionState = item.event?.metadata?.session_state;
-  const constraint = item.event?.metadata?.constraint_result;
   const rvResult = item.event?.metadata?.rv_result;
 
   return (
@@ -76,31 +54,15 @@ export function ActionCard({ item }) {
       <div class="approval-head">
         <span class="risk-chip">{esc(d.risk_level || 'safe')}</span>
         <span class="status-chip">{t('status_' + (item.status || 'unknown'))}</span>
-        {d.action === 'revise' && <span class="status-chip revise">{t('revisionHint')}</span>}
       </div>
       <h4>{esc(d.user_title || item.target_summary || item.source_message || '')}</h4>
       <p>{esc(userMessage)}</p>
       {item.source === 'hook_bridge' && (
         <div class="sync-hint">请在 OpenClaw 审批中心处理 · 同步状态：{esc(item.sync_state || 'local_only')}</div>
       )}
-      {revisionHint && (
-        <div class="revision-hint">
-          <strong>{t('revisionHint')}：</strong>{esc(revisionHint)}
-        </div>
-      )}
       {rvMode && rvResult?.verdict && (
         <div class={'rv-badge ' + esc(rvResult.verdict)}>
           RV: {esc(rvResult.verdict.toUpperCase())}
-        </div>
-      )}
-      {constraint && (
-        <div class="constraint-badge">
-          约束引擎: {esc(constraint.title)} · score {esc(constraint.score)}{constraint.matched ? '' : '（未覆盖）'}
-        </div>
-      )}
-      {sessionState && (
-        <div class="session-state">
-          {t('sessionState')}：{esc(sessionState.state || 'safe')}（{t('score')} {esc(sessionState.total_score ?? 0)}）
         </div>
       )}
       {ip && canApprove && (
@@ -113,16 +75,6 @@ export function ActionCard({ item }) {
           >
             {il ? t('approving') : t('approve')}
           </button>
-          {revisionHint && (
-            <button
-              class="btn adopt-action"
-              data-id={esc(item.action_id)}
-              disabled={il}
-              onClick={handleAdopt}
-            >
-              {il ? t('rejecting') : t('adoptSuggestion')}
-            </button>
-          )}
           <button
             class="btn danger reject-action"
             data-id={esc(item.action_id)}

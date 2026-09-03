@@ -1,12 +1,4 @@
-"""
-session_state.py —— 阶段 F：会话安全状态与干预升级。
-
-管理每个会话的安全态势：
-- 累计风险评分（加权求和的告警严重度）
-- 状态桶（safe / warning / elevated / critical）
-- escalate → block 自动升级阈值
-- revision_hint 生成（revise 裁决时的修正建议）
-"""
+"""跨会话主体的授权证据状态。"""
 
 from __future__ import annotations
 
@@ -16,150 +8,6 @@ from typing import Any
 from openclaw_guard.policy.catalog import PolicyBundle, default_policy_root
 from openclaw_guard.policy.models import AuthorizationTrace, PermissionRef, PolicyDecision
 from openclaw_guard.policy.risk_graph import RiskGraph
-
-
-class SessionSafetyState:
-    """Per-session 安全状态追踪器。
-
-    在阻断点之间累积安全告警，根据累计风险评分升级响应等级。
-    """
-
-    _RISK_THRESHOLDS: dict[str, int] = {
-        "safe": 0,
-        "warning": 3,
-        "elevated": 7,
-        "critical": 15,
-    }
-    _SEVERITY_TO_SCORE: dict[str, int] = {
-        "block": 5,
-        "escalate": 3,
-        "ask": 1,
-        "ok": 0,
-    }
-    _THRESHOLDS_ORDER = ["safe", "warning", "elevated", "critical"]
-    _DECAY_SECONDS = 300.0
-
-    def __init__(self, session_key: str = "_default") -> None:
-        self.session_key = session_key
-        self.total_score: int = 0
-        self._state: str = "safe"
-        self._escalation_history: list[dict[str, Any]] = []
-        self._escalate_to_block_count: int = 0
-        self._ask_to_escalate_count: int = 0
-        self._last_activity_at: float = _time.monotonic()
-
-    @property
-    def current_state(self) -> str:
-        return self._state
-
-    def record(
-        self,
-        verdict: str,
-        reason: str | None = None,
-        *,
-        risk_class: str = "high",
-    ) -> str | None:
-        """记录一次判定，返回升级后的裁决（如有）。
-
-        Args:
-            verdict: 原始裁决（block / escalate / ask / ok）
-            reason: 触发原因
-
-        Returns:
-            None 表示不升级；否则返回升级后的裁决字符串
-        """
-        now = _time.monotonic()
-        self._decay(now)
-        # Routine/low-risk approvals are useful telemetry but are not evidence
-        # of an attack chain.  The default remains high for compatibility with
-        # callers that do not yet provide a classification.
-        counted = str(risk_class).lower() not in {"low", "routine", "safe"}
-        score = self._SEVERITY_TO_SCORE.get(verdict, 0) if counted else 0
-        self._last_activity_at = now
-        self.total_score += score
-        self._escalation_history.append({
-            "verdict": verdict,
-            "score": score,
-            "reason": reason or "",
-            "total_after": self.total_score,
-        })
-
-        # 状态桶变更
-        new_state = self._compute_state()
-        self._state = new_state
-
-        # 连续 ask → escalate（spec F2）
-        if verdict == "ask" and counted:
-            self._ask_to_escalate_count += 1
-            if self._ask_to_escalate_count >= 3:
-                self._ask_to_escalate_count = 0
-                return "escalate"
-        elif verdict != "ask":
-            self._ask_to_escalate_count = max(0, self._ask_to_escalate_count - 1)
-
-        # 连续 escalate → 升级为 block
-        if verdict == "escalate" and counted:
-            self._escalate_to_block_count += 1
-            if self._escalate_to_block_count >= 3:
-                self._escalate_to_block_count = 0
-                return "block"
-        elif verdict == "block" and counted:
-            self._escalate_to_block_count = 0
-        elif verdict != "escalate":
-            self._escalate_to_block_count = max(0, self._escalate_to_block_count - 1)
-
-        # escalate + 累计 elevated → 升级为 block
-        if verdict == "escalate" and self._state in ("elevated", "critical"):
-            return "block"
-
-        return None
-
-    def _decay(self, now: float) -> None:
-        elapsed = max(0.0, now - self._last_activity_at)
-        if elapsed < self._DECAY_SECONDS or self.total_score <= 0:
-            return
-        periods = int(elapsed // self._DECAY_SECONDS)
-        self.total_score = max(0, self.total_score - periods * 3)
-        self._state = self._compute_state()
-
-    def revision_hint(self) -> str | None:
-        """生成 revise 裁决时的修正建议。
-
-        Returns:
-            修正建议字符串（如 "block: cumulative risk elevated"），或无建议返回 None
-        """
-        if self._state == "critical":
-            return "block: cumulative risk critical — consider session termination"
-        if self._escalate_to_block_count >= 2:
-            return "block: repeated escalation — consider upgrading to block"
-        if self.total_score >= 10:
-            return "block: escalating risk score"
-        return None
-
-    def _compute_state(self) -> str:
-        for level in reversed(self._THRESHOLDS_ORDER):
-            if self.total_score >= self._RISK_THRESHOLDS[level]:
-                return level
-        return "safe"
-
-    def reset(self) -> None:
-        self.total_score = 0
-        self._state = "safe"
-        self._escalation_history.clear()
-        self._escalate_to_block_count = 0
-        self._ask_to_escalate_count = 0
-        self._last_activity_at = _time.monotonic()
-
-    def status(self) -> dict[str, Any]:
-        self._decay(_time.monotonic())
-        return {
-            "session_key": self.session_key,
-            "state": self._state,
-            "total_score": self.total_score,
-            "escalate_to_block_count": self._escalate_to_block_count,
-            "ask_to_escalate_count": self._ask_to_escalate_count,
-            "history_length": len(self._escalation_history),
-        }
 
 
 class PrincipalSecurityState:
@@ -207,16 +55,41 @@ class PrincipalSecurityState:
         approval.  Allowed operations become effective grants only after the
         risk check, so a request awaiting approval does not expand authority.
         """
-        self._expire_old()
+        effect = self.evaluate(trace, decision)
+        if effect is not None:
+            return effect
         self._last_seen_at = _time.monotonic()
+        self.sequence = max(self.sequence + 1, trace.sequence)
+        if trace.operation.family in {"capability.revoke", "capability.expire"}:
+            self.revoke(*trace.capability_lineage)
+            return None
+        requested = PermissionRef(
+            family=trace.operation.family,
+            resource_type=trace.resource.type,
+            resource_ids=tuple(trace.resource.ids),
+            scope=trace.resource.scope,
+            classification=trace.data.classification,
+            purpose=trace.context.purpose,
+        )
+        if decision.effect == "auto_allow_audit":
+            self.effective_grants.add(requested)
+            self._grant_observed_at[requested] = _time.time()
+            self._record_sensitive_lineage(trace)
+        return None
+
+    def evaluate(self, trace: AuthorizationTrace, decision: PolicyDecision) -> str | None:
+        """Evaluate a requested operation against committed principal evidence.
+
+        This method never expands grants or lineage, so it is safe on the
+        before-tool-call path.  ``record`` is reserved for successful tools.
+        """
+        self._expire_old()
         if not isinstance(trace, AuthorizationTrace) or not isinstance(decision, PolicyDecision):
             raise TypeError("PrincipalSecurityState accepts normalized policy evidence only")
         if not self._matches_identity(trace):
             return self._inconclusive_effect(decision)
 
-        self.sequence = max(self.sequence + 1, trace.sequence)
         if trace.operation.family in {"capability.revoke", "capability.expire"}:
-            self.revoke(*trace.capability_lineage)
             return "block" if decision.effect == "block" else None
         if self.revocations.intersection(trace.capability_lineage):
             return self._inconclusive_effect(decision)
@@ -238,10 +111,6 @@ class PrincipalSecurityState:
             return "block" if any(item.effect == "block" for item in violations) else "openclaw_approval"
         if decision.effect == "block":
             return "block"
-        if decision.effect == "auto_allow_audit":
-            self.effective_grants.add(requested)
-            self._grant_observed_at[requested] = _time.time()
-            self._record_sensitive_lineage(trace)
         return None
 
     def revoke(self, *grant_ids: str) -> None:

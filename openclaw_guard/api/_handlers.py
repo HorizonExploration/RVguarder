@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 from http import HTTPStatus
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -107,16 +108,20 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
     action_id = str(payload.get("actionId") or payload.get("action_id") or "")
     decision = str(payload.get("decision") or "")
     if not action_id or not decision:
+        manager.record_approval_sync("invalid")
         return _error("Missing actionId or decision", HTTPStatus.BAD_REQUEST)
     try:
         action = manager.action_service.get_action(action_id)
         if action is None:
+            manager.record_approval_sync("orphans")
             manager.events.publish("hook.orphan_resolution", {"action_id": action_id, "decision": decision})
             return _error("action_not_found", HTTPStatus.NOT_FOUND)
         if action.get("source") != "hook_bridge" and not action.get("event", {}).get("metadata", {}).get("hook_bridge"):
+            manager.record_approval_sync("invalid")
             return _error("hook_action_required", HTTPStatus.CONFLICT)
         normalized_decision = decision.replace("_", "-").strip().lower()
         if normalized_decision not in {"allow-once", "deny", "timeout", "cancelled"}:
+            manager.record_approval_sync("invalid", _approval_latency_ms(action))
             return _error("unsupported_resolution", HTTPStatus.BAD_REQUEST)
         allowed = normalized_decision == "allow-once"
         desired_state = "allowed" if allowed else "denied"
@@ -127,6 +132,8 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
                 action.get("status") in terminal_statuses
                 and existing.get("decision_state") == desired_state
             ):
+                latency_ms = _approval_latency_ms(action)
+                manager.record_approval_sync("idempotent", latency_ms)
                 return {
                     "ok": True,
                     "accepted": True,
@@ -136,8 +143,10 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
                     "sync_state": action.get("sync_state", "callback_received"),
                     "event_seq": action.get("last_event_seq"),
                     "received_at": existing.get("received_at"),
+                    "latency_ms": latency_ms,
                 }, HTTPStatus.OK
             if action.get("status") not in terminal_statuses:
+                manager.record_approval_sync("conflicts", _approval_latency_ms(action))
                 manager.audit_store.append("hook_resolution_conflict", {
                     "action_id": action_id,
                     "existing": existing,
@@ -149,6 +158,7 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
             action_model = manager._find_action(action_id)
             action_model.sync_state = "conflict"
             manager._save_all(manager._replace_action(action_model))
+            manager.record_approval_sync("conflicts", _approval_latency_ms(action))
             manager.audit_store.append("hook_resolution_conflict", {
                 "action_id": action_id,
                 "existing": existing,
@@ -158,6 +168,7 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
             return _error("resolution_conflict", HTTPStatus.CONFLICT)
 
         if action.get("status") != "pending_approval":
+            manager.record_approval_sync("conflicts", _approval_latency_ms(action))
             manager.audit_store.append("hook_resolution_conflict", {
                 "action_id": action_id,
                 "incoming_decision": decision,
@@ -170,18 +181,6 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
         if action.get("status") == "pending_approval":
             if allowed:
                 manager.action_service.approve(action_id, None)
-                action_model = manager._find_action(action_id)
-                principal_effect = manager.record_approved_principal_action(action_model)
-                if principal_effect == "block":
-                    action_model.status = "blocked"
-                    action_model.decision_state = "denied"
-                    action_model.sync_state = "conflict"
-                    manager._save_all(manager._replace_action(action_model))
-                    manager.audit_store.append("principal_rv_block_after_approval", {
-                        "action_id": action_id,
-                        "decision": normalized_decision,
-                    })
-                    return _error("principal_rv_block", HTTPStatus.CONFLICT)
             else:
                 manager.action_service.reject(action_id)
         action_model = manager._find_action(action_id)
@@ -194,7 +193,12 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
             "source": "openclaw",
             "received_at": received_at,
             "decision_state": desired_state,
+            "latency_ms": _approval_latency_ms(action),
         }
+        # Persist the terminal decision before notifying SSE subscribers.  A
+        # frontend fetch triggered by action.resolved must never observe the
+        # pre-callback state from the JSON backing store.
+        manager._save_all(manager._replace_action(action_model))
         event = manager.events.publish("action.resolved", {
             "action_id": action_id,
             "decision": decision,
@@ -202,6 +206,8 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
         })
         action_model.last_event_seq = event["seq"]
         manager._save_all(manager._replace_action(action_model))
+        latency_ms = action_model.resolution["latency_ms"]
+        manager.record_approval_sync("accepted", latency_ms)
         return {
             "ok": True,
             "accepted": True,
@@ -210,11 +216,28 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
             "sync_state": "callback_received",
             "event_seq": event["seq"],
             "received_at": received_at,
+            "latency_ms": latency_ms,
         }, HTTPStatus.OK
     except (KeyError, ValueError) as e:
+        manager.record_approval_sync("invalid")
         return _error(str(e), HTTPStatus.BAD_REQUEST)
     except Exception as e:
+        manager.record_approval_sync("errors")
         return _error(str(e), HTTPStatus.INTERNAL_SERVER_ERROR)
+
+
+def _approval_latency_ms(action: dict[str, Any]) -> float | None:
+    """Calculate callback delay from action creation without retaining payloads."""
+    created_at = action.get("created_at")
+    if not created_at:
+        return None
+    try:
+        created = datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        return round(max(0.0, (datetime.now(timezone.utc) - created).total_seconds() * 1000), 3)
+    except (TypeError, ValueError):
+        return None
 
 
 def refresh_runtime(manager: GuardServices) -> JsonResponse:

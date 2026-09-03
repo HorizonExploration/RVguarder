@@ -73,10 +73,17 @@ class WindowManager:
 
     # ── 写入 ──
 
-    def push(self, step: dict[str, Any]) -> None:
-        """追加一个事件步到窗口尾部。自动处理时间过期。"""
-        step["_ts"] = utc_now_iso()
-        step["_ts_epoch"] = _time.time()
+    def push(self, step: dict[str, Any], *, preserve_timestamp: bool = False) -> None:
+        """追加一个事件步到窗口尾部。自动处理时间过期。
+
+        ``preserve_timestamp`` 仅用于从持久化窗口重放历史步骤；实时输入仍
+        使用当前时间戳，避免调用方伪造窗口年龄。
+        """
+        if not preserve_timestamp or "_ts_epoch" not in step:
+            step["_ts"] = utc_now_iso()
+            step["_ts_epoch"] = _time.time()
+        elif "_ts" not in step:
+            step["_ts"] = utc_now_iso()
         self._buffer.append(step)
         if self._ttl_seconds is not None:
             self._expire_old()
@@ -308,6 +315,9 @@ class RuntimeVerificationEngine:
         self._session_monitors: dict[str, list] = {}
         self._session_permission_monitors: dict[str, list] = {}
         self._principal_monitors: dict[tuple[str, str, tuple[str, ...]], list] = {}
+        # Identity metrics are retained for observability; monitor instances
+        # themselves are rebuilt per evaluation and never kept as FSM state.
+        self._principal_monitor_keys: set[tuple[str, str, tuple[str, ...]]] = set()
         self._principal_states: dict[tuple[str, str, tuple[str, ...]], Any] = {}
         self._principal_state_limit = max(1, principal_state_limit)
         self._fsm_monitors_template: list | None = None
@@ -360,6 +370,7 @@ class RuntimeVerificationEngine:
         self._spec_monitors_template = None
         self._permission_monitors_template = None
         self._principal_monitors.clear()
+        self._principal_monitor_keys.clear()
         self._session_permission_monitors.clear()
 
     def reset_rules(self) -> None:
@@ -388,6 +399,7 @@ class RuntimeVerificationEngine:
         self._session_monitors.clear()
         self._session_permission_monitors.clear()
         self._principal_monitors.clear()
+        self._principal_monitor_keys.clear()
 
     def _lazy_init_permission_monitors(self) -> None:
         if self._permission_monitors_template is not None:
@@ -482,6 +494,107 @@ class RuntimeVerificationEngine:
 
     # ── 核心方法 ──
 
+    def preview(
+        self,
+        rv_trace: list[dict[str, Any]],
+        session_key: str = "_default",
+        *,
+        authorization_trace: Any | None = None,
+        policy_decision: Any | None = None,
+    ) -> dict[str, Any]:
+        """Evaluate a candidate trace without changing the session state.
+
+        A tool can be denied or wait for an OpenClaw approval after the
+        ``before_tool_call`` hook.  Recording it at that point would turn an
+        unexecuted proposal into part of a future attack chain.  Preview uses
+        a fresh set of automata replayed from the committed window instead.
+
+        PMKB remains the single-step authorization authority; its generated
+        monitors are therefore deliberately not run in this preview path.
+        """
+        permission_step = self._permission_step(authorization_trace, policy_decision)
+        existing_window = (
+            self.window if session_key == "_default" else self._session_windows.get(session_key)
+        )
+        history = existing_window.snapshot() if existing_window is not None else []
+        replay_window = WindowManager(max_size=self._window_size, ttl_seconds=self._window_ttl)
+        replay_steps = [dict(step) for step in [*history, *rv_trace]]
+        for index, step in enumerate(replay_steps):
+            replay_window.push(step, preserve_timestamp=index < len(history))
+
+        severity_map: dict[str, int] = {
+            "block": 4, "escalate": 3, "ask": 2, "ok": 1,
+        }
+        final = "ok"
+        triggered_by: str | None = None
+        reason: str | None = None
+        monitor_timings: dict[str, float] = {}
+        monitors = self._create_monitors()
+        for monitor in monitors:
+            started = _time.perf_counter()
+            for step in replay_steps:
+                try:
+                    result = monitor.feed(step, replay_window)
+                except Exception:
+                    result = None
+                if result and severity_map.get(result, 0) > severity_map.get(final, 0):
+                    final = result
+                    triggered_by = monitor.__class__.__name__
+                    reason = f"{monitor.__class__.__name__}: {result}"
+            monitor_timings[monitor.__class__.__name__] = round(
+                (_time.perf_counter() - started) * 1000.0, 4
+            )
+
+        permission_monitors = self._create_permission_monitors("session") if permission_step else []
+        for monitor in permission_monitors:
+            started = _time.perf_counter()
+            try:
+                result = monitor.feed(permission_step, replay_window)
+            except Exception:
+                result = None
+            if result and severity_map.get(result, 0) > severity_map.get(final, 0):
+                final = result
+                triggered_by = monitor.__class__.__name__
+                reason = f"{monitor.__class__.__name__}: {result}"
+            monitor_timings[monitor.__class__.__name__] = round(
+                (_time.perf_counter() - started) * 1000.0, 4
+            )
+
+        principal_monitors = (
+            self._create_permission_monitors("principal")
+            if permission_step and self._verified_principal(authorization_trace)
+            else []
+        )
+        for monitor in principal_monitors:
+            started = _time.perf_counter()
+            try:
+                result = monitor.feed(permission_step, replay_window)
+            except Exception:
+                result = None
+            if result and severity_map.get(result, 0) > severity_map.get(final, 0):
+                final = result
+                triggered_by = monitor.__class__.__name__
+                reason = f"{monitor.__class__.__name__}: {result}"
+            monitor_timings[monitor.__class__.__name__] = round(
+                (_time.perf_counter() - started) * 1000.0, 4
+            )
+
+        return {
+            "verdict": final,
+            "triggered_by": triggered_by,
+            "reason": reason,
+            "window_size": len(replay_window),
+            "session_key": session_key,
+            "rule_mode": self._rule_mode,
+            "monitor_timings_ms": monitor_timings,
+            "baseline_result": None,
+            "monitor_sources": {
+                "behavior": len(monitors),
+                "permission": len(permission_monitors),
+                "principal_permission": len(principal_monitors),
+            },
+        }
+
     def evaluate(
         self,
         rv_trace: list[dict[str, Any]],
@@ -513,13 +626,14 @@ class RuntimeVerificationEngine:
         """
         permission_step = self._permission_step(authorization_trace, policy_decision)
 
-        # 获取 per-session 资源
+        # Commit first, then reconstruct behavior monitors from the effective
+        # window.  Reusing a prior FSM instance would retain a terminal state
+        # after its triggering steps have expired from the window.
         window = self._get_session_window(session_key)
-        monitors = self._get_session_monitors(session_key)
-
-        # 1) 将新步推入窗口
         for step in rv_trace:
-            window.push(step)
+            window.push(dict(step))
+        committed_steps = [dict(step) for step in window.snapshot()]
+        monitors = self._create_monitors()
 
         # 2) 遍历监视器收集判定
         severity_map: dict[str, int] = {
@@ -532,7 +646,7 @@ class RuntimeVerificationEngine:
 
         for monitor in monitors:
             m_start = _time.perf_counter()
-            for step in rv_trace:
+            for step in committed_steps:
                 try:
                     result = monitor.feed(step, window)
                 except Exception:
@@ -545,7 +659,10 @@ class RuntimeVerificationEngine:
                 (_time.perf_counter() - m_start) * 1000.0, 4
             )
 
-        permission_monitors = self._get_session_permission_monitors(session_key)
+        # PMKB monitors are one-decision projections.  Rebuild them for every
+        # evaluation so an expired or rejected call cannot leave a terminal
+        # permission state behind in a later window.
+        permission_monitors = self._create_permission_monitors("session")
         if permission_step is not None:
             for monitor in permission_monitors:
                 m_start = _time.perf_counter()
@@ -563,7 +680,12 @@ class RuntimeVerificationEngine:
 
         principal_monitor_count = 0
         if permission_step is not None:
-            principal_monitors = self._get_principal_monitors(authorization_trace)
+            self._record_principal_monitor_key(authorization_trace)
+            principal_monitors = (
+                self._create_permission_monitors("principal")
+                if self._verified_principal(authorization_trace)
+                else []
+            )
             principal_monitor_count = len(principal_monitors)
             for monitor in principal_monitors:
                 m_start = _time.perf_counter()
@@ -633,6 +755,33 @@ class RuntimeVerificationEngine:
         if key not in self._principal_monitors:
             self._principal_monitors[key] = self._create_permission_monitors("principal")
         return self._principal_monitors[key]
+
+    @staticmethod
+    def _verified_principal(authorization_trace: Any) -> bool:
+        """Return whether the host supplied a complete trusted identity."""
+        if authorization_trace is None:
+            return False
+        if hasattr(authorization_trace, "model_dump"):
+            trace = authorization_trace.model_dump(mode="json")
+        elif isinstance(authorization_trace, dict):
+            trace = authorization_trace
+        else:
+            return False
+        principal = trace.get("principal") if isinstance(trace.get("principal"), dict) else {}
+        return bool(principal.get("trust") == "verified" and principal.get("id"))
+
+    def _record_principal_monitor_key(self, authorization_trace: Any) -> None:
+        if not self._verified_principal(authorization_trace):
+            return
+        trace = self._model_data(authorization_trace)
+        principal = trace.get("principal") if isinstance(trace.get("principal"), dict) else {}
+        lineage_raw = trace.get("capability_lineage")
+        lineage = tuple(str(item) for item in lineage_raw) if isinstance(lineage_raw, list) else ()
+        self._principal_monitor_keys.add((
+            str(principal.get("id") or ""),
+            str(trace.get("agent_id") or ""),
+            lineage,
+        ))
 
     def _run_baseline(
         self,
@@ -736,7 +885,7 @@ class RuntimeVerificationEngine:
 
     def principal_monitor_count(self) -> int:
         """Return the number of isolated principal monitor sets."""
-        return len(self._principal_monitors)
+        return len(self._principal_monitor_keys)
 
     # ── 序列化 ──
 
@@ -785,8 +934,14 @@ class RuntimeVerificationEngine:
     def result_summary(self, session_key: str = "_default") -> dict[str, Any]:
         """返回当前会话窗口的摘要信息，供前端展示。"""
         window = self._get_session_window(session_key)
-        monitors = self._get_session_monitors(session_key)
-        snap = window.snapshot()
+        snap = [dict(step) for step in window.snapshot()]
+        monitors = self._create_monitors()
+        for monitor in monitors:
+            for step in snap:
+                try:
+                    monitor.feed(step, window)
+                except Exception:
+                    continue
         return {
             "window_size": len(window),
             "monitor_count": len(monitors),
@@ -855,4 +1010,5 @@ class RuntimeVerificationEngine:
                         pass
             self._principal_states.clear()
             self._principal_monitors.clear()
+            self._principal_monitor_keys.clear()
             self._session_permission_monitors.clear()

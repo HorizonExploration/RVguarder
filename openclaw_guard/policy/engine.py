@@ -19,9 +19,8 @@ from openclaw_guard.utils import utc_now_iso
 
 _EFFECT_RANK = {
     "auto_allow_audit": 0,
-    "clarify_then_retry": 1,
-    "openclaw_approval": 2,
-    "block": 3,
+    "openclaw_approval": 1,
+    "block": 2,
 }
 _BRIDGED_TOOL_ALIASES = {"shell", "exec", "command", "bash", "run", "execute"}
 
@@ -81,6 +80,12 @@ class AuthorizationPolicyEngine:
             effects.append("openclaw_approval")
         if grant_gaps:
             effects.append("openclaw_approval")
+        # A native tool profile is only trusted after its parameter contract
+        # passes.  Unsafe parameters deliberately downgrade the event to the
+        # unknown action type; never let a catalogued tool's default rule turn
+        # that coverage gap into a silent allow.
+        if event.metadata.get("hook_bridge") is True and event.action_type == "unknown":
+            effects.append("openclaw_approval")
         # A scope expansion is reviewable evidence, not a destructive action by
         # itself.  Keep it in the diff and require OpenClaw approval through
         # excessive_permissions, while reserving a hard block for explicit
@@ -94,6 +99,8 @@ class AuthorizationPolicyEngine:
             *diff.coverage_gaps,
             *(f"grant:{item}" for item in grant_gaps),
             *( ["tool_mapping"] if self._raw_tool_is_unmapped(event) else [] ),
+            *( ["tool_parameters"] if event.metadata.get("hook_bridge") is True and event.action_type == "unknown"
+               and not self._raw_tool_is_unmapped(event) else [] ),
         ]))
         decision = evaluated.model_copy(update={
             "effect": effect,
@@ -126,7 +133,6 @@ class AuthorizationPolicyEngine:
         policy = self.evaluate(event, source_message=source_message)
         mapping = {
             "auto_allow_audit": ("allow", "safe", "PMKB 已匹配低风险最小权限规则，允许执行并审计。"),
-            "clarify_then_retry": ("revise", "caution", "PMKB 信息不完整，需要补充范围后重试。"),
             "openclaw_approval": ("ask", "caution", "PMKB 要求由 OpenClaw 进行人工审批。"),
             "block": ("block", "blocked", "PMKB 命中阻断规则，已拒绝执行。"),
         }

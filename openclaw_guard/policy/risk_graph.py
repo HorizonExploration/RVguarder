@@ -30,7 +30,7 @@ _ID_ALIASES = {
 _CONDITION_ENDPOINTS = {
     "external_target", "external_recipient", "sensitive_data", "persistence_location",
 }
-_SEVERITY = {"block": 100, "openclaw_approval": 80, "clarify_then_retry": 50, "auto_allow_audit": 20}
+_SEVERITY = {"block": 100, "openclaw_approval": 80, "auto_allow_audit": 20}
 
 
 class RiskGraph:
