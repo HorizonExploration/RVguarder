@@ -8,7 +8,7 @@
 - FSM 状态编码攻击链的演进阶段（如：外部来源读取 → 敏感数据提取 → 外传）
 - self.state 在 feed() 中被**读取**来驱动分支逻辑（不再是纯记录性）
 - WindowManager 提供统计增强（累积计数、序列匹配）辅助 FSM 决策
-- 与 detection.py 分工：detection 处理单步风险，RV 处理链式风险
+- 与 PMKB 单步策略分工：PMKB 处理单步风险，RV 处理链式风险
 
 包含：
 - MailMonitor: 外部来源 → 敏感数据 → 邮件外发攻击链
@@ -112,8 +112,8 @@ class MailMonitor(BaseMonitor):
     核心创新：sensitive_data_extracted 状态记录了「Agent 已从外部来源获取敏感数据」，
     后续 mail_send 时基于此状态决定 block/ask 级别。
 
-    与 detection.py 分工：
-    - detection.py: 处理单步显式硬阻断（如 CMD-001 rm -rf）
+    与 PMKB 分工：
+    - PMKB: 处理单步显式硬阻断（如破坏性命令）
     - MailMonitor: 处理「外部来源 → 敏感 → 外发」链式攻击
     """
 

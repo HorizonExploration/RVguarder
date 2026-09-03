@@ -2,9 +2,9 @@
 
 > 版本：v1.0 | 日期：2026-08-11
 > 范围：`openclaw_guard/rv/`（运行时验证）+ `openclaw_guard/spec/`（规约生成与校验）两个子包
-> 关联文档：[RV 落地审计报告](./nl-automata-rv-landing-report.md)（落地核验）、[路线图](../ops/roadmap.md)（当前推进）；历史 NL→Automata 计划位于 `docs/archive/research/nl-automata-rv-upgrade-plan.md`
+> 关联文档：[RV 权限自动机架构](./rv-permission-automata.md)（现行合同）、[路线图](../ops/roadmap.md)（当前推进）；历史 NL→Automata 计划位于 `docs/archive/research/nl-automata-rv-upgrade-plan.md`
 
-> **当前实现更新（2026-09-02）**：本报告保留 RV 引擎的机制细节；其中早期的“DetectionEngine 双轨”测试描述是历史快照。PMKB、Authorization Trace、危险权限组合和主体跨 session 状态的现行交互以[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)为准。
+> **当前实现更新（2026-09-03）**：本报告保留 RV 引擎的机制细节；早期的 DetectionEngine/双轨描述仅是历史快照。PMKB、Authorization Trace、危险权限组合和主体跨 session 状态的现行交互以[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)为准。
 
 ---
 
@@ -287,8 +287,8 @@ Ruleset
 
 1. **LLM 自动生成未落地**：`nl2spec_generator.py` 的 `use_llm=True` 仅预留接口，当前「自然语言 → 规约」只有模板关键词匹配。
 2. **基线自动机默认不启用**：`BaselineMonitor` 需显式配置 `OPENCLAW_RV_BASELINE_DFA_PATH` 加载 DFA，默认引擎不加载。
-3. **约束推理引擎已接入，lambda 规则并存**：`ConstraintEngine` 已接入 `pipeline.py`（`_apply_constraint_engine`，按 `OPENCLAW_RV_CONSTRAINT_MODE` 开关），与 `detection.py` 的 lambda 规则并存，尚未完全替换（渐进迁移）。10 条迁移规则在两处保留定义，已由 `tests/test_constraints.py::test_migrated_rules_align_with_detection` 一致性测试兜底，任一字段漂移即失败。
-4. **规约与 office policy 存在重叠**：`rv_rules.json` 的 MailMonitor/ReportMonitor 与 `detection.py` 的 `_office_decision()` 有规则重复（已集中为单一 JSON，但双源并存）。
+3. **约束推理引擎已接入，兼容规则仍在收敛**：`ConstraintEngine` 已接入 `pipeline.py`（`_apply_constraint_engine`，按 `OPENCLAW_RV_CONSTRAINT_MODE` 开关），当前从冻结 `LEGACY-*` 元数据生成升权约束；后续按迁移矩阵逐步改为 PMKB 原生资源、范围和主体谓词。
+4. **规约与 office policy 的现行边界**：运行时单步裁决由 PMKB 完成，`rv_rules.json` 只描述 RV 时序监视器；历史 office/detection 双源仅在归档材料和回放证据中保留。
 5. **窗口大小边界**：默认 10 步，攻击链起手事件可能被挤出窗口，需按场景调优。
 
 ---

@@ -5,7 +5,12 @@
 **研究对象：** OpenClaw-RVGuarder 当前代码与 OpenClaw 审批交接链
 **来源：** DeepSeek 研究方案与 `agent-permission-rv-research-report-2026-08-25.md` 的对比、批判和融合
 
-关联文档：[RV 落地审计报告](../architecture/nl-automata-rv-landing-report.md)、[办公场景矩阵](../semantic/office-scenario-matrix.md)；研究实施计划的历史执行记录位于 `docs/archive/plans/2026-08-25-agent-permission-rv-research-plan.md`。
+> **阅读边界：** 本文是研究与方案记录，不是逐项代码接口合同。当前实现以
+> [`project-memory.md`](../architecture/project-memory.md)、
+> [`permission-kb-runtime-architecture.md`](../architecture/permission-kb-runtime-architecture.md)
+> 和代码为准；本文中的 `revise`、旧规则数量和早期攻击基线均保留原研究语境。
+
+关联文档：[RV 权限自动机架构](../architecture/rv-permission-automata.md)、[办公场景矩阵](../semantic/office-scenario-matrix.md)；研究实施计划的历史执行记录位于 `docs/archive/plans/2026-08-25-agent-permission-rv-research-plan.md`。
 
 ## 1. 执行摘要
 
@@ -399,7 +404,7 @@ OWASP LLM/Agentic 风险分类、AgentDojo、InjecAgent、MELON、NVD EchoLeak �
 - NL2Spec：`openclaw_guard/spec/nl2spec_generator.py`；
 - 研究与计划：`docs/research/agent-permission-rv-research-report-2026-08-25.md`、`docs/archive/plans/2026-08-25-agent-permission-rv-research-plan.md`；
 - 攻击夹具：`testlab/research/scenarios.json`、`testlab/research/fixtures.py`、`tests/test_research_attack_fixtures.py`；
-- 现有 RV 路线：`docs/architecture/nl-automata-rv-landing-report.md`、`docs/ops/roadmap.md`。
+- 现有 RV 路线：`docs/architecture/rv-permission-automata.md`、`docs/ops/roadmap.md`。
 
 本文件是两份研究报告的融合最终版；原始研究报告和实验产物保留用于追溯，不代表其中每一条未经验证的外部攻击描述都已在本项目复现。
 
@@ -427,7 +432,7 @@ decision = allow | ask | block | revise
 
 | 根因维度 | 当前代码证据 | 直接后果 | 优先级 |
 |---|---|---|---|
-| 规则覆盖不足 | `detection.py` 有 47 条单步规则，但 `migrated_constraint_rules()` 只有 10 条；规则主要覆盖命令、文件、网络、配置、skill 的高危标签，缺少大量合法低风险正例和业务目的规则 | 已知动作无法被证明为低风险，落入默认 `ask` | P0 |
+| 规则覆盖不足 | PMKB 当前包含 28 个操作、35 条 authored 规则和 47 条 `LEGACY-*` 回放记录；仍需补充合法低风险正例与业务目的规则 | 已知动作无法被证明为低风险，落入默认 `ask` | P0 |
 | 规则双轨漂移 | DetectionRule 读取 `action_type + match_labels`；ConstraintRule 读取 IR 的 action/tag/entity/sensitivity/temporal；两者没有统一规则 ID、版本和覆盖报告 | 一条路径命中、另一条路径未命中，难以解释也无法统一调参 | P0 |
 | 逻辑表述过硬 | Detection 使用 `all(label in labels)`；`TagConstraint.require_all` 是精确集合 AND；没有同义词、可选条件、否定、范围包含和参数谓词 | 输入只要缺一个标签就完全不匹配；自然语言变体全部变成未知 | P0 |
 | 特征提取不精准 | 本地语义层主要使用大小写后子串扫描；中文同义词、否定、例外、数量、资源边界和工具参数未形成稳定 AST | “不要外发”“仅内部域”“除日志外”可能被误标或漏标 | P0 |

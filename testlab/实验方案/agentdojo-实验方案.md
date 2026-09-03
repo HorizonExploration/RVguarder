@@ -26,7 +26,7 @@ AgentDojo 只提供合成任务、工具 runtime、官方 attack 和 benchmark s
 | Arm | Guard 行为 | 用途 |
 |---|---|---|
 | `noguard` | 透明放行 | 估计无防护时的任务效用和攻击成功率 |
-| `legacy` | 旧 DetectionEngine + FSM RV，不消费 PMKB | 作为升级前可重复基线 |
+| `legacy` | 历史提交中的旧单步引擎 + FSM RV，不消费 PMKB | 仅作升级前兼容基线；当前主分支不再内置该实现 |
 | `candidate` | HTTP 调用当前 `/api/hook/before-tool-call`，接入 PMKB/语义层/新 RV | 验证本次升级 |
 
 审批语义有两个显式模式：

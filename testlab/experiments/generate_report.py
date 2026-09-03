@@ -166,8 +166,7 @@ def main():
 
     if not results_dir.exists():
         print(f"[ERROR] 结果目录不存在: {results_dir}")
-        print("请先运行实验脚本:")
-        print("  python testlab/experiments/experiment_a_necessity.py")
+        print("请先运行当前实验脚本；实验 A 结果使用 testlab/results 中的历史证据，旧源文件仅供历史 checkout 复现:")
         print("  python testlab/experiments/experiment_b_variants.py")
         print("  python testlab/experiments/experiment_c_interference.py")
         sys.exit(1)

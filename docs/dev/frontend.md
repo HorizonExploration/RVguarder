@@ -137,4 +137,4 @@ def build_ui(target_dir: Path, summary=None) -> None:
     # 若运行目录缺少 UI，则从仓库内 runtime/ui 复制一份
 ```
 
-`openclaw_guard/web/routes/static.py`（FastAPI）负责托管 `runtime/ui/` 下的静态文件（`/`、`/assets/*`、前端路由的 SPA fallback）；`legacy_web.py` 已冻结，不参与运行。
+`openclaw_guard/web/routes/static.py`（FastAPI）负责托管 `runtime/ui/` 下的静态文件（`/`、`/assets/*`、前端路由的 SPA fallback）；FastAPI 是唯一 HTTP 入口。

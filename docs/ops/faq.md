@@ -69,7 +69,7 @@ FastAPI 是唯一运行入口。请安装项目依赖：
 pip install -e .
 ```
 
-安装后重新执行 `openclaw-guard run`；不会自动回退到 `legacy_web`。
+安装后重新执行 `openclaw-guard run`；不会自动回退到旧版 HTTP 实现。
 
 ## 12. 页面显示“未连接”，或接口返回 HTML 而不是 JSON
 

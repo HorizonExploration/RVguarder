@@ -35,7 +35,6 @@ openclaw_guard/          # Python 后端主包
 ├── services.py          # GuardServices 容器 — 核心编排 + 组件懒加载 + 流水线委托（阶段三产物）
 ├── config.py            # AppContext / AppPaths / GuardSettings 数据类
 ├── models.py            # 核心数据模型（Pydantic BaseModel v2）
-├── legacy_web.py        # [冻结] 历史 ThreadingHTTPServer（不参与启动）
 ├── ui.py                # 前端静态资源管理
 ├── baseline.py           # 基线安全扫描器（BaselineScanner）
 ├── conversation.py       # 对话交互辅助
@@ -181,7 +180,7 @@ cd e2e && npm install && npm run install:browsers && npm test
 ### 关键模式
 
 - **非侵入式**：不修改 OpenClaw 源码，通过生成的 JS 插件 + HTTP 桥接通信
-- **单 HTTP 层**：`web/` FastAPI 是唯一启动入口；`legacy_web.py` 只作冻结历史参考
+- **单 HTTP 层**：`web/` FastAPI 是唯一启动入口；旧版 stdlib HTTP 实现已移出生产包，源文件仅在归档/Git 历史中保留
 - **熔断器**：JS 插件内置，连续失败 N 次 → OPEN（放行所有），正常 → CLOSED
 - **审批同步**：OpenClaw 原生审批卡片是唯一决策入口，Guard Dashboard 通过 SSE/增量查询只读同步
 - **审计哈希链**：每条记录含 `previous_hash` + `record_hash = SHA-256(prev_hash + payload)`
@@ -203,7 +202,7 @@ cd e2e && npm install && npm run install:browsers && npm test
 - **许可证**: Apache 2.0
 - **作者**: Codex
 - **重构进度**: 
-  - ✅ 阶段一（HTTP 层收敛） — FastAPI 为默认且唯一入口，legacy_web 已冻结
+  - ✅ 阶段一（HTTP 层收敛） — FastAPI 为默认且唯一入口，旧版实现已移出生产包
   - ✅ 阶段二（Pydantic 模型迁移） — models.py 全部 Pydantic v2
   - ✅ 阶段三（Manager 拆分 + 懒加载） — GuardServices 容器 + LazyProxy + pipeline 模块
   - ✅ 阶段四（前端 Preact 迁移） — 17 源文件，5 页面，10 组件，Zustand 状态管理

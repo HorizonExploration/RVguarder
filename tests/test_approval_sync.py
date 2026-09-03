@@ -64,6 +64,50 @@ class ApprovalSyncTests(unittest.TestCase):
         self.assertEqual(payload2["event_seq"], first_seq)
         self.assertEqual(self.services.action_service.get_action(action["action_id"])["status"], "approved")
 
+    def test_resolution_metrics_expose_callback_outcomes_and_latency(self) -> None:
+        action = self._pending_hook()
+        first, status = api.resolve_hook_approval(
+            self.services,
+            {"actionId": action["action_id"], "decision": "allow-once"},
+        )
+        self.assertEqual(status, 200)
+        self.assertGreaterEqual(first["latency_ms"], 0)
+
+        second, status = api.resolve_hook_approval(
+            self.services,
+            {"actionId": action["action_id"], "decision": "allow-once"},
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(second["idempotent"])
+
+        approval = self.services.summary(compact=True)["sync"]["approval"]
+        self.assertEqual(approval["callbacks_received"], 2)
+        self.assertEqual(approval["accepted"], 1)
+        self.assertEqual(approval["idempotent"], 1)
+        self.assertEqual(approval["conflicts"], 0)
+        self.assertEqual(approval["latency_ms"]["count"], 2)
+        self.assertGreaterEqual(approval["latency_ms"]["p95"], 0)
+
+    def test_resolution_event_is_published_after_state_is_persisted(self) -> None:
+        action = self._pending_hook()
+        observed = []
+        publish = self.services.events.publish
+
+        def publish_and_read(event_type, payload):
+            if event_type == "action.resolved":
+                persisted = json.loads(self.services.actions_path.read_text(encoding="utf-8"))["items"]
+                current = next(item for item in persisted if item["action_id"] == action["action_id"])
+                observed.append((current["status"], current["sync_state"], current["decision_state"]))
+            return publish(event_type, payload)
+
+        self.services.events.publish = publish_and_read
+        api.resolve_hook_approval(
+            self.services,
+            {"actionId": action["action_id"], "decision": "allow-once"},
+        )
+
+        self.assertEqual(observed, [("approved", "callback_received", "allowed")])
+
     def test_resolution_conflict_is_recorded_without_overwriting_decision(self) -> None:
         action = self._pending_hook()
         first, _ = api.resolve_hook_approval(

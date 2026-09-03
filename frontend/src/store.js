@@ -54,7 +54,9 @@ export const useStore = create((set, get) => ({
   setSummary: (summary) =>
     set((s) => {
       const h = summary?.actions
-        ? JSON.stringify(summary.actions).length + '_' + ((summary.actions.items || []).length)
+        ? JSON.stringify({ actions: summary.actions, sync: summary.sync || {} }).length
+          + '_' + ((summary.actions.items || []).length)
+          + '_' + (summary.sync?.latest_event_seq || 0)
         : '0';
       return h !== s._summaryHash || s.loading
         ? { summary, loading: false, _summaryHash: h }

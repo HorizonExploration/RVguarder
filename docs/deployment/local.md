@@ -57,7 +57,7 @@ openclaw-guard doctor
 
 - `fastapi>=0.115.0` 与 `uvicorn[standard]>=0.30.0` 是必需依赖；`pip install -e .` 即会安装默认服务所需组件
 - `openclaw-guard run` 仅启动 FastAPI + uvicorn；依赖缺失会报出安装提示，不会静默切换到旧服务
-- `legacy_web.py` 仅保留作历史代码参考，不应在部署脚本或生产环境中调用
+- 旧版 stdlib HTTP 实现已移出生产包；部署只使用 `openclaw-guard run` 启动 FastAPI
 
 ## 卸载
 

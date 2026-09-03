@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import threading
+from collections import deque
 from datetime import datetime, timedelta, timezone
 from dataclasses import asdict
 from pathlib import Path
@@ -359,6 +360,17 @@ class GuardServices:
         settings.json_backup_path = settings.json_backup_path or context.paths.audit_dir / "audit.jsonl"
         self.context = context
         self.events = EventBus()
+        self._approval_sync_lock = threading.Lock()
+        self._approval_sync_metrics: dict[str, Any] = {
+            "callbacks_received": 0,
+            "accepted": 0,
+            "idempotent": 0,
+            "conflicts": 0,
+            "orphans": 0,
+            "invalid": 0,
+            "errors": 0,
+            "latencies_ms": deque(maxlen=128),
+        }
 
         # ── 热路径：急切初始化 ──
         self.collectors = BehaviorCollectorManager()
@@ -596,6 +608,43 @@ class GuardServices:
     # 状态 / 摘要查询
     # ------------------------------------------------------------------
 
+    def record_approval_sync(self, outcome: str, latency_ms: float | None = None) -> None:
+        """Record bounded, aggregate-only OpenClaw approval callback metrics."""
+        with self._approval_sync_lock:
+            metrics = self._approval_sync_metrics
+            metrics["callbacks_received"] += 1
+            if outcome in metrics and outcome not in {"callbacks_received", "latencies_ms"}:
+                metrics[outcome] += 1
+            if latency_ms is not None:
+                metrics["latencies_ms"].append(round(max(0.0, float(latency_ms)), 3))
+
+    def approval_sync_summary(self) -> dict[str, Any]:
+        """Return frontend-safe sync counters without exposing action payloads."""
+        with self._approval_sync_lock:
+            metrics = self._approval_sync_metrics
+            samples = sorted(metrics["latencies_ms"])
+            if samples:
+                index = min(len(samples) - 1, max(0, int((len(samples) * 95 + 99) / 100) - 1))
+                latency = {
+                    "count": len(samples),
+                    "last": metrics["latencies_ms"][-1],
+                    "min": samples[0],
+                    "max": samples[-1],
+                    "p95": samples[index],
+                }
+            else:
+                latency = {"count": 0, "last": None, "min": None, "max": None, "p95": None}
+            return {
+                "callbacks_received": metrics["callbacks_received"],
+                "accepted": metrics["accepted"],
+                "idempotent": metrics["idempotent"],
+                "conflicts": metrics["conflicts"],
+                "orphans": metrics["orphans"],
+                "invalid": metrics["invalid"],
+                "errors": metrics["errors"],
+                "latency_ms": latency,
+            }
+
     def summary(self, *, compact: bool = False) -> dict[str, Any]:
         actions = self._load_actions()
         counts = {
@@ -620,7 +669,10 @@ class GuardServices:
             "chat": chat_status.to_dict(),
             "hook": self.hook_status(),
             "execution_guard": self.execution_guard_status(),
-            "sync": {"latest_event_seq": self.events.latest_seq},
+            "sync": {
+                "latest_event_seq": self.events.latest_seq,
+                "approval": self.approval_sync_summary(),
+            },
         }
         if compact:
             return result

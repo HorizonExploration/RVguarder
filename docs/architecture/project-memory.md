@@ -1,8 +1,8 @@
 # 项目理解与当前记忆
 
-> **核对日期**：2026-08-30（OpenClaw 交接与误拦截修复后复核）
+> **核对日期**：2026-09-03（生产旧入口与过时文档清理后复核）
 > **核对基准**：当前工作树（PMKB 网络案例基础知识库 `1.1.0`）
-> **改造前全量基线（2026-08-30）**：`python -m pytest -q` → **513 passed / 18 skipped / 4 subtests passed**；本次改造采用关键链路定向回归。
+> **清理前全量基线（2026-09-03）**：`python -m pytest -q` → **550 passed / 18 skipped / 4 subtests passed**。
 
 本文档是后续维护项目时的“当前事实源”。历史方案、阶段性审计报告和旧版本说明仍然保留，但如果它们与本文档或当前代码冲突，应以当前代码和本文档为准。
 
@@ -14,7 +14,7 @@ OpenClaw-RVGuarder（龙虾卫士）是面向 OpenClaw 的非侵入式运行时�
 
 1. 执行前语义分析与规则检测；
 2. 跨调用运行时验证（RV）；
-3. `allow` / `ask` / `escalate` / `block` / `revise` 决策；
+3. 内部风险结果经合并后映射为 `allow` / `ask` / `block`；`escalate` 只作为内部升权信号，`revise` 只保留兼容证据，不创建第二审批源；
 4. OpenClaw 原生页面是 Hook 审批唯一入口，Guard Dashboard 通过 resolution/SSE 只读同步状态；
 5. 执行后审计、哈希链校验和基线扫描。
 
@@ -42,14 +42,14 @@ OpenClaw before_tool_call
 
 | 区域 | 当前职责 |
 |---|---|
-| `openclaw_guard/engine/` | 语义增强、单步检测、控制决策、白名单、热路径编排 |
+| `openclaw_guard/engine/` | 语义增强、命令安全事实、控制决策、白名单、热路径编排 |
 | `openclaw_guard/policy/` | PMKB bundle、TraceCompiler、规则评估、权限闭包/差分、RiskGraph |
 | `openclaw_guard/rv/` | ToolCallIR、约束推理、ChainRule DSL、RV 引擎、基线自动机 |
 | `openclaw_guard/spec/` | NL2Spec、规约校验、正反例 trace、会话安全状态 |
 | `openclaw_guard/core/` | 动作、审计、基线等业务服务 |
 | `openclaw_guard/integrations/` | OpenClaw 发现、Hook 生成、载荷转换、Gateway 适配 |
 | `openclaw_guard/storage/` | SQLite/PostgreSQL/可选 SQLAlchemy 存储与审计哈希链 |
-| `openclaw_guard/web/` | FastAPI 路由；`legacy_web.py` 为冻结历史文件 |
+| `openclaw_guard/web/` | FastAPI 路由，唯一 HTTP 入口 |
 | `frontend/` | Vite + Preact + Zustand 工作台 |
 | `testlab/` | AgentDojo 与 RV 必要性/鲁棒性/干扰实验 |
 | `docs/` | VuePress 文档站、架构报告、研究记录和测试设计 |
@@ -63,13 +63,16 @@ OpenClaw before_tool_call
 - PMKB 网络案例基线 `1.1.0` 已直接接入 `PolicyBundle → TraceCompiler → PolicyEvaluator → RiskGraph` 链路；源码目录与打包目录保持同版本、同内容，并为关键操作保留来源、Trace 和正反例向量。
 - OpenClaw 原生 `sessions_*`、`session_status`、`memory_*`、`agents_list`、`get_goal` 已显式映射为只读权限族；`sessions_send`、`sessions_spawn` 和计划/目标写入不继承只读信任。
 - Hook 审批文案在发送给 OpenClaw 前限制为标题 80、说明 240 字符；超过 6 分钟未回调的审批会标记为 `approval_timeout`，避免长命令 schema 失败和 Dashboard 孤儿动作。
+- 审批回调由 OpenClaw 单一审批中心拥有；Guard 只读同步。回调在写入动作状态后再发布 `action.resolved`，摘要提供 `sync.approval` 聚合指标（最近 128 个延迟样本），前端摘要哈希会响应同步序号变化。
+- PMKB 已新增 `NATIVE-PROCESS-DESTRUCTIVE`、`NATIVE-PROCESS-PRIVILEGED`、`NATIVE-NETWORK-SECRET-EXTERNAL` 三条字段谓词规则；47 条 `LEGACY-*` 继续作为历史回放证据，尚未删除。
+- 2026-09-03 清理前验证：`pytest -q` 为 **550 passed / 18 skipped / 4 subtests passed**；前端 Vite 构建和 VuePress 文档构建均通过；未运行大规模 AgentDojo。
 
 ## 5. 当前边界与待办
 
 这些不是“已完成能力”，维护时不要把它们写成完成状态：
 
 - 代码包版本为 `0.7.0.dev0`（展示为 `v0.7.0-dev`），PMKB bundle 为 `1.1.0`；二者分别标识产品构建与策略数据版本。
-- FastAPI 是唯一启动入口；`legacy_web.py` 不再作为回退路径。
+- FastAPI 是唯一启动入口；旧版 stdlib HTTP 实现已从生产包移除，历史源文件保留在 Git 归档中。
 - 47 条历史单步规则已形成 `LEGACY-<old-id>` PMKB 记录并通过逐条回放门禁；DetectionEngine 已从生产路径删除，冻结元数据仅用于审计和历史评测。
 - 基线 DFA 只有在设置 `OPENCLAW_RV_BASELINE_DFA_PATH` 或显式传入路径时才加载，默认不做基线偏离检测。
 - collectors 下的 ptrace/eBPF 仍是 capability 探测桩；不要把它们描述成已落地的系统级采集器。
@@ -80,6 +83,6 @@ OpenClaw before_tool_call
 
 1. 先看本文件、`docs/architecture/index.md`、`docs/ops/roadmap.md`，再看现行研究文档；历史材料统一在 `docs/archive/`，`testlab/` 仅作为历史实验与证据，不是运行时依赖。
 2. 修改 Hook 合约、RV 判定顺序、默认模式或版本号时，同时更新 API/架构/部署文档和测试基线。
-3. 报告测试数量必须注明运行日期和命令；历史报告中的旧计数是快照，不应覆盖当前改造前 **513 / 18 / 4** 全量回归结果。
+3. 报告测试数量必须注明运行日期和命令；历史报告中的旧计数是快照，当前清理基线为 **550 / 18 / 4**。
 4. 运行时是否处于 fail-open 不能从静态文档推断，必须通过进程、健康接口和插件状态现场检查。
 5. 文档与前端构建验证命令分别为 `cd docs && npm run docs:build`、`cd frontend && npm run build`；2026-08-23 均已通过。

@@ -20,7 +20,7 @@ Openclaw Guard 采用分层、非侵入、模块化设计，核心原则是：**
    → session-local window + principal-global capability state
 5. 决策与审批
    PMKB / Constraint / RV 结果合并（只升权不降权）
-   → allow / revise / requireApproval / block
+   → allow / requireApproval / block（内部 escalate 只做升权）
 6. 同步与取证
    OpenClaw 原生审批结果 → onResolution → SSE/增量对账 → SQLite/JSONL 审计
 ```
@@ -64,7 +64,7 @@ before_tool_call
 - `integrations/hook_runtime.py`：生成并安装 OpenClaw Guard 本地 Hook 插件（使用官方 `api.on()` API）
 - `integrations/tool_hook_bridge.py`：把 `before_tool_call` / `after_tool_call` 转成 Guard 行为事件
 - `integrations/openclaw_adapter.py`：OpenClaw Gateway 状态探测适配层；Hook 审批结果由原生 `onResolution` 回调同步到 Guard
-- `web/` / `ui.py`：本地 Web 工作台 API 与前端资源管理（FastAPI 为唯一入口；`api/` 为共享 HTTP 处理函数边界层）；`legacy_web.py` 已冻结为历史参考
+- `web/` / `ui.py`：本地 Web 工作台 API 与前端资源管理（FastAPI 为唯一入口；`api/` 为共享 HTTP 处理函数边界层）
 
 ## 关键设计原则
 

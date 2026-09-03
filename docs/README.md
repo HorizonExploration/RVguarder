@@ -53,7 +53,7 @@ features:
 
 本次升级的现行事实以[权限知识库与 RV 运行时架构结果](./architecture/permission-kb-runtime-architecture.html)为准：
 
-- PMKB `1.1.0` 已接入 `before_tool_call` 主链，当前基线包含 28 个操作、32 条 authored 规则、47 条 `LEGACY-<old-id>` 兼容规则（bundle 共 79 条规则）、29 条最小权限 Trace、9 条权限关系和 29 个回归向量。
+- PMKB `1.1.0` 已接入 `before_tool_call` 主链，当前基线包含 28 个操作、35 条 authored 规则、47 条 `LEGACY-<old-id>` 兼容规则（bundle 共 82 条规则）、29 条最小权限 Trace、9 条权限关系和 29 个回归向量。
 - PMKB 规则与权限组合关系同时编译为 RV 权限监视器；规则按 session 隔离、关系按可信主体/Agent/授权谱系隔离，详见 [RV 权限自动机架构](./architecture/rv-permission-automata.html)。
 - 语义层先将输入规范化为 Authorization Trace，再进行覆盖感知规则命中；`unknown`、`partial`、`conflict` 不会被模糊匹配直接放行。
 - 权限闭包/差分和 RiskGraph 在单步规则之后运行，检查超出业务最小权限、互斥权限和危险聚合组合。
@@ -89,7 +89,7 @@ v0.7.0-dev builds on the v0.6.0 six-phase refactor and RV phases A–F with a ve
 | **运行时验证 RV** | 滑动窗口 + 规约驱动（默认 ChainRule DSL，FSM 为回退模式）检测链式攻击 | Sliding window + spec-driven monitors (ChainRule DSL default, FSM fallback) for chain-attack detection |
 | **基线扫描** | 配置/端口/用户/依赖 全量安全扫描 | Full security scan: config, ports, users, dependencies |
 | **审计导出** | SQLite + JSONL 双写，哈希链防篡改 | Dual-write audit trail with hash chain integrity |
-| **规则引擎** | 语义优先模式，办公场景策略 | Semantic-first decision, office scenario policies |
+| **PMKB 策略引擎** | 语义 Trace 驱动的版本化办公策略 | Semantic Trace-driven, versioned office policies |
 
 ## 技术栈 · Tech Stack
 
@@ -122,12 +122,12 @@ openclaw-guard run
 |------|------|---------|
 | 🚀 [本地部署](/deployment/local.html) | 安装与首次启动 | Installation & first run |
 | 🛡️ [运行时 Hook 拦截](/features/runtime-hook.html) | 插件机制与审批结果同步详解 | Hook mechanism & approval-result sync |
-| ⚙️ [动作审批链](/features/action-gate.html) | 决策流程与规则引擎 | Decision pipeline & rule engine |
+| ⚙️ [动作审批链](/features/action-gate.html) | 决策流程与 PMKB 策略 | Decision pipeline & PMKB policy |
 | 🌐 [HTTP 接口清单](/api/http.html) | 所有后端 API 文档 | Complete API reference |
 | 🏗️ [架构总览](/architecture/overview.html) | 分层设计与代码映射 | Architecture & code map |
 | 🧭 [架构文档索引](/architecture/index.html) | 当前架构阅读顺序与历史归档规则 | Architecture index & archive policy |
 | 🔬 [RV 层技术报告](/architecture/rv-engine-report.html) | 运行时验证：规约 DSL、FSM、约束引擎、基线自动机 | RV layer tech report |
-| ✅ [RV 落地审计报告](/architecture/nl-automata-rv-landing-report.html) | 阶段 A–F 落地核验与整改闭环 | RV landing audit report |
+| ✅ [RV 权限自动机架构](/architecture/rv-permission-automata.html) | 当前 RV 规约、作用域与迁移口径 | Current RV contract and scope |
 | 📊 [项目现状分析](/architecture/project-status-analysis.html) | 三类系统性问题与推进顺序 | Project status analysis |
 | 📋 [基线扫描](/features/baseline.html) | 安全扫描与报告 | Security scanning & reports |
 | 📝 [审计](/features/audit.html) | 审计链与导出 | Audit trail & export |

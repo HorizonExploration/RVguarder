@@ -88,8 +88,7 @@ cd /home/yosoro126/OpenClaw-RVGuarder
 ### 运行所有实验
 
 ```bash
-# 方式一：逐个运行
-python testlab/experiments/experiment_a_necessity.py
+# 方式一：逐个运行（当前仍可执行的 B/C）
 python testlab/experiments/experiment_b_variants.py
 python testlab/experiments/experiment_c_interference.py
 
@@ -106,7 +105,9 @@ python testlab/experiments/generate_report.py
 
 ## 架构说明
 
-历史 RV 实验**无需启动 Guard 服务器**，直接实例化历史检测引擎和 RV 引擎。当前主分支已删除生产 `DetectionEngine`；如需重跑 legacy arm，请在保留旧实现的历史提交中执行，不能把它恢复到当前生产包：
+历史 RV 实验**无需启动 Guard 服务器**。实验 A 的旧脚本因依赖已退役的 `DetectionEngine` 已移至
+[`docs/archive/experiments/legacy-scripts/experiment_a_necessity.py`](../docs/archive/experiments/legacy-scripts/experiment_a_necessity.py)，
+只保留用于追溯；如需重跑 legacy arm，请在保留旧实现的历史提交中执行，不能把它恢复到当前生产包：
 
 - 历史 `DetectionEngine` — 47 条语义谓词规则 + 3 条 office 策略（仅历史基线）
 - `RuntimeVerificationEngine` — 6 个 FSM 监视器 + 滑动窗口管理器（多步链检测）

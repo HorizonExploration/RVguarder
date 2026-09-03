@@ -1,8 +1,8 @@
 /**
- * 内置安全规则数据 —— 从 Rules.jsx 抽取，与后端 detection.py 的 47 条规则对齐。
+ * 内置安全规则数据 —— 从 Rules.jsx 抽取，用于兼容历史规则的只读展示。
  *
  * 数据与视图分离：本模块只维护规则数据，Rules 页只负责渲染与搜索。
- * 注意：后端 detection.py 另有等价定义（双轨），由 tests/test_constraints.py 一致性测试兜底。
+ * 当前运行时裁决以 PMKB bundle 为准；页面展示不参与授权决策。
  */
 
 export const BUILTIN_RULES = (() => {

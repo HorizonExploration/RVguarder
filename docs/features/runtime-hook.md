@@ -62,7 +62,7 @@ OpenClaw 进入工具调用
   -> 语义归一化 / Authorization Trace
   -> PMKB 规则、最小权限与危险组合判定
   -> session/principal RV 验证
-  -> allow / ask (require_approval) / block / escalate / revise (require_approval + revision_hint)
+  -> allow / ask (requireApproval) / block（内部 escalate 只升权，不产生额外审批入口）
   -> require_approval 时 OpenClaw 挂起 agent，展示审批卡片
   -> 用户只在 OpenClaw 原生 UI 批准或拒绝
   -> Guard 通过 onResolution 回调写入状态并发布 SSE 事件
@@ -153,7 +153,7 @@ Hook 动作只有 OpenClaw 原生审批入口；Guard Dashboard 不显示批准/
 
 1. 插件 `onResolution` 回调触发，POST `/api/hook/resolve-approval`
 2. 后端 `resolve_hook_approval` 处理：字段名兼容 `actionId`/`action_id`，决策值兼容 `allow-once`/`allow_once`
-3. 后端幂等更新 `decision_state`、`sync_state` 和审计记录
+3. 后端幂等更新并持久化最终 `decision_state`、`sync_state` 和审计记录
 4. 发布 `action.resolved` SSE 事件，前端按 `action_id` 增量刷新；超时收拢发布 `action.timeout`，前端同样增量刷新
 5. SSE 断线时通过 `GET /api/actions/{action_id}` 和轻量 summary 对账
 

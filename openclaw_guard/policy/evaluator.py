@@ -111,7 +111,13 @@ class PolicyEvaluator:
         if trace.operation.arguments.get("action_type"):
             rules = [*rules, *self.bundle.legacy_rules()]
         candidates = [self.match_rule(rule, trace) for rule in rules]
-        applicable = [c for c in candidates if c.status in {"matched", "partial"}]
+        rule_by_id = {rule.id: rule for rule in rules}
+        applicable = [
+            c for c in candidates
+            if c.status == "matched"
+            or (c.status == "partial" and rule_by_id.get(c.rule_id, None)
+                and rule_by_id[c.rule_id].partial_behavior == "candidate")
+        ]
         missing = list(dict.fromkeys(trace.coverage.missing_features + [x for c in candidates for x in c.missing_features]))
         conflicts = list(trace.coverage.conflicts)
         if any(c.status == "conflict" for c in candidates):

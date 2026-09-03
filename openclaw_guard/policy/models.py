@@ -182,6 +182,9 @@ class PolicyRule(GuardBaseModel):
     positive_examples: list[dict[str, Any]] = Field(default_factory=list)
     negative_examples: list[dict[str, Any]] = Field(default_factory=list)
     legacy_rule_ids: list[str] = Field(default_factory=list)
+    # Rules with strict predicates must not elevate on a missing predicate;
+    # the evaluator still reports the missing feature for fail-closed review.
+    partial_behavior: Literal["candidate", "ignore"] = "candidate"
 
     def model_post_init(self, __context: Any) -> None:
         """Freeze nested rule data after Pydantic has validated the record."""

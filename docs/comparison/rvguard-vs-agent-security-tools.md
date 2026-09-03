@@ -1,7 +1,7 @@
 # OpenClaw-RVGuarder vs 主流 Agent 安全工具对比分析
 
 > 版本：v0.2 | 日期：2026-08-05 | 状态：调研更新  
-> 关联文档：[RV 落地审计报告](../architecture/nl-automata-rv-landing-report.md)、[rv-engine-report.md](../architecture/rv-engine-report.md)
+> 关联文档：[RV 权限自动机架构](../architecture/rv-permission-automata.md)、[rv-engine-report.md](../architecture/rv-engine-report.md)
 
 ---
 

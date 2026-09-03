@@ -1,6 +1,6 @@
 # 质量保障方案
 
-> **核对日期：** 2026-08-28
+> **核对日期：** 2026-09-03
 > **适用版本：** v0.7.0-dev（PMKB 1.1.0、RV 阶段 A–F）
 > **文档性质：** 当前测试门禁与目标指标；历史重构过程见 [`archive/architecture/`](../archive/architecture/)。
 
@@ -57,27 +57,18 @@ ruff check openclaw_guard/
 ruff format --check openclaw_guard/
 ```
 
-### 2.3 测试目录结构（目标）
+### 2.3 当前测试目录结构
 
 ```
 tests/
 ├── conftest.py                  # pytest fixtures + services 工厂
-├── test_engine/
-│   ├── test_detection.py        # 规则引擎测试
-│   ├── test_semantic.py         # 语义增强测试
-│   ├── test_rv.py               # RV 引擎测试
-│   ├── test_rv_fsm.py           # FSM 监视器测试
-│   └── test_whitelist.py        # 白名单测试
-├── test_core/
-│   ├── test_action_service.py   # 动作服务测试
-│   ├── test_audit_service.py    # 审计服务测试
-│   └── test_baseline_service.py # 基线服务测试
-├── test_api/
-│   ├── test_health.py           # 健康检查端点测试
-│   ├── test_hook.py             # Hook 桥接端点测试
-│   ├── test_actions.py          # 动作审批端点测试
-│   ├── test_audit.py            # 审计端点测试
-│   └── test_rv_api.py           # RV 状态端点测试
+├── test_policy_*.py             # PMKB、权限差分和策略管线
+├── test_semantic_enhancer.py    # 语义增强与本地降级
+├── test_pipeline.py             # Hook/聊天主流水线
+├── test_rv*.py                  # DSL、FSM、主体跨 session RV
+├── test_approval_sync.py        # OpenClaw resolution/SSE 交接
+├── test_frontend_*.py           # 前后端状态合同
+└── test_hook_runtime.py         # 官方 api.on 插件生成与合同
 ├── test_storage/
 │   ├── test_sqlite_store.py     # SQLite 存储测试
 │   └── test_audit_store.py      # 审计存储测试

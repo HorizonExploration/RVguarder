@@ -3,7 +3,7 @@
 > **接收方：** OpenClaw 汇报优化助手
 > **日期：** 2026-08-31
 > **事实源：** `docs/architecture/permission-modeling-diagrams.md` 及其链接的当前架构文档
-> **状态更新（2026-09-02）：** 本文保留 2026-08-31 组会简报语境；其中关于 DetectionEngine、legacy_web、旧 PMKB 计数和未提交文件数量的描述均为历史快照，不是当前事实。当前事实见[工程统一报告](../architecture/v070-engineering-unification-report-2026-09-02.md)。
+> **状态更新（2026-09-03）：** 本文保留 2026-08-31 组会简报语境；其中旧引擎、旧 PMKB 计数和未提交文件数量均为历史快照，不是当前事实。当前事实见[工程统一报告](../architecture/v070-engineering-unification-report-2026-09-02.md)。
 
 ## 使用任务
 
@@ -15,13 +15,12 @@
 
 - 当前版本口径：`v0.7.0-dev` / PMKB `1.1.0`。
 - Authorization Trace 采用九维权限本体：主体、执行体、操作、资源、范围、数据、上下文、覆盖度、来源。
-- PMKB（2026-08-31 快照）规模：27 operations、31 authored rules、47 `LEGACY-*` 兼容记录、29 traces、9 relations、29 test vectors；当前规模以工程统一报告为准。
+- PMKB 当前规模：28 operations、35 authored rules、47 `LEGACY-*` 兼容记录、29 traces、9 relations、29 test vectors。
 - `PermissionClosure`、`PermissionDiff` 和 `RiskGraph` 已进入权限判断链路。
 - PMKB 可编译为权限监视器，并与 session-local / principal-global RV 协同。
 - OpenClaw 原生审批是唯一批准/拒绝入口；Guard Dashboard 只读同步、解释和审计。
 - `before_prompt_build` 只审计，不生成 pending approval。
 - AgentDojo 框架已完成，但首轮数据无效：`max_tool_iters=2` 导致执行链截断，noguard 攻击基线为 0，candidate 曾有 Hook token 401；所有首轮预防率和负载指标作废，必须重跑。
-- 工作区当前另有 49 个文件未提交。
 
 ## 推荐汇报顺序
 

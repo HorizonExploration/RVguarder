@@ -1,9 +1,9 @@
 # 权限知识库与权限建模运行时升级结果
 
 > **状态：** 当前实现结果与架构事实源
-> **核对日期：** 2026-08-30
+> **核对日期：** 2026-09-03
 > **PMKB 版本：** `1.1.0`
-> **测试基线：** 改造前全量回归 `513 passed / 18 skipped / 4 subtests passed`；本次改造采用 OpenClaw 交接链路定向回归，结果见第 8 节。
+> **测试基线：** 清理前全量回归 `550 passed / 18 skipped / 4 subtests passed`（2026-09-03）；旧基线 `513 passed / 18 skipped / 4 subtests passed` 仅作历史对照。
 
 本文档说明本次升级实际交付的权限规则知识库（Permission Model Knowledge Base，PMKB）、权限建模、最小权限校验、危险权限组合检测和跨 session 运行时验证。它不是下一阶段愿景：已实现部分以代码和测试为证据，未实现部分明确列在“当前边界”中。
 
@@ -73,7 +73,7 @@ OpenClaw before_tool_call
 | --- | ---: | --- |
 | `schema/permissions.schema.json` | 1 | 约束 bundle 必须包含 operations、rules、traces、relations、vectors |
 | `catalog/operation-catalog.json` | 28 operations | 工具名/别名到 canonical permission family 的映射，含本地 `file.read` 与 `conversation.message` |
-| `rules/p0-office.json` | 32 authored rules（其中 22 条 `P1-*`） | 单步权限规则、匹配条件、处置效果和来源 |
+| `rules/p0-office.json` | 35 authored rules（其中 22 条 `P1-*`，3 条 `NATIVE-*`） | 单步权限规则、匹配条件、处置效果和来源 |
 | 运行时兼容规则 | 47 `LEGACY-<old-id>` records | 由 47 条 DetectionRule 的 action type + semantic labels 生成，同时进入 ConstraintEngine、PMKB 评估与权限监视器 |
 | `traces/p0-office.json` | 29 traces | 每条规则对应的最小必要权限范围和正反例 |
 | `relations/p0-combinations.json` | 9 relations | `toxic_with`、`conflicts`、`implies` 等权限关系 |
@@ -245,7 +245,7 @@ PMKB 效果到 Guard 动作的映射为：
 - `tests/test_permission_diff.py`、`test_permission_risk_graph.py`：最小权限、scope expansion 和危险组合；
 - `tests/test_principal_capability_rv.py`、`test_principal_rv_hook_integration.py`：跨 session 主体状态和持久化；
 - `tests/test_permission_rv_compiler.py`：PMKB 规则/关系自动机编译、effect 投影和 principal 作用域隔离；
-- 当前全量回归：`545 passed / 18 skipped / 4 subtests passed`（2026-09-02）；改造前基线 `513 passed / 18 skipped / 4 subtests passed` 仅作历史对照。
+- 当前全量回归：`550 passed / 18 skipped / 4 subtests passed`（2026-09-03 清理前基线）；旧基线 `513 passed / 18 skipped / 4 subtests passed` 仅作历史对照。
 - 本次定向回归覆盖 Hook 配置清理、OpenClaw 原生工具映射、PMKB 命中、Trace 编译、session 升权、审批同步、超时收拢和审批文案边界；最终结果为 `192 passed / 4 subtests passed`，详见[审批交接优化结果报告](../research/openclaw-approval-chain-optimization-report-2026-08-30.md)。
 
 路线图目标 `complete coverage ≥85%`、`unknown rate ≤10%`、`low-risk auto-allow precision ≥99%`、`high-risk recall ≥98%`、人工审批量下降 40% 等，当前仅是发布和扩大自动放行范围的验收门槛，尚未由真实个人使用数据验证。

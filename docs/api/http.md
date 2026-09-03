@@ -5,7 +5,7 @@
 ## 服务模式
 
 - 默认且唯一使用 FastAPI + uvicorn（`openclaw_guard/web/` 包）
-- `legacy_web.py` 是冻结历史实现，既不作为默认入口，也不作为依赖缺失时的回退路径
+- 旧版 stdlib HTTP 实现已移出生产包；依赖缺失时不会静默回退，必须安装 FastAPI Web extra
 
 ## 配置入口（影响行为）
 
@@ -42,7 +42,7 @@
 {
   "ok": true,
   "policy_version": "1.1.0",
-  "policy_rule_count": 79,
+  "policy_rule_count": 82,
   "policy_fingerprint": "<16 位哈希前缀>"
 }
 ```
@@ -65,6 +65,7 @@
 - `chat`
 - `hook`
 - `execution_guard`
+- `sync.approval`：OpenClaw 审批回调聚合计数与 `latency_ms`（count/last/min/max/p95）
 - `skills`
 - `channels`
 - `preferences`：偏好设置（含 RV 模式等）
@@ -250,7 +251,7 @@ OpenClaw 原生审批卡片 `onResolution` 回调使用的接口。
 - `decision` 支持 `allow-once` / `deny` / `timeout` / `cancelled`（兼容 `allow_once` 旧格式）；`allow-always` 不在首版审批契约内并返回 `400 unsupported_resolution`
 - 权限证据同时返回 `effective_permissions`、`p_after`、`scope_expansions` 和 `hard_violations`，用于核对主体当前授权、申请后授权集合及最小权限越界。
 - 相同决策重复回调幂等返回；相反决策会返回 `409 resolution_conflict`
-- 响应包含 `decision_state`、`sync_state`、`event_seq` 和 `received_at`
+- 响应包含 `decision_state`、`sync_state`、`event_seq`、`received_at` 和 `latency_ms`
 
 ## GET `/api/events`
 

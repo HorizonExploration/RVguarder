@@ -11,6 +11,18 @@
 
 PMKB 1.1.0 和 ConstraintEngine 覆盖的是权限族或增强谓词，存在语义重叠，但不是替代证明。例如 PMKB 的 `process.execute` 默认审批不能替代 `CMD-001` 的 `rm -rf` 硬阻断；`config.modify` 审批不能替代 `CFG-002` 的关闭鉴权阻断。因此不能以“看起来类似”为理由删规则。
 
+## 已完成的 PMKB 原生化增量 / Native predicate increment
+
+本轮已把 3 个边界清晰的高频条件从标签表达转换为 PMKB 字段谓词：
+
+| 原历史语义 | PMKB 原生规则 | 依据字段 | 处置 |
+| --- | --- | --- | --- |
+| `CMD-001` 类递归强删 | `NATIVE-PROCESS-DESTRUCTIVE` | `operation.arguments.command_safety=destructive` | block |
+| `CMD-004` 类提权命令 | `NATIVE-PROCESS-PRIVILEGED` | `operation.arguments.command_safety=privileged` | OpenClaw approval |
+| `NET-005` 类敏感外传 | `NATIVE-NETWORK-SECRET-EXTERNAL` | `scope=external` + `classification=secret` | block |
+
+原 47 条 `LEGACY-*` 不在本轮删除，仍用于逐条 replay 与回滚证据；新增规则不得再依赖标签字段。只有完成对应正反例、未知字段和 Hook 回放门禁后，才可从兼容集合中移除单条历史记录。
+
 ## 分类 / Classification
 
 | 旧规则组 / Legacy group | 数量 | 当前归属 / Current owner | PMKB 状态 / PMKB status | 可删除？ / Removable? |

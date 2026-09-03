@@ -3,6 +3,9 @@
 **日期**：2026-07-15  
 **分析目标**：围绕 OpenClaw AI 助手在个人办公中的全部潜在场景，按流程阶段系统梳理，并筛选本项目需覆盖的目标场景。
 
+> **阅读边界：** 本文是办公场景分析与测试矩阵。当前规则数量、效果和运行时入口以
+> `policies/permissions/`、PMKB 文档和项目记忆为准；本文不定义独立检测引擎。
+
 ---
 
 ## 一、概述
@@ -434,7 +437,7 @@ class BatchFileMonitor(BaseMonitor):
 | 文档 | 更新内容 |
 |:---|:---|
 | [method.md](./method.md) | §12.2 场景列表从 5 个扩展至至少 20+ 个 |
-| [detection.py](../../openclaw_guard/engine/detection.py) | 新增群发/导出/批量操作的办公策略规则 |
+| [`policies/permissions/rules/p0-office.json`](../../policies/permissions/rules/p0-office.json) | 当前办公操作、范围与效果的 PMKB 规则；历史检测实现已归档 |
 | [semantic_enhancer.py](../../openclaw_guard/engine/semantic_enhancer.py) | 新增 `channel_broadcast` / `database_query` / `batch_file_upload` 场景识别 |
 | [rv-engine-report.md](../architecture/rv-engine-report.md) | BroadcastMonitor / DataExportMonitor / BatchFileMonitor 已落地（6 监视器 + 规约 DSL） |
 
