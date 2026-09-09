@@ -25,4 +25,4 @@ def test_pmkb_bundle_components_are_all_on_110():
 def test_fastapi_is_the_only_cli_web_selector():
     args = build_parser().parse_args(["run"])
     launcher = _select_launch_web(args)
-    assert launcher.__module__ == "openclaw_guard.web"
+    assert launcher.__module__ == "openclaw_guard.web.app"
