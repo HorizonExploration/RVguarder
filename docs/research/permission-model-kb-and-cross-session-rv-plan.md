@@ -1,7 +1,7 @@
 # OpenClaw-RVGuarder 权限模型知识库与跨会话运行时验证最终方案
 
 **研究日期：** 2026-08-25
-**状态：** 融合升级版（含规则匹配优化与权限组合决策模型）
+**状态：** 研究方案快照（2026-08-25；当前实现以架构事实源为准）
 **研究对象：** OpenClaw-RVGuarder 当前代码与 OpenClaw 审批交接链
 **来源：** DeepSeek 研究方案与 `agent-permission-rv-research-report-2026-08-25.md` 的对比、批判和融合
 
@@ -9,6 +9,7 @@
 > [`project-memory.md`](../architecture/project-memory.md)、
 > [`permission-kb-runtime-architecture.md`](../architecture/permission-kb-runtime-architecture.md)
 > 和代码为准；本文中的 `revise`、旧规则数量和早期攻击基线均保留原研究语境。
+> 文中对 `openclaw_guard/rv/constraints.py` 的引用属于当时方案快照；该模块已从生产树删除，当前由 PMKB 原生谓词承接。
 
 关联文档：[RV 权限自动机架构](../architecture/rv-permission-automata.md)、[办公场景矩阵](../semantic/office-scenario-matrix.md)；研究实施计划的历史执行记录位于 `docs/archive/plans/2026-08-25-agent-permission-rv-research-plan.md`。
 
@@ -61,7 +62,10 @@
 | 外部依赖 | 首期不引入 OPA/Cedar/MonPoly 作为在线强依赖，吸收其模型与验证思想 |
 | 历史材料 | 保留两份原始报告、研究计划、实验夹具和历史产物 |
 
-## 3. 当前代码基线与主要缺口
+## 3. 升级前代码基线与主要缺口
+
+> 本节及后续“方案”章节描述升级前的观察、目标和待验证项。ConstraintEngine、SessionSafetyState、
+> `revise` 和 `openclaw_guard/rv/constraints.py` 已不在生产树；当前实现状态不要从本节表格推断。
 
 ### 3.1 已有能力
 
@@ -77,7 +81,7 @@
 ### 3.2 关键缺口
 
 1. 事件能描述“调用了什么”，但不稳定描述“谁代表谁、访问什么资源、增加了哪些有效权限、数据从哪里来、将发往哪里”。
-2. 当前 ConstraintEngine 对单步声明约束使用 AND 和加权评分，未表达当前权限闭包、请求差分、职责分离和危险组合。
+2. 升级前 ConstraintEngine 对单步声明约束使用 AND 和加权评分，未表达当前权限闭包、请求差分、职责分离和危险组合。
 3. 低置信度规则被门控后会从结果中消失，调用方看不到“不确定”与“安全放行”的差异。
 4. 当前 RV 主要按 `session_key` 隔离；虽有序列化接口，但还没有贯通持久化、可信主体索引和跨 session 事件聚合。
 5. NL2Spec 的 LLM 路径尚未完成，规则生成还不能保证权限引用存在、语义条件可执行或带有正反例。
@@ -432,7 +436,7 @@ decision = allow | ask | block | revise
 
 | 根因维度 | 当前代码证据 | 直接后果 | 优先级 |
 |---|---|---|---|
-| 规则覆盖不足 | PMKB 当前包含 28 个操作、35 条 authored 规则和 47 条 `LEGACY-*` 回放记录；仍需补充合法低风险正例与业务目的规则 | 已知动作无法被证明为低风险，落入默认 `ask` | P0 |
+| 规则覆盖不足（升级前快照） | 当时 PMKB 包含 28 个操作、35 条 authored 规则和 47 条 `LEGACY-*` 回放记录；当前已扩展为 47 个 canonical operations | 已知动作无法被证明为低风险，落入默认 `ask` | P0 |
 | 规则双轨漂移 | DetectionRule 读取 `action_type + match_labels`；ConstraintRule 读取 IR 的 action/tag/entity/sensitivity/temporal；两者没有统一规则 ID、版本和覆盖报告 | 一条路径命中、另一条路径未命中，难以解释也无法统一调参 | P0 |
 | 逻辑表述过硬 | Detection 使用 `all(label in labels)`；`TagConstraint.require_all` 是精确集合 AND；没有同义词、可选条件、否定、范围包含和参数谓词 | 输入只要缺一个标签就完全不匹配；自然语言变体全部变成未知 | P0 |
 | 特征提取不精准 | 本地语义层主要使用大小写后子串扫描；中文同义词、否定、例外、数量、资源边界和工具参数未形成稳定 AST | “不要外发”“仅内部域”“除日志外”可能被误标或漏标 | P0 |

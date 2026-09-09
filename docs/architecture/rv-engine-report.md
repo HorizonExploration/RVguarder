@@ -1,10 +1,10 @@
 # RV 层（运行时验证）技术报告
 
-> 版本：v1.0 | 日期：2026-08-11
+> 版本：v1.0 | 初稿日期：2026-08-11 | 当前复核：2026-09-09
 > 范围：`openclaw_guard/rv/`（运行时验证）+ `openclaw_guard/spec/`（规约生成与校验）两个子包
 > 关联文档：[RV 权限自动机架构](./rv-permission-automata.md)（现行合同）、[路线图](../ops/roadmap.md)（当前推进）；历史 NL→Automata 计划位于 `docs/archive/research/nl-automata-rv-upgrade-plan.md`
 
-> **当前实现更新（2026-09-03）**：本报告保留 RV 引擎的机制细节；早期的 DetectionEngine/双轨描述仅是历史快照。PMKB、Authorization Trace、危险权限组合和主体跨 session 状态的现行交互以[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)为准。
+> **当前实现更新（2026-09-09）**：本报告保留 RV 引擎的机制细节；早期的 DetectionEngine/双轨描述仅是历史快照。PMKB、Authorization Trace、危险权限组合和主体跨 session 状态的现行交互以[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)为准。
 > ConstraintEngine、SessionSafetyState 与 revise 已不在生产路径；当前 RV 仅在工具成功后提交 trace，
 > 并从 TTL 有效窗口重放自动机。现行控制面说明见[三态控制面与 RV 提交边界](./three-state-rv-runtime-plan-2026-09-03.md)。
 
@@ -112,7 +112,7 @@ SemanticEnhancer → TraceCompiler → PMKB（单步/最小权限/RiskGraph） �
 `services.py` 中的 `PrincipalSecurityState` 按
 `(principal_id, agent_id, capability_lineage)` 保存主体能力风险，用于跨 session 关联敏感
 读取、权限授予与外联等事件。主体状态有 TTL、数量上限并写入 `runtime/rv-state.json`；缺少
-可信身份时不做跨 session 合并。两类 RV 结果都只能提升、不能降低 PMKB 或 Detection 的安全处置。
+可信身份时不做跨 session 合并。两类 RV 结果都只能提升、不能降低 PMKB 的安全处置。
 
 ---
 
@@ -242,14 +242,14 @@ Ruleset
 ## 7. 主体授权证据状态（spec/session_state.py）
 
 `PrincipalSecurityState` 只保存可信主体在成功执行后的有限授权证据，不做会话累计分数或
-`revise` 重试干预：
+历史 `revise` 重试干预：
 
 | 项 | 值 |
 |----|----|
 | 记录边界 | 仅 `after_tool_call` 成功后的可信 principal/agent/lineage |
 | 状态内容 | 有效 grant、敏感 lineage、撤销记录和 TTL |
 | 预判 | `evaluate()` 只读，不扩展授权；`record()` 成功后提交 |
-| 风险输出 | 只返回 `openclaw_approval` 或 `block`，不生成 revise |
+| 风险输出 | 只返回 `openclaw_approval` 或 `block`，不生成 `revise` |
 
 > `GuardServices.apply_principal_rv()` 在执行前只读检查主体状态；`record_executed_principal_action()`
 > 在成功回调后写入状态并持久化到 `runtime/rv-state.json`。状态按
@@ -284,7 +284,8 @@ Ruleset
 | `tests/test_three_state_control.py` | 三态控制面、未知工具、preview/TTL 与 Hook 注册边界 |
 | `tests/test_perf_smoke.py` | RV 与流水线性能冒烟基准 |
 
-历史全量测试：**344 passed, 18 skipped, 0 failed**（2026-08-14）；当前回归基线见[项目理解与当前记忆](./project-memory.md)。
+历史全量测试：**344 passed, 18 skipped, 0 failed**（2026-08-14）；当前回归基线为
+**506 passed / 18 skipped / 4 subtests passed**，见[项目理解与当前记忆](./project-memory.md)。
 
 ---
 

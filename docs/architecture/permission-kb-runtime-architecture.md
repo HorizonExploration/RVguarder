@@ -1,11 +1,11 @@
 # 权限知识库与权限建模运行时升级结果
 
 > **状态：** 当前实现结果与架构事实源
-> **核对日期：** 2026-09-03
+> **核对日期：** 2026-09-09
 > **PMKB 版本：** `1.1.0`
 > **测试基线：** 合并后全量回归 `506 passed / 18 skipped / 4 subtests passed`（2026-09-03）；旧基线 `513 passed / 18 skipped / 4 subtests passed` 仅作历史对照。
 
-> **2026-09-03 更新：** 下文关于 ConstraintEngine、SessionSafetyState、`revise` 和
+> **2026-09-09 复核：** 下文关于 ConstraintEngine、SessionSafetyState、`revise` 和
 > `before_prompt_build` 的描述是旧阶段快照。生产链路只使用 PMKB、显式工具 profile、成功执行
 > 后提交的主体证据，以及从有效窗口重放的 RV；以
 > [三态控制面与 RV 提交边界](./three-state-rv-runtime-plan-2026-09-03.md)为准。
@@ -25,7 +25,7 @@
 
 当前仍未完成以下工作：
 
-- 47 条历史单步检测规则已完成兼容迁移并经逐条回放（`47 / 47`）；生产 DetectionEngine 和 ConstraintEngine 已删除，冻结 LEGACY 元数据仅保留为兼容回放证据；详见[旧规则迁移矩阵](./legacy-rule-migration-matrix.md)；
+- 47 条历史单步检测规则已完成兼容迁移并经逐条回放（`47 / 47`）；冻结的 `LEGACY-*` 元数据仍保留作兼容回放、审计和回滚证据，逐条删除仍受[旧规则迁移矩阵](./legacy-rule-migration-matrix.md)门槛约束；
 - 未实现从人工审批记录自动学习并永久生成 `allow` 规则；
 - 未提供完整的用户权限管理 UI 和企业级目录同步；
 - 尚无真实个人办公流量的人工审批下降实测，因此路线图中的 `-40%`、`-60%` 是验收目标，不是已达成结果。
@@ -82,7 +82,7 @@ OpenClaw before_tool_call
 | 运行时兼容规则 | 47 `LEGACY-<old-id>` records | 冻结的历史 action/semantic 元数据，仅用于 PMKB 兼容回放；不再进入独立检测引擎 |
 | `traces/p0-office.json` | 29 traces | 每条规则对应的最小必要权限范围和正反例 |
 | `relations/p0-combinations.json` | 9 relations | `toxic_with`、`conflicts`、`implies` 等权限关系 |
-| `tests/p0-vectors.json` | 29 vectors | 固定输入、预期效果和回归类别 |
+| `policies/permissions/tests/p0-vectors.json` | 29 vectors | 固定输入、预期效果和回归类别 |
 
 每个规则记录至少包含：`id`、`version`、`effect`、`priority`、`match`、`required_fields`、`negative_conditions`、`source`、`test_vectors`、`rollback_state`、`positive_examples` 和 `negative_examples`。加载器会拒绝重复 ID、未知 operation、版本不一致或缺少必填字段的 bundle，并递归冻结已加载记录，防止运行时篡改。
 
@@ -132,7 +132,7 @@ score = 0.40 × operation_action
       + 0.15 × provenance_trust
 ```
 
-exact operation 的 action 分为 `1.0`，alias 为 `0.5`；任何 `unknown/conflict` 覆盖状态都会阻止 `auto_allow_audit`。无法匹配的工具不会静默放行，而是带 `tool_mapping` 缺口进入审批或澄清。
+exact operation 的 action 分为 `1.0`，alias 为 `0.5`；任何 `unknown/conflict` 覆盖状态都会阻止 `auto_allow_audit`。无法匹配的工具不会静默放行，而是带 `tool_mapping` 缺口进入 OpenClaw 审批或阻断，Guard 不发起澄清重试。
 
 ### 4.3 基线操作与默认效果
 
@@ -253,7 +253,7 @@ PMKB 效果到 Guard 动作的映射为：
 - `tests/test_principal_capability_rv.py`、`test_principal_rv_hook_integration.py`：跨 session 主体状态和持久化；
 - `tests/test_permission_rv_compiler.py`：PMKB 规则/关系自动机编译、effect 投影和 principal 作用域隔离；
 - 当前全量回归：`506 passed / 18 skipped / 4 subtests passed`（2026-09-03 合并后）；旧基线 `513 passed / 18 skipped / 4 subtests passed` 仅作历史对照。
-- 本次定向回归覆盖 Hook 配置清理、OpenClaw 原生工具映射、PMKB 命中、Trace 编译、session 升权、审批同步、超时收拢和审批文案边界；最终结果为 `192 passed / 4 subtests passed`，详见[审批交接优化结果报告](../research/openclaw-approval-chain-optimization-report-2026-08-30.md)。
+- 历史定向回归曾覆盖 Hook 配置清理、OpenClaw 原生工具映射、PMKB 命中、Trace 编译、审批同步、超时收拢和审批文案边界（`192 passed / 4 subtests passed`）；当前全量基线为 `506 passed / 18 skipped / 4 subtests passed`，历史详情保存在 `docs/archive/research/openclaw-approval-chain-optimization-report-2026-08-30.md`（归档不参与站点构建）。
 
 路线图目标 `complete coverage ≥85%`、`unknown rate ≤10%`、`low-risk auto-allow precision ≥99%`、`high-risk recall ≥98%`、人工审批量下降 40% 等，当前仅是发布和扩大自动放行范围的验收门槛，尚未由真实个人使用数据验证。
 

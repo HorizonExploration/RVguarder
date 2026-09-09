@@ -1,7 +1,7 @@
 # 权限建模与端到端架构图
 
 > **用途：** 组会汇报图稿
-> **核对日期：** 2026-08-31
+> **核对日期：** 2026-09-09
 > **当前实现基线：** v0.7.0-dev / PMKB 1.1.0
 >
 > Mermaid 是图稿源格式。VuePress 构建后可直接展示；如需放入 PPT，可使用 Mermaid 编辑器或本地工具导出 SVG/PNG。
@@ -29,19 +29,16 @@ flowchart LR
     subgraph CORE[Guard 决策后端]
         SEM[SemanticEnhancer\n本地启发式 / LLM]
         TRACE[TraceCompiler\nAuthorization Trace]
-        DET[PMKB LEGACY Records\n47 条冻结回放规则]
         POL[PMKB PolicyEvaluator\n覆盖感知规则匹配]
         DIFF[PermissionClosure / Diff]
         RISK[RiskGraph\n危险权限组合]
         RV[Runtime Verification\nDSL 默认 / FSM 回退]
-        STATE[Session + Principal 状态]
+        STATE[RV 窗口 + Principal 成功证据]
         CTRL[GuardController\n只升权合并]
         SEM --> TRACE
-        TRACE --> DET
         TRACE --> POL
         POL --> DIFF --> RISK
         POL --> RV
-        DET --> CTRL
         RISK --> CTRL
         RV --> STATE --> CTRL
     end
@@ -65,7 +62,7 @@ flowchart LR
 - Guard 不修改 OpenClaw 源码，只通过 Hook 接入。
 - PMKB 是唯一单步运行时裁决来源；47 条 LEGACY 记录仅保留为可回放兼容数据，RV 负责跨步升权。
 - OpenClaw 原生审批页是唯一决策入口，Guard 页面不再创建第二套审批状态。
-- `before_prompt_build` 只做审计，不进入 pending approval 队列。
+- 生产插件不注册 `before_prompt_build`；实际执行前门禁只有 `before_tool_call`。
 
 ## 图二：权限建模——从工具调用到九维 Authorization Trace
 
@@ -113,12 +110,12 @@ flowchart TB
 ```mermaid
 flowchart LR
     subgraph SRC[权限知识来源]
-        CATALOG[operation-catalog.json\n28 operations / aliases]
+        CATALOG[operation-catalog.json\n47 canonical operations / aliases]
         RULES[rules/p0-office.json\n35 authored rules]
         TRACE[traces/p0-office.json\n29 最小权限 Trace]
         REL[relations/p0-combinations.json\n9 toxic/conflict/implies]
-        VEC[tests/p0-vectors.json\n29 正反例向量]
-        LEG[47 DetectionRule\n生成 LEGACY-* 兼容记录]
+        VEC[policies/permissions/tests/p0-vectors.json\n29 正反例向量]
+        LEG[47 LEGACY metadata\nPMKB replay records]
     end
 
     BUNDLE[PolicyBundle\n版本化 JSON bundle]
@@ -171,7 +168,7 @@ sequenceDiagram
     P-->>D: selected rules / match status / effect
     D->>D: 计算权限闭包、请求差分、危险组合
     D-->>R: pmkb.permission synthetic step + PolicyDecision
-    R->>R: session window + principal capability state
+    R->>R: preview：回放有效窗口并只读校验主体证据
     R-->>G: allow / approval / block / risk upgrade
     alt 高风险或证据不完整
         G->>A: requireApproval
@@ -182,7 +179,7 @@ sequenceDiagram
     else 低风险且证据完整
         G-->>O: allow
         O->>O: 执行工具
-        O-->>S: after_tool_call 审计
+        O-->>S: after_tool_call；成功后提交 RV/主体证据
     end
     S-->>O: SSE / 增量查询同步到 Guard Dashboard
 ```
@@ -191,7 +188,7 @@ sequenceDiagram
 
 1. PMKB 先被编译为标准 `MonitorSpec`，再由 RV 引擎负责窗口、时序和作用域隔离。
 2. PMKB 负责“权限结论”，自动机负责“把权限结论纳入运行时监视”；两者不是重复实现。
-3. `session-local` 检查当前会话行为链，`principal-global` 检查主体跨会话能力组合。
+3. `session-local` 检查当前会话行为链，`principal-global` 检查主体跨会话能力组合；预判不提交状态，只有成功 `after_tool_call` 才写入主体证据。
 4. Guard 只升权，不降低既有 `block` 或审批结论；审批结果回到同一条 OpenClaw 生命周期链路。
 
 ## 汇报建议

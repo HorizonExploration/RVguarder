@@ -51,11 +51,7 @@ Guard 页面不拥有审批权。生产插件不注册 `before_prompt_build`；�
 1. AgentDojo 证据包含成功与失败运行。带 `error.json`、没有 metrics 的运行只能说明环境/配额失败，不能用作安全效果结论；正式对比只能引用具备 manifest、metrics、raw episodes 和 report 的完整批次。
 2. OpenClaw 的审批状态仍依赖 Gateway 的 `onResolution` 回调；本地竞态已通过先持久化后发布 SSE 修复，但网络断开、Gateway 未重启或回调超时仍会使 Dashboard 延迟，且不会把 Dashboard 重新变成审批中心。
 3. `.env` 当前含真实访问凭据，必须留在本地并轮换已暴露的密钥；它不属于本次提交内容。
-4. `legacy_web.py` 已冻结为兼容历史文件（发布入口仍只调用 `openclaw-guard run`）；后续可在单独版本中移至文档归档。
-1. AgentDojo 证据包含成功与失败运行。带 `error.json`、没有 metrics 的运行只能说明环境/配额失败，不能用作安全效果结论；正式对比只能引用具备 manifest、metrics、raw episodes 和 report 的完整批次。
-2. OpenClaw 的审批状态仍依赖 Gateway 的 `onResolution` 回调；本地竞态已通过先持久化后发布 SSE 修复，但网络断开、Gateway 未重启或回调超时仍会使 Dashboard 延迟，且不会把 Dashboard 重新变成审批中心。
-3. `.env` 当前含真实访问凭据，必须留在本地并轮换已暴露的密钥；它不属于本次提交内容。
-4. 旧版 stdlib HTTP 实现已移至文档归档；发布流程只调用 `openclaw-guard run`，当前代码树不再保留可手工导入的第二入口。
+4. 旧版 stdlib HTTP 实现已从生产代码删除；发布流程只调用 `openclaw-guard run`，历史描述和源码仅在 Git/`docs/archive/` 中保留。
 
 ## 本轮文档与仓库清查（2026-09-02）
 

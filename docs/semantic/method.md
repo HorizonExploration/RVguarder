@@ -52,7 +52,7 @@ BehaviorEvent
    非法 JSON 自动回退本地规则。AgentDojo 回放显式使用本地确定性模式。
 2. 工具名和命令事实由本地校验覆盖 LLM 输出，避免模型把危险工具误标为普通文本。
 3. `complete` 才表示所需字段齐全；`partial`、`unknown` 或 `conflict` 不得因为相似度
-   被静默放行。它们由 PMKB 映射为澄清、OpenClaw 审批或阻断。
+   被静默放行。它们由 PMKB 映射为 OpenClaw 审批或阻断，Guard 不发起澄清重试。
 4. 生产插件不注册 `before_prompt_build`；真正的审批只发生在 `before_tool_call`，由
    OpenClaw 原生页面完成。
 5. 语义层不保存长期授权。跨 session 的风险和能力 lineage 由 RV/主体状态层维护，只有
@@ -65,7 +65,7 @@ PMKB 的内部 effect 枚举为 `auto_allow_audit`、
 ## 最小回归入口
 
 ```bash
-python -m pytest -q tests/test_semantic_enhancer.py tests/test_policy_trace.py \
+python -m pytest -q tests/test_semantic_enhancer.py tests/test_authorization_trace.py \
   tests/test_pmkb_native_rules.py tests/test_pipeline.py
 ```
 

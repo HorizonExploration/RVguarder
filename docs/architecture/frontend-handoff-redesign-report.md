@@ -1,6 +1,6 @@
 # 前端与前后端交接架构改造报告
 
-> **报告日期**：2026-08-23（当前契约于 2026-08-28 复核）
+> **报告日期**：2026-08-23（当前契约于 2026-09-09 复核）
 > **适用版本**：OpenClaw-RVGuarder v0.7.0-dev（含 PMKB 1.1.0）
 > **关联记忆**：[项目理解与当前记忆](./project-memory.md)
 
@@ -9,9 +9,9 @@ PMKB 的语义命中、权限组合和 RV 结果现在作为 Guard 只读证据�
 
 ## 一、结论摘要
 
-当前后端已经形成较完整的“语义分析 → 单步检测 → 约束推理 → RV → 会话升级 → Hook 拦截 → 审计”安全链路；前端则主要承担摘要展示、动作列表和少量配置操作，整体仍属于演示型控制台。
+当前后端已经形成“语义分析 → PMKB 单步授权 → RV 预判 → Hook 拦截 → 审计”的安全链路；前端承担摘要展示、动作列表、RV 状态和同步状态查询。页面仍是轻量控制面，不拥有 Hook 审批权。
 
-目前最需要收敛的是 Hook 审批职责：同一个 OpenClaw 工具调用同时在 OpenClaw 原生页面和 Guard 页面显示审批弹窗，两个页面都可以发起批准/拒绝，造成状态竞争和同步延迟。建议将职责明确为：
+改造前最主要的问题是 Hook 审批职责分裂：同一个 OpenClaw 工具调用同时在 OpenClaw 原生页面和 Guard 页面显示审批弹窗，两个页面都可以发起批准/拒绝，造成状态竞争和同步延迟。该问题已收敛，当前职责明确为：
 
 > **OpenClaw 原生页面是 Hook 工具调用的唯一审批权威；Guard 前端不再审批 Hook 动作，只负责解释风险、展示状态、同步结果和审计取证。**
 
@@ -21,7 +21,7 @@ Guard 仍然保留“是否需要审批”的安全决策权，但不再执行�
 
 > 本节记录改造前的双审批基线；改造后的事实以第九节“落地记录”和目标职责划分为准。
 
-### 2.1 当前审批链路
+### 2.1 改造前的双审批基线（历史快照）
 
 ```text
 OpenClaw before_tool_call
@@ -38,7 +38,7 @@ OpenClaw before_tool_call
                  └─ 后台线程调用 Gateway resolve
 ```
 
-当前插件在 [hook_runtime.py](../../openclaw_guard/integrations/hook_runtime.py) 中已经实现了 `requireApproval.onResolution`；但 Guard Dashboard 的 [ActionCard.jsx](../../frontend/src/components/ActionCard.jsx) 仍对 Hook 动作显示批准和拒绝按钮。
+这是 2026-08-23 记录的改造前链路。当前插件已实现 `requireApproval.onResolution`，而 [ActionCard.jsx](../../frontend/src/components/ActionCard.jsx) 对 `hook_bridge` 动作隐藏批准/拒绝按钮；Guard 页面只读显示 OpenClaw 的 resolution 和执行状态。
 
 ### 2.2 为什么会出现“响应慢”
 
@@ -79,12 +79,12 @@ OpenClaw resolution
 
 这里的“唯一审批权威”只针对 `hook_bridge` 工具动作。未来如果保留聊天中继（非真实工具执行）的 Guard 本地确认流程，应在数据模型中明确标记 `source=chat_relay`，不能与 Hook 审批混用。
 
-## 四、目标同步架构
+## 四、现行同步架构
 
 ### 4.1 单向审批、双向状态同步
 
 ```text
-Guard 决策：ASK / ESCALATE
+Guard 决策：ASK（内部 ESCALATE 仅升权）
         │
         ▼
 OpenClaw 原生审批卡片（唯一用户操作）
@@ -104,9 +104,9 @@ after_tool_call
         └─ executed / failed 最终对账
 ```
 
-### 4.2 建议的动作状态机
+### 4.2 动作状态模型
 
-当前 `approved`、`pending_approval`、`executed` 等状态混合了“用户决定”和“工具执行”两个维度。建议逐步增加独立字段，而不是继续扩展一个字符串状态：
+兼容字段 `status` 仍保留，但当前实现用独立字段区分“用户决定”“工具执行”和“同步状态”，避免继续扩展单一字符串状态：
 
 ```text
 decision_state:
@@ -119,7 +119,7 @@ sync_state:
   local_only → callback_received → reconciled | conflict | stale
 ```
 
-兼容现有 API 时可以暂时保留 `status`，但新增以下字段：
+API 返回同时保留 `status` 兼容值和以下结构化字段：
 
 ```json
 {
@@ -190,7 +190,7 @@ Guard 页面保留审批记录，但 Hook 动作全部只读：
 - 当前监视器数量和状态；
 - session 数量；
 - 最近触发的规则；
-- 当前会话风险累计；
+- 当前有效 RV 窗口与主体成功证据状态；
 - baseline DFA 是否启用。
 
 ### 5.4 基线与审计页
@@ -212,8 +212,8 @@ POST /api/hook/before-tool-call
 POST /api/hook/resolve-approval
 POST /api/hook/after-tool-call
 GET  /api/actions/{action_id}
-GET  /api/actions?status=&source=&cursor=&limit=
-GET  /api/events                  # SSE，首选
+GET  /api/actions?status=&source=&limit=
+GET  /api/events?after_seq=      # SSE，首选
 GET  /api/summary                 # 轻量摘要，不再承载完整状态
 ```
 
@@ -236,10 +236,10 @@ GET  /api/summary                 # 轻量摘要，不再承载完整状态
 
 ### 6.3 SSE 事件
 
-建议先实现单向 SSE，减少 WebSocket 的复杂度：
+当前实现使用单向 SSE，减少 WebSocket 的复杂度：
 
 ```text
-GET /api/events?topics=actions,hook,rv
+GET /api/events?after_seq=7
 ```
 
 事件示例：
@@ -257,9 +257,9 @@ GET /api/events?topics=actions,hook,rv
 
 前端断线时使用 `Last-Event-ID` 或 `after_seq` 补偿；SSE 不可用时，降级到单动作轮询，而不是每次重新请求完整 `summary`。
 
-### 6.4 统一错误模型
+### 6.4 统一错误模型（已落地）
 
-前端当前 `fetchSummary()` 和 `rvToggle()` 会吞掉错误，后端返回的 `detail` 也没有统一显示。应统一为：
+前端 `api.js` 的 fetch 封装会对非 2xx 响应抛出带 payload 的错误，`apiErrorMessage()` 按 `detail`、`message`、`error` 顺序提取用户可读信息。后端错误响应仍以 FastAPI 路由返回的 JSON 为准；涉及 Hook 的错误应同时记录 `request_id`/动作 ID，避免把网络失败显示成“已批准”。当前约定示例：
 
 ```json
 {
@@ -273,9 +273,9 @@ GET /api/events?topics=actions,hook,rv
 }
 ```
 
-## 七、迁移步骤
+## 七、迁移步骤与完成情况
 
-### 阶段 1：先关闭双审批入口
+### 阶段 1：先关闭双审批入口（已完成）
 
 - Guard Dashboard 对 `hook_bridge` 动作隐藏 approve/reject；
 - 卡片改为只读同步状态；
@@ -283,7 +283,7 @@ GET /api/events?topics=actions,hook,rv
 - `chat_relay` 动作暂时保持原有本地确认逻辑；
 - 增加日志字段区分 `resolution_source=openclaw` 和 `resolution_source=guard`。
 
-### 阶段 2：修复即时同步
+### 阶段 2：修复即时同步（核心链路已完成）
 
 - 让 `resolve-approval` 幂等并立即返回；
 - 增加单动作查询接口；
@@ -291,7 +291,7 @@ GET /api/events?topics=actions,hook,rv
 - 加入 SSE 事件通道；
 - 展示“回调已收到”和“执行已完成”两个不同状态。
 
-### 阶段 3：重做页面信息架构
+### 阶段 3：重做页面信息架构（后续）
 
 - Dashboard 改为安全态势；
 - Actions 改为审批中心 + 详情面板；
@@ -299,7 +299,7 @@ GET /api/events?topics=actions,hook,rv
 - 增加 Runtime、Policies/Integrations 页面；
 - 规则页从后端读取规则，不再维护 `rules-data.js` 副本。
 
-### 阶段 4：补测试和性能门禁
+### 阶段 4：补测试和性能门禁（持续）
 
 - OpenClaw resolution callback 正常、重复、冲突、超时测试；
 - Guard 页面只读 Hook 动作测试；
@@ -331,21 +331,21 @@ GET /api/events?topics=actions,hook,rv
 - 页面不会展示未脱敏的敏感凭据或完整秘密参数；
 - 所有状态变化带 `action_id`、`event_seq`、时间戳和来源。
 
-## 九、审批交接改造落地记录（2026-08-23，v0.7.0-dev 继续适用）
+## 九、审批交接改造落地记录（截至 2026-09-09）
 
 本轮已落地阶段 1–2 的核心链路：
 
 - `hook_bridge` 动作在 Guard 页面隐藏批准/拒绝按钮，后端 `/api/actions/approve` 与 `/api/actions/reject` 对其返回 `409 hook_approval_owned_by_openclaw`；
 - `/api/hook/resolve-approval` 支持幂等 resolution、冲突标记、来源/时间/序号返回和 orphan event 记录；
 - 动作新增 `source`、`decision_state`、`execution_state`、`sync_state`、`resolution`、`last_event_seq` 字段；
-- 新增 `GET /api/actions/{action_id}` 和 `GET /api/events`，FastAPI 与 legacy HTTP 均支持 SSE；
+- 新增 `GET /api/actions/{action_id}` 和 `GET /api/events`，由 FastAPI 提供 SSE；
 - 前端以 SSE 为主、10 秒轻量摘要为降级对账，不再以 1.5 秒完整 summary 作为主要刷新机制；
 - summary 支持 `view=compact`，首页只请求概览数据，Skills 页按需加载完整 summary；
 - `sync.approval` 提供回调总数、accepted/idempotent/conflict/orphan/invalid/error 计数及最近 128 个延迟样本的 p95；
 - 统一前端错误信息读取 `detail`、`message`、`error` 和错误对象本身；
-- 新增审批同步回归测试，并更新 E2E 预期为“Hook 页面只读”。
+- 新增审批同步回归测试，并更新 Playwright 预期为“Hook 页面只读”；最近一次全量 Python 回归为 `506 passed / 18 skipped / 4 subtests passed`，E2E 为 6 项通过。
 
-当前仍待后续阶段处理：SSE 事件持久化、跨进程事件恢复、页面信息架构的完整拆分、性能 p95 基准采集。
+当前仍待后续阶段处理：SSE 事件持久化与跨进程恢复、页面信息架构的完整拆分、真实 OpenClaw Gateway 的端到端 p95 采集。当前本地 SSE/HTTP 冒烟只证明 Guard 进程内链路，不等同于真实 Gateway 可用性证明。
 
 ## 十、最终建议
 

@@ -25,7 +25,7 @@ features:
   - title: 📊 运行时验证 RV
     details: 滑动窗口 + FSM 监视器，检测「搜索→删除→外发」等链式攻击模式。覆盖邮件、日报、群发、数据导出等办公场景。
   - title: 🖥️ 统一工作台
-    details: 动作审批、Trace 时间线、安全规则、基线扫描、RV 状态面板 — 一个前端界面全部搞定。
+    details: 动作状态、风险证据、Trace 时间线、安全规则、基线扫描、RV 状态面板 — 一个前端界面集中查看。
 
 ---
 
@@ -37,8 +37,8 @@ features:
   </div>
   <div class="custom-card">
     <h3>🧱 架构概览</h3>
-    <p>插件层 (api.on) → 语义/Authorization Trace → PMKB 权限策略 → session/principal RV → 决策层 (requireApproval/block) → Guard 状态同步 (onResolution + SSE)</p>
-    <p><em>Plugin hooks → Semantic/Trace → PMKB policy → session/principal RV → Decision → Read-only Guard sync</em></p>
+    <p>插件层 (api.on) → 语义/Authorization Trace → PMKB 权限策略 → session/principal RV → 决策层 (allow/requireApproval/block) → Guard 状态同步 (onResolution + SSE)</p>
+    <p><em>Plugin hooks → Semantic/Trace → PMKB policy → session/principal RV → allow/approval/block → Read-only Guard sync</em></p>
   </div>
   <div class="custom-card">
     <h3>📦 当前状态</h3>

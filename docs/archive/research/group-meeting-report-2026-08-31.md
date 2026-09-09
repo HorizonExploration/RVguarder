@@ -4,7 +4,7 @@
 > 仓库 HEAD：`8a51f38`（2026-08-30，已推送 origin/master）
 > 工作区另有 49 个文件未提交（8-30 审批交接修复 + AgentDojo 评测增量）
 > 状态：草稿，供组会汇报使用；AgentDojo 首轮实验判定无效，指标不可采信
-> **状态更新（2026-09-02）：** 本文是 8 月 31 日快照；其中 HEAD、未提交文件数量、PMKB 计数、DetectionEngine 及待办事项均保留当时语境，不是当前事实。版本元数据、FastAPI 单入口和生产 DetectionEngine 退役事项已在后续工程统一中完成；当前结论见[工程统一报告](../architecture/v070-engineering-unification-report-2026-09-02.md)。
+> **状态更新（2026-09-02）：** 本文是 8 月 31 日快照；其中 HEAD、未提交文件数量、PMKB 计数、DetectionEngine 及待办事项均保留当时语境，不是当前事实。版本元数据、FastAPI 单入口和生产 DetectionEngine 退役事项已在后续工程统一中完成；当前结论见[工程统一报告](../../architecture/v070-engineering-unification-report-2026-09-02.md)。
 
 ---
 

@@ -1,6 +1,6 @@
 # OpenClaw-RVGuarder vs 主流 Agent 安全工具对比分析
 
-> 版本：v0.2 | 日期：2026-08-05 | 状态：调研更新  
+> 版本：v0.2 | 初稿日期：2026-08-05 | 当前复核：2026-09-09 | 状态：调研快照
 > 关联文档：[RV 权限自动机架构](../architecture/rv-permission-automata.md)、[rv-engine-report.md](../architecture/rv-engine-report.md)
 
 ---
@@ -30,9 +30,9 @@ AgentSpec（ICSE 2026，SMU）提出的规则三要素：**trigger（触发事�
 |---|---|---|---|
 | 规则模型 | `rule @xx trigger X check P enforce E` | `chain_rules: {from, to, when, verdict}` | 相同，扩 entity/时间原语 |
 | 谓词表达 | `is_destructive_cmd`、`obstacle_distance_leq(n)` | `all_of/any_of/none_of` 标签集合 | 扩展 `entity_*` / `step_gap` / `state_counter` |
-| 执行方式 | `user_inspection` / `llm_self_examine` / `invoke_action` | `allow/ask/block/escalate` | 增加 `revise`（带修正建议） |
+| 执行方式 | `user_inspection` / `llm_self_examine` / `invoke_action` | `allow/ask/block`（内部 `escalate` 仅升权） | 保持三态，完善证据可观测性 |
 | LLM 生成规则 | OpenAI o1 自动生成规则（精度 95.56%） | 手写 `rv_rules.json` | NL2Spec 自动生成 + 反例验证闭环 |
-| 跨会话状态 | 无（单步判定） | 有（session 隔离滑动窗口） | 增加会话级风险分累积 |
+| 跨会话状态 | 无（单步判定） | session 窗口 + 主体 `(principal, agent, lineage)` 成功证据 | 完善跨进程恢复与长期稳定性 |
 | 性能 | 谓词评估 1.11-2.83ms | 窗口查询 ms 级 | 保持 |
 | 与平台绑定 | 解耦（LangChain 等） | 深度绑定 OpenClaw Hook | 保持 |
 
@@ -91,11 +91,11 @@ NeMo（NVIDIA）是工业界最成熟的护栏框架，其 **Colang DSL** 与 RV
 | 语义理解（LLM） | ✅ | ❌（谓词硬编码） | ✅（代码生成） | ✅（意图匹配） | ❌ | ❌ |
 | 时序/链式检测 | ✅（FSM+窗口） | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 会话级状态 | ✅ | ❌ | ❌ | ✅（对话流） | ❌ | ❌ |
-| 参数化/实体判定 | ❌（升级中） | ✅（谓词参数） | ✅（代码任意） | ❌ | ❌ | ❌ |
+| 参数化/实体判定 | ✅ | ✅（谓词参数） | ✅（代码任意） | ❌ | ❌ | ❌ |
 | LLM 自动生成规则 | ❌（规划中） | ✅（95.56% 精度） | ✅ | ❌ | ❌ | ❌ |
-| 反例验证闭环 | ❌（规划中） | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 反例验证闭环 | ✅（离线 SpecValidator） | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 审计链/哈希 | ✅ | ❌ | ❌ | ✅（对话日志） | ❌ | ❌ |
-| 审批工作台 UI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 审批工作台 UI | ✅（Hook 只读同步，OpenClaw 原生审批） | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 平台绑定 | OpenClaw | 通用 | 通用 | 通用 | 通用 | 通用 |
 | 运行时开销 | ms 级（RV 零 LLM） | ms 级（1.42ms 解析） | 高（代码生成） | 中（5 层检查） | 低 | 低（模型推理） |
 
@@ -108,7 +108,7 @@ NeMo（NVIDIA）是工业界最成熟的护栏框架，其 **Colang DSL** 与 RV
 1. **行为链时序验证**：滑动窗口 + ChainRule FSM 检测跨步骤攻击链（先搜索后删除、收集→打包→外传）。所有对比工具均为单步判定。
 2. **审计链完整性**：SQLite + JSONL 双写 + 哈希链校验，符合企业合规要求。
 3. **审批工作台**：本地 Web UI 动作级审批 + Trace Timeline 可视化。
-4. **办公场景专属策略**：47 条语义规则 + 5 条办公策略 + 6 个 FSM 监视器，针对 OpenClaw 个人办公场景深度定制。
+4. **办公场景专属策略**：PMKB 35 条原生规则 + 47 条 LEGACY 回放记录，以及 DSL/FSM 监视器，针对 OpenClaw 个人办公场景深度定制。
 
 ### 4.2 需要补齐的差距（他山之石）
 

@@ -1,6 +1,6 @@
 # 重构后目标架构设计
 
-> **文档性质：** 历史目标设计参考，不是当前实现的事实源。本文中的 `--fastapi`、legacy 默认入口和 `DetectionEngine` 结构均已过时；当前事实以 [`project-memory.md`](./project-memory.md)、[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)和[v0.7.0-dev 工程统一报告](./v070-engineering-unification-report-2026-09-02.md)为准。
+> **文档性质：** 历史目标设计参考，不是当前实现的事实源。本文中的 `--fastapi`、legacy 默认入口和 `DetectionEngine` 结构均已过时；当前事实以 [`project-memory.md`](../../architecture/project-memory.md)、[权限知识库与 RV 运行时架构结果](../../architecture/permission-kb-runtime-architecture.md)和[v0.7.0-dev 工程统一报告](../../architecture/v070-engineering-unification-report-2026-09-02.md)为准。
 > 版本：v1.0 (重构目标) | 日期：2026-08-01 | 现行参考复核：2026-08-28
 
 本文保留 v0.3–v0.6 重构阶段的目标结构，便于追溯，不代表 PMKB/RV 当前所有目标均已完成。当前
@@ -62,7 +62,7 @@ PMKB 规则数量、语义 Trace、权限组合和双作用域 RV 请勿从下�
 | `x-openclaw-guard-token` 鉴权 header | 后端 API | JS 插件认证协议 |
 
 **合约保护手段**：
-- **合约测试**：每个 Hook API 端点有专门的测试用例验证响应格式符合 JS 插件预期（见 [quality-assurance.md](./quality-assurance.md#32-合约测试contract-testing)）
+- **合约测试**：每个 Hook API 端点有专门的测试用例验证响应格式符合 JS 插件预期（见 [quality-assurance.md](../../architecture/quality-assurance.md#32-合约测试contract-testing)）
 - **文档对照**：改动 JS 插件或 Hook API 时，必须在 PR 描述中附上对应的官方文档链接和章节
 - **版本兼容**：OpenClaw SDK 版本升级时，先查阅 changelog 确认 API 变更，再适配
 

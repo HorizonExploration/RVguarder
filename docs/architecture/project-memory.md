@@ -1,6 +1,6 @@
 # 项目理解与当前记忆
 
-> **核对日期**：2026-09-03（生产入口清理、原生工具建模与 RV 提交边界复核）
+> **核对日期**：2026-09-09（文档清查后复核）
 > **核对基准**：当前工作树（PMKB 网络案例基础知识库 `1.1.0`）
 > **合并后全量回归（2026-09-03）**：`python -m pytest -q` → **506 passed / 18 skipped / 4 subtests passed**。
 
@@ -83,6 +83,6 @@ OpenClaw before_tool_call
 
 1. 先看本文件、`docs/architecture/index.md`、`docs/ops/roadmap.md`，再看现行研究文档；历史材料统一在 `docs/archive/`，`testlab/` 仅作为历史实验与证据，不是运行时依赖。
 2. 修改 Hook 合约、RV 判定顺序、默认模式或版本号时，同时更新 API/架构/部署文档和测试基线。
-3. 报告测试数量必须注明运行日期和命令；历史报告中的旧计数是快照，当前清理基线为 **550 / 18 / 4**。
+3. 报告测试数量必须注明运行日期和命令；历史报告中的旧计数是快照，当前回归基线为 **506 passed / 18 skipped / 4 subtests passed**（2026-09-03）。
 4. 运行时是否处于 fail-open 不能从静态文档推断，必须通过进程、健康接口和插件状态现场检查。
-5. 文档与前端构建验证命令分别为 `cd docs && npm run docs:build`、`cd frontend && npm run build`；2026-08-23 均已通过。
+5. 文档与前端构建验证命令分别为 `cd docs && npm run docs:build`、`cd frontend && npm run build`；当前复核均已通过（2026-09-09）。

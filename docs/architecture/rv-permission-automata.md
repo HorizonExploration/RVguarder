@@ -1,15 +1,13 @@
 # RV 权限自动机架构
 
 > **状态：** 当前实现
-> **核对日期：** 2026-09-03
+> **核对日期：** 2026-09-09
 > **适用版本：** PMKB `1.1.0`、RV 默认 DSL 模式
 > **2026-09-03 更新：** 本页的 `clarify_then_retry`、权限监视器持久状态与 ConstraintEngine
 > 迁移描述属于此前方案。当前生产 RV 仅重放成功执行的 TTL 有效窗口，PMKB 保持单步权限权威；
 > 以[三态控制面与 RV 提交边界](./three-state-rv-runtime-plan-2026-09-03.md)为准。
 
 本文档说明当前 RV 层实际运行的三类自动机、PMKB 如何编译为权限监视器，以及旧 FSM/规则层的迁移边界。它与[权限知识库与权限建模运行时架构结果](./permission-kb-runtime-architecture.md)互补：后者描述权限决策语义，本页描述这些语义怎样进入 RV 编译和在线监控。
-
-![RV 权限自动机在线架构图](/rv-permission-automata-flow.svg)
 
 ## 1. 核心结论
 

@@ -1,10 +1,12 @@
 # 个人办公全场景梳理与安全防护目标筛选
 
-**日期**：2026-07-15  
+**初稿日期**：2026-07-15 | **当前复核**：2026-09-09
 **分析目标**：围绕 OpenClaw AI 助手在个人办公中的全部潜在场景，按流程阶段系统梳理，并筛选本项目需覆盖的目标场景。
 
 > **阅读边界：** 本文是办公场景分析与测试矩阵。当前规则数量、效果和运行时入口以
 > `policies/permissions/`、PMKB 文档和项目记忆为准；本文不定义独立检测引擎。
+> 文中的场景数量、P0/P1 分组和开发建议是研究快照，不代表当前已全部实现；运行时公开决策
+> 只有 `allow`、`ask`、`block`，其中 `ask` 由 OpenClaw 原生审批承接。
 
 ---
 
@@ -497,9 +499,10 @@ Authorization Trace。
 | `EX-19` | `data.query` / `data.export` | `block` | principal、敏感数据分类、凭据来源 |
 | `EX-27` | `file.bulk_transfer` + `external_recipient` | `openclaw_approval` | requested_delta、recipient zone、传输数量 |
 
-四级 fallback 为 `auto_allow_audit`、`clarify_then_retry`、`openclaw_approval`、`block`。
-硬阻断优先于任何澄清、白名单或 RV 放宽；未知目标、缺少 principal 或能力链路时不得
-自动放行。组合风险（例如 `secret.read + network.egress + external_target`、
+PMKB 内部 effect 为 `auto_allow_audit`、`openclaw_approval`、`block`，分别映射为公开的
+`allow`、`ask`、`block`；`clarify_then_retry` 是历史研究方案，不属于当前运行时契约。
+硬阻断优先于任何白名单或 RV 放宽；未知目标、缺少 principal 或能力链路时不得自动放行。
+组合风险（例如 `secret.read + network.egress + external_target`、
 `data.export + external_recipient + sensitive_data`、`config.modify + audit.modify`、
 `credential.read + process.execute`、`file.write + persistence_location`）保留
 `combo_violations` 证据并提升 effect。

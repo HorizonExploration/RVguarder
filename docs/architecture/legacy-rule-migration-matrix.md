@@ -1,7 +1,7 @@
 # 旧规则迁移矩阵 / Legacy Rule Migration Matrix
 
 > **状态 / Status：** PMKB 逐条回放完成；生产 DetectionEngine 已删除 / PMKB replay complete; production DetectionEngine removed
-> **核对日期 / Verified:** 2026-09-02
+> **核对日期 / Verified:** 2026-09-09
 
 ## 结论 / Conclusion
 
@@ -9,7 +9,9 @@
 
 旧代码的**退役迁移**为 **47 / 47**。`tests/test_legacy_policy_migration.py` 对每个 action type 和标签集合回放 PMKB，要求处置级别等价或更严格；通过后已删除生产 `DetectionEngine` 实现。
 
-PMKB 1.1.0 和 ConstraintEngine 覆盖的是权限族或增强谓词，存在语义重叠，但不是替代证明。例如 PMKB 的 `process.execute` 默认审批不能替代 `CMD-001` 的 `rm -rf` 硬阻断；`config.modify` 审批不能替代 `CFG-002` 的关闭鉴权阻断。因此不能以“看起来类似”为理由删规则。
+PMKB 1.1.0 的原生规则与历史规则标签存在语义重叠，但不是替代证明。例如 PMKB 的
+`process.execute` 默认审批不能替代 `CMD-001` 的 `rm -rf` 硬阻断；`config.modify` 审批不能替代
+`CFG-002` 的关闭鉴权阻断。因此不能以“看起来类似”为理由删掉 LEGACY 回放证据。
 
 ## 已完成的 PMKB 原生化增量 / Native predicate increment
 
@@ -27,15 +29,17 @@ PMKB 1.1.0 和 ConstraintEngine 覆盖的是权限族或增强谓词，存在语
 
 | 旧规则组 / Legacy group | 数量 | 当前归属 / Current owner | PMKB 状态 / PMKB status | 可删除？ / Removable? |
 | --- | ---: | --- | --- | --- |
-| `CMD-001`–`CMD-010` | 10 | Constraint + `LEGACY-*` PMKB | action + labels | 是 / Yes |
-| `FILE-001`–`FILE-010` | 10 | Constraint + `LEGACY-*` PMKB | action + labels | 是 / Yes |
-| `NET-001`–`NET-006` | 6 | Constraint + `LEGACY-*` PMKB | action + labels + 现有风险图 | 是 / Yes |
-| `API-001`–`API-004` | 4 | Constraint + `LEGACY-*` PMKB | action + labels | 是 / Yes |
-| `SKL-001`–`SKL-006` | 6 | Constraint + `LEGACY-*` PMKB | action + labels | 是 / Yes |
-| `CFG-001`–`CFG-005` | 5 | Constraint + `LEGACY-*` PMKB | action + labels + 现有权限规则 | 是 / Yes |
-| `GEN-001`–`GEN-006` | 6 | Constraint + `LEGACY-*` PMKB | action + labels | 是 / Yes |
+| `CMD-001`–`CMD-010` | 10 | PMKB 原生规则 + `LEGACY-*` 回放 | action + labels | 逐条满足门槛后 / gated |
+| `FILE-001`–`FILE-010` | 10 | PMKB 原生规则 + `LEGACY-*` 回放 | action + labels | 逐条满足门槛后 / gated |
+| `NET-001`–`NET-006` | 6 | PMKB 原生规则/RiskGraph + `LEGACY-*` 回放 | action + labels + 风险组合 | 逐条满足门槛后 / gated |
+| `API-001`–`API-004` | 4 | PMKB 原生规则 + `LEGACY-*` 回放 | action + labels | 逐条满足门槛后 / gated |
+| `SKL-001`–`SKL-006` | 6 | PMKB 原生规则 + `LEGACY-*` 回放 | action + labels | 逐条满足门槛后 / gated |
+| `CFG-001`–`CFG-005` | 5 | PMKB 原生规则/RiskGraph + `LEGACY-*` 回放 | action + labels + 权限关系 | 逐条满足门槛后 / gated |
+| `GEN-001`–`GEN-006` | 6 | PMKB 原生规则 + `LEGACY-*` 回放 | action + labels | 逐条满足门槛后 / gated |
 
-ConstraintEngine 由所有 47 条冻结 LEGACY 元数据动态生成同 ID 规则，避免再维护一份只覆盖 10 条的手写镜像。兼容记录仍依赖 action 与标签；后续新增规则应优先使用主体、资源、范围和权限谓词，不再新增 DetectionEngine 类型实现。
+47 条 LEGACY 记录仍保留 action、标签和来源 ID，供回放、审计和回滚使用；它们不会在生产路径
+动态生成第二套在线规则。后续新增规则应优先使用主体、资源、范围和权限谓词，只有迁移门禁通过后
+才可退役对应的历史记录。
 
 ## 已迁移的非 47 规则 / Migrated Rules Outside the 47
 

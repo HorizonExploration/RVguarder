@@ -37,6 +37,7 @@ export default defineUserConfig({
             "/architecture/permission-modeling-diagrams.md",
             "/architecture/permission-kb-runtime-architecture.md",
             "/architecture/rv-permission-automata.md",
+            "/architecture/three-state-rv-runtime-plan-2026-09-03.md",
             "/architecture/legacy-rule-migration-matrix.md",
             "/architecture/project-memory.md",
             "/architecture/frontend-handoff-redesign-report.md",

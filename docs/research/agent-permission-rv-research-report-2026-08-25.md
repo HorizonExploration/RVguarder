@@ -7,12 +7,14 @@
 
 本报告是升级前的研究依据，不是当前实现状态说明。PMKB `1.1.0`、语义命中、权限闭包/差分、RiskGraph 和主体跨 session RV 的落地结果见[权限知识库与 RV 运行时架构结果](../architecture/permission-kb-runtime-architecture.md)。
 
+> 文中对 `ConstraintEngine`、`SessionSafetyState`、`revise` 和 `openclaw_guard/rv/constraints.py` 的描述均为升级前快照；当前生产链路仅使用 PMKB、三态 RV 和成功执行后的主体证据提交。
+
 ## 1. 执行摘要
 
-本项目已有“语义增强 → 约束推理 → 规则检测 → RV/FSM → OpenClaw 原生审批”的完整雏形，但当前约束引擎的主要问题不是缺少更多标签，而是缺少一个可审计、可闭包计算的**权限语义层**：
+升级前本项目已有“语义增强 → 约束推理 → 规则检测 → RV/FSM → OpenClaw 原生审批”的完整雏形；本报告讨论的约束引擎问题和改造建议属于当时基线，不代表当前生产链路。主要缺口不是缺少更多标签，而是缺少一个可审计、可闭包计算的**权限语义层**：
 
 1. 自然语言、工具名、参数、资源范围、数据敏感度和会话身份尚未统一为稳定的授权对象；因此规则命中容易停留在“事件/标签相似”，无法证明每个执行步骤都被合规规则覆盖。
-2. 当前 `ConstraintEngine` 只对单个 `ToolCallIR` 步骤做声明约束的 AND 匹配，再按已命中约束重新归一化评分；它没有表达“当前已有权限 + 新申请权限”的可达集合、权限冗余、角色继承、职责分离（SoD）或危险组合。
+2. 升级前的 `ConstraintEngine` 只对单个 `ToolCallIR` 步骤做声明约束的 AND 匹配，再按已命中约束重新归一化评分；它没有表达“当前已有权限 + 新申请权限”的可达集合、权限冗余、角色继承、职责分离（SoD）或危险组合。
 3. 当前 RV 已支持 per-session 滑动窗口和 FSM/DSL，但跨会话风险状态没有持久化，也没有以“主体/Agent/能力 lineage”为键的全局安全状态；这会让跨会话的权限累积和数据流攻击难以发现。
 4. LLM 应作为**结构化语义提取器和候选规则生成器**，不能直接做最终授权。最终决策应由版本化知识库、确定性策略评估器、风险图和运行时监视器完成；低置信度、冲突或未覆盖的高影响步骤必须转为 `ask`/`revise`。
 5. 推进上述改造具有必要性。AgentDojo、InjecAgent 和 OWASP Agentic/LLM 风险分类都把“外部内容注入 → 工具调用 → 越权或数据外泄”作为现实攻击面；对本项目最有价值的验证不是再增加几条关键词规则，而是构造可复现的**权限组合、数据流和跨会话**攻击测试。
@@ -342,7 +344,7 @@ G(data.read(resource=r) -> F[0,300s] data.export(r) requires same-purpose and ap
 
 ### 5.5 跨 session 技术可行性
 
-**结论：可行，且不需要推倒重来。** 当前 `RuntimeVerificationEngine` 已具备 `_session_windows`、每 session monitor、TTL 和 `serialize_state`/`deserialize_state`；`SessionSafetyState` 已有累计分数和升级动作。缺口是持久化接线、主体身份/能力 lineage、跨 session 事件索引和全局状态的并发/过期管理。
+**结论：可行，且不需要推倒重来。** 升级前的 `RuntimeVerificationEngine` 已具备 `_session_windows`、每 session monitor、TTL 和 `serialize_state`/`deserialize_state`；`SessionSafetyState` 已有累计分数和升级动作。缺口是持久化接线、主体身份/能力 lineage、跨 session 事件索引和全局状态的并发/过期管理。
 
 建议最小实现：
 

@@ -89,11 +89,10 @@ openclaw_guard/          # Python 后端主包
 │   ├── control.py       # GuardController — 决策 + 白名单 → 动作状态
 │   ├── whitelist.py     # WhitelistEngine — Trie 前缀匹配，含 default_police_whitelist()
 │   └── behavior.py      # BehaviorCollectorManager — 行为采集（Ptrace/eBPF/HookBridge 预留桩）
-├── rv/                  # 运行时验证引擎（拆分自 engine/，阶段 A-D）
+├── rv/                  # 运行时验证引擎（DSL/FSM、窗口与基线自动机）
 │   ├── runtime_verification.py  # RV 引擎 + WindowManager — 滑动窗口、会话隔离、序列匹配
 │   ├── rv_monitors.py   # 6 个 FSM 监视器（Mail/Report/SecurityChain/Broadcast/DataExport/BatchFile）
 │   ├── rv_dsl.py        # 参数化 RV DSL 原语（entity/时间间隔/quantifier）
-│   ├── constraints.py   # 约束推理引擎（阶段 B）
 │   ├── ir.py            # ToolCallIR 结构化中间表示（阶段 A）
 │   ├── baseline_learner.py     # 基线自动机学习（阶段 C）
 │   ├── baseline_monitor.py     # 基线自动机监视器（阶段 C）
@@ -101,7 +100,7 @@ openclaw_guard/          # Python 后端主包
 └── spec/                # 规约层（拆分自 engine/，阶段 E-F）
     ├── nl2spec_generator.py  # NL2Spec 生成（阶段 E）
     ├── spec_validator.py     # 规约校验 + 正反例 trace
-    ├── session_state.py      # 会话安全状态（阶段 F）
+    ├── session_state.py      # PrincipalSecurityState 主体成功证据状态
     └── eval_traces.py        # 正反例 trace 库
 ├── web/                 # 唯一 FastAPI HTTP 层
 │   ├── __init__.py      # 兼容旧导出（launch_web, _error_message）
@@ -109,7 +108,7 @@ openclaw_guard/          # Python 后端主包
 │   ├── dependencies.py  # DI: get_manager, body_payload, require_hook_token
 │   ├── errors.py        # GuardError + 统一异常处理器 + _error_message()
 │   └── routes/          # 路由模块（health, baseline, audit, rv, actions, hook, static）
-├── api/                 # [保留] 旧版 HTTP handler（web/ routes 桥接引用）
+├── api/                 # [保留] 路由调用的业务 handler（不是独立 HTTP 服务器）
 │   └── _handlers.py     # HTTP API 处理器（20+ 端点）
 ├── core/                # 业务服务层
 │   ├── action_service.py     # ActionService — 动作生命周期 CRUD
@@ -219,8 +218,6 @@ cd e2e && npm install && npm run install:browsers && npm test
 - 检测规则中文注释（规则 ID 英文：`CMD-001`, `FILE-001`, `NET-001` 等）
 - 文件顶部用 docstring 声明模块职责边界（如 `policy/engine.py` 与 `rv/rv_monitors.py` 的分工约定）
 
-- 数据模型使用 **Pydantic v2 BaseModel** 定义在 `models.py`（`to_dict()` 保留为兼容别名）
-
 ### 关键模式
 
 - **非侵入式**：不修改 OpenClaw 源码，通过生成的 JS 插件 + HTTP 桥接通信
@@ -251,11 +248,11 @@ cd e2e && npm install && npm run install:browsers && npm test
   - ✅ 阶段三（Manager 拆分 + 懒加载） — GuardServices 容器 + LazyProxy + pipeline 模块
   - ✅ 阶段四（前端 Preact 迁移） — 17 源文件，5 页面，10 组件，Zustand 状态管理
   - ✅ RV 层拆分 — engine/ 下 RV 相关拆分为 rv/ + spec/ 子包
-  - ✅ 阶段 A（ToolCallIR）/ B（约束推理引擎）/ C（基线自动机）/ D（RV 参数化原语）
-  - ✅ 阶段 E（NL2Spec 生成 + 规约校验）/ F（会话安全状态）
+  - ✅ 阶段 A（ToolCallIR）/ C（基线自动机）/ D（RV 参数化原语）
+  - ✅ 阶段 E（NL2Spec 生成 + 规约校验）；阶段 B/F 的旧在线实现已收敛为 PMKB 原生规则和主体成功证据状态
   - ✅ PMKB 1.1.0 网络案例基础规则 — 直接参与运行时决策，新规则采用离线回放与有限事件样本校验
 - **下一步计划**: 见 `CHANGELOG.md`、`docs/architecture/index.md`、`docs/ops/roadmap.md` 和 `docs/research/index.md`
 
 ---
 
-*CLAUDE.md 最后更新: 2026-08-03 · 由 Claude Code 在阶段三重构后更新*
+*CLAUDE.md 最后更新: 2026-09-09 · 文档清查后复核*

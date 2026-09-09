@@ -3,6 +3,10 @@
 > **核对日期：** 2026-08-30  
 > **范围：** OpenClaw 原生 Hook、审批交接、PMKB 原生工具映射、session RV、插件配置与定向回归  
 > **原则：** OpenClaw 原生页面保留唯一审批权；Guard 负责语义风险判定、证据和及时同步
+>
+> **历史快照说明（2026-09-09）：** 本文保留修复前后的现场证据和当时的 `revise`/会话累计风险语境；
+> 当前生产实现已移除这些路径，公开决策仅为 `allow`、`ask`、`block`，以[项目理解与当前记忆](../../architecture/project-memory.md)
+> 和[三态控制面与 RV 提交边界](../../architecture/three-state-rv-runtime-plan-2026-09-03.md)为准。
 
 ## 1. 结论
 

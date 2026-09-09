@@ -1,6 +1,6 @@
 # OpenClaw-RVGuarder 当前测试设计
 
-> **状态：现行回归合同（2026-09-03）**
+> **状态：现行回归合同（2026-09-09）**
 >
 > 旧版大规模场景设计保留在 `docs/archive/test-design/openclaw-guard-test-design-legacy.md`。
 > 可执行事实以仓库 `tests/` 和 CI 命令为准。
@@ -10,8 +10,8 @@
 | 层级 | 关注点 | 主要入口 |
 | --- | --- | --- |
 | 单元 | 语义、命令安全、PMKB、权限差分与自动机 | `tests/test_semantic_enhancer.py`、`test_policy_*.py`、`test_rv*.py`、`test_three_state_control.py` |
-| 流水线 | `before_tool_call` / `after_tool_call`、动作状态和审计 | `tests/test_pipeline.py`、`test_hook_runtime.py`、`test_action_service.py` |
-| 交接合同 | OpenClaw 原生审批、回调幂等、SSE/序号同步和超时 | `tests/test_approval_sync.py`、`test_openclaw_adapter.py`、`test_frontend_*.py` |
+| 流水线 | `before_tool_call` / `after_tool_call`、动作状态和审计 | `tests/test_pipeline.py`、`test_hook_runtime.py`、`test_services.py` |
+| 交接合同 | OpenClaw 原生审批、回调幂等、SSE/序号同步和超时 | `tests/test_approval_sync.py`、`test_principal_rv_hook_integration.py`、`test_three_state_control.py` |
 | 兼容回放 | `LEGACY-*` 与 PMKB 判定一致性、版本和 bundle 完整性 | `tests/test_legacy_policy_migration.py`、`test_pmkb_*.py` |
 | 实验 | AgentDojo 与历史 RV 必要性/干扰证据 | `testlab/`；不作为每次提交门禁 |
 
@@ -29,8 +29,8 @@
    以及 `sessions_send`、`sessions_spawn`、计划/目标写入等升权族。
 2. 危险组合：敏感数据读取后外发、破坏性命令、特权命令、密钥访问后外部网络连接。
 3. RV 隔离：同一 session 的链式风险、不同 session 不互相污染，以及主体 lineage 跨 session 的聚合。
-4. 交接异常：OpenClaw 审批延迟、重复 resolution、回调不可达、动作超时和历史
-   `before_prompt_build` 预检查迁移。
+4. 交接异常：OpenClaw 审批延迟、重复 resolution、回调不可达、动作超时；
+   `before_prompt_build` 仅作为历史迁移回归样例，当前生产插件不注册该 Hook。
 5. 构建与发布：Python 编译、前端 Vite 构建、VuePress 构建、文档本地链接和 diff 空白检查。
 
 ## 验证命令

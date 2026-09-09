@@ -1,7 +1,7 @@
 # 质量保障方案
 
-> **核对日期：** 2026-09-03
-> **适用版本：** v0.7.0-dev（PMKB 1.1.0、RV 阶段 A–F）
+> **核对日期：** 2026-09-09
+> **适用版本：** v0.7.0-dev（PMKB 1.1.0、三态 RV、FastAPI 单入口）
 > **文档性质：** 当前测试门禁与目标指标；历史重构过程见 [`archive/architecture/`](../archive/architecture/)。
 
 当前可执行事实以仓库 `tests/`、`frontend/` 和 `docs` 构建输出为准。本方案中的“目标”是尚未完成的工程门禁，不应被误读为已实现能力。
@@ -43,8 +43,8 @@
 # 单元测试
 pytest tests/ -v --cov=openclaw_guard --cov-report=term-missing
 
-# API 集成测试（FastAPI TestClient）
-pytest tests/test_api/ -v
+# API/Hook 集成测试（FastAPI TestClient/HTTPX）
+pytest tests/test_web_cli.py tests/test_approval_sync.py tests/test_three_state_control.py -v
 
 # E2E 测试
 cd e2e && npx playwright test
@@ -59,22 +59,15 @@ ruff format --check openclaw_guard/
 
 ### 2.3 当前测试目录结构
 
-```
-tests/
-├── conftest.py                  # pytest fixtures + services 工厂
-├── test_policy_*.py             # PMKB、权限差分和策略管线
-├── test_semantic_enhancer.py    # 语义增强与本地降级
-├── test_pipeline.py             # Hook/聊天主流水线
-├── test_rv*.py                  # DSL、FSM、主体跨 session RV
-├── test_approval_sync.py        # OpenClaw resolution/SSE 交接
-├── test_frontend_*.py           # 前后端状态合同
-└── test_hook_runtime.py         # 官方 api.on 插件生成与合同
-├── test_storage/
-│   ├── test_sqlite_store.py     # SQLite 存储测试
-│   └── test_audit_store.py      # 审计存储测试
-└── test_integration/
-    └── test_before_tool_call.py # 完整流水线集成测试
-```
+测试目录是扁平的 `test_*.py` 文件集合，没有 `test_api/`、`test_storage/` 或
+`test_integration/` 子目录。按职责可分为：
+
+- `test_policy_*.py`、`test_authorization_trace.py`、`test_permission_*.py`：PMKB、权限差分、RiskGraph 和策略管线；
+- `test_pipeline.py`、`test_hook_runtime.py`、`test_tool_hook_bridge.py`：Hook 载荷和主流水线；
+- `test_rv*.py`、`test_principal_*.py`、`test_baseline_learner.py`：RV、主体证据和基线 DFA；
+- `test_approval_sync.py`、`test_web_cli.py`、`test_three_state_control.py`：FastAPI、审批同步和三态合同；
+- `test_sqlalchemy_store.py`、`test_integration_storage_rv_matrix.py`：可选存储与组合矩阵；
+- `test_research_attack_fixtures.py`、`test_perf_smoke.py`：攻击样例和性能冒烟。
 
 ---
 
@@ -106,18 +99,16 @@ async def test_before_tool_call_block(client, services):
     assert data["action"] == "block"
 
 async def test_before_tool_call_no_token(client, services):
-    """缺少鉴权 Token 返回 403"""
+    """缺少鉴权 Token 返回 401"""
     response = await client.post("/api/hook/before-tool-call", json={
         "toolName": "read",
         "params": {"path": "/tmp/README.md"},
     })
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 async def test_before_tool_call_invalid_body(client, services):
-    """请求体字段类型错误"""
-    response = await client.post("/api/hook/before-tool-call", json={
-        "toolName": 123,  # 应为字符串
-    }, headers={"x-openclaw-guard-token": "test-token"})
+    """请求体不是 JSON 对象时由 FastAPI 返回 422"""
+    response = await client.post("/api/hook/before-tool-call", json=["not-an-object"], headers={"x-openclaw-guard-token": "test-token"})
     assert response.status_code == 422
 ```
 
@@ -168,7 +159,8 @@ async def test_hook_contract_resolve_approval(client, services):
     }, headers={"x-openclaw-guard-token": "test-token"})
     assert response.status_code == 200
     data = response.json()
-    assert "status" in data  # JS 插件解析审批结果状态
+    assert data["sync_state"] == "callback_received"
+    assert "event_seq" in data
 ```
 
 ### 3.3 测试前置条件
@@ -192,6 +184,7 @@ async def client(services):
     app = create_app(services)
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
+```
 
 ---
 
@@ -210,9 +203,10 @@ async def client(services):
 | 五：存储（SQLAlchemy） | ✅（native/sqlalchemy） | ✅（关键端点） | — | 数据一致性与降级 |
 | 六：RV 规约驱动（ChainRule） | ✅（dsl/fsm） | ✅（rv_status/rv_toggle） | ✅（前端联动） | 规则输出对比 |
 
-### 4.2 并行运行验证
+### 4.2 并行运行验证（历史策略）
 
-新旧系统可并行运行在不同端口，对比响应：
+以下端口对比只用于 2026-08 的迁移审计。旧版 stdlib 服务已移出生产包，当前发布门禁只启动
+FastAPI；如需重放旧行为，请使用 `docs/archive/` 与 Git 历史中的快照，不要把旧服务重新接入默认入口。
 
 ```bash
 # 旧系统端口 8780
@@ -314,18 +308,18 @@ FastAPI 与 uvicorn 已是默认必需依赖；门禁应验证依赖缺失时给
 | 单步规则 | `matched/partial/unknown/conflict`、评分和风险效果 | `tests/test_policy_evaluator.py` |
 | 最小权限 | closure、requested delta、冗余/越界和 scope expansion | `tests/test_permission_diff.py` |
 | 组合关系 | 4 类高危组合与 evidence lineage | `tests/test_permission_risk_graph.py` |
-| 集成决策 | PMKB 与 Detection/Constraint/RV 只升权合并、OpenClaw 单一审批 | `tests/test_policy_pipeline.py`、`tests/test_principal_rv_hook_integration.py` |
+| 集成决策 | PMKB 与 RV 只升权合并、OpenClaw 单一审批 | `tests/test_policy_pipeline.py`、`tests/test_principal_rv_hook_integration.py` |
 | 跨 session | principal 键、TTL、持久化恢复和 session 隔离 | `tests/test_principal_capability_rv.py` |
 | 文档合同 | 当前架构和 README 不回退到旧版本/旧审批口径 | `tests/test_policy_docs.py` |
 
-改造前全量基线为 `513 passed / 18 skipped / 4 subtests passed`；覆盖率、人工审批下降比例和命中率目标
-仍需用真实事件或离线回放另行测量，不把目标指标写成已经达成的结果。
+当前全量回归基线为 `506 passed / 18 skipped / 4 subtests passed`（2026-09-03）；旧的 513 计数仅作历史对照。
+覆盖率、人工审批下降比例和命中率目标仍需用真实事件或离线回放另行测量，不把目标指标写成已经达成的结果。
 
 针对 OpenClaw 交接与误拦截修复，允许使用关键链路定向门禁：Hook 配置清理、原生工具映射、PMKB
 命中与 Trace 编译、session 升权、审批同步/超时和审批文案边界必须通过；与本次变更无关的实验性
 后端、前端或外部依赖测试可以跳过，但发布前仍应按风险决定是否补跑全量回归。
 
-### 4.4 回退测试
+### 4.7 回退测试
 
 每阶段完成后，必须运行一次全量 pytest 回归，确保无功能退化：
 
@@ -393,13 +387,11 @@ wrk -t4 -c20 -d30s http://localhost:8780/api/health
 
 **RV 热路径冒烟基准**（`tests/test_perf_smoke.py`，已纳入全量回归）：
 
-| 组件 | 实测延迟（本机） | 冒烟阈值 |
-|------|----------------|----------|
-| 约束引擎 `evaluate_steps()`（20 步 IR） | 0.07 ms/次 | < 50 ms |
-| RV 引擎 `evaluate()`（链式外发 6 步） | 0.08 ms/次 | < 50 ms |
-| 会话状态 `record()`（1000 次） | 0.75 ms | < 200 ms |
+| 组件 | 测试方式 | 冒烟阈值 |
+|------|----------|----------|
+| RV 引擎 `preview()`（链式外发 6 步） | 100 次平均耗时 | < 50 ms/次 |
 
-阈值刻意宽松（10 倍余量）防 CI 抖动误报，超阈值说明明显性能劣化需人工复核。项目硬约束：detection < 1ms、rv < 5ms、摘要接口 ≤ 10ms。
+阈值刻意宽松（10 倍余量）防 CI 抖动误报，超阈值说明明显性能劣化需人工复核。项目参考目标：单步检测 < 1ms、RV < 5ms、摘要接口 ≤ 10ms；这些目标需在目标部署环境单独采集，不能用冒烟阈值代替。
 
 ### 6.2 性能回归门禁
 
