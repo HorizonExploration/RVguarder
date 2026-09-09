@@ -20,3 +20,6 @@ htmlcov/
 
 # local secrets
 .env
+e2e/.cache/
+e2e/node_modules/
+e2e/test-results/

@@ -44,6 +44,7 @@ module.exports = async () => {
   fs.writeFileSync(configPath, JSON.stringify(buildE2EConfig(), null, 2), "utf-8");
 
   const args = [
+    "-u",
     "-m",
     "openclaw_guard.main",
     "run",
@@ -128,4 +129,3 @@ module.exports = async () => {
     "utf-8"
   );
 };
-

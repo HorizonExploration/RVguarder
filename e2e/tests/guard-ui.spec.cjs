@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const { getBaseUrl } = require("./_helpers.cjs");
+const { getBaseUrl, getHookToken } = require("./_helpers.cjs");
 
 test.describe("OpenClaw Guard UI", () => {
   test("RV 模式开关可无刷新切换，并控制 Trace 显示", async ({ page }) => {
@@ -26,7 +26,7 @@ test.describe("OpenClaw Guard UI", () => {
     const baseUrl = getBaseUrl();
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
     await page.click('a.nav-btn[href="/skills"]');
-    await expect(page.getByText("技能管理")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "技能管理" })).toBeVisible();
 
     const btn = page.locator('button.skill-toggle[data-skill="demoSkill"]');
     await expect(btn).toBeVisible();
@@ -47,15 +47,22 @@ test.describe("OpenClaw Guard UI", () => {
 
   test("Hook 动作仅在 OpenClaw 侧审批，Guard 页面只读同步", async ({ page, request }) => {
     const baseUrl = getBaseUrl();
-    const ingestUrl = new URL("/api/actions/ingest", baseUrl).toString();
 
-    await request.post(ingestUrl, {
+    const response = await request.post(new URL("/api/hook/before-tool-call", baseUrl).toString(), {
+      headers: { "x-openclaw-guard-token": getHookToken() },
       data: {
-        action_type: "command_exec",
-        command: "rm /Users/dynooob/test.txt",
-        raw_user_intent: "请删除 /Users/dynooob/test.txt"
+        toolName: "exec",
+        params: { command: "rm /Users/dynooob/test.txt" },
+        runId: "e2e-run",
+        toolCallId: "e2e-call",
+        sessionKey: "e2e-session",
+        sessionId: "e2e-session",
+        agentId: "e2e-agent"
       }
     });
+    expect(response.ok()).toBeTruthy();
+    const decision = await response.json();
+    expect(decision.action).toBe("require_approval");
 
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "龙虾卫士" })).toBeVisible();

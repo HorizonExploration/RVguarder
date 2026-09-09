@@ -14,5 +14,11 @@ function getBaseUrl() {
   return readServer().url;
 }
 
-module.exports = { readServer, getBaseUrl };
+function getHookToken() {
+  const server = readServer();
+  const statePath = path.join(server.projectDir, "runtime", "hook-bridge.json");
+  const state = JSON.parse(fs.readFileSync(statePath, "utf-8"));
+  return state.auth_token;
+}
 
+module.exports = { readServer, getBaseUrl, getHookToken };
