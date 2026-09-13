@@ -39,11 +39,13 @@ export function TraceTimeline() {
               const dec = item.decision || {};
               const em = (item.event || {}).metadata || {};
               const sem = em.semantic || {};
+              const approval = em.approval_presentation || {};
               const rv = em.rv_result || {};
               const timings = em.pipeline_timings_ms || {};
               const sc = sem.scenario || item.event?.action_type || 'unknown';
               const labels = sem.labels || [];
-              const rsn = dec.reason || item.target_summary || '';
+              const rsn = approval.intent_summary || dec.reason || item.target_summary || '';
+              const hasApprovalDetails = Boolean(approval.target_summary || approval.command_preview || approval.risk_summary?.reason);
 
               const isRunning = st === 'executing';
               const isBad = st === 'blocked' || st === 'rejected' || st === 'failed' || st === 'denied';
@@ -121,7 +123,17 @@ export function TraceTimeline() {
                     )}
                     <details>
                       <summary>{t('details')}</summary>
-                      <pre>{esc(JSON.stringify(item, null, 2))}</pre>
+                      <div class="timeline-detail-summary">
+                        {hasApprovalDetails ? (
+                          <>
+                            {approval.target_summary && <div><strong>目标：</strong>{esc(approval.target_summary)}</div>}
+                            {approval.command_preview && <pre>{esc(approval.command_preview)}</pre>}
+                            {approval.risk_summary?.reason && <div><strong>风险依据：</strong>{esc(approval.risk_summary.reason)}</div>}
+                          </>
+                        ) : (
+                          <div class="approval-meta">历史记录未保存当前版本的审批详情，仅显示状态与安全摘要。</div>
+                        )}
+                      </div>
                     </details>
                   </div>
                 </div>

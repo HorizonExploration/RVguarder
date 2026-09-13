@@ -59,6 +59,20 @@ export async function clearActions() {
   return api('/api/actions/clear', { method: 'POST' });
 }
 
+/** GET /api/approval-trust */
+export async function fetchApprovalTrust() {
+  return api('/api/approval-trust');
+}
+
+/** POST /api/approval-trust/revoke */
+export async function revokeApprovalTrust(fingerprint) {
+  return api('/api/approval-trust/revoke', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fingerprint }),
+  });
+}
+
 /** POST /api/rv/toggle */
 export async function rvToggle(enabled) {
   return api('/api/rv/toggle', {

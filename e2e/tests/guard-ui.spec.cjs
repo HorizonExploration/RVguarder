@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const { getBaseUrl, getHookToken } = require("./_helpers.cjs");
+const { getBaseUrl, getHookToken, readServer } = require("./_helpers.cjs");
 
 test.describe("OpenClaw Guard UI", () => {
   test("RV 模式开关可无刷新切换，并控制 Trace 显示", async ({ page }) => {
@@ -22,13 +22,20 @@ test.describe("OpenClaw Guard UI", () => {
       .toBe("on");
   });
 
-  test("Skills 页可启停 skill（走后端 upsert 接口）", async ({ page }) => {
+  test("Skills 页可启停 skill（走后端 upsert 接口）", async ({ page, request }, testInfo) => {
     const baseUrl = getBaseUrl();
+    // Each browser project shares one smoke-test server.  Use a project-local
+    // fixture name so parallel browsers cannot race on the same toggle.
+    const skillName = `demoSkill-${testInfo.project.name}`;
+    const reset = await request.post(new URL("/api/skills/upsert", baseUrl).toString(), {
+      data: { name: skillName, enabled: false, description: "E2E demo skill", permissions: ["skill_run"] }
+    });
+    expect(reset.ok()).toBeTruthy();
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
     await page.click('a.nav-btn[href="/skills"]');
     await expect(page.getByRole("heading", { name: "技能管理" })).toBeVisible();
 
-    const btn = page.locator('button.skill-toggle[data-skill="demoSkill"]');
+    const btn = page.locator(`button.skill-toggle[data-skill="${skillName}"]`);
     await expect(btn).toBeVisible();
     await expect(btn).toHaveText(/已启用|已停用/);
 
@@ -72,5 +79,34 @@ test.describe("OpenClaw Guard UI", () => {
 
     await expect(page.locator(".approve-action")).toHaveCount(0);
     await expect(page.locator(".sync-hint").first()).toContainText("OpenClaw");
+  });
+
+  test("Guard 动作页展示意图摘要和脱敏命令详情", async ({ page, request }) => {
+    const baseUrl = getBaseUrl();
+    const projectDir = readServer().projectDir;
+    const response = await request.post(new URL("/api/hook/before-tool-call", baseUrl).toString(), {
+      headers: { "x-openclaw-guard-token": getHookToken() },
+      data: {
+        toolName: "custom_exec",
+        params: { command: "echo safe", cwd: projectDir },
+        runId: "e2e-summary-run",
+        toolCallId: "e2e-summary-call",
+        sessionId: "e2e-summary-session",
+        agentId: "e2e-summary-agent"
+      }
+    });
+    expect(response.ok()).toBeTruthy();
+    const decision = await response.json();
+    expect(decision.action).toBe("require_approval");
+    expect(decision.approval.intent_summary).toBeTruthy();
+    expect(decision.approval.command_preview).toContain("echo safe");
+
+    await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+    await page.click('a.nav-btn[href="/actions"]');
+    const card = page.locator('.approval-card').filter({ hasText: "echo safe" }).first();
+    await expect(card).toBeVisible();
+    await card.locator("details.approval-details").click();
+    await expect(card).toContainText("命令与参数");
+    await expect(card).toContainText("echo safe");
   });
 });

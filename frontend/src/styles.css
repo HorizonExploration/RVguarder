@@ -219,8 +219,23 @@ button { cursor: pointer; border: none; background: none; }
 .approval-head { margin-bottom: 8px; }
 .approval-card h4 { margin: 0 0 4px; font-size: .92rem; font-weight: 700; }
 .approval-card p { margin: 0 0 8px; color: var(--c-text-2); font-size: .86rem; }
+.approval-intent { font-size: .9rem; color: var(--c-text); }
+.approval-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 10px 0; }
+.approval-summary-grid > div { display: grid; gap: 2px; padding: 8px 10px; border-radius: 9px; background: var(--c-surface-3); }
+.approval-summary-grid strong { font-size: .82rem; font-weight: 700; color: var(--c-text); }
+.approval-label, .approval-meta { color: var(--c-muted); font-size: .76rem !important; }
 .sync-hint { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: rgba(37,99,235,.08); color: var(--c-blue-fg, #2563eb); font-size: .8rem; }
 .approval-actions { margin-top: 10px; }
+.approval-detail-stack { display: grid; gap: 12px; margin-top: 10px; }
+.approval-section { padding: 10px 0; border-top: 1px solid var(--c-border-subtle); }
+.approval-section:first-child { border-top: 0; padding-top: 0; }
+.approval-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.approval-section h5 { font-size: .8rem; color: var(--c-text-3); margin-bottom: 6px; }
+.approval-section pre { max-height: 220px; margin: 0; }
+.params-details { margin-top: 8px; }
+.params-details pre { margin-top: 6px; }
+.approval-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.trust-section { background: rgba(37,99,235,.05); border-radius: 9px; padding: 10px; border: 1px solid rgba(37,99,235,.15); }
 
 /* 风险 / 状态 chip 基元 */
 .risk-chip, .status-chip {
@@ -473,8 +488,15 @@ pre {
   padding: 10px; overflow: auto; max-height: 180px; font-size: .82rem;
 }
 details summary { cursor: pointer; color: var(--c-text-3); font-size: .84rem; }
+.timeline-detail-summary { display: grid; gap: 8px; margin-top: 8px; color: var(--c-text-2); font-size: .8rem; }
 .empty { color: var(--c-muted); font-size: .86rem; padding: 8px 0; }
 .settings-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.trust-card { display: grid; gap: 10px; }
+.trust-intro { color: var(--c-text-2); font-size: .84rem; }
+.trust-list { display: grid; gap: 8px; }
+.trust-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--c-border-subtle); border-radius: 10px; background: var(--c-surface-2); }
+.trust-item strong { font-size: .84rem; }
+.trust-item p { margin: 3px 0 0; color: var(--c-muted); font-size: .76rem; }
 .hook-status { padding: 6px 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .hook-detail { font-size: 12px; color: var(--c-muted); margin: 0; white-space: pre-line; line-height: 1.5; }
 .hook-hint { font-size: 11px; color: var(--c-muted-2); margin: 0; }
