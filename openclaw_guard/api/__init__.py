@@ -5,6 +5,7 @@
 """
 from openclaw_guard.api._handlers import (
     approve_action,
+    approval_trust_summary,
     audit_export,
     baseline_latest,
     baseline_run,
@@ -23,6 +24,7 @@ from openclaw_guard.api._handlers import (
     read_json_body,
     refresh_runtime,
     reject_action,
+    revoke_approval_trust,
     resolve_hook_approval,
     rv_status,
     rv_toggle,

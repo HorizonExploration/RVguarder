@@ -56,7 +56,7 @@ def test_user_explanation_is_bounded_for_openclaw_approval_payloads() -> None:
     from openclaw_guard.engine.pipeline import _user_explanation
 
     _title, message = _user_explanation(event, decision)
-    assert len(message) <= 240
+    assert len(message) <= 512
     assert message.endswith("…")
 
 

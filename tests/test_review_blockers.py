@@ -75,9 +75,10 @@ def test_default_policy_bundle_is_independent_of_working_directory(tmp_path, mon
     assert engine.bundle.version == "1.1.0"
 
 
-def test_generated_openclaw_approval_contract_is_single_owner_and_once_only():
+def test_generated_openclaw_approval_contract_is_single_owner_with_scoped_persistence():
     source = _plugin_source(guard_url="http://127.0.0.1:8780", auth_token="token")
-    assert 'allowedDecisions: ["allow-once", "deny"]' in source
+    assert "allowedDecisions: result.allowed_decisions || [\"allow-once\", \"deny\"]" in source
+    assert "decision === \"allow-always\"" in source
     assert "timeoutBehavior" not in source
     assert 'registrationId: "openclaw_guard_before_tool_call"' in source
     assert DEFAULT_DECISION_TIMEOUT_MS == 2_000
@@ -87,7 +88,7 @@ def test_generated_openclaw_approval_contract_is_single_owner_and_once_only():
 
 def test_generated_openclaw_approval_description_is_bounded():
     source = _plugin_source(guard_url="http://127.0.0.1:8780", auth_token="token")
-    assert "MAX_APPROVAL_DESCRIPTION_CHARS = 240" in source
+    assert "MAX_APPROVAL_DESCRIPTION_CHARS = 512" in source
     assert "boundedApprovalText(result.message" in source
 
 
@@ -119,7 +120,7 @@ const result = await callbacks.before_tool_call(
   {},
 );
 if (result.requireApproval.title.length > 80) process.exit(1);
-if (result.requireApproval.description.length > 240) process.exit(2);
+if (result.requireApproval.description.length > 512) process.exit(2);
 if (!result.requireApproval.description.endsWith("…")) process.exit(3);
 globalThis.fetch = async () => { throw new Error("E".repeat(1000)); };
 const failedCallbacks = {};
@@ -133,7 +134,7 @@ const blocked = await failedCallbacks.before_tool_call(
   { toolName: "shell_exec", params: {}, runId: "run-2", toolCallId: "call-2" },
   {},
 );
-if (blocked.blockReason.length > 240) process.exit(4);
+if (blocked.blockReason.length > 512) process.exit(4);
 '''
     completed = subprocess.run(
         ["node", "--input-type=module", "-e", script, str(plugin_path)],
@@ -144,21 +145,28 @@ if (blocked.blockReason.length > 240) process.exit(4);
     assert completed.returncode == 0, completed.stderr or completed.stdout
 
 
-def test_persistent_allow_always_resolution_is_rejected(services):
+def test_persistent_allow_always_resolution_is_recorded_for_eligible_action(services):
     result = services.handle_before_tool_call({
-        "toolName": "shell_exec",
-        "params": {"command": "echo safe"},
+        "toolName": "custom_exec",
+        "params": {"command": "echo safe", "cwd": str(services.context.paths.project_dir)},
         "runId": "h6-run",
         "toolCallId": "h6-tool",
         "sessionId": "h6-session",
         "agentId": "agent-h6",
+        "_hook_auth_verified": True,
     })
     action_id = result["action_record"]["action_id"]
     payload, status = api.resolve_hook_approval(
         services, {"actionId": action_id, "decision": "allow-always"}
     )
-    assert status == 400
-    assert payload["error_code"] == "unsupported_resolution"
+    assert status == 200
+    assert payload["accepted"] is True
+    assert payload["decision_state"] == "allowed"
+    trust_path = services.context.paths.runtime_dir / "approval-trust.json"
+    assert trust_path.exists()
+    trust = json.loads(trust_path.read_text(encoding="utf-8"))
+    assert len(trust["items"]) == 1
+    assert trust["items"][0]["expires_at"]
 
 
 def _document_read_event(metadata):

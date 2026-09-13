@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import socket
+import urllib.request
 import tempfile
 import threading
 import time
@@ -24,9 +26,31 @@ from openclaw_guard.integrations.openclaw_adapter import (
 from openclaw_guard.manager import build_manager
 from openclaw_guard.ui import build_ui
 from openclaw_guard.web import _error_message
+from openclaw_guard.web.app import launch_web
 
 
 class WebCliTests(unittest.TestCase):
+    def test_fastapi_launch_supports_ephemeral_port(self) -> None:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM):
+                pass
+        except PermissionError:
+            self.skipTest("当前沙箱禁止创建本地监听 socket")
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "OpenclawGuard"
+            project.mkdir()
+            config_path = project / "openclaw.json"
+            config_path.write_text(json.dumps({"models": {"providers": {}}}), encoding="utf-8")
+            manager = build_manager(project, config_path=config_path)
+            handle, _thread, url = launch_web(manager, "127.0.0.1", 0, no_browser=True)
+            try:
+                with urllib.request.urlopen(url + "api/health", timeout=3) as response:
+                    self.assertEqual(response.status, 200)
+                self.assertNotEqual(url.rsplit(":", 1)[-1].rstrip("/"), "0")
+            finally:
+                handle.shutdown()
+                handle.server_close()
+
     def test_ui_assets_are_built(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

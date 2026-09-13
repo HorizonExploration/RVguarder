@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import secrets
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -38,12 +39,15 @@ def ensure_runtime_hook_plugin(context: AppContext) -> dict[str, Any]:
     plugin_validation = _validate_plugin_bundle(plugin_dir)
 
     config_data = read_json(config_path) or {}
-    changed = _ensure_plugin_config(
-        config_data,
-        plugin_dir=plugin_dir,
-        guard_url=_guard_callback_url(context),
-        auth_token=str(bridge_state["auth_token"]),
-    )
+    config_skipped = _is_transient_plugin_config_scope(config_path, plugin_dir)
+    changed = False
+    if not config_skipped:
+        changed = _ensure_plugin_config(
+            config_data,
+            plugin_dir=plugin_dir,
+            guard_url=_guard_callback_url(context),
+            auth_token=str(bridge_state["auth_token"]),
+        )
     if changed:
         try:
             write_json(config_path, config_data)
@@ -73,10 +77,37 @@ def ensure_runtime_hook_plugin(context: AppContext) -> dict[str, Any]:
         "config_path": str(config_path),
         "config_changed": changed,
         "restart_required": changed,
+        "config_skipped": config_skipped,
+        "config_skip_reason": "transient_project_scope" if config_skipped else None,
         "auth_token_path": str(bridge_state_path),
         "plugin_valid": plugin_validation["ok"],
         "plugin_validation_error": plugin_validation["detail"],
     }
+
+
+def _is_transient_plugin_config_scope(config_path: Path, plugin_dir: Path) -> bool:
+    """避免临时测试项目把即将删除的插件路径写入外部 OpenClaw 配置。
+
+    正式仓库路径仍可更新用户级配置；仅当插件目录位于系统临时目录，且
+    OpenClaw 配置不在该项目目录内时跳过写入。这样 Guard 即使被测试夹具
+    或短期任务以临时 project_dir 构建，也不会污染真实 gateway 配置。
+    """
+    try:
+        plugin_path = plugin_dir.resolve()
+        config_resolved = config_path.resolve()
+        project_root = plugin_path.parent.parent
+        config_is_project_local = config_resolved.is_relative_to(project_root)
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return _is_transient_path(plugin_path) and not config_is_project_local
+
+
+def _is_transient_path(path: Path) -> bool:
+    """Return whether a path is below the platform's temporary directory."""
+    try:
+        return path.resolve().is_relative_to(Path(tempfile.gettempdir()).resolve())
+    except (OSError, RuntimeError, ValueError):
+        return False
 
 
 def _ensure_plugin_config(
@@ -113,13 +144,13 @@ def _ensure_plugin_config(
     for raw_path in paths:
         path_value = str(raw_path)
         # Pytest and temporary integration runs leave stale generated plugin
-        # paths in OpenClaw's config.  Remove only missing /tmp Guard paths;
-        # preserve all other plugin paths and historical directories.
+        # paths in OpenClaw's config. Remove only missing Guard paths below the
+        # platform temp directory; preserve all other plugin paths and history.
         is_stale_tmp_guard_path = (
-            path_value.startswith("/tmp/")
+            path_value != plugin_path
             and path_value.endswith("/runtime/openclaw-guard-plugin")
-            and path_value != plugin_path
             and not Path(path_value).exists()
+            and _is_transient_path(Path(path_value))
         )
         if is_stale_tmp_guard_path or path_value in seen_paths:
             changed = True
@@ -189,6 +220,8 @@ def register_runtime_hook_in_config(config_path: Path, plugin_dir: Path) -> bool
         return False
     bridge_state_path = plugin_dir.parent / "hook-bridge.json"
     bridge_state = _load_or_create_bridge_state(bridge_state_path)
+    if _is_transient_plugin_config_scope(config_path, plugin_dir):
+        return False
     changed = _ensure_plugin_config(
         config_data,
         plugin_dir=plugin_dir,
@@ -330,7 +363,7 @@ const STATUS_METHOD = "__STATUS_METHOD__";
 const DEFAULT_GUARD_URL = "__GUARD_URL__";
 const DEFAULT_AUTH_TOKEN = "__AUTH_TOKEN__";
 const DEFAULT_DECISION_TIMEOUT_MS = __DECISION_TIMEOUT_MS__;
-const MAX_APPROVAL_DESCRIPTION_CHARS = 240;
+const MAX_APPROVAL_DESCRIPTION_CHARS = 512;
 const MAX_APPROVAL_TITLE_CHARS = 80;
 
 function trimTrailingSlash(value) {{
@@ -513,15 +546,16 @@ export default {{
                 title: boundedApprovalText(result.title, "龙虾卫士安全确认", MAX_APPROVAL_TITLE_CHARS),
                 description: boundedApprovalText(result.message, "该工具调用需要确认，请查看操作目标和风险后决定。", MAX_APPROVAL_DESCRIPTION_CHARS),
                 severity: result.severity || "warning",
-                allowedDecisions: ["allow-once", "deny"],
+                allowedDecisions: result.allowed_decisions || ["allow-once", "deny"],
                 timeoutMs: 300000,
                 onResolution: async (decision) => {{
                   try {{
+                    const normalizedDecision = decision === "allow-always" ? "allow-always" : decision;
                     await postJson(
                       `${{guardUrl}}/api/hook/resolve-approval`,
                       {{
                         actionId: result.action_record?.action_id || result.action_id,
-                        decision: decision,
+                        decision: normalizedDecision,
                       }},
                       5000,
                       authToken,

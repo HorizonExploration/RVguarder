@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from openclaw_guard.services import GuardServices
+from openclaw_guard.engine.approval import build_approval_presentation
 from openclaw_guard.utils import json_dumps
 from openclaw_guard.utils import sha256_text, utc_now_iso
 
@@ -43,6 +44,17 @@ def health(manager: GuardServices) -> JsonResponse:
 
 def summary(manager: GuardServices, *, compact: bool = False) -> JsonResponse:
     return manager.summary(compact=compact), HTTPStatus.OK
+
+
+def approval_trust_summary(manager: GuardServices) -> JsonResponse:
+    return manager.approval_trust_summary(), HTTPStatus.OK
+
+
+def revoke_approval_trust(manager: GuardServices, payload: dict[str, Any] | None = None) -> JsonResponse:
+    try:
+        return manager.revoke_approval_trust(str((payload or {}).get("fingerprint") or "")), HTTPStatus.OK
+    except ValueError as exc:
+        return _error(str(exc), HTTPStatus.BAD_REQUEST)
 
 
 def baseline_latest(manager: GuardServices) -> JsonResponse:
@@ -120,10 +132,18 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
             manager.record_approval_sync("invalid")
             return _error("hook_action_required", HTTPStatus.CONFLICT)
         normalized_decision = decision.replace("_", "-").strip().lower()
-        if normalized_decision not in {"allow-once", "deny", "timeout", "cancelled"}:
+        if normalized_decision not in {"allow-once", "allow-always", "deny", "timeout", "cancelled"}:
             manager.record_approval_sync("invalid", _approval_latency_ms(action))
             return _error("unsupported_resolution", HTTPStatus.BAD_REQUEST)
-        allowed = normalized_decision == "allow-once"
+        action_model = manager._find_action(action_id)
+        if action_model is None:
+            manager.record_approval_sync("orphans")
+            return _error("action_not_found", HTTPStatus.NOT_FOUND)
+        presentation = build_approval_presentation(action_model.event, action_model.decision)
+        if normalized_decision == "allow-always" and not presentation["allow_always"]["eligible"]:
+            manager.record_approval_sync("invalid", _approval_latency_ms(action))
+            return _error("allow_always_not_eligible", HTTPStatus.BAD_REQUEST)
+        allowed = normalized_decision in {"allow-once", "allow-always"}
         desired_state = "allowed" if allowed else "denied"
         existing = action.get("resolution") or {}
         terminal_statuses = {"approved", "rejected", "blocked", "executed", "failed", "allow"}
@@ -155,7 +175,6 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
                 })
                 manager.events.publish("action.conflict", {"action_id": action_id, "decision": decision})
                 return _error("resolution_conflict", HTTPStatus.CONFLICT)
-            action_model = manager._find_action(action_id)
             action_model.sync_state = "conflict"
             manager._save_all(manager._replace_action(action_model))
             manager.record_approval_sync("conflicts", _approval_latency_ms(action))
@@ -181,6 +200,12 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
         if action.get("status") == "pending_approval":
             if allowed:
                 manager.action_service.approve(action_id, None)
+                if normalized_decision == "allow-always":
+                    manager.approval_trust.add(
+                        presentation["allow_always"]["fingerprint"],
+                        action_id=action_id,
+                        scope=presentation["allow_always"]["scope"],
+                    )
             else:
                 manager.action_service.reject(action_id)
         action_model = manager._find_action(action_id)
@@ -194,6 +219,7 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
             "received_at": received_at,
             "decision_state": desired_state,
             "latency_ms": _approval_latency_ms(action),
+            "persistent": normalized_decision == "allow-always",
         }
         # Persist the terminal decision before notifying SSE subscribers.  A
         # frontend fetch triggered by action.resolved must never observe the

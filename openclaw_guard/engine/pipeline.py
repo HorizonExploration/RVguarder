@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 import time
 from pathlib import Path
 from typing import Any, TYPE_CHECKING
@@ -22,12 +23,13 @@ from openclaw_guard.integrations.tool_hook_bridge import (
     hook_key_from_payload,
 )
 from openclaw_guard.engine.command_safety import analyze_command
+from openclaw_guard.engine.approval import build_approval_presentation
 from openclaw_guard.utils import utc_now_iso
 if TYPE_CHECKING:
     from openclaw_guard.services import GuardServices
 
 
-MAX_OPENCLAW_APPROVAL_DESCRIPTION_CHARS = 240
+MAX_OPENCLAW_APPROVAL_DESCRIPTION_CHARS = 512
 MAX_OPENCLAW_APPROVAL_TITLE_CHARS = 80
 
 
@@ -366,6 +368,27 @@ def handle_before_tool_call_pipeline(
     timings.setdefault("rv_ms", 0.0)
     controller_started = time.perf_counter()
     controlled = services.controller.decide(event, decision, hook_source_message)
+    presentation = build_approval_presentation(controlled.event, controlled.decision)
+    controlled.event.metadata["approval_presentation"] = presentation
+    if (
+        controlled.status == "pending_approval"
+        and presentation["allow_always"]["eligible"]
+        and services.approval_trust.contains(presentation["allow_always"]["fingerprint"])
+    ):
+        controlled.status = "proposed"
+        controlled.decision.action = "allow"
+        controlled.decision.risk_level = "safe"
+        controlled.decision.reason = "命中已授权的精确命令信任，自动放行。"
+        controlled.decision.trace = list(controlled.decision.trace) + [{"stage": "approval_trust", "outcome": "allow"}]
+        controlled.decision_trace = controlled.decision.trace
+        controlled.decision_state = "allowed"
+        controlled.execution_state = "running"
+        controlled.event.metadata["approval_trust_reused"] = True
+        presentation["risk_summary"] = {
+            "level": "safe",
+            "reason": controlled.decision.reason,
+        }
+        controlled.event.metadata["approval_presentation"] = presentation
     if controlled.status in {"blocked", "pending_approval"}:
         user_title, user_message = _user_explanation(controlled.event, controlled.decision)
         controlled.decision.user_title = user_title
@@ -412,8 +435,9 @@ def handle_before_tool_call_pipeline(
             "message": message,
             "technical_reason": controlled.decision.reason,
             "user_summary": _user_summary(controlled.event, controlled.decision),
+            "approval": presentation,
             "policy_version": policy.get("policy_version", ""),
-            "action_record": controlled.to_dict(),
+            "action_record": _public_hook_action_record(controlled, presentation),
         }
 
     if controlled.status == "proposed":
@@ -424,11 +448,11 @@ def handle_before_tool_call_pipeline(
         return {
             "action": "allow",
             "params": payload.get("params") if isinstance(payload.get("params"), dict) else {},
-            "action_record": controlled.to_dict(),
+            "action_record": _public_hook_action_record(controlled, presentation),
         }
 
     if controlled.status == "pending_approval":
-        title, message = _user_explanation(controlled.event, controlled.decision)
+        title, message = _approval_prompt_text(presentation, controlled.decision)
         policy = controlled.decision.policy_decision or {}
         return {
             "action": "require_approval",
@@ -436,15 +460,21 @@ def handle_before_tool_call_pipeline(
             "message": message,
             "technical_reason": controlled.decision.reason,
             "user_summary": _user_summary(controlled.event, controlled.decision),
+            "approval": presentation,
+            "allowed_decisions": [
+                "allow-once",
+                "allow-always",
+                "deny",
+            ] if presentation["allow_always"]["eligible"] else ["allow-once", "deny"],
             "policy_version": policy.get("policy_version", ""),
             "severity": "warning",
-            "action_record": controlled.to_dict(),
+            "action_record": _public_hook_action_record(controlled, presentation),
         }
 
     return {
         "action": "allow",
         "params": payload.get("params") if isinstance(payload.get("params"), dict) else {},
-        "action_record": controlled.to_dict(),
+        "action_record": _public_hook_action_record(controlled, presentation),
     }
 
 
@@ -476,7 +506,7 @@ def _user_summary(event: Any, decision: Any) -> dict[str, str]:
 def _user_explanation(event: Any, decision: Any) -> tuple[str, str]:
     summary = _user_summary(event, decision)
     action_type = str(getattr(event, "action_type", ""))
-    target = ", ".join(str(item) for item in getattr(event, "target_paths", [])[:2])
+    target = str(build_approval_presentation(event, decision).get("target_summary") or "")
     labels = {
         "command_exec": ("执行命令", "执行命令"),
         "file_delete": ("删除文件", "删除文件"),
@@ -492,6 +522,66 @@ def _user_explanation(event: Any, decision: Any) -> tuple[str, str]:
     target_text = f"目标为 {target}。" if target else f"目标范围为{summary['target']}。"
     title = f"需要确认：{title_detail}"
     message = f"OpenClaw 请求{detail}。{target_text}当前判断为{summary['risk']}，请确认目标和范围后再继续。"
+    return _bound_user_explanation(title, message)
+
+
+def _public_hook_action_record(action: Any, presentation: dict[str, Any]) -> dict[str, Any]:
+    """Return the Hook response record without replaying the raw request.
+
+    Guard keeps the complete event internally for audit and the dashboard.
+    OpenClaw only needs the action id and compact decision evidence; returning
+    the original payload here would echo credentials back through the Hook.
+    """
+    record = deepcopy(action.to_dict())
+    record["source_message"] = str(presentation.get("intent_summary") or "OpenClaw 工具请求")
+    record["target_summary"] = str(presentation.get("target_summary") or "未知范围")
+    event = record.get("event") if isinstance(record.get("event"), dict) else {}
+    event["raw_payload"] = {}
+    event["command"] = presentation.get("command_preview") or None
+    if event.get("target_paths"):
+        event["target_paths"] = [record["target_summary"]]
+    if event.get("network_targets"):
+        event["network_targets"] = [record["target_summary"]]
+    metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
+    metadata["derived_paths"] = []
+    semantic = metadata.get("semantic")
+    if isinstance(semantic, dict):
+        intent = semantic.get("intent")
+        if isinstance(intent, dict):
+            intent["goal"] = str(presentation.get("intent_summary") or "调用工具")
+    _scrub_public_trace(metadata)
+    event["metadata"] = metadata
+    record["event"] = event
+    _scrub_public_trace(record.get("decision"))
+    return record
+
+
+def _scrub_public_trace(value: Any) -> None:
+    """Remove path/URL/resource collections from a public Hook record."""
+    if isinstance(value, dict):
+        for key in ("paths", "urls", "target_paths", "network_targets", "resource_ids", "path_hints"):
+            if key in value:
+                value[key] = ["[REDACTED]"] if value[key] else []
+        if "command" in value:
+            value["command"] = "[REDACTED]"
+        if "argv" in value:
+            value["argv"] = ["[REDACTED]"] if value["argv"] else []
+        for child in value.values():
+            _scrub_public_trace(child)
+    elif isinstance(value, list):
+        for child in value:
+            _scrub_public_trace(child)
+
+
+def _approval_prompt_text(presentation: dict[str, Any], decision: Any) -> tuple[str, str]:
+    """Build the compact OpenClaw prompt; full evidence stays on Guard."""
+    intent = str(presentation.get("intent_summary") or "调用工具")
+    target = str(presentation.get("target_summary") or "未知范围")
+    risk = presentation.get("risk_summary") if isinstance(presentation.get("risk_summary"), dict) else {}
+    risk_level = str(risk.get("level") or getattr(decision, "risk_level", "caution"))
+    risk_label = {"safe": "低风险", "caution": "需确认", "dangerous": "高风险", "blocked": "已阻断"}.get(risk_level, "需确认")
+    title = f"需要确认：{intent}"
+    message = f"要做什么：{intent}。目标：{target}。风险：{risk_label}。请在 OpenClaw 中选择是否继续。"
     return _bound_user_explanation(title, message)
 
 

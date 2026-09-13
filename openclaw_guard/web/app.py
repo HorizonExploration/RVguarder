@@ -11,6 +11,7 @@ from __future__ import annotations
 import threading
 import time
 import webbrowser
+import socket
 from typing import Any
 
 from fastapi import FastAPI
@@ -97,6 +98,19 @@ def launch_web(
     ui_dir = manager.context.paths.runtime_dir / "ui"
     build_ui(ui_dir, manager.summary())
 
+    # Uvicorn 0.52 no longer exposes a listener while starting with port=0.
+    # Keep the listener itself open and pass it to Uvicorn, avoiding the
+    # probe-then-bind race where another process can claim the port.
+    prebound_socket: socket.socket | None = None
+    if port == 0:
+        family = socket.AF_INET6 if ":" in host else socket.AF_INET
+        prebound_socket = socket.socket(family, socket.SOCK_STREAM)
+        prebound_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        prebound_socket.bind((host, 0))
+        prebound_socket.listen(128)
+        prebound_socket.setblocking(False)
+        port = int(prebound_socket.getsockname()[1])
+
     # uvicorn 配置：单 worker（内存状态安全）、无访问日志、warnings 级别
     config = uvicorn.Config(
         create_app(manager),
@@ -106,7 +120,20 @@ def launch_web(
         access_log=False,
     )
     server = uvicorn.Server(config)
-    thread = threading.Thread(target=server.run, daemon=True)
+
+    def run_server() -> None:
+        try:
+            server.run(sockets=[prebound_socket] if prebound_socket is not None else None)
+        finally:
+            # Uvicorn closes supplied sockets during normal shutdown.  Close
+            # explicitly as well when startup fails before it takes ownership.
+            if prebound_socket is not None:
+                try:
+                    prebound_socket.close()
+                except OSError:
+                    pass
+
+    thread = threading.Thread(target=run_server, daemon=True)
     thread.start()
 
     # 等待 server 启动（最长 10s）
@@ -115,6 +142,8 @@ def launch_web(
         time.sleep(0.01)
 
     if not server.started:
+        if prebound_socket is not None:
+            prebound_socket.close()
         raise RuntimeError("uvicorn failed to start within 10 seconds")
 
     # 解析实际绑定地址（支持 port=0 自动分配）
@@ -124,7 +153,8 @@ def launch_web(
     except Exception:
         pass
 
-    url = f"http://{actual_host}:{actual_port}/"
+    url_host = f"[{actual_host}]" if ":" in str(actual_host) and not str(actual_host).startswith("[") else actual_host
+    url = f"http://{url_host}:{actual_port}/"
     if not no_browser:
         webbrowser.open(url)
 

@@ -27,6 +27,7 @@ from openclaw_guard.integrations.discovery import discover_openclaw
 from openclaw_guard.storage.audit_store import AuditStore
 from openclaw_guard.integrations.hook_runtime import ensure_runtime_hook_plugin
 from openclaw_guard.engine.semantic_enhancer import SemanticEnhancer
+from openclaw_guard.engine.approval import ApprovalTrustStore
 from openclaw_guard.policy.engine import AuthorizationPolicyEngine
 from openclaw_guard.rv.runtime_verification import RuntimeVerificationEngine
 from openclaw_guard.models import BehaviorEvent, ControlledAction, DetectionDecision
@@ -396,6 +397,8 @@ class GuardServices:
         self.latest_baseline_path = context.paths.runtime_dir / "latest-baseline.json"
         self.conversation_path = context.paths.runtime_dir / "conversation.json"
         self.preferences_path = context.paths.runtime_dir / "preferences.json"
+        self.approval_trust_path = context.paths.runtime_dir / "approval-trust.json"
+        self.approval_trust = ApprovalTrustStore(self.approval_trust_path)
         self.log_path = context.paths.runtime_dir / "guard.log"
         self.rv_state_path = context.paths.runtime_dir / "rv-state.json"
         self._rv_state_lock = threading.RLock()
@@ -842,6 +845,14 @@ class GuardServices:
 
     def preferences(self) -> dict[str, Any]:
         return read_json(self.preferences_path) or {"guard_mode": "strict", "reply_scan": True}
+
+    def approval_trust_summary(self) -> dict[str, Any]:
+        return {"items": self.approval_trust.list(), "ttl_days": self.approval_trust.ttl_days}
+
+    def revoke_approval_trust(self, fingerprint: str) -> dict[str, Any]:
+        if not str(fingerprint or "").strip():
+            raise ValueError("fingerprint_required")
+        return {"ok": self.approval_trust.revoke(str(fingerprint)), "fingerprint": str(fingerprint)}
 
     def save_preferences(self, payload: dict[str, Any]) -> dict[str, Any]:
         prefs = self.preferences()

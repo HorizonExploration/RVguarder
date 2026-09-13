@@ -52,6 +52,18 @@ def clear_actions(payload: dict = Depends(body_payload), manager=Depends(get_man
     return JSONResponse(content=payload, status_code=int(status))
 
 
+@router.get("/api/approval-trust")
+def approval_trust(manager=Depends(get_manager)):
+    payload, status = api.approval_trust_summary(manager)
+    return JSONResponse(content=payload, status_code=int(status))
+
+
+@router.post("/api/approval-trust/revoke")
+def revoke_approval_trust(payload: dict = Depends(body_payload), manager=Depends(get_manager)):
+    result, status = api.revoke_approval_trust(manager, payload)
+    return JSONResponse(content=result, status_code=int(status))
+
+
 # ─── Skills ──────────────────────────────────────────────────────
 
 

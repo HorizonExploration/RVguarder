@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from openclaw_guard import api
@@ -19,7 +19,12 @@ router = APIRouter(
 
 
 @router.post("/before-tool-call")
-def before_tool_call(payload: dict = Depends(body_payload), manager=Depends(get_manager)):
+def before_tool_call(request: Request, payload: dict = Depends(body_payload), manager=Depends(get_manager)):
+    payload = {
+        **payload,
+        "_hook_auth_verified": bool(getattr(request.state, "openclaw_hook_authenticated", False)),
+        "_hook_auth_binding": getattr(request.state, "openclaw_hook_binding", None),
+    }
     payload, status = api.hook_before_tool_call(manager, payload)
     return JSONResponse(content=payload, status_code=int(status))
 

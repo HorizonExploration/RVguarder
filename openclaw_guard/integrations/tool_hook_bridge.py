@@ -301,12 +301,15 @@ def build_hook_event(
     agent_id = str(payload.get("agentId") or "").strip()
     trusted_identity = {}
     if agent_id:
+        hook_binding = str(payload.get("_hook_auth_binding") or "").strip()
+        principal_id = f"hook:{hook_binding}" if hook_binding else agent_id
         trusted_identity = {
-            "principal_id": agent_id,
+            "principal_id": principal_id,
             "principal_type": "agent",
             "agent_id": agent_id,
             "capability_lineage": [f"openclaw-agent:{agent_id}"],
             "trust": "verified",
+            "binding": "hook_token" if hook_binding else "direct_test_context",
         }
     metadata = {
         "hook_bridge": True,
@@ -321,6 +324,10 @@ def build_hook_event(
         "session_id": payload.get("sessionId"),
         "agent_id": agent_id or None,
         "trusted_identity": trusted_identity,
+        # FastAPI's Hook dependency sets this server-side after validating the
+        # bridge token.  A caller-supplied field is never treated as proof.
+        "hook_auth_verified": payload.get("_hook_auth_verified") is True,
+        "hook_auth_binding": str(payload.get("_hook_auth_binding") or "") or None,
         "hook_key": hook_key_from_payload(payload),
         "tool_group": tool_profile.get("tool_group") if tool_profile else _infer_tool_group(action_type),
         "tool_origin": tool_profile.get("tool_origin") if profile_safe else "hook_bridged",
