@@ -3,7 +3,7 @@
 > **状态：** 当前实现结果与架构事实源
 > **核对日期：** 2026-09-09
 > **PMKB 版本：** `1.1.0`
-> **测试基线：** 合并后全量回归 `506 passed / 18 skipped / 4 subtests passed`（2026-09-03）；旧基线 `513 passed / 18 skipped / 4 subtests passed` 仅作历史对照。
+> **测试基线：** 当前全量回归 `494 passed / 19 skipped / 4 subtests passed`（2026-09-09）；Playwright 全栈冒烟 `8 passed`。旧基线 `513 passed / 18 skipped / 4 subtests passed` 仅作历史对照。
 
 > **2026-09-09 复核：** 下文关于 ConstraintEngine、SessionSafetyState、`revise` 和
 > `before_prompt_build` 的描述是旧阶段快照。生产链路只使用 PMKB、显式工具 profile、成功执行
@@ -240,7 +240,7 @@ PMKB 效果到 Guard 动作的映射为：
 
 - 原生 `sessions_*`、`session_status`、`memory_*`、`agents_list`、`get_goal` 被映射为明确的只读 permission family，并按 `tool_origin=openclaw_native`、`risk_class=low` 进入 PMKB；控制面读取不会因为缺少文件路径或 Agent 身份而被误判为普通命令审批。
 - `sessions_send`、`sessions_spawn` 及计划/目标写入不继承上述只读信任，仍需要审批或进一步判定；Shell/exec 读取仍必须满足 workspace/managed_project 边界和只读特征。
-- 发送给 OpenClaw 的审批标题和说明分别限制为 80/240 字符，避免长命令触发 `plugin.approval.request` schema 错误；Guard 继续保留完整技术证据。超过 6 分钟没有回调的 Hook 审批会进入 `approval_timeout`，防止 Dashboard 永久显示孤儿待确认。
+- 发送给 OpenClaw 的审批标题和说明分别限制为 80/512 字符；弹窗仅展示意图、目标和风险，命令与规则证据在 Guard 详情中默认脱敏。低风险精确命令可使用 30 天可撤销的 `allow-always`，不改变 PMKB hard-block 优先级。超过 6 分钟没有回调的 Hook 审批会进入 `approval_timeout`。
 
 ## 8. 验证证据与当前指标
 
@@ -252,8 +252,8 @@ PMKB 效果到 Guard 动作的映射为：
 - `tests/test_permission_diff.py`、`test_permission_risk_graph.py`：最小权限、scope expansion 和危险组合；
 - `tests/test_principal_capability_rv.py`、`test_principal_rv_hook_integration.py`：跨 session 主体状态和持久化；
 - `tests/test_permission_rv_compiler.py`：PMKB 规则/关系自动机编译、effect 投影和 principal 作用域隔离；
-- 当前全量回归：`506 passed / 18 skipped / 4 subtests passed`（2026-09-03 合并后）；旧基线 `513 passed / 18 skipped / 4 subtests passed` 仅作历史对照。
-- 历史定向回归曾覆盖 Hook 配置清理、OpenClaw 原生工具映射、PMKB 命中、Trace 编译、审批同步、超时收拢和审批文案边界（`192 passed / 4 subtests passed`）；当前全量基线为 `506 passed / 18 skipped / 4 subtests passed`，历史详情保存在 `docs/archive/research/openclaw-approval-chain-optimization-report-2026-08-30.md`（归档不参与站点构建）。
+- 当前全量回归：`494 passed / 19 skipped / 4 subtests passed`（2026-09-09）；Playwright 全栈冒烟 `8 passed`；旧计数仅作历史对照。
+- 历史定向回归曾覆盖 Hook 配置清理、OpenClaw 原生工具映射、PMKB 命中、Trace 编译、审批同步、超时收拢和审批文案边界（`192 passed / 4 subtests passed`）；当前全量基线为 `494 passed / 19 skipped / 4 subtests passed`，历史详情保存在 `docs/archive/research/openclaw-approval-chain-optimization-report-2026-08-30.md`（归档不参与站点构建）。
 
 路线图目标 `complete coverage ≥85%`、`unknown rate ≤10%`、`low-risk auto-allow precision ≥99%`、`high-risk recall ≥98%`、人工审批量下降 40% 等，当前仅是发布和扩大自动放行范围的验收门槛，尚未由真实个人使用数据验证。
 

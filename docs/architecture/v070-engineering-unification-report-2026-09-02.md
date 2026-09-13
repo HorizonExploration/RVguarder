@@ -36,7 +36,7 @@ Guard 页面不拥有审批权。生产插件不注册 `before_prompt_build`；�
 | HTTP | FastAPI + Uvicorn 是唯一启动入口；旧版 stdlib HTTP 实现已移出生产包 | CLI selector 测试、HTTP/前端构建 |
 | 单步策略 | PMKB 原生规则与 `LEGACY-*` 共同评估 | 47 条逐条回放、Hook 回归 |
 | 历史代码 | `DetectionEngine` 从生产模块删除；`policy/legacy.py` 只含冻结回放元数据 | 无生产导入检查、全量回归 |
-| 评测证据 | 8 月 30 日 AgentDojo manifest、metrics、trace、report 入库 | 结果目录与 testlab 文档引用 |
+| 评测证据 | 8 月 30 日 AgentDojo manifest、metrics、trace、report 入库；执行器已于 2026-09-09 清理 | 结果目录保留为历史证据 |
 
 ## 本轮 1/2 改造结果
 
@@ -57,7 +57,7 @@ Guard 页面不拥有审批权。生产插件不注册 `before_prompt_build`；�
 
 - 已将 README、现状分析、PMKB 架构、质量保障、RV 技术报告和研究简报中的旧入口、旧 PMKB 计数和 DetectionEngine 现状描述改为当前事实或明确标注为历史快照。
 - 已删除无生产/测试引用的一次性 `scripts/append_feishu_comparison.py`；该脚本含本地 OpenClaw 配置读取、固定飞书文档 token 和过时架构文案，不属于历史实验或评测证据。
-- `docs/archive/`、`testlab/` 历史实验脚本、AgentDojo 原始结果与报告、LEGACY 回放元数据均保留；它们不得作为当前生产模块清理。
+- `docs/archive/`、`testlab/` 历史原始结果与报告、LEGACY 回放元数据均保留；过时实验脚本和方案已于 2026-09-09 删除，不得恢复到当前生产模块。
 - 已清理 Python `__pycache__` 和 VuePress `.temp` 生成目录；运行中的 `runtime/guard.log` 未删除。
 - 未发现其他可在不改变生产行为的前提下删除的 tracked 模块。`collectors` 探测桩、基线训练脚本和实验结果仍由现行/历史材料引用，继续保留。
 - 代码静态清查已移除 `services.py`/`web/app.py` 的重复类型检查导入、`policy/trace.py` 的未使用类型导入、基线脚本无效 f-string，以及命令安全分析中的无效果空分支；包级 `__init__.py` 星号重导出属于兼容 API，保留不删。

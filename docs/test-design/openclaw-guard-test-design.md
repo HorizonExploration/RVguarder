@@ -13,7 +13,7 @@
 | 流水线 | `before_tool_call` / `after_tool_call`、动作状态和审计 | `tests/test_pipeline.py`、`test_hook_runtime.py`、`test_services.py` |
 | 交接合同 | OpenClaw 原生审批、回调幂等、SSE/序号同步和超时 | `tests/test_approval_sync.py`、`test_principal_rv_hook_integration.py`、`test_three_state_control.py` |
 | 兼容回放 | `LEGACY-*` 与 PMKB 判定一致性、版本和 bundle 完整性 | `tests/test_legacy_policy_migration.py`、`test_pmkb_*.py` |
-| 实验 | AgentDojo 与历史 RV 必要性/干扰证据 | `testlab/`；不作为每次提交门禁 |
+| 研究夹具 | 历史结果与无副作用权限/RV 场景 | `testlab/results/`、`testlab/实验结果/`、`testlab/research/`；不作为每次提交门禁 |
 
 ## 当前控制合同
 
@@ -43,5 +43,5 @@ cd frontend && npm run build
 cd ../docs && npm run docs:build
 ```
 
-实验重跑需单独审批环境和凭据；默认不运行大规模 AgentDojo，也不把运行时目录、
-`.env` 或历史结果作为清理对象。
+当前仓库不包含可执行的大规模 AgentDojo 评测；新的实验重跑需先完成独立设计评审。
+运行时目录、`.env` 或历史结果不属于默认清理对象。

@@ -312,7 +312,7 @@ FastAPI 与 uvicorn 已是默认必需依赖；门禁应验证依赖缺失时给
 | 跨 session | principal 键、TTL、持久化恢复和 session 隔离 | `tests/test_principal_capability_rv.py` |
 | 文档合同 | 当前架构和 README 不回退到旧版本/旧审批口径 | `tests/test_policy_docs.py` |
 
-当前全量回归基线为 `506 passed / 18 skipped / 4 subtests passed`（2026-09-03）；旧的 513 计数仅作历史对照。
+当前全量回归基线为 `494 passed / 19 skipped / 4 subtests passed`（2026-09-09）；Playwright 全栈冒烟 `8 passed`；旧计数仅作历史对照。
 覆盖率、人工审批下降比例和命中率目标仍需用真实事件或离线回放另行测量，不把目标指标写成已经达成的结果。
 
 针对 OpenClaw 交接与误拦截修复，允许使用关键链路定向门禁：Hook 配置清理、原生工具映射、PMKB

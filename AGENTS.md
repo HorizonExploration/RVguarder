@@ -92,7 +92,7 @@ frontend/                # SPA 前端（Vite + Preact）
 
 tests/                   # Python 单元测试（unittest）
 e2e/                     # Playwright E2E 测试
-testlab/                 # RV 研究实验（必要性/变种鲁棒性/误报干扰）
+testlab/                 # 历史结果与无副作用研究夹具（不含可执行旧评测）
 runtime/                 # 运行时产物（自动生成，已 .gitignore）
 docs/                    # VuePress 文档站点
 ```

@@ -3,13 +3,21 @@
 **日期**：2026-09-09
 **当前口径**：FastAPI 单入口、PMKB `1.1.0`、三态 RV、OpenClaw 原生审批唯一入口
 
+## Checkpoint / Guard UX 升级
+
+- OpenClaw 审批卡片改为展示“要做什么 / 目标 / 风险”的短摘要；完整命令、参数和规则证据留在 Guard 页面，默认脱敏。
+- 低风险工作区只读命令支持精确 `allow-always`：绑定工具、完整参数、工作目录和已验证 agent/principal，敏感目标与未收敛参数不会开放，默认 30 天，可在设置页撤销。
+- Guard 动作页和 Trace 时间线改为摘要卡 + 分区折叠；新增精确授权列表、过期和撤销入口，Hook 动作仍不提供第二审批按钮。
+- FastAPI `--port 0` 在当前 Uvicorn 版本下改为预分配临时端口，恢复端到端冒烟启动能力。
+- 清理依赖退役检测路径的 A/B/C 与 AgentDojo 执行器、绑定测试、方案和环境说明；保留 `testlab/results/`、`testlab/实验结果/` 的历史证据及无副作用研究夹具。
+
 ## 当前状态
 
 - 生产决策统一为 `allow / ask / block`；`ask` 只由 OpenClaw 原生审批承接，Guard Dashboard 只读同步。
 - `ConstraintEngine`、累计会话风险和 `revise` 已退出生产路径；RV 只对有效窗口做执行前预览，并在成功 `after_tool_call` 后提交主体证据。
 - PMKB 当前包含 47 个 canonical operations、35 条原生规则、47 条 `LEGACY-*` 回放记录、29 条 Trace、9 条关系和 29 个回归向量。
 - 旧版 stdlib HTTP 服务已从生产代码移除；历史方案、实验结果和现场证据保留在 `docs/archive/`，不参与当前文档站导航。
-- 文档导航、代码路径、测试示例和架构描述已按当前代码复核；最近验证为 Python `506 passed / 18 skipped / 4 subtests passed`、前端构建通过、VuePress 渲染 37 页。
+- 文档导航、代码路径、测试示例和架构描述已按当前代码复核；本次验证为 Python `494 passed / 19 skipped / 4 subtests passed`、Playwright `8 passed`、前端构建通过、VuePress 渲染 37 页。
 
 ---
 

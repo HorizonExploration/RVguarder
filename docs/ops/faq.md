@@ -39,11 +39,21 @@ npm run openclaw gateway
 
 Guard Dashboard 不是第二个审批中心。生产插件只让 `before_tool_call` 进入安全动作生命周期；真正需要用户决定的动作由 OpenClaw 原生审批卡片处理。
 
-如果旧的临时插件路径残留在 `plugins.load.paths`，或 OpenClaw 审批回调超时，Dashboard 可能短暂保留历史待确认项。重新启动 Guard 会清理不存在的 `/tmp/.../runtime/openclaw-guard-plugin` 路径；超过 6 分钟没有回调的 Hook 审批会自动标记为 `approval_timeout`。请查看动作的 `sync_state`，不要把 `timeout` 当成规则阻断。
+如果旧的临时插件路径残留在 `plugins.load.paths`，或 OpenClaw 审批回调超时，Dashboard 可能短暂保留历史待确认项。使用正式项目目录重新启动 Guard 会清理不存在的临时插件路径；超过 6 分钟没有回调的 Hook 审批会自动标记为 `approval_timeout`。请查看动作的 `sync_state`，不要把 `timeout` 当成规则阻断。
+
+如果 OpenClaw 在启动前报 `plugin path not found: /tmp/.../runtime/openclaw-guard-plugin`，说明旧测试/临时项目路径污染了用户级配置。先让 Guard 使用正式项目目录运行一次以清理配置，再刷新 OpenClaw 的持久化插件索引：
+
+```bash
+openclaw-guard doctor --project-dir /path/to/OpenClaw-RVGuarder --json
+openclaw plugins registry --refresh
+openclaw config validate
+```
+
+当前版本不会把临时项目生成的插件路径写入外部 OpenClaw 配置；正式项目目录和项目内配置不受此保护影响。
 
 ## 6. 为什么长命令会报 `description must not have more than 512 characters`
 
-这是 OpenClaw 审批参数校验错误，不是命令本身的风险判定。当前插件已在发送审批卡片前限制标题和说明长度（说明最多 240 字符），完整详情仍保留在 Guard 审计记录中。若仍看到旧错误，请确认 gateway 已加载最新的 `runtime/openclaw-guard-plugin/index.js` 并重启一次 gateway。
+这是 OpenClaw 审批参数校验错误，不是命令本身的风险判定。当前插件已在发送审批卡片前限制标题和说明长度（说明最多 512 字符），完整命令和规则详情仍保留在 Guard 页面并默认脱敏。若仍看到旧错误，请确认 gateway 已加载最新的 `runtime/openclaw-guard-plugin/index.js` 并重启一次 gateway。
 
 ## 7. 为什么读取会话/记忆仍被要求审批
 

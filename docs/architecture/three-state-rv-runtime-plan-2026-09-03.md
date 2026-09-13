@@ -1,7 +1,7 @@
 # 三态控制面与 RV 提交边界
 
 > 初始更新：2026-09-03 | 当前复核：2026-09-09
-> 状态：核心实现已完成；当前全量回归为 `506 passed / 18 skipped / 4 subtests passed`，Playwright 全栈冒烟 6 项通过。
+> 状态：核心实现已完成；当前全量回归为 `494 passed / 19 skipped / 4 subtests passed`，Playwright 全栈冒烟 8 项通过。Checkpoint 摘要、Guard 分区详情和精确授权已接入现行三态链路。
 
 ## 目标与边界
 
@@ -39,8 +39,8 @@ after_tool_call（仅无错误且未被拒绝/阻断）
 - 工具桥接只使用显式 OpenClaw profile 和其声明的结构化字段。未建模工具、或低风险 profile
   出现越权参数时，均保留 `action_type=unknown` 与 `risk_class=unknown`，通过一次保守审批处理，
   不从自由文本伪造命令、文件或网络动作。
-- 旧 ConstraintEngine、会话累计分数和 revision hint 已删除。历史实验产物仍保留在
-  `testlab/`，不进入生产链路。
+- 旧 ConstraintEngine、会话累计分数和 revision hint 已删除。`testlab/` 仅保留历史结果和
+  无副作用研究夹具，不进入生产链路。
 
 ## 性能约束与验证
 

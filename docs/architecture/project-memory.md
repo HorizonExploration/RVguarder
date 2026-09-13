@@ -2,7 +2,7 @@
 
 > **核对日期**：2026-09-09（文档清查后复核）
 > **核对基准**：当前工作树（PMKB 网络案例基础知识库 `1.1.0`）
-> **合并后全量回归（2026-09-03）**：`python -m pytest -q` → **506 passed / 18 skipped / 4 subtests passed**。
+> **当前全量回归（2026-09-09）**：`python -m pytest -q` → **494 passed / 19 skipped / 4 subtests passed**；Playwright 全栈冒烟 **8 passed**。
 
 本文档是后续维护项目时的“当前事实源”。历史方案、阶段性审计报告和旧版本说明仍然保留，但如果它们与本文档或当前代码冲突，应以当前代码和本文档为准。
 
@@ -50,7 +50,7 @@ OpenClaw before_tool_call
 | `openclaw_guard/storage/` | SQLite/PostgreSQL/可选 SQLAlchemy 存储与审计哈希链 |
 | `openclaw_guard/web/` | FastAPI 路由，唯一 HTTP 入口 |
 | `frontend/` | Vite + Preact + Zustand 工作台 |
-| `testlab/` | AgentDojo 与 RV 必要性/鲁棒性/干扰实验 |
+| `testlab/` | 历史结果与无副作用权限/RV 研究夹具；不含可执行旧评测 |
 | `docs/` | VuePress 文档站、架构报告、研究记录和测试设计 |
 
 ## 4. 已落地能力
@@ -62,10 +62,10 @@ OpenClaw before_tool_call
 - PMKB 网络案例基线 `1.1.0` 已直接接入 `PolicyBundle → TraceCompiler → PolicyEvaluator → RiskGraph` 链路；源码目录与打包目录保持同版本、同内容，并为关键操作保留来源、Trace 和正反例向量。
 - OpenClaw 官方 runtime、filesystem、web、browser、sessions、memory、messaging、automation、agents、human-input、credentials、nodes 和 UI 工具通过显式 profile 建模；低风险 profile 必须满足结构化参数边界才继承只读信任。未知工具或越权参数固定为 `unknown` 并一次审批，不通过自由文本猜测动作类型。
 - Hook 透传 `toolKind`、`toolInputKind`、`derivedPaths`；after 回调只有在 `runId + toolCallId + session/agent/tool` 上下文一致且动作未终态时才能提交执行、principal 和 RV 状态，重复回调会被拒绝。
-- Hook 审批文案在发送给 OpenClaw 前限制为标题 80、说明 240 字符；超过 6 分钟未回调的审批会标记为 `approval_timeout`，避免长命令 schema 失败和 Dashboard 孤儿动作。
+- Hook 审批文案在发送给 OpenClaw 前限制为标题 80、说明 512 字符；弹窗只展示意图/目标/风险，完整命令在 Guard 详情中脱敏展示。精确命令授权默认 30 天并可撤销；超过 6 分钟未回调的审批会标记为 `approval_timeout`。
 - 审批回调由 OpenClaw 单一审批中心拥有；Guard 只读同步。回调在写入动作状态后再发布 `action.resolved`，摘要提供 `sync.approval` 聚合指标（最近 128 个延迟样本），前端摘要哈希会响应同步序号变化。
 - PMKB 已新增 `NATIVE-PROCESS-DESTRUCTIVE`、`NATIVE-PROCESS-PRIVILEGED`、`NATIVE-NETWORK-SECRET-EXTERNAL` 三条字段谓词规则；47 条 `LEGACY-*` 继续作为历史回放证据，尚未删除。
-- 2026-09-03 已完成原生工具、RV 窗口重放、主体成功提交的定向回归；合并后全量回归为 **506 passed / 18 skipped / 4 subtests passed**；未运行大规模 AgentDojo。
+- 2026-09-09 已完成原生工具、RV 窗口重放、主体成功提交、Checkpoint 摘要/授权和 Guard UX 的定向回归；全量回归为 **494 passed / 19 skipped / 4 subtests passed**，Playwright 全栈冒烟 **8 passed**；旧 AgentDojo 评测执行器已清理，历史结果仅保留为证据。
 
 ## 5. 当前边界与待办
 
@@ -83,6 +83,6 @@ OpenClaw before_tool_call
 
 1. 先看本文件、`docs/architecture/index.md`、`docs/ops/roadmap.md`，再看现行研究文档；历史材料统一在 `docs/archive/`，`testlab/` 仅作为历史实验与证据，不是运行时依赖。
 2. 修改 Hook 合约、RV 判定顺序、默认模式或版本号时，同时更新 API/架构/部署文档和测试基线。
-3. 报告测试数量必须注明运行日期和命令；历史报告中的旧计数是快照，当前回归基线为 **506 passed / 18 skipped / 4 subtests passed**（2026-09-03）。
+3. 报告测试数量必须注明运行日期和命令；历史报告中的旧计数是快照，当前回归基线为 **494 passed / 19 skipped / 4 subtests passed**（2026-09-09）。
 4. 运行时是否处于 fail-open 不能从静态文档推断，必须通过进程、健康接口和插件状态现场检查。
 5. 文档与前端构建验证命令分别为 `cd docs && npm run docs:build`、`cd frontend && npm run build`；当前复核均已通过（2026-09-09）。

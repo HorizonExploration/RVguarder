@@ -8,7 +8,7 @@
 > **版本**：v0.7.0-dev（PMKB 1.1.0、三态 RV 和 OpenClaw 单一审批契约）
 > **分析日期**：2026-09-09（文档清查复核）
 > **分析基准**：当前工作树；精确提交号以 Git 为准
-> **当前验证基线（2026-09-03）**：`python -m pytest -q` → **506 passed / 18 skipped / 4 subtests passed**；旧的 513 计数仅保留作历史对照。
+> **当前验证基线（2026-09-09）**：`python -m pytest -q` → **494 passed / 19 skipped / 4 subtests passed**；Playwright 全栈冒烟 **8 passed**；旧计数仅作历史对照。
 > **状态更新（2026-09-03）：** 本文保留 2026-08-30 的问题快照；旧入口和过时文档已清理，当前实现、版本和验证结论以 [项目理解与当前记忆](./project-memory.md) 与 [v0.7.0-dev 工程统一报告](./v070-engineering-unification-report-2026-09-02.md) 为准。
 
 ---
@@ -189,4 +189,4 @@ v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆
 
 ---
 
-*本报告初稿于 2026-08-30，后于 2026-09-09 完成当前实现复核；历史问题快照保留原日期和语境，当前全量回归为 **506 passed / 18 skipped / 4 subtests passed**。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 与 `runtime-hook.md` 为准。*
+*本报告初稿于 2026-08-30，后于 2026-09-09 完成当前实现复核；历史问题快照保留原日期和语境，当前全量回归为 **494 passed / 19 skipped / 4 subtests passed**，Playwright 全栈冒烟 **8 passed**。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 与 `runtime-hook.md` 为准。*

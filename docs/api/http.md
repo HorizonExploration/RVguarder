@@ -214,7 +214,7 @@ OpenClaw Guard 本地插件内部使用的同步审批接口。
 - 生成动作记录
 - 执行 `allow / require_approval / block`；内部 RV `escalate` 在 Hook 出口统一折叠为 `require_approval`
 - 返回给 OpenClaw 的 `requireApproval` 遵循官方 `BeforeToolCallResult` 类型
-- `require_approval` 返回 `title`、`message`、`user_summary`、`policy_version` 和 `technical_reason`；
+- `require_approval` 返回 `title`、`message`、`user_summary`、`approval`、`allowed_decisions`、`policy_version` 和 `technical_reason`；
   OpenClaw 弹窗只使用中文 `title/message`，技术原因仅供 Guard 审计和排障。
 - `before_prompt_build` 不属于生产插件注册的 Hook；该接口只处理实际 `before_tool_call`。
 
@@ -247,7 +247,9 @@ OpenClaw 原生审批卡片 `onResolution` 回调使用的接口。
 ```
 
 - `actionId` 也兼容 `action_id` 字段名
-- `decision` 支持 `allow-once` / `deny` / `timeout` / `cancelled`（兼容 `allow_once` 旧格式）；`allow-always` 不在首版审批契约内并返回 `400 unsupported_resolution`
+- `decision` 支持 `allow-once` / `allow-always` / `deny` / `timeout` / `cancelled`（兼容下划线旧格式）；`allow-always` 仅在低风险精确命令满足资格时接受，否则返回 `400 allow_always_not_eligible`
+- `allow-always` 会写入 `runtime/approval-trust.json`，默认 30 天有效；fingerprint 同时绑定工具、完整参数、工作目录和 agent/principal
+- `allow-always` 还要求已验证的 agent/principal、服务端确认的 Hook token 上下文（并绑定当前安装实例）、确定性只读命令和非敏感目标；`.env`、`.git`、凭据/密钥路径、命令中的凭据参数以及无法收敛参数的未知工具会返回 `400 allow_always_not_eligible`
 - 权限证据同时返回 `effective_permissions`、`p_after`、`scope_expansions` 和 `hard_violations`，用于核对主体当前授权、申请后授权集合及最小权限越界。
 - 相同决策重复回调幂等返回；相反决策会返回 `409 resolution_conflict`
 - 响应包含 `decision_state`、`sync_state`、`event_seq`、`received_at` 和 `latency_ms`
@@ -259,6 +261,14 @@ Guard 前端使用的 Server-Sent Events（SSE）单向事件流。
 - 支持 `after_seq` 查询参数和 `Last-Event-ID` 断线补偿
 - 事件类型包括 `action.created`、`action.resolved`、`action.updated`、`action.timeout`、`action.conflict`
 - SSE 不可用时，前端使用轻量摘要和单动作查询进行降级对账
+
+## GET `/api/approval-trust`
+
+返回当前未过期的精确命令授权记录，供 Guard 设置页展示。
+
+## POST `/api/approval-trust/revoke`
+
+请求体 `{ "fingerprint": "..." }`，撤销一条精确命令授权；撤销不影响历史审计记录。
 
 ## POST `/api/skills/upsert`
 

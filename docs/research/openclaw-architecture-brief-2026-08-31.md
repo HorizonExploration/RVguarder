@@ -20,7 +20,7 @@
 - PMKB 可编译为权限监视器，并与 session-local / principal-global RV 协同。
 - OpenClaw 原生审批是唯一批准/拒绝入口；Guard Dashboard 只读同步、解释和审计。
 - 生产插件不注册 `before_prompt_build`；实际执行前门禁只有 `before_tool_call`。
-- AgentDojo 框架已完成，但首轮数据无效：`max_tool_iters=2` 导致执行链截断，noguard 攻击基线为 0，candidate 曾有 Hook token 401；所有首轮预防率和负载指标作废，必须重跑。
+- 历史 AgentDojo 首轮数据无效：`max_tool_iters=2` 导致执行链截断，noguard 攻击基线为 0，candidate 曾有 Hook token 401；所有首轮预防率和负载指标作废。旧执行器已清理，后续评测须以重新设计后的独立夹具实施。
 
 ## 推荐汇报顺序
 
@@ -29,7 +29,7 @@
 3. 展示 PMKB 目录，说明规则、最小权限 Trace、危险组合和回归向量如何共同构成知识库；
 4. 展示 PMKB→MonitorSpec→RV，说明权限策略如何进入自动机和跨会话主体状态；
 5. 最后展示 OpenClaw 审批交接，强调 Guard 不维护第二套审批状态；
-6. 单独说明 AgentDojo 首轮实验作废及重跑门槛，不得把无效数据写成防护结论。
+6. 单独说明 AgentDojo 首轮实验作废，且旧执行器已删除；不得把无效数据写成防护结论。
 
 ## 不应出现的表达
 
@@ -41,7 +41,7 @@
 
 ## 可直接复用的结论
 
-OpenClaw-RVGuarder 本阶段的主要进展不是增加了多少条规则，而是建立了从权限语义、知识库证据到运行时验证的闭环：Authorization Trace 描述权限，PMKB 承载权限，Closure/Diff 和 RiskGraph 分析权限，自动机和 RV 验证权限，OpenClaw 负责最终审批。下一步应先重跑有效的 AgentDojo 基线，再据此评估安全收益、审批负载和可用性。
+OpenClaw-RVGuarder 本阶段的主要进展不是增加了多少条规则，而是建立了从权限语义、知识库证据到运行时验证的闭环：Authorization Trace 描述权限，PMKB 承载权限，Closure/Diff 和 RiskGraph 分析权限，自动机和 RV 验证权限，OpenClaw 负责最终审批。下一步应先完成新的小规模可回放实验设计，再据此评估安全收益、审批负载和可用性。
 
 ## 图稿入口
 

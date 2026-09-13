@@ -269,8 +269,9 @@ agents、human-input、nodes 和 UI 工具均有显式 profile。只有参数边
 低风险读取才会自动放行审计；跨 session 读取、外联、浏览器交互、发送/生成子代理、计划和
 网关修改等能力仍需要 OpenClaw 审批。未知工具或已知工具的越权参数保持 `unknown`，不会被
 自由文本推断为危险动作，也不会静默放行。
-插件发送审批卡片前将标题限制为 80 字符、说明限制为 240 字符，避免长命令触发 OpenClaw
-`plugin.approval.request` 参数上限；完整技术证据仍在 Guard 审计中。
+插件发送审批卡片前将标题限制为 80 字符、说明限制为 512 字符，弹窗突出“要做什么”；完整
+命令和技术证据在 Guard 页面按分区展示并默认脱敏。低风险精确命令支持默认 30 天可撤销的
+`allow-always`，仅对已验证主体的非敏感、严格收敛命令生效，不改变 PMKB hard-block 优先级。
 
 详见：[PMKB 网络案例基线](docs/semantic/pmkb-network-case-baseline.md)、[升级结果报告](docs/research/pmkb-network-baseline-implementation-report-2026-08-28.md)。
 
@@ -340,7 +341,7 @@ SecurityChainMonitor 触发:
 python -m pytest -q
 ```
 
-合并后全量回归（2026-09-03）：`506 passed / 18 skipped / 4 subtests passed`。
+本次全量回归（2026-09-09）：`494 passed / 19 skipped / 4 subtests passed`；Playwright 全栈冒烟 `8 passed`。
 
 测试覆盖：
 

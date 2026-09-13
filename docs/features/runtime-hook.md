@@ -75,12 +75,12 @@ OpenClaw 进入工具调用
   requireApproval: {
     pluginId: "openclaw-guard-hook",      // 插件标识
     title: "需要确认：修改项目文件",        // 中文审批卡片标题
-    description: "本次操作将修改项目中的文件，请确认目标和范围。", // 中文说明
+    description: "要做什么：修改项目文件。目标：managed_project。风险：需确认。", // 仅放决策摘要
     severity: "warning",                    // "info" | "warning" | "critical"
-    allowedDecisions: ["allow-once", "deny"], // 首版不提供持久放行
+    allowedDecisions: ["allow-once", "allow-always", "deny"],
     timeoutMs: 300000,                      // 5 分钟超时
     onResolution: async (decision) => {     // 审批决策回调
-      // decision: "allow-once" | "deny" | "timeout" | "cancelled"
+      // decision: "allow-once" | "allow-always" | "deny" | "timeout" | "cancelled"
       await postJson(`${guardUrl}/api/hook/resolve-approval`, {
         actionId: result.action_record.action_id,
         decision: decision,
@@ -90,9 +90,17 @@ OpenClaw 进入工具调用
 }
 ```
 
-Guard 会同时返回 `user_summary`、`policy_version` 和 `technical_reason`：OpenClaw 卡片只展示
-`title/description` 及用户摘要，规则编号、匹配证据和内部原因留在 Guard 审计详情中。
+Guard 会同时返回 `user_summary`、`approval`、`allowed_decisions`、`policy_version` 和
+`technical_reason`：OpenClaw 卡片只展示“要做什么 / 目标 / 风险”等关键摘要，规则编号、命令
+参数和内部原因留在 Guard 详情中。
 `technical_reason` 不应直接作为用户提示。
+
+`allow-always` 不是全局放行。Guard 仅对确定性解析的低风险工作区命令开放，并将工具、完整
+规范化参数、工作目录和 agent/principal 组合成 fingerprint，默认保存 30 天；参数或目录变化
+会重新审批，高危、网络、特权或敏感目标（`.env`、`.git`、凭据、密钥、私钥等）不提供该决定。
+请求必须带有已验证的 agent/principal，并通过 Guard 的 Hook token 鉴权上下文；HTTP Hook 会把鉴权 token
+转换为服务端绑定标识，避免跨安装实例复用授权；未知工具只有在参数严格收敛为 `command` 与工作目录时
+才可进入该精确授权范围，额外参数一律回到单次审批。
 
 ### 个人办公场景的低风险分级
 
@@ -173,7 +181,7 @@ Hook 动作只有 OpenClaw 原生审批入口；Guard Dashboard 不显示批准/
 `sessions_send`、`sessions_spawn` 等跨代理/跨会话写入能力不会继承只读信任，仍按写入风险处理。Shell/exec 的读取仍需满足工作区边界和只读分析条件，不能因为“读取”字样而自动放行。
 原生只读信任还会检查参数：出现外部 URL、绝对/父级路径，或指向不同 session/主体的目标时，会退出原生低风险 profile，回到普通审批/阻断路径。
 
-为兼容 OpenClaw `plugin.approval.request` 的描述字段限制，插件会在发送前将审批标题限制为 80 字符、用户说明限制为 240 字符，并保留省略号；完整规则编号、Trace 和技术原因只写入 Guard 审计详情。这样长命令不会因为说明字段过长而被 OpenClaw schema 当成参数错误拒绝。
+为兼容 OpenClaw `plugin.approval.request` 的描述字段限制，插件会在发送前将审批标题限制为 80 字符、用户说明限制为 512 字符，并保留省略号；完整规则编号、Trace 和技术原因只写入 Guard 审计详情。命令预览默认脱敏，不把 token、密码或私密 payload 发送到审批渠道。
 
 Guard 还会在查询或处理新 Hook 前收拢超过 6 分钟未回调的 `pending_approval` 动作，标记为 `approval_timeout`，避免 OpenClaw 已结束而 Dashboard 永久显示待确认。同步状态 `timeout` 表示审批回调未在窗口内返回，不等同于安全规则 `block`。
 
@@ -204,6 +212,19 @@ npm run openclaw gateway
 
 否则插件虽然已经写进配置，但还不会加载到运行时。
 
+### 临时项目与配置隔离
+
+Guard 的测试夹具或短期任务可能在系统临时目录生成插件包。此类插件目录具有明确的生命周期，不能注册到用户级 `openclaw.json`，否则临时目录被删除后，OpenClaw 会在启动前因 `plugins.load.paths` 中存在不存在的路径而拒绝加载，Guard 也无法通过启动流程自动修复它。
+
+运行时安装逻辑现在会跳过“临时插件目录 + 外部 OpenClaw 配置”这一组合，仅允许正式项目目录更新用户级配置；项目内配置仍可正常写入。若历史版本已经留下失效路径，请先移除该路径，然后刷新 OpenClaw 持久化插件索引并校验配置：
+
+```bash
+openclaw plugins registry --refresh
+openclaw config validate
+```
+
+`registry --refresh` 用于同步 OpenClaw 的已安装插件诊断缓存；仅修改 JSON 文件而不刷新索引时，旧的 `plugin path not found` 诊断可能仍会被启动检查使用。
+
 ## 当前会被拦住的典型动作
 
 - 删除工作区外文件
@@ -217,12 +238,14 @@ npm run openclaw gateway
 
 ### OpenClaw 原生审批卡片
 
-工具调用被拦截时，OpenClaw 直接在界面上弹出审批卡片，显示动作名称和风险等级，用户可「允许一次」或「拒绝」。当前生成插件不提供持久放行；Guard 解析器也会拒绝 `allow-always`。
+工具调用被拦截时，OpenClaw 直接在界面上弹出审批卡片，显示动作意图、目标和风险等级；符合条件时用户可「允许一次」「始终允许此命令」或「拒绝」。
 
 ### Guard Dashboard
 
 - 动作页出现 `pending_approval`
 - OpenClaw 回调收到批准后，动作变为 `approved -> executing`；Guard 不执行二次审批
+- 动作详情按“摘要 / 命令与参数 / 规则与权限依据 / RV / 运行时审计”分区折叠，命令默认脱敏并可复制
+- 设置页可查看精确授权的作用范围、有效期并撤销
 - 工具执行结束后回写 `executed` 或 `failed`
 - 收到 OpenClaw 拒绝回调后，动作保持 `rejected`，原工具不会继续
 
