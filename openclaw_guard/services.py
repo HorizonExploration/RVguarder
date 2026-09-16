@@ -50,6 +50,8 @@ from openclaw_guard.utils import LazyProxy, append_jsonl, read_json, utc_now_iso
 from openclaw_guard.engine.whitelist import WhitelistEngine, default_police_whitelist
 from openclaw_guard.events import EventBus
 
+HOOK_ORPHAN_TTL_SECONDS = 30
+
 # ------------------------------------------------------------------
 # 适配器耦合方法的模块级实现
 #
@@ -964,10 +966,15 @@ class GuardServices:
         skills = config.get("skills")
         if not isinstance(skills, dict):
             skills = {}
+        existing = skills.get(name)
+        if not isinstance(existing, dict):
+            existing = {}
+        description = payload["description"] if "description" in payload else existing.get("description", "")
+        permissions = payload["permissions"] if "permissions" in payload else existing.get("permissions", [])
         skills[name] = {
             "enabled": bool(payload.get("enabled", True)),
-            "description": str(payload.get("description") or ""),
-            "permissions": list(payload.get("permissions") or []),
+            "description": str(description or ""),
+            "permissions": list(permissions or []),
         }
         config["skills"] = skills
         self.save_runtime_config(config)
@@ -1275,18 +1282,36 @@ class GuardServices:
             return ("provider_auth_failed", "当前模型服务鉴权失败，请检查模型提供方配置。")
         return ("runtime_execution_failed", "本次回复执行失败，请查看设置页中的日志详情后重试。")
 
-    def _auto_complete_previous_actions(self, session_id: str) -> None:
+    def _mark_orphaned_previous_actions(self, session_id: str) -> None:
         actions = self.action_service._load()
         changed = False
+        now = datetime.now(timezone.utc)
         for action in actions:
-            if action.status == "executing" and action.event and action.event.metadata.get("session_id") == session_id:
-                action.status = "executed"
-                action.execution_result.update({
-                    "status": "completed",
-                    "completed_at": utc_now_iso(),
-                    "auto_completed": True
-                })
-                changed = True
+            if action.status != "executing" or not action.event:
+                continue
+            metadata = action.event.metadata or {}
+            if (
+                not metadata.get("hook_bridge")
+                or metadata.get("session_id") != session_id
+            ):
+                continue
+            try:
+                created_at = datetime.fromisoformat(action.created_at.replace("Z", "+00:00"))
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
+            except (TypeError, ValueError):
+                continue
+            if (now - created_at).total_seconds() <= HOOK_ORPHAN_TTL_SECONDS:
+                continue
+            action.status = "failed"
+            action.execution_state = "unknown"
+            action.execution_result.update({
+                "status": "unknown",
+                "failed_at": now.isoformat(),
+                "error_code": "missing_after_callback",
+                "message": "OpenClaw 未返回 after_tool_call 执行结果，实际执行状态未知。",
+            })
+            changed = True
         if changed:
             self._save_all(actions)
 

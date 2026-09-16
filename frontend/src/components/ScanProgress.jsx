@@ -1,6 +1,6 @@
 import { useStore } from '../store';
 import { t, esc } from '../i18n';
-import { runBaseline, exportAudit, apiErrorMessage } from '../api';
+import { fetchSummary, runBaseline, exportAudit, apiErrorMessage } from '../api';
 
 const PHASES = ['scanStage_prepare', 'scanStage_config', 'scanStage_runtime', 'scanStage_audit'];
 const STEPS = [18, 42, 71, 92];
@@ -31,7 +31,7 @@ export function ScanProgress() {
       setScan({ running: false });
       showToast(apiErrorMessage(error, t('error_default')));
     }
-    const s = await fetch(`/api/summary`).then((r) => r.json()).catch(() => ({}));
+    const s = await fetchSummary().catch(() => ({}));
     setSummary(s);
   };
 

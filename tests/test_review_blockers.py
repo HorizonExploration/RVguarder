@@ -93,6 +93,41 @@ def test_generated_openclaw_approval_description_is_bounded():
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="需要 Node.js 验证生成插件运行时行为")
+def test_generated_plugin_uses_tiered_failure_safety(tmp_path):
+    plugin_path = tmp_path / "openclaw-guard-plugin.mjs"
+    plugin_path.write_text(_plugin_source(guard_url="http://guard.test", auth_token="token"), encoding="utf-8")
+    script = r'''
+const plugin = (await import(process.argv[1])).default;
+globalThis.fetch = async () => { throw new Error("guard offline"); };
+const callbacks = {};
+const api = {
+  pluginConfig: { guardUrl: "http://guard.test", authToken: "token", failClosed: false },
+  on(name, handler) { callbacks[name] = handler; },
+  registerGatewayMethod() {},
+  logger: { info() {}, warn() {} },
+};
+plugin.register(api);
+const readResult = await callbacks.before_tool_call(
+  { toolName: "read", params: { path: "notes.md" }, runId: "r1", toolCallId: "c1" },
+  {},
+);
+if (readResult !== undefined) process.exit(1);
+const writeResult = await callbacks.before_tool_call(
+  { toolName: "shell_exec", params: { command: "echo safe" }, runId: "r2", toolCallId: "c2" },
+  {},
+);
+if (!writeResult || writeResult.block !== true) process.exit(2);
+'''
+    completed = subprocess.run(
+        ["node", "--input-type=module", "-e", script, str(plugin_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 Node.js 验证生成插件运行时行为")
 def test_generated_openclaw_plugin_bounds_long_approval_description_at_runtime(tmp_path):
     plugin_path = tmp_path / "openclaw-guard-plugin.mjs"
     plugin_path.write_text(_plugin_source(guard_url="http://guard.test", auth_token="token"), encoding="utf-8")

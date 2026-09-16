@@ -17,13 +17,13 @@ features:
   - title: 🔄 审批结果同步
     details: OpenClaw 原生审批卡片是唯一 Hook 审批入口，Guard Dashboard 通过 `onResolution`、SSE 和增量查询及时同步结果。
   - title: ⚡ 电路熔断降级
-    details: 后端不可达时自动进入熔断 fail-open 模式，所有工具调用自动放行。后端恢复后自动闭合。再不担心「停服即封锁」。
+    details: 后端不可达时按工具风险分级降级：低风险只读调用放行并审计，高影响调用暂停；后端恢复后自动闭合。
   - title: 🧠 语义理解增强
     details: DeepSeek LLM 驱动的语义分析引擎，理解自然语言约束而非简单关键词匹配。7 维度 50+ 标签，双模式运行（LLM / 本地规则）。
   - title: 🧩 权限知识库 PMKB
     details: 版本化操作目录、Authorization Trace、最小权限闭包/差分和危险权限组合图，直接参与 before_tool_call 决策并输出可解释证据。
   - title: 📊 运行时验证 RV
-    details: 滑动窗口 + FSM 监视器，检测「搜索→删除→外发」等链式攻击模式。覆盖邮件、日报、群发、数据导出等办公场景。
+    details: 滑动窗口 + ChainRule DSL 生成监视器，检测「搜索→删除→外发」等链式攻击模式。覆盖邮件、日报、群发、数据导出等办公场景。
   - title: 🖥️ 统一工作台
     details: 动作状态、风险证据、Trace 时间线、安全规则、基线扫描、RV 状态面板 — 一个前端界面集中查看。
 
@@ -84,9 +84,9 @@ v0.7.0-dev builds on the v0.6.0 six-phase refactor and RV phases A–F with a ve
 |------|------|------------|
 | **原生钩子拦截** | `api.on("before_tool_call")`，工具执行前物理挂起 | Official hook API, physically pauses agent before tool execution |
 | **审批结果同步** | OpenClaw 负责 Hook 审批，Guard 只读同步与审计 | OpenClaw owns Hook approval; Guard provides read-only sync and audit |
-| **电路熔断器** | 自动熔断 fail-open，不封锁 OpenClaw | Circuit breaker — graceful degradation, never block when backend is down |
+| **电路熔断器** | 按工具风险分级降级：低风险审计放行，高影响暂停 | Tiered degradation: audit low-risk reads, pause high-impact calls |
 | **语义理解** | DeepSeek LLM + 7 维度标签体系 | Understands natural language intent, 50+ labels across 7 dimensions |
-| **运行时验证 RV** | 滑动窗口 + 规约驱动（默认 ChainRule DSL，FSM 为回退模式）检测链式攻击 | Sliding window + spec-driven monitors (ChainRule DSL default, FSM fallback) for chain-attack detection |
+| **运行时验证 RV** | 滑动窗口 + ChainRule DSL 生成监视器检测链式攻击 | Sliding window + ChainRule DSL monitors for chain-attack detection |
 | **基线扫描** | 配置/端口/用户/依赖 全量安全扫描 | Full security scan: config, ports, users, dependencies |
 | **审计导出** | SQLite + JSONL 双写，哈希链防篡改 | Dual-write audit trail with hash chain integrity |
 | **PMKB 策略引擎** | 语义 Trace 驱动的版本化办公策略 | Semantic Trace-driven, versioned office policies |
@@ -94,11 +94,11 @@ v0.7.0-dev builds on the v0.6.0 six-phase refactor and RV phases A–F with a ve
 ## 技术栈 · Tech Stack
 
 ```
-Backend:   Python 3.13+ · FastAPI(唯一入口) · DeepSeek API · SQLite · SQLAlchemy(可选) · transitions(FSM) · RV 规约驱动(ChainRule DSL) · DB_STORE_MODE / OPENCLAW_RV_RULE_MODE
+Backend:   Python 3.13+ · FastAPI(唯一入口) · DeepSeek API · SQLite · SQLAlchemy(可选) · RV 规约驱动(ChainRule DSL) · DB_STORE_MODE / OPENCLAW_RV_RULES_PATH
 Frontend:  Preact · Vite · Zustand · 单页 SPA · SSE + 增量轮询降级
 Plugin:    JavaScript · OpenClaw Plugin SDK (api.on) · registerGatewayMethod
-Core:      Runtime Verification (RV) · 滑动窗口 · 规约驱动 ChainRule DSL(默认) + FSM 回退 · 白名单 Trie 树
-Safety:    Circuit Breaker · requireApproval · fail-open/fail-closed
+Core:      Runtime Verification (RV) · 滑动窗口 · ChainRule DSL 生成自动机 · 白名单 Trie 树
+Safety:    Circuit Breaker · tiered failure safety · requireApproval · block
 ```
 
 ## 快速开始 · Quick Start
@@ -126,7 +126,7 @@ openclaw-guard run
 | 🌐 [HTTP 接口清单](/api/http.html) | 所有后端 API 文档 | Complete API reference |
 | 🏗️ [架构总览](/architecture/overview.html) | 分层设计与代码映射 | Architecture & code map |
 | 🧭 [架构文档索引](/architecture/index.html) | 当前架构阅读顺序与历史归档规则 | Architecture index & archive policy |
-| 🔬 [RV 层技术报告](/architecture/rv-engine-report.html) | 运行时验证：规约 DSL、FSM、约束引擎、基线自动机 | RV layer tech report |
+| 🔬 [RV 层技术报告](/architecture/rv-engine-report.html) | 运行时验证：规约 DSL、权限证据、基线自动机 | RV layer tech report |
 | ✅ [RV 权限自动机架构](/architecture/rv-permission-automata.html) | 当前 RV 规约、作用域与迁移口径 | Current RV contract and scope |
 | 📊 [项目现状分析](/architecture/project-status-analysis.html) | 三类系统性问题与推进顺序 | Project status analysis |
 | 📋 [基线扫描](/features/baseline.html) | 安全扫描与报告 | Security scanning & reports |

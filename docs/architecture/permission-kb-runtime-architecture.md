@@ -1,9 +1,9 @@
 # 权限知识库与权限建模运行时升级结果
 
 > **状态：** 当前实现结果与架构事实源
-> **核对日期：** 2026-09-09
+> **核对日期：** 2026-09-15
 > **PMKB 版本：** `1.1.0`
-> **测试基线：** 当前全量回归 `494 passed / 19 skipped / 4 subtests passed`（2026-09-09）；Playwright 全栈冒烟 `8 passed`。旧基线 `513 passed / 18 skipped / 4 subtests passed` 仅作历史对照。
+> **测试基线：** 2026-09-15 全量回归为 `412 passed / 19 skipped / 4 subtests passed`；Chromium 与 Firefox Playwright 冒烟均 `5 passed`。`494 passed / 19 skipped / 4 subtests passed`、`8 passed` 和更早的 `513 passed` 仅作历史对照。
 
 > **2026-09-09 复核：** 下文关于 ConstraintEngine、SessionSafetyState、`revise` 和
 > `before_prompt_build` 的描述是旧阶段快照。生产链路只使用 PMKB、显式工具 profile、成功执行
@@ -252,8 +252,8 @@ PMKB 效果到 Guard 动作的映射为：
 - `tests/test_permission_diff.py`、`test_permission_risk_graph.py`：最小权限、scope expansion 和危险组合；
 - `tests/test_principal_capability_rv.py`、`test_principal_rv_hook_integration.py`：跨 session 主体状态和持久化；
 - `tests/test_permission_rv_compiler.py`：PMKB 规则/关系自动机编译、effect 投影和 principal 作用域隔离；
-- 当前全量回归：`494 passed / 19 skipped / 4 subtests passed`（2026-09-09）；Playwright 全栈冒烟 `8 passed`；旧计数仅作历史对照。
-- 历史定向回归曾覆盖 Hook 配置清理、OpenClaw 原生工具映射、PMKB 命中、Trace 编译、审批同步、超时收拢和审批文案边界（`192 passed / 4 subtests passed`）；当前全量基线为 `494 passed / 19 skipped / 4 subtests passed`，历史详情保存在 `docs/archive/research/openclaw-approval-chain-optimization-report-2026-08-30.md`（归档不参与站点构建）。
+- 本轮全量回归：`412 passed / 19 skipped / 4 subtests passed`（2026-09-15）；Chromium 与 Firefox Playwright 冒烟均 `5 passed`（Firefox 清除代理变量、单 worker 复跑）。
+- 历史定向回归曾覆盖 Hook 配置清理、OpenClaw 原生工具映射、PMKB 命中、Trace 编译、审批同步、超时收拢和审批文案边界；旧计数与详情保存在 `docs/archive/research/openclaw-approval-chain-optimization-report-2026-08-30.md`（归档不参与站点构建）。
 
 路线图目标 `complete coverage ≥85%`、`unknown rate ≤10%`、`low-risk auto-allow precision ≥99%`、`high-risk recall ≥98%`、人工审批量下降 40% 等，当前仅是发布和扩大自动放行范围的验收门槛，尚未由真实个人使用数据验证。
 

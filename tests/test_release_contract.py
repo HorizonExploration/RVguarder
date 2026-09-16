@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from openclaw_guard import __version__
 from openclaw_guard.main import _select_launch_web, build_parser
@@ -26,3 +27,16 @@ def test_fastapi_is_the_only_cli_web_selector():
     args = build_parser().parse_args(["run"])
     launcher = _select_launch_web(args)
     assert launcher.__module__ == "openclaw_guard.web.app"
+
+
+def test_cli_does_not_override_process_environment_from_dotenv(tmp_path):
+    manager = MagicMock()
+    manager.summary.return_value = {}
+    with patch("openclaw_guard.main.load_dotenv") as load_dotenv, patch(
+        "openclaw_guard.main.build_manager", return_value=manager
+    ):
+        from openclaw_guard.main import main
+
+        assert main(["run", "--project-dir", str(tmp_path), "--once", "--no-browser"]) == 0
+
+    load_dotenv.assert_called_once_with(override=False)

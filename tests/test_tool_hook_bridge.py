@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from openclaw_guard.integrations.tool_hook_bridge import build_hook_event, build_hook_source_message
+from openclaw_guard.engine.semantic_enhancer import SemanticEnhancer
+from openclaw_guard.policy.catalog import PolicyBundle
+from openclaw_guard.policy.trace import TraceCompiler
 
 
 def test_openclaw_native_tools_have_explicit_semantic_mapping():
@@ -93,3 +96,41 @@ def test_native_read_mapping_requires_safe_parameters_and_same_session_scope():
 
         assert event.metadata["tool_origin"] != "openclaw_native"
         assert event.metadata["risk_class"] != "low"
+
+
+def test_message_recipients_are_not_misclassified_as_paths():
+    recipients = [f"person-{index}@external.example" for index in range(11)]
+    event = build_hook_event({
+        "toolName": "message",
+        "params": {"to": recipients, "content": "status update"},
+        "runId": "recipient-run",
+        "toolCallId": "recipient-call",
+    })
+
+    assert event.target_paths == []
+
+
+def test_message_trace_preserves_all_recipients_and_quantity():
+    recipients = [f"person-{index}@external.example" for index in range(11)]
+    event = build_hook_event({
+        "toolName": "message",
+        "params": {"to": recipients, "content": "status update"},
+        "runId": "recipient-trace-run",
+        "toolCallId": "recipient-trace-call",
+    })
+    semantic = SemanticEnhancer(api_key="").evaluate(
+        event,
+        {"source_message": "发送状态更新", "origin": "hook"},
+    )
+    event.metadata.update(semantic)
+    trace = TraceCompiler(PolicyBundle.load()).compile(
+        event,
+        semantic=semantic["semantic"],
+        rv_trace=semantic["rv_trace"],
+        source_message="发送状态更新",
+    )
+
+    assert trace.resource.type == "recipient"
+    assert len(trace.resource.ids) == 11
+    assert trace.data.quantity == 11
+    assert trace.context.recipient_zone == "external"

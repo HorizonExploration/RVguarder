@@ -51,11 +51,11 @@
 龙虾卫士通过 OpenClaw Plugin SDK 的钩子系统，在不修改 OpenClaw 源码的前提下，为 AI Agent 增加：
 - **执行前审批** — `before_tool_call` 拦截 + `requireApproval` 物理挂起
 - **语义风险分析** — DeepSeek LLM 驱动的 7 维度 50+ 标签语义标签体系
-- **运行时行为验证（RV）** — 滑动窗口 + FSM 状态机，检测链式攻击模式
+- **运行时行为验证（RV）** — ChainRule DSL 生成监视器 + 滑动窗口，检测链式攻击模式
 - **全链路审计** — SHA-256 哈希链防篡改，SQLite + JSONL 双写
 - **基线安全扫描** — 配置/端口/用户/依赖全量扫描，输出 JSON/HTML/PDF
 
-核心设计原则：**非侵入、先决策后执行、可取证、可降级（熔断 fail-open）**。
+核心设计原则：**非侵入、先决策后执行、可取证、分级故障降级**（低风险只读可审计放行，高影响工具保持阻断；`failClosed=true` 可全量阻断）。
 
 ## 技术栈
 
@@ -64,7 +64,7 @@
 | 后端 | Python 3.13+（FastAPI + Pydantic v2） |
 | 前端 | Vite + Preact SPA（组件化，Zustand 状态管理，preact-router） |
 | 插件 | Node.js + OpenClaw Plugin SDK `>=2026.4.0`（自动生成） |
-| 检测引擎 | `transitions` FSM 库、Trie 前缀树白名单 |
+| 检测引擎 | PMKB + ChainRule DSL、Trie 前缀树白名单 |
 | 语义增强 | DeepSeek API（LLM 模式）或本地启发式规则（本地模式） |
 | 存储 | SQLite（开发/测试）、PostgreSQL + Redis（生产），`DBStoreInterface` ABC 抽象 |
 | 测试 | Python `unittest` + Playwright E2E |
@@ -89,9 +89,8 @@ openclaw_guard/          # Python 后端主包
 │   ├── control.py       # GuardController — 决策 + 白名单 → 动作状态
 │   ├── whitelist.py     # WhitelistEngine — Trie 前缀匹配，含 default_police_whitelist()
 │   └── behavior.py      # BehaviorCollectorManager — 行为采集（Ptrace/eBPF/HookBridge 预留桩）
-├── rv/                  # 运行时验证引擎（DSL/FSM、窗口与基线自动机）
+├── rv/                  # 运行时验证引擎（ChainRule DSL、窗口与基线自动机）
 │   ├── runtime_verification.py  # RV 引擎 + WindowManager — 滑动窗口、会话隔离、序列匹配
-│   ├── rv_monitors.py   # 6 个 FSM 监视器（Mail/Report/SecurityChain/Broadcast/DataExport/BatchFile）
 │   ├── rv_dsl.py        # 参数化 RV DSL 原语（entity/时间间隔/quantifier）
 │   ├── ir.py            # ToolCallIR 结构化中间表示（阶段 A）
 │   ├── baseline_learner.py     # 基线自动机学习（阶段 C）
@@ -190,8 +189,7 @@ python -m pytest -q
 
 # 运行单个测试文件
 python -m pytest tests/test_policy_decision_adapter.py -q
-python -m pytest tests/test_rv.py -q
-python -m pytest tests/test_rv_fsm.py -q
+python -m pytest tests/test_runtime_verification.py tests/test_rv_dsl.py -q
 
 # 运行 E2E 测试
 cd e2e && npm install && npm run install:browsers && npm test
@@ -204,7 +202,7 @@ cd e2e && npm install && npm run install:browsers && npm test
 ```
 1. PMKB（单步、版本化、可回放）— 原生规则 + 47 条 `LEGACY-*` 兼容记录
    └─ 处理：授权 Trace、最小权限和单步硬约束
-2. RV 引擎（跨步、有状态、时序）— FSM 监视器 + 滑动窗口
+2. RV 引擎（跨步、有状态、时序）— DSL 生成监视器 + 滑动窗口
    └─ 处理：链式攻击（搜索→删除→外发）、多步累积模式
    └─ RV 判定只升权，不降低 PMKB 裁决
 ```
@@ -216,13 +214,13 @@ cd e2e && npm install && npm run install:browsers && npm test
 - 数据模型使用 **Pydantic v2 BaseModel** 定义在 `models.py`（`to_dict()` 保留为兼容别名）
 - 服务层遵循「管理器协调，服务执行」模式：`Manager` 编排流程，`Service` 封装业务
 - 检测规则中文注释（规则 ID 英文：`CMD-001`, `FILE-001`, `NET-001` 等）
-- 文件顶部用 docstring 声明模块职责边界（如 `policy/engine.py` 与 `rv/rv_monitors.py` 的分工约定）
+- 文件顶部用 docstring 声明模块职责边界（如 `policy/engine.py` 与 `rv/runtime_verification.py` 的分工约定）
 
 ### 关键模式
 
 - **非侵入式**：不修改 OpenClaw 源码，通过生成的 JS 插件 + HTTP 桥接通信
 - **单 HTTP 层**：`web/` FastAPI 是唯一启动入口；旧版 stdlib HTTP 实现已移出生产包，源文件仅在归档/Git 历史中保留
-- **熔断器**：JS 插件内置，连续失败 N 次 → OPEN（放行所有），正常 → CLOSED
+- **分级故障策略**：JS 插件内置，低风险只读在后端不可达时审计放行，高影响工具保持阻断；恢复后回到正常策略
 - **审批同步**：OpenClaw 原生审批卡片是唯一决策入口，Guard Dashboard 通过 SSE/增量查询只读同步
 - **审计哈希链**：每条记录含 `previous_hash` + `record_hash = SHA-256(prev_hash + payload)`
 - **数据库抽象**：`DBStoreInterface` ABC → PostgreSQLStore（生产，含 Redis 缓存）/ SQLiteStore（开发）自动切换
@@ -255,4 +253,4 @@ cd e2e && npm install && npm run install:browsers && npm test
 
 ---
 
-*CLAUDE.md 最后更新: 2026-09-09 · 文档清查后复核*
+*CLAUDE.md 最后更新: 2026-09-15 · DSL-only 与分级故障策略复核*

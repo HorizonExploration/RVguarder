@@ -1,5 +1,7 @@
 # 阶段 A：IR 结构化透传 实施计划
 
+> **历史计划（2026-08）：** 本文保留阶段 A 的设计与验收记录，不是当前实施规范。RV 已收敛为 ChainRule DSL-only，手写 FSM 及旧测试文件已移除；当前回归入口为 `tests/test_runtime_verification.py` 与 `tests/test_rv_dsl.py`。
+
 ## 摘要
 
 在 `openclaw_guard/rv/ir.py` 新增 Pydantic 数据模型（`Entity`/`Constraint`/`ToolCallIR`），修改 `semantic_enhancer.py` 的 LLM 和本地两条路径，使 `rv_trace` 每个步骤透传结构化实体、约束与置信度字段，同时保持原有 `props` 标签不变以确保向后兼容。
@@ -129,5 +131,5 @@ for item in rv_trace:
 
 1. `python -m pytest tests/test_ir.py -q` — 新模型测试通过
 2. `python -m pytest tests/test_semantic_enhancer.py -q` — 回归通过，新字段存在
-3. `python -m pytest tests/test_rv.py tests/test_rv_fsm.py -q` — RV 层无回归
+3. `python -m pytest tests/test_runtime_verification.py tests/test_rv_dsl.py -q` — 当前 RV 层回归
 4. `python -m pytest tests/test_pipeline.py -q` — 流水线端到端无变化

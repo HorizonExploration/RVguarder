@@ -109,4 +109,39 @@ test.describe("OpenClaw Guard UI", () => {
     await expect(card).toContainText("命令与参数");
     await expect(card).toContainText("echo safe");
   });
+
+  test("OpenClaw 回调后 Guard 页面通过 SSE 及时移除待确认动作", async ({ page, request }) => {
+    const baseUrl = getBaseUrl();
+    const marker = `e2e-live-sync-${Date.now()}`;
+    const response = await request.post(new URL("/api/hook/before-tool-call", baseUrl).toString(), {
+      headers: { "x-openclaw-guard-token": getHookToken() },
+      data: {
+        toolName: "custom_exec",
+        params: { command: `echo ${marker}`, cwd: readServer().projectDir },
+        runId: marker,
+        toolCallId: `${marker}-call`,
+        sessionId: `${marker}-session`,
+        agentId: "e2e-live-agent"
+      }
+    });
+    expect(response.ok()).toBeTruthy();
+    const decision = await response.json();
+    expect(decision.action).toBe("require_approval");
+
+    await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+    const pendingSection = page.getByRole("heading", { name: /待确认动作/ }).locator("..").locator("..");
+    const card = pendingSection.locator(".approval-card").filter({ hasText: marker });
+    await expect(card).toBeVisible();
+
+    const resolved = await request.post(new URL("/api/hook/resolve-approval", baseUrl).toString(), {
+      headers: { "x-openclaw-guard-token": getHookToken() },
+      data: { actionId: decision.action_record.action_id, decision: "allow-once" }
+    });
+    expect(resolved.ok()).toBeTruthy();
+
+    // The page is subscribed before resolution; this assertion exercises
+    // action.resolved → fetchAction → store reconciliation rather than the
+    // ten-second polling fallback.
+    await expect(card).toHaveCount(0, { timeout: 5_000 });
+  });
 });

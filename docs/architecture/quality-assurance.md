@@ -1,6 +1,6 @@
 # 质量保障方案
 
-> **核对日期：** 2026-09-09
+> **核对日期：** 2026-09-15
 > **适用版本：** v0.7.0-dev（PMKB 1.1.0、三态 RV、FastAPI 单入口）
 > **文档性质：** 当前测试门禁与目标指标；历史重构过程见 [`archive/architecture/`](../archive/architecture/)。
 
@@ -201,7 +201,7 @@ async def client(services):
 | 三：Manager | ✅ | ✅ 流水线 | ✅ | 功能一致 |
 | 四：前端 | ✅ | ✅ | ✅ | UI 关键路径 |
 | 五：存储（SQLAlchemy） | ✅（native/sqlalchemy） | ✅（关键端点） | — | 数据一致性与降级 |
-| 六：RV 规约驱动（ChainRule） | ✅（dsl/fsm） | ✅（rv_status/rv_toggle） | ✅（前端联动） | 规则输出对比 |
+| 六：RV 规约驱动（ChainRule） | ✅（DSL-only） | ✅（rv_status/rv_toggle） | ✅（前端联动） | DSL 回放与状态边界 |
 
 ### 4.2 并行运行验证（历史策略）
 
@@ -275,15 +275,14 @@ FastAPI 与 uvicorn 已是默认必需依赖；门禁应验证依赖缺失时给
 - `tests/test_sqlalchemy_store.py`（SQLAlchemyStore 单测）
 - `tests/test_integration_storage_rv_matrix.py`（native/sqlalchemy × RV 模式矩阵）
 
-#### 4.5.2 RV 模式切换与规则模式切换（dsl ↔ fsm）
+#### 4.5.2 RV 模式与规则模式收敛（DSL-only）
 
-目标：验证 RV 引擎在“规约驱动（dsl）/手写 FSM（fsm）”之间可切换，且 API 输出兼容、前端联动不回归。
+目标：验证 RV 只使用 ChainRule DSL 生成监视器，历史 `fsm` 配置值不会重新引入手写实现。
 
-- 用例 A：`OPENCLAW_RV_RULE_MODE=dsl|fsm` 环境变量生效
-  - 断言：`/api/rv/status` 的 `engine.rule_mode` 与预期一致
-- 用例 B：`/api/rv/toggle` 支持新字段 `rule_mode`
-  - 请求：`{"enabled": true, "rule_mode": "dsl"}` 或 `{"enabled": true, "rule_mode": "fsm"}`
-  - 断言：返回包含 `rv_mode` 与 `rule_mode`；`/api/rv/status` 同步体现切换结果
+- 用例 A：`OPENCLAW_RV_RULE_MODE=dsl` 或历史 `fsm` 值启动
+  - 断言：`/api/rv/status` 的 `engine.rule_mode` 均为 `dsl`
+- 用例 B：`/api/rv/toggle` 传入历史 `rule_mode=fsm`
+  - 断言：返回包含 `rv_mode` 与 `rule_mode=dsl`，不加载旧监视器
 - 用例 C：`/api/rv/toggle` 的开关持久化
   - 断言：写入 `preferences.json` 后重启仍生效；summary 中 `rv.mode` 与切换一致
 - 用例 D：前端契约不变（UI 能显示状态、切换模式不报错）
@@ -291,8 +290,8 @@ FastAPI 与 uvicorn 已是默认必需依赖；门禁应验证依赖缺失时给
 
 对应测试（建议作为门禁最小集合）：
 
-- `tests/test_rv_dsl.py`（DSL 编译/执行单测）
-- `tests/test_rv_fsm.py`（FSM 监视器单测）
+- `tests/test_rv_dsl.py`（DSL 编译/执行与历史模式归一化）
+- `tests/test_runtime_verification.py`（窗口、会话隔离和 DSL 引擎集成）
 - `tests/test_rv_frontend_integration.py`（rv_status/rv_toggle/summary 全流程）
 - `tests/test_integration_storage_rv_matrix.py`（切换 `rule_mode` 的 API 断言）
 
@@ -312,7 +311,8 @@ FastAPI 与 uvicorn 已是默认必需依赖；门禁应验证依赖缺失时给
 | 跨 session | principal 键、TTL、持久化恢复和 session 隔离 | `tests/test_principal_capability_rv.py` |
 | 文档合同 | 当前架构和 README 不回退到旧版本/旧审批口径 | `tests/test_policy_docs.py` |
 
-当前全量回归基线为 `494 passed / 19 skipped / 4 subtests passed`（2026-09-09）；Playwright 全栈冒烟 `8 passed`；旧计数仅作历史对照。
+当前全量回归基线以[项目理解与当前记忆](./project-memory.md)和 CI 输出为准；Playwright 已包含
+OpenClaw 回调→SSE→Guard UI 的实时同步用例。历史计数仅作快照。
 覆盖率、人工审批下降比例和命中率目标仍需用真实事件或离线回放另行测量，不把目标指标写成已经达成的结果。
 
 针对 OpenClaw 交接与误拦截修复，允许使用关键链路定向门禁：Hook 配置清理、原生工具映射、PMKB

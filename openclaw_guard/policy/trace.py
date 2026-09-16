@@ -75,8 +75,15 @@ class TraceCompiler:
             resource_type = "command"
         outside = bool(event.metadata.get("outside_workspace"))
         scope = str(event.metadata.get("scope_class") or "")
-        if scope not in {"workspace", "managed_project", "outside", "external", "unknown"}:
-            scope = "external" if recipients and any(_external(x) for x in recipients) else ("outside" if outside else ("workspace" if paths else "unknown"))
+        if scope == "unknown" or scope not in {"workspace", "managed_project", "outside", "external"}:
+            if recipients:
+                # Recipient scope is distinct from filesystem paths.  Internal
+                # recipients stay within the managed boundary so the calibrated
+                # low-risk message rule can apply without treating an address
+                # as a workspace path.
+                scope = "external" if any(_external(x) for x in recipients) else "workspace"
+            else:
+                scope = "outside" if outside else ("workspace" if paths else "unknown")
         if urls and not paths:
             scope = "external"
         if native_control_plane and scope == "unknown":

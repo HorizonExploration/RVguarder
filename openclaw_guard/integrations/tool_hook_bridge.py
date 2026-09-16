@@ -20,8 +20,6 @@ PATH_KEYS = {
     "sourcePath",
     "destinationPath",
     "destPath",
-    "from",
-    "to",
     "cwd",
     "workingDirectory",
 }
@@ -290,7 +288,7 @@ def build_hook_event(
     )
     derived_paths = payload.get("derivedPaths")
     derived_paths = [str(item) for item in derived_paths if item] if isinstance(derived_paths, list) else []
-    target_paths = list(dict.fromkeys([*_collect_paths(params), *derived_paths]))[:8]
+    target_paths = list(dict.fromkeys([*_collect_paths(params), *derived_paths]))
     network_targets = _collect_urls(params)
     command = _extract_command(params)
     action_type = (
@@ -597,7 +595,7 @@ def _collect_paths(payload: Any) -> list[str]:
                 results.append(candidate)
 
     visit(payload)
-    return results[:8]
+    return results
 
 
 def _collect_urls(payload: Any) -> list[str]:

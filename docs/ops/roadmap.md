@@ -12,14 +12,14 @@
 | 办公场景规则 | v0.2.0 | 5 条办公安全策略（邮件、日报、附件），47+ 语义规则 |
 | 原生钩子拦截 | v0.2.1 | `api.on("before_tool_call")`，`requireApproval` 物理挂起，对齐官方 SDK 规范 |
 | 审批结果同步 | v0.6.0 | OpenClaw 原生审批唯一入口，`onResolution` 回调 + SSE/增量查询更新 Guard Dashboard |
-| 电路熔断器 | v0.2.1 | 优雅期 → 熔断 OPEN（fail-open）→ 恢复 CLOSED 三态自动切换 |
-| RV 运行时验证 | v0.2.1 | 6 个 FSM 监视器（Mail/Report/Chain/Broadcast/DataExport/BatchFile），滑动窗口 10 步 |
+| 电路熔断器 | v0.2.1 → v0.7.0-dev | 健康检查与熔断状态 + 按工具影响面的分级降级；高影响调用不可达时暂停 |
+| RV 运行时验证 | v0.2.1 → v0.7.0-dev | ChainRule DSL 生成监视器，滑动窗口 10 步；手写 FSM 已退役 |
 | 前端 RV 面板 | v0.2.1 | Trace 时间线、RV 状态面板、RV 模式开关 |
 | **FastAPI HTTP 层** | **v0.3.0 → v0.7.0-dev** | `web/` 包统一 HTTP 服务；v0.7.0-dev 起为默认且唯一入口 |
 | **Pydantic v2 模型** | **v0.3.0** | models.py 全部迁移至 BaseModel，自动验证 + 序列化，`to_dict()` 兼容别名 |
 | **HTTP 双轨收敛** | **v0.7.0-dev** | FastAPI 为唯一入口，旧版 stdlib HTTP 实现已移出生产包 |
 | **SQLAlchemyStore 可选存储** | **v0.3.0** | `storage/db_store.py` 内嵌 SQLAlchemyStore，`DB_STORE_MODE=sqlalchemy` 启用 ORM 存储 |
-| **RV 规约驱动** | **v0.3.0** | ChainRule DSL（`rv/rv_dsl.py` + `rv_rules.json`）编译监视器，默认 dsl 模式，FSM 为回退 |
+| **RV 规约驱动** | **v0.3.0 → v0.7.0-dev** | ChainRule DSL（`rv/rv_dsl.py` + `rv_rules.json`）编译监视器，唯一生产模式 |
 | **IR 结构化透传** | **v0.4.0** | ToolCallIR（11 字段）+ 语义层实体/约束/置信度透传；现由 PMKB 原生谓词和 RV DSL 消费结构化证据，旧约束推理引擎已退役 |
 | **基线自动机 + 参数化** | **v0.5.0** | BaselineLearner 偏离检测 + QEA 式 bind_vars + 实体守卫 + 时间原语 + 状态计数器 |
 | **NL2Spec + RV 收敛** | **v0.7.0-dev** | Nl2SpecGenerator + SpecValidator 反例验证；生产 RV 仅回放成功执行窗口，不含 revise 或累计会话评分 |
@@ -31,9 +31,9 @@
 
 ### P0（当前迭代优先）
 
-- [x] **会话级作用域**（已完成）：RV 引擎按 `session_id` 隔离，不同 Agent 会话使用独立的滑动窗口和 FSM 状态（`rv/runtime_verification.py` `_session_windows`）
+- [x] **会话级作用域**（已完成）：RV 引擎按 `session_id` 隔离，不同 Agent 会话使用独立的滑动窗口和 DSL 监视器状态（`rv/runtime_verification.py` `_session_windows`）
 - [x] **RV 引擎持久化**：主体/能力状态在 `runtime/rv-state.json` 恢复后再处理新 Hook，窗口状态仍按 session 隔离
-- [ ] **熔断器告警**：熔断状态变更时通过 Webhook 或邮件通知运维
+- [ ] **熔断器告警**：熔断状态变更时通过 Webhook 或邮件通知运维（当前已具备状态和日志）
 
 ### P1（下一阶段）
 

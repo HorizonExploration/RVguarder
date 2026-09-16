@@ -9,7 +9,7 @@
 > [`project-memory.md`](../architecture/project-memory.md)、
 > [`permission-kb-runtime-architecture.md`](../architecture/permission-kb-runtime-architecture.md)
 > 和代码为准；本文中的 `revise`、旧规则数量和早期攻击基线均保留原研究语境。
-> 文中对 `openclaw_guard/rv/constraints.py` 的引用属于当时方案快照；该模块已从生产树删除，当前由 PMKB 原生谓词承接。
+> 文中对 `openclaw_guard/rv/constraints.py` 的引用属于当时方案快照；该模块已从生产树删除，当前由 PMKB 原生谓词承接。方案中的 FSM 兼容路线也已由 2026-09-15 的 DSL-only 收敛替代。
 
 关联文档：[RV 权限自动机架构](../architecture/rv-permission-automata.md)、[办公场景矩阵](../semantic/office-scenario-matrix.md)；研究实施计划的历史执行记录位于 `docs/archive/plans/2026-08-25-agent-permission-rv-research-plan.md`。
 
@@ -73,7 +73,7 @@
 |---|---|---|
 | `openclaw_guard/rv/ir.py` | `ToolCallIR` 含 tool、arguments、permission、sensitivity、irreversibility、intent 等字段 | 可扩展为 Authorization Trace，无需重建传输层 |
 | `openclaw_guard/rv/constraints.py` | action/tag/entity/sensitivity/temporal 五类约束；10 条 `migrated_constraint_rules()` 数据规则 | 可保留为局部谓词引擎，增加证据和组合层 |
-| `openclaw_guard/rv/rv_dsl.py`、`rv_monitors.py` | ChainRule、FSM、序列与参数化原语 | 继续表达时序安全属性 |
+| `openclaw_guard/rv/rv_dsl.py`（升级前另有 `rv_monitors.py`） | ChainRule、序列与参数化原语；手写 FSM 仅为历史实现 | 当前生产通过 DSL 表达时序安全属性 |
 | `openclaw_guard/rv/runtime_verification.py` | per-session window、TTL、序列化/反序列化、监视器隔离 | 是跨 session 状态持久化的基础 |
 | `openclaw_guard/spec/session_state.py` | 风险累积、ask→escalate、escalate→block、revision hint | 可扩展为主体/能力 lineage 风险状态 |
 | `openclaw_guard/spec/nl2spec_generator.py` | 关键词模板和 `use_llm` 接口 | 需要接入 schema 校验和 PMKB 引用校验 |

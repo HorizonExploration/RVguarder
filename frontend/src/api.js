@@ -22,7 +22,10 @@ export function apiErrorMessage(error, fallback = '请求处理失败') {
 
 /** GET /api/summary */
 export async function fetchSummary({ compact = false } = {}) {
-  return api(compact ? '/api/summary?view=compact' : '/api/summary');
+  // Summary contains mutable action/skill state.  Do not let a browser reuse
+  // the pre-mutation response after an SSE or POST reconciliation.
+  const query = compact ? 'view=compact&' : '';
+  return api(`/api/summary?${query}_ts=${Date.now()}`, { cache: 'no-store' });
 }
 
 /** GET /api/rv/status */

@@ -267,6 +267,33 @@ class SemanticEnhancerTests(unittest.TestCase):
         self.assertIsNotNone(recipients_entity)
         self.assertIn("alice@example.com", recipients_entity["values"])
 
+    def test_llm_request_fits_hook_latency_budget(self) -> None:
+        enhancer = SemanticEnhancer(api_key="test-key")
+        event = BehaviorEvent(
+            event_id="evt-llm-budget",
+            timestamp=utc_now_iso(),
+            action_type="chat_message",
+            process_name="openclaw",
+            pid=None,
+            user="tester",
+            raw_payload={"raw_user_intent": "读取项目状态"},
+            source="chat",
+        )
+        response = MagicMock()
+        response.read.return_value = json.dumps({
+            "choices": [{"message": {"content": json.dumps({
+                "semantic": {"scenario": "chat_message", "intent": {"goal": "读取项目状态"}},
+                "rv_trace": [{"step_id": "s1", "event": "chat_message", "props": ["chat_message"]}],
+            })}}]
+        }).encode("utf-8")
+        with patch("urllib.request.urlopen", return_value=response) as mock_urlopen:
+            enhancer.evaluate(event, {"source_message": "读取项目状态", "origin": "chat"})
+
+        request = mock_urlopen.call_args.args[0]
+        payload = json.loads(request.data.decode("utf-8"))
+        assert payload["max_tokens"] == 4096
+        assert mock_urlopen.call_args.kwargs["timeout"] <= 1.5
+
 
 if __name__ == "__main__":
     unittest.main()

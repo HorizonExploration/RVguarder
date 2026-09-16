@@ -1,10 +1,10 @@
 # RV 层（运行时验证）技术报告
 
-> 版本：v1.0 | 初稿日期：2026-08-11 | 当前复核：2026-09-09
+> 版本：v1.1 | 初稿日期：2026-08-11 | 当前复核：2026-09-15
 > 范围：`openclaw_guard/rv/`（运行时验证）+ `openclaw_guard/spec/`（规约生成与校验）两个子包
 > 关联文档：[RV 权限自动机架构](./rv-permission-automata.md)（现行合同）、[路线图](../ops/roadmap.md)（当前推进）；历史 NL→Automata 计划位于 `docs/archive/research/nl-automata-rv-upgrade-plan.md`
 
-> **当前实现更新（2026-09-09）**：本报告保留 RV 引擎的机制细节；早期的 DetectionEngine/双轨描述仅是历史快照。PMKB、Authorization Trace、危险权限组合和主体跨 session 状态的现行交互以[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)为准。
+> **当前实现更新（2026-09-15）**：本报告保留 RV 引擎的机制细节；早期的 DetectionEngine/双轨描述仅是历史快照。生产 RV 已收敛为 ChainRule DSL 生成路径，手写 FSM 与 `transitions` 已移除。PMKB、Authorization Trace、危险权限组合和主体跨 session 状态的现行交互以[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)为准。
 > ConstraintEngine、SessionSafetyState 与 revise 已不在生产路径；当前 RV 仅在工具成功后提交 trace，
 > 并从 TTL 有效窗口重放自动机。现行控制面说明见[三态控制面与 RV 提交边界](./three-state-rv-runtime-plan-2026-09-03.md)。
 
@@ -16,14 +16,14 @@
 
 | 层级 | 产物 | 生成方式 | 是否自动 |
 |------|------|---------|:---:|
-| ① 运行时监视器 FSM | `_SpecDrivenMonitor` / `_ParameterizedMonitor` | `compile_monitors()` 从规约**确定性编译** | ✅ 自动合成 |
+| ① 运行时 DSL 监视器 | `_SpecDrivenMonitor` / `_ParameterizedMonitor` | `compile_monitors()` 从规约**确定性编译** | ✅ 唯一生产路径 |
 | ② 安全规约（默认） | `rv_rules.json` 的 8 条 `MonitorSpec` | 开发者**手写** JSON | ❌ 手写 |
 | ③ 基线自动机（阶段 C） | `BaselineDFA` | 从正常 trace **统计自动学习**（前缀树 + 状态合并） | ✅ 自动学习 |
 | ④ NL2Spec 生成（阶段 E） | `Ruleset(origin="nl2spec")` | 10 个内置模板 + **关键词匹配**生成 | ⚠️ 半自动 |
 
 **一句话结论**：
 
-> 当前默认运行的 `dsl` 主路径 = **手写规约 + 确定性编译**，监视器 FSM 是「自动合成」的，但规约本身是手写的；真正的「LLM 自动生成规约」能力在 `nl2spec_generator.py` 中**只预留了接口（`use_llm=True` 返回 None）**，目前可用的只有模板关键词匹配这一档。基线 DFA 则是另一种「自动学习」，但它属于**白模型统计偏离检测**，不承载安全规约。
+> 当前运行路径 = **手写规约 + 确定性编译**；规约本身是手写的，监视器由 DSL 编译生成。真正的「LLM 自动生成规约」能力在 `nl2spec_generator.py` 中**只预留了接口（`use_llm=True` 返回 None）**，目前可用的只有模板关键词匹配这一档。基线 DFA 则是另一种「自动学习」，但它属于**白模型统计偏离检测**，不承载安全规约。
 
 ---
 
@@ -38,7 +38,6 @@ openclaw_guard/
     ├── runtime_verification.py   # RV 主引擎 + WindowManager 滑动窗口
     ├── rv_dsl.py                 # ChainRule 规约 DSL + 监视器编译
     ├── rv_rules.json             # 默认规约（8 个 MonitorSpec，单一规则源）
-    ├── rv_monitors.py            # 手写 FSM 监视器（legacy 回退，fsm 模式）
     ├── ir.py                     # ToolCallIR 结构化中间表示
     ├── baseline_learner.py       # 基线 DFA 学习器（前缀树 + 状态合并）
     ├── baseline_monitor.py       # 基线偏离检测监视器
@@ -162,14 +161,14 @@ Ruleset
 `compile_monitors(ruleset)` 对每个 `MonitorSpec`：
 
 - 检测 `bind_vars` → 用 `_ParameterizedMonitor` 包装（参数化切片）
-- 否则用 `type()` 动态创建 `_SpecDrivenMonitor` 子类（从规约的 `from`/`to` 状态集合自动合成 FSM）
+- 否则用 `type()` 动态创建 `_SpecDrivenMonitor` 子类（从规约的 `from`/`to` 状态集合自动合成监视器）
 
 `_SpecDrivenMonitor.feed()` 每步执行顺序：
 
 1. 先执行**非判决状态转移规则**（`from → to`，`from` 支持 `*` 通配），并更新 `state_counter`
 2. 再执行**判决规则**（带 `verdict`），取命中规则中风险等级最高的 `verdict`
 
-这是「规约驱动」的核心：**开发者只声明规约（状态、转移、匹配条件、裁决），FSM 由引擎确定性编译**，而非手写每个状态机。
+这是「规约驱动」的核心：**开发者只声明规约（状态、转移、匹配条件、裁决），运行时监视器由引擎确定性编译**，而非维护多套手写业务实现。
 
 ---
 
@@ -179,12 +178,12 @@ Ruleset
 
 | 监视器 | 来源 | 能力 | 说明 |
 |--------|------|------|------|
-| MailMonitor | 手写 | 敏感数据 + 外部收件人 → block | 从 legacy FSM 迁移 |
-| ReportMonitor | 手写 | 内部源日报外发 → block | 从 legacy FSM 迁移 |
-| SecurityChainMonitor | 手写 | 下载→外传 / 凭据→外传链 → escalate | 从 legacy FSM 迁移 |
-| BroadcastMonitor | 手写 | 群发 / 群发+外部 → ask/block | 从 legacy FSM 迁移 |
-| DataExportMonitor | 手写 | 批量导出数据 → 分级 | 从 legacy FSM 迁移 |
-| BatchFileMonitor | 手写 | 批量文件操作 → 分级 | 从 legacy FSM 迁移 |
+| MailMonitor | DSL 规约 | 敏感数据 + 外部收件人 → block | 由历史行为规则迁移 |
+| ReportMonitor | DSL 规约 | 内部源日报外发 → block | 由历史行为规则迁移 |
+| SecurityChainMonitor | DSL 规约 | 下载→外传 / 凭据→外传链 → escalate | 由历史行为规则迁移 |
+| BroadcastMonitor | DSL 规约 | 群发 / 群发+外部 → ask/block | 由历史行为规则迁移 |
+| DataExportMonitor | DSL 规约 | 批量导出数据 → 分级 | 由历史行为规则迁移 |
+| BatchFileMonitor | DSL 规约 | 批量文件操作 → 分级 | 由历史行为规则迁移 |
 | **PerRecipientMailMonitor** | 阶段 D | `quantifier: forall` + `bind_vars: ["recipients"]` + 实体守卫（`domain_not_in`） | 参数化示例 |
 | **StateCounterDemoMonitor** | 阶段 D | `idle → warm` 自环 + `state_counter gte` → ask | 状态计数器示例 |
 
@@ -200,11 +199,11 @@ Ruleset
 - 方式：开发者手写 `MonitorSpec` → `ChainRule` → `StepRequirement`
 - 特点：**规约手写，监视器自动编译**。这是默认 `dsl` 模式的规则来源。
 
-### 5.2 legacy 手写 FSM（回退模式）
+### 5.2 历史手写监视器（已退役）
 
-- 位置：`rv/rv_monitors.py`
-- 方式：基于 `transitions` 库手写 6 个状态机（Mail/Report/SecurityChain/Broadcast/DataExport/BatchFile）
-- 特点：仅在 `rule_mode=fsm` 时启用，业务逻辑已等价迁移进规约。早期分析确认：其 FSM 状态仅为**记录性**，判定实际依赖窗口分析——这些窗口能力现已在 DSL 中以原语保留。
+早期版本曾在 `rv/rv_monitors.py` 中用 `transitions` 维护六套手写业务状态机。该实现与
+DSL 规则重复，且会造成规则命中不一致；本轮已从生产代码、依赖和测试入口删除。旧代码只在
+Git 历史与 `docs/archive/` 报告中保留，不可通过配置重新启用。
 
 ### 5.3 基线自动机（统计自动学习）
 
@@ -261,7 +260,7 @@ Ruleset
 
 | 配置项 | 来源 | 说明 |
 |--------|------|------|
-| `OPENCLAW_RV_RULE_MODE` | 环境变量 | `dsl`（默认）/ `fsm` |
+| `OPENCLAW_RV_RULE_MODE` | 环境变量 | 历史配置可读；运行时固定归一化为 `dsl` |
 | `OPENCLAW_RV_RULES_PATH` | 环境变量 | 自定义规约文件路径 |
 | `OPENCLAW_RV_BASELINE_DFA_PATH` | 环境变量 | 基线 DFA 加载路径 |
 | `preferences.json` `rv_mode` / `rv_rule_mode` | Dashboard `/api/rv/toggle` | RV 总开关 / 运行时切换 rule_mode |
@@ -273,10 +272,9 @@ Ruleset
 
 | 测试文件 | 覆盖目标 |
 |----------|---------|
-| `tests/test_rv.py` | WindowManager + 监视器 + 引擎集成 |
-| `tests/test_rv_dsl.py` | DSL 规约加载/编译/匹配原语/双模式 |
+| `tests/test_runtime_verification.py` | WindowManager + DSL 引擎集成/会话隔离 |
+| `tests/test_rv_dsl.py` | DSL 规约加载/编译/匹配原语/历史模式归一化 |
 | `tests/test_rv_dsl_ext.py` | 阶段 D：实体守卫/状态计数器/时间间隔/参数化 |
-| `tests/test_rv_fsm.py` | legacy FSM 监视器 |
 | `tests/test_baseline_learner.py` | 基线 DFA 学习/偏离检测/规模缩减 |
 | `tests/test_ir.py` | ToolCallIR 模型与透传 |
 | `tests/test_nl2spec.py` | 模板匹配/来源标记/校验器/trace 库 |
@@ -284,8 +282,7 @@ Ruleset
 | `tests/test_three_state_control.py` | 三态控制面、未知工具、preview/TTL 与 Hook 注册边界 |
 | `tests/test_perf_smoke.py` | RV 与流水线性能冒烟基准 |
 
-历史全量测试：**344 passed, 18 skipped, 0 failed**（2026-08-14）；当前回归基线为
-**506 passed / 18 skipped / 4 subtests passed**，见[项目理解与当前记忆](./project-memory.md)。
+历史全量测试数字仅作快照；当前回归基线以[项目理解与当前记忆](./project-memory.md)和 CI 输出为准。
 
 ---
 
@@ -293,7 +290,7 @@ Ruleset
 
 1. **LLM 自动生成未落地**：`nl2spec_generator.py` 的 `use_llm=True` 仅预留接口，当前「自然语言 → 规约」只有模板关键词匹配。
 2. **基线自动机默认不启用**：`BaselineMonitor` 需显式配置 `OPENCLAW_RV_BASELINE_DFA_PATH` 加载 DFA，默认引擎不加载。
-3. **权限规则与行为规约边界**：PMKB 负责单步权限语义，`rv_rules.json` 负责跨步行为约束；两者通过 synthetic step 传递证据，不共享可变 FSM 状态。
+3. **权限规则与行为规约边界**：PMKB 负责单步权限语义，`rv_rules.json` 负责跨步行为约束；两者通过 synthetic step 传递证据，不共享可变监视器状态。
 4. **窗口大小边界**：默认 10 步，攻击链起手事件可能被挤出窗口；TTL 和窗口上限需要按场景调优。
 5. **真实 OpenClaw 证据仍需补齐**：回调延迟、Gateway 重启和网络断开场景已有本地回归，仍需真机观测数据验证。
 

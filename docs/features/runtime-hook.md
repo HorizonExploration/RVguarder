@@ -63,7 +63,7 @@ OpenClaw 进入工具调用
   -> 用户只在 OpenClaw 原生 UI 批准或拒绝
   -> Guard 通过 onResolution 回调写入状态并发布 SSE 事件
   -> 批准后继续原工具调用
-  -> 仅同一 runId + toolCallId + session/agent 上下文的 after_tool_call 成功后，才提交 RV 状态、主体权限证据并回写执行结果
+  -> 仅同一 runId + toolCallId + session/agent 上下文的 after_tool_call 成功后，才提交 RV 状态、主体权限证据并回写执行结果；缺失回调仅在超过 30 秒孤儿阈值后标记 unknown
 ```
 
 ## requireApproval 返回格式
@@ -115,37 +115,37 @@ Guard 会同时返回 `user_summary`、`approval`、`allowed_decisions`、`polic
 范围使用 `workspace / managed_project / outside / external / unknown` 五级模型，不再把所有
 非 workspace 目标直接视为恶意。
 
-### 电路熔断器（Circuit Breaker）
+### 电路熔断器与分级故障策略（Circuit Breaker）
 
-Guard 后端可能因维护、故障或网络隔离而不可达。为了避免「后端停服 → 全盘封锁 OpenClaw」，插件内置三层降级保护：
+Guard 后端可能因维护、故障或网络隔离而不可达。插件保持 OpenClaw 可用性，但不做全局放行，按工具影响面执行分级策略。
 
-1. **优雅期（Grace Period）**：首次检测到后端不可达时，进入 30 秒优雅期。优雅期内返回 `{ block: true }` 硬阻块。
-2. **熔断打开（Circuit OPEN）**：优雅期结束后，若连续失败 ≥ 3 次，熔断器进入 **OPEN**（fail-open）状态。此时所有工具调用绕过审批直接执行，不再封锁 OpenClaw。
-3. **熔断闭合（Circuit CLOSED）**：后端恢复后，健康检查连续成功 ≥ 2 次，熔断器自动闭合，恢复 fail-closed 审批模式。
+1. **健康状态**：正常请求由 Guard 返回 `allow`、`requireApproval` 或 `block`。
+2. **故障降级**：低风险、只读工具返回 `undefined`（由 OpenClaw 继续执行），并记录降级日志；
+   写入、删除、执行命令、网络、发送、浏览器、会话控制等高影响工具返回 `{ block: true }` 暂停。
+3. **强制暂停**：`failClosed: true` 时所有工具在 Guard 不可达时都暂停；健康检查恢复后再回到正常审批。
+4. **熔断状态**：连续失败/恢复计数只用于状态展示、告警和恢复判断，不会把高影响调用改成全局放行。
 
 行为总结：
 
 | 后端状态 | 熔断器状态 | 行为 | 含义 |
 |----------|-----------|------|------|
 | 正常 | CLOSED | 返回 requireApproval / block / allow | 正常审批 |
-| 刚断开（< 30s） | CLOSED（优雅期） | 返回 block | 短时故障硬阻块 |
-| 断开（> 30s，≥ 3 次失败） | OPEN | 返回 undefined（放行） | 后端停服不封锁 OpenClaw |
+| 刚断开（< 30s） | CLOSED（优雅期） | 低风险放行并审计；高影响 block | 短时故障按风险分级 |
+| 断开（> 30s，≥ 3 次失败） | OPEN | 低风险放行并审计；高影响 block | 熔断不改变高影响安全下限 |
 | 恢复（≥ 2 次健康检查成功） | CLOSED | 返回 requireApproval / block / allow | 恢复正常审批 |
 
 通过 `pluginConfig` 可配置：
 
 ```javascript
 pluginConfig = {
-  failClosed: true,                    // false: 后端不可达时直接放行（不进入优雅期）
+  failClosed: false,                   // true: 后端不可达时所有工具均暂停
   failThreshold: 3,                    // 连续失败次数阈值
   recoveryThreshold: 2,                // 恢复成功次数阈值
   failClosedGracePeriodMs: 30000,      // 优雅期毫秒数
 }
 ```
 
-> **注意**：`failClosed: false` 时，后端不可达会直接放行所有工具调用（跳过优雅期和熔断），适用于不希望任何锁定的场景。
->
-> **系统默认**：首次写入 `openclaw.json` 时，`_ensure_plugin_config()` 默认写入 `failClosed: false`（默认 fail-open，后端不可达直接放行），需要严格模式请显式改为 `true`。
+> **系统默认**：首次写入 `openclaw.json` 时写入 `failClosed: false`，但仍执行上述分级策略，并非所有工具都放行。生产环境应监控 `hook_status` 的 `circuitOpen` 和降级日志。
 
 ## 审批结果同步机制
 
@@ -268,7 +268,7 @@ openclaw config validate
 
 ### 什么是 RV 模式
 
-RV（Runtime Verification，运行时验证）模式是龙虾卫士的一项可选高级安全能力。开启后，系统会在常规规则引擎之外，额外运行一套**办公场景 FSM 监视器**，通过滑动窗口分析工具调用的行为序列，识别链式风险。
+RV（Runtime Verification，运行时验证）模式是龙虾卫士的一项可选高级安全能力。开启后，系统会在常规规则引擎之外，运行由 **ChainRule DSL 编译生成的办公场景监视器**，通过滑动窗口分析工具调用的行为序列，识别链式风险。
 
 ### RV 模式能做什么
 

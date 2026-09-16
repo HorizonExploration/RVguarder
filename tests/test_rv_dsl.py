@@ -134,18 +134,20 @@ class DslCompilerMonitorTests(unittest.TestCase):
         self.assertGreaterEqual(len(monitors), 1)
 
 
-class RvEngineRuleModeParityTests(unittest.TestCase):
+class DslRuntimeModeTests(unittest.TestCase):
     def _evaluate(self, mode: str, trace: list[dict]) -> dict:
         engine = RuntimeVerificationEngine(window_size=10, window_ttl_seconds=None, rule_mode=mode)
         return engine.evaluate(trace)
 
-    def test_fsm_and_dsl_have_same_verdict_for_known_cases(self) -> None:
-        traces = [
-            [{"step_id": "s1", "event": "mail_send", "props": ["mail_send", "external_recipient", "contains_secret"]}],
-            [{"step_id": "s1", "event": "channel_send", "props": ["channel_send", "bulk_send"]}],
-            [{"step_id": "s1", "event": "database_query", "props": ["database_query", "user_table"]}],
-        ]
-        for trace in traces:
-            fsm = self._evaluate("fsm", trace)
-            dsl = self._evaluate("dsl", trace)
-            self.assertEqual(fsm["verdict"], dsl["verdict"])
+    def test_legacy_fsm_mode_is_normalized_to_dsl(self) -> None:
+        engine = RuntimeVerificationEngine(rule_mode="fsm")
+        self.assertEqual(engine.rule_mode(), "dsl")
+
+    def test_external_broadcast_without_sensitive_data_requires_approval(self) -> None:
+        trace = [{
+            "step_id": "s1",
+            "event": "channel_send",
+            "props": ["channel_send", "bulk_send", "external_recipient"],
+        }]
+        result = self._evaluate("dsl", trace)
+        self.assertEqual(result["verdict"], "ask")

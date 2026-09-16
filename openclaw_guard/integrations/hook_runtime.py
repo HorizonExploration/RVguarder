@@ -365,6 +365,12 @@ const DEFAULT_AUTH_TOKEN = "__AUTH_TOKEN__";
 const DEFAULT_DECISION_TIMEOUT_MS = __DECISION_TIMEOUT_MS__;
 const MAX_APPROVAL_DESCRIPTION_CHARS = 512;
 const MAX_APPROVAL_TITLE_CHARS = 80;
+const HIGH_IMPACT_TOOLS = new Set([
+  "write", "edit", "apply_patch", "file_write", "file_delete",
+  "exec", "shell", "shell_exec", "process", "terminal", "code_execution",
+  "network.request", "web_search", "web_fetch", "browser",
+  "message", "sessions_send", "sessions_spawn", "gateway", "nodes", "computer",
+]);
 
 function trimTrailingSlash(value) {{
   return String(value || "").replace(/\\/+$/, "");
@@ -388,6 +394,20 @@ function boundedApprovalText(value, fallback, maxChars) {{
     return text;
   }}
   return text.slice(0, Math.max(1, maxChars - 1)).trimEnd() + "…";
+}}
+
+function isHighImpactTool(event) {{
+  const toolName = String(event?.toolName || "").trim().toLowerCase();
+  if (HIGH_IMPACT_TOOLS.has(toolName) || /(^|[._-])(write|edit|delete|exec|shell|process|terminal|browser|message|send|upload|download)([._-]|$)/.test(toolName)) {{
+    return true;
+  }}
+  let serialized = "";
+  try {{
+    serialized = JSON.stringify(event?.params || {{}}).toLowerCase();
+  }} catch (_error) {{
+    serialized = "";
+  }}
+  return /(^|[^a-z])(rm|sudo|chmod|chown|curl|wget|invoke-webrequest)([^a-z]|$)/.test(serialized);
 }}
 
 async function postJson(url, payload, timeoutMs, authToken) {{
@@ -476,7 +496,7 @@ export default {{
         _handleHealthFailure();
       }}
       if (wasOpen !== circuitOpen) {{
-        api.logger.info(`[${{PLUGIN_ID}}] Circuit state changed: ${{circuitOpen ? "OPEN (fail-open)" : "CLOSED (fail-closed)"}}`);
+        api.logger.info(`[${{PLUGIN_ID}}] Circuit state changed: ${{circuitOpen ? "OPEN (tiered-degraded)" : "CLOSED"}}`);
       }}
     }}
 
@@ -490,7 +510,7 @@ export default {{
       const inGrace = (Date.now() - graceStartedAt) < failClosedGracePeriodMs;
       if (!circuitOpen && !inGrace && consecutiveFails >= FAIL_THRESHOLD) {{
         circuitOpen = true;
-        api.logger.warn(`[${{PLUGIN_ID}}] Circuit OPEN — Guard backend unreachable for ${{consecutiveFails}} checks, switching to fail-open`);
+        api.logger.warn(`[${{PLUGIN_ID}}] Circuit OPEN — Guard backend unreachable for ${{consecutiveFails}} checks; applying tiered failure safety`);
       }}
     }}
 
@@ -575,23 +595,18 @@ export default {{
         }} catch (error) {{
           const detail = error instanceof Error ? error.message : String(error);
           api.logger.warn(`[${{PLUGIN_ID}}] before_tool_call bridge failed: ${{detail}}`);
-          if (!failClosed) {{
+          if (!failClosed && !isHighImpactTool(event)) {{
             return undefined;
           }}
-          // fail-closed: check circuit breaker first
-          if (!circuitOpen) {{
-            return {{
-              block: true,
-              blockReason: boundedApprovalText(
-                `龙虾卫士服务暂时不可达，已按安全策略暂停该操作。详情：${{detail}}`,
-                "龙虾卫士服务暂时不可达，已按安全策略暂停该操作。",
-                MAX_APPROVAL_DESCRIPTION_CHARS,
-              ),
-            }};
-          }}
-          // circuit is open — fail-open: allow the tool call
-          api.logger.warn(`[${{PLUGIN_ID}}] Circuit OPEN: allowing tool call despite backend unreachable (${{detail}})`);
-          return undefined;
+          api.logger.warn(`[${{PLUGIN_ID}}] Guard unavailable — blocking high-impact tool call (tiered failure safety)`);
+          return {{
+            block: true,
+            blockReason: boundedApprovalText(
+              `龙虾卫士服务暂时不可达，已按安全策略暂停该操作。详情：${{detail}}`,
+              "龙虾卫士服务暂时不可达，已按安全策略暂停该操作。",
+              MAX_APPROVAL_DESCRIPTION_CHARS,
+            ),
+          }};
         }}
       }},
       {{ registrationId: "openclaw_guard_before_tool_call" }},

@@ -17,7 +17,7 @@
 - `ConstraintEngine`、累计会话风险和 `revise` 已退出生产路径；RV 只对有效窗口做执行前预览，并在成功 `after_tool_call` 后提交主体证据。
 - PMKB 当前包含 47 个 canonical operations、35 条原生规则、47 条 `LEGACY-*` 回放记录、29 条 Trace、9 条关系和 29 个回归向量。
 - 旧版 stdlib HTTP 服务已从生产代码移除；历史方案、实验结果和现场证据保留在 `docs/archive/`，不参与当前文档站导航。
-- 文档导航、代码路径、测试示例和架构描述已按当前代码复核；本次验证为 Python `494 passed / 19 skipped / 4 subtests passed`、Playwright `8 passed`、前端构建通过、VuePress 渲染 37 页。
+- 文档导航、代码路径、测试示例和架构描述已按当前代码复核；本轮验证为 Python `412 passed / 19 skipped / 4 subtests passed`、Playwright Chromium/Firefox 各 `5 passed`、前端构建通过、VuePress 渲染 40 页。
 
 ---
 

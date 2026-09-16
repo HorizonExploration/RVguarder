@@ -1,14 +1,14 @@
 # OpenClaw-RVGuarder 项目现状分析报告
 
-> **2026-09-09 实现复核：** 本文下方保留的阶段 A–F 为历史快照。生产运行时已收敛为
+> **2026-09-15 实现复核：** 本文下方保留的阶段 A–F 为历史快照。生产运行时已收敛为
 > `allow / ask / block`，移除了 ConstraintEngine、SessionSafetyState、`revise` 与
 > `before_prompt_build` 预检查；RV 仅对成功执行的工具调用提交状态。当前架构说明见
 > [三态控制面与 RV 提交边界](./three-state-rv-runtime-plan-2026-09-03.md)。
 
 > **版本**：v0.7.0-dev（PMKB 1.1.0、三态 RV 和 OpenClaw 单一审批契约）
-> **分析日期**：2026-09-09（文档清查复核）
+> **分析日期**：2026-09-15（文档与代码清查复核）
 > **分析基准**：当前工作树；精确提交号以 Git 为准
-> **当前验证基线（2026-09-09）**：`python -m pytest -q` → **494 passed / 19 skipped / 4 subtests passed**；Playwright 全栈冒烟 **8 passed**；旧计数仅作历史对照。
+> **本轮验证口径（2026-09-15）**：`python -m pytest -q` → **412 passed / 19 skipped / 4 subtests passed**；Chromium 与 Firefox Playwright 冒烟均 **5 passed**（Firefox 需清除代理变量并串行运行）。
 > **状态更新（2026-09-03）：** 本文保留 2026-08-30 的问题快照；旧入口和过时文档已清理，当前实现、版本和验证结论以 [项目理解与当前记忆](./project-memory.md) 与 [v0.7.0-dev 工程统一报告](./v070-engineering-unification-report-2026-09-02.md) 为准。
 
 ---
@@ -32,7 +32,7 @@ v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆
 | 项 | 状态 |
 |---|---|
 | 产品定位 | OpenClaw 非侵入式安全护栏（执行前审批 + 语义分析 + 运行时验证 + 审计） |
-| 后端 | Python 3.13+ / Pydantic v2 / FastAPI（唯一入口）/ transitions FSM |
+| 后端 | Python 3.13+ / Pydantic v2 / FastAPI（唯一入口）/ ChainRule DSL |
 | 前端 | Vite 6 + Preact 10 + Zustand 5 + preact-router |
 | 存储 | SQLite（开发）/ PostgreSQL + Redis（生产，可选依赖） |
 | 测试 | Python 全量回归；最新数量以 `project-memory.md` 与 CI 输出为准 |
@@ -43,7 +43,7 @@ v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆
 | 子包 | 职责 | 状态 |
 |---|---|---|
 | `engine/` | 单步检测、语义增强、控制决策、白名单、流水线编排 | 活跃 |
-| `rv/` | RV 运行时验证（FSM、IR、基线自动机、PMKB 权限投影） | 活跃 |
+| `rv/` | RV 运行时验证（ChainRule DSL、IR、基线自动机、PMKB 权限投影） | 活跃 |
 | `spec/` | 规约生成/校验与主体证据状态（NL2Spec、SpecValidator、PrincipalSecurityState） | 活跃 |
 | `web/` | FastAPI HTTP 层（7 个路由模块） | 唯一生产入口 |
 | `api/` | HTTP handler 桥接层（被 web/ 路由调用） | 保留 |
@@ -189,4 +189,4 @@ v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆
 
 ---
 
-*本报告初稿于 2026-08-30，后于 2026-09-09 完成当前实现复核；历史问题快照保留原日期和语境，当前全量回归为 **494 passed / 19 skipped / 4 subtests passed**，Playwright 全栈冒烟 **8 passed**。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md` 与 `runtime-hook.md` 为准。*
+*本报告初稿于 2026-08-30，后于 2026-09-15 完成当前实现复核；历史问题快照保留原日期和语境，本轮全量回归为 **412 passed / 19 skipped / 4 subtests passed**，Chromium 与 Firefox 冒烟均 **5 passed**。Hook 审批职责和同步链路的最新事实以 `frontend-handoff-redesign-report.md`、`runtime-hook.md` 与 `pmkb-e2e-audit-2026-09-15.md` 为准。*

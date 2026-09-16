@@ -64,7 +64,7 @@ OpenClaw 原生审批、审计哈希链、SSE/增量同步
 | `openclaw_guard/engine/semantic_enhancer.py` | LLM/本地回退，产出语义标签、实体、约束、置信度和 `rv_trace` | 已有语义入口，但需要收敛为授权语义契约 |
 | `openclaw_guard/rv/ir.py` | `ToolCallIR`、`Entity`、`Constraint`，含 tool/arguments/permission/sensitivity 等可选字段 | 可直接扩展为 Authorization Trace，不必重建传输层 |
 | `openclaw_guard/rv/constraints.py` | action/tag/entity/sensitivity/temporal 五类约束；声明约束全部满足后计算分数；置信度门控 | 可保留作为局部谓词引擎，但需要增加覆盖证据和组合分析 |
-| `openclaw_guard/rv/rv_dsl.py`、`rv_monitors.py` | ChainRule DSL、FSM 监视器、序列和参数化原语 | 适合表达“先读后外发”“窗口内累计”等时序属性 |
+| `openclaw_guard/rv/rv_dsl.py`（升级前另有 `rv_monitors.py`） | ChainRule DSL、手写 FSM、序列和参数化原语（历史快照） | 适合表达“先读后外发”“窗口内累计”等时序属性；当前生产仅保留 DSL |
 | `openclaw_guard/rv/runtime_verification.py` | per-session `WindowManager`、TTL、状态序列化/反序列化、会话监视器隔离 | 跨会话升级的基础已存在，但状态未接持久化和全局索引 |
 | `openclaw_guard/spec/session_state.py` | 会话风险累积、ask→escalate、escalate→block、`revision_hint` | 可扩展为主体/能力 lineage 的风险状态，而不是只按文本会话累积 |
 | `openclaw_guard/spec/nl2spec_generator.py` | 当前主要是关键词模板，LLM 生成接口仍未实现 | 说明规则生成要先引入 schema、反例和人工审阅闭环 |

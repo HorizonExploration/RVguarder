@@ -1,7 +1,7 @@
 # 权限建模与端到端架构图
 
 > **用途：** 组会汇报图稿
-> **核对日期：** 2026-09-09
+> **核对日期：** 2026-09-15
 > **当前实现基线：** v0.7.0-dev / PMKB 1.1.0
 >
 > Mermaid 是图稿源格式。VuePress 构建后可直接展示；如需放入 PPT，可使用 Mermaid 编辑器或本地工具导出 SVG/PNG。
@@ -32,7 +32,7 @@ flowchart LR
         POL[PMKB PolicyEvaluator\n覆盖感知规则匹配]
         DIFF[PermissionClosure / Diff]
         RISK[RiskGraph\n危险权限组合]
-        RV[Runtime Verification\nDSL 默认 / FSM 回退]
+        RV[Runtime Verification\nChainRule DSL 生成监视器]
         STATE[RV 窗口 + Principal 成功证据]
         CTRL[GuardController\n只升权合并]
         SEM --> TRACE

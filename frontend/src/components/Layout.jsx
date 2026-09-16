@@ -1,7 +1,7 @@
 import { Link } from 'preact-router';
 import { useStore } from '../store';
 import { t } from '../i18n';
-import { rvToggle, apiErrorMessage } from '../api';
+import { fetchSummary, rvToggle, apiErrorMessage } from '../api';
 import { Toast } from './Toast';
 
 /** 根据当前路径判断 nav 按钮是否 active */
@@ -33,7 +33,7 @@ export function Layout({ children, currentPath }) {
 
   const handleRefresh = async () => {
     try {
-      const s = await fetch('/api/summary').then((r) => r.json());
+      const s = await fetchSummary();
       setSummary(s);
     } catch (error) {
       showToast(apiErrorMessage(error, t('error_default')));

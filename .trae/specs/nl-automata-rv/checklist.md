@@ -1,5 +1,7 @@
 # Checklist
 
+> **历史核验清单（2026-08-14）：** 阶段 A–F 的原始计划记录。当前生产实现已删除手写 FSM、`transitions` 和 revise 生产路径；旧文件名仅在历史文本中保留，不应作为运行命令。
+
 > 核验日期：2026-08-14。标记说明：`[x]` 达标 / `[ ]` 未达标（含异常编号）。
 
 ## 阶段 A：rv_trace 结构化透传
@@ -27,7 +29,7 @@
 - [x] `MonitorSpec` 支持 `quantifier`/`bind_vars`，参数化切片 per-binding 独立推进
 - [x] `WindowManager` 支持实体查询与步骤时间差查询
 - [x] `rv_rules.json` 含 ≥1 条参数化示例规则
-- [x] `tests/test_rv_dsl_ext.py` 通过；`test_rv_dsl.py`/`test_rv.py` 无回归
+- [x] `tests/test_rv_dsl_ext.py` 通过；当前回归入口为 `test_runtime_verification.py`/`test_rv_dsl.py`
 
 ## 阶段 E：NL2Spec 自动生成
 - [x] `nl2spec_generator.py` QA 分解输出结构化 IR，通过 Pydantic 校验

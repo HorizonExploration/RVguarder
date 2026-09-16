@@ -1,5 +1,7 @@
 # Tasks
 
+> **历史任务记录：** 本文件记录 2026-08 的 NL→Automata 方案。当前 DSL-only 生产路径已取代手写 FSM，旧任务中的 `test_rv.py` 引用仅作历史上下文。
+
 > 依赖关系：A ← B ← C ← D ← E（严格顺序）；F 依赖 B 可并行于 E。
 > 每阶段完成后运行对应测试并更新 `docs/research/nl-automata-rv-upgrade-plan.md` 状态标记。
 
@@ -32,7 +34,7 @@
   - [x] 4.4 修改 `_matches_requirement`：支持实体守卫、时间间隔、状态计数器判定
   - [x] 4.5 实现参数化切片：按 `bind_vars` 值创建独立监视器实例，`forall`/`exists` 量化判定
   - [x] 4.6 在 `rv_rules.json` 增加 1-2 条参数化示例规则（如按收件人域切片的 MailMonitor）
-  - [x] 4.7 新建 `tests/test_rv_dsl_ext.py` + 回归 `tests/test_rv_dsl.py`、`tests/test_rv.py`
+  - [x] 4.7 新建 `tests/test_rv_dsl_ext.py` + 回归 `tests/test_rv_dsl.py`、`tests/test_runtime_verification.py`
 
 - [x] Task 5（阶段 E）：NL2Spec 自动生成
   - [x] 5.1 扩展 `rv_dsl.py`：`ChainRule`/`Ruleset` 增加 `origin`/`source_nl` 字段

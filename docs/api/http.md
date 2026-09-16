@@ -9,7 +9,7 @@
 
 ## 配置入口（影响行为）
 
-以下配置用于控制存储后端与 RV 规则驱动模式，属于“启动期配置 + 运行时可切换”的范畴：
+以下配置用于控制存储后端与 RV 规则文件，属于启动期配置；RV 规则模式不再提供生产切换。
 
 ### 存储后端选择：`DB_STORE_MODE`
 
@@ -20,13 +20,11 @@
 - 配合数据库连接：
   - `DATABASE_URL`（或 `OPENCLAW_GUARD_DATABASE_URL`）可指定 `postgresql://...` 或 `sqlite:///...`
 
-### RV 规则模式默认值：`OPENCLAW_RV_RULE_MODE`
+### RV 规则模式：DSL-only
 
-- 环境变量：`OPENCLAW_RV_RULE_MODE`
-- 可选值：
-  - `dsl`（默认）：规约驱动（ChainRule/DSL → 编译 → 监视器）
-  - `fsm`：回退到手写 FSM 监视器
-- 运行时也可通过 `/api/rv/toggle` 的 `rule_mode` 字段覆盖（并持久化到 `preferences.json`）
+- `ChainRule DSL → compile_monitors()` 是唯一生产路径。
+- 历史 `OPENCLAW_RV_RULE_MODE=fsm` 或 `/api/rv/toggle` 的 `rule_mode=fsm` 输入会被归一化为 `dsl`，不会加载手写 FSM，也不会改变审批流程。
+- `/api/rv/toggle` 仍只负责 `enabled` 总开关；旧 `rule_mode` 字段仅为旧配置平滑迁移保留。
 
 ### RV 规则文件路径：`OPENCLAW_RV_RULES_PATH`
 
@@ -138,7 +136,7 @@
 字段说明：
 
 - `mode`：是否启用 RV（来自 `preferences.json`，默认 true）
-- `engine.rule_mode`：当前规则模式（`dsl`/`fsm`）
+- `engine.rule_mode`：当前规则模式（固定为 `dsl`）
 - `engine.window_snapshot`：窗口快照（仅保留 props 的前 6 个用于 UI 展示）
 
 ## POST `/api/rv/toggle`

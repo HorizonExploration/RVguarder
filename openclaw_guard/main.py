@@ -70,7 +70,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     # 加载环境配置文件
-    load_dotenv(override=True)
+    # Keep explicitly supplied process variables authoritative.  A project
+    # .env file provides defaults and must not silently replace deployment
+    # credentials or endpoint settings.
+    load_dotenv(override=False)
     
     parser = build_parser()
     args = parser.parse_args(argv)

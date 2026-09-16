@@ -1,7 +1,7 @@
 # 旧规则迁移矩阵 / Legacy Rule Migration Matrix
 
 > **状态 / Status：** PMKB 逐条回放完成；生产 DetectionEngine 已删除 / PMKB replay complete; production DetectionEngine removed
-> **核对日期 / Verified:** 2026-09-09
+> **核对日期 / Verified:** 2026-09-15
 
 ## 结论 / Conclusion
 
@@ -43,7 +43,7 @@ PMKB 1.1.0 的原生规则与历史规则标签存在语义重叠，但不是替
 
 ## 已迁移的非 47 规则 / Migrated Rules Outside the 47
 
-`SEM-OFFICE-001`（外部敏感邮件）与 `SEM-OFFICE-002`（内部日报外发）由行为 DSL/FSM 的 MailMonitor、ReportMonitor 承担。这两条不计入上述 47 条冻结 LEGACY 记录。
+`SEM-OFFICE-001`（外部敏感邮件）与 `SEM-OFFICE-002`（内部日报外发）由行为 DSL 生成监视器承担。这两条不计入上述 47 条冻结 LEGACY 记录。
 
 ## 删除门槛 / Deletion Gate
 

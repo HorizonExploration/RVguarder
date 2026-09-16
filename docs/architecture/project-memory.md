@@ -1,8 +1,8 @@
 # 项目理解与当前记忆
 
-> **核对日期**：2026-09-09（文档清查后复核）
+> **核对日期**：2026-09-15（全面整改实施中）
 > **核对基准**：当前工作树（PMKB 网络案例基础知识库 `1.1.0`）
-> **当前全量回归（2026-09-09）**：`python -m pytest -q` → **494 passed / 19 skipped / 4 subtests passed**；Playwright 全栈冒烟 **8 passed**。
+> **本轮全量回归（2026-09-15）**：`python -m pytest -q` → **412 passed / 19 skipped / 4 subtests passed**；Chromium 与 Firefox Playwright 冒烟均 **5 passed**（Firefox 以清除代理变量、单 worker 的独立环境复跑，含 OpenClaw 回调→SSE→Guard UI 同步）。
 
 本文档是后续维护项目时的“当前事实源”。历史方案、阶段性审计报告和旧版本说明仍然保留，但如果它们与本文档或当前代码冲突，应以当前代码和本文档为准。
 
@@ -18,7 +18,7 @@ OpenClaw-RVGuarder（龙虾卫士）是面向 OpenClaw 的非侵入式运行时�
 4. OpenClaw 原生页面是 Hook 审批唯一入口，Guard Dashboard 通过 resolution/SSE 只读同步状态；
 5. 执行后审计、哈希链校验和基线扫描。
 
-核心安全取舍是“先决策后执行、可取证、非侵入、故障可降级”。Hook 后端不可达时，插件电路熔断器会进入 fail-open，以避免 Guard 停服阻塞 OpenClaw；这意味着生产部署必须配套健康检查和熔断告警。
+核心安全取舍是“先决策后执行、可取证、非侵入、故障可分级降级”。Hook 后端不可达时，低风险只读调用可放行并审计，高影响工具调用暂停；`failClosed=true` 仍可将所有调用统一暂停。电路状态和健康检查只用于恢复/告警，不得把熔断误写成全局放行。
 
 ## 2. 当前主链
 
@@ -57,15 +57,15 @@ OpenClaw before_tool_call
 
 - v0.3.0 架构重构：Pydantic v2、GuardServices + pipeline、Preact、可选 SQLAlchemyStore、ChainRule 规约驱动 RV；HTTP 服务已在 v0.7.0-dev 收敛为 FastAPI 单入口。
 - RV：ToolCallIR、基线自动机、实体/时间/计数参数化、NL2Spec + 反例校验；ConstraintEngine、累计会话分数与 revise 干预已从生产路径删除。
-- 运行时默认 `dsl` 规则模式；设置 `OPENCLAW_RV_RULE_MODE=fsm` 可回退到六个手写 FSM 监视器。
+- 运行时唯一执行路径是 `ChainRule DSL → compile_monitors()`；历史 `fsm` 偏好值仅被归一化为 `dsl`，不会加载手写监视器。
 - 规则检测、Hook 审批、resolution 幂等同步、审计双写、基线扫描和前端 RV 状态面板均有现行代码与测试覆盖。
 - PMKB 网络案例基线 `1.1.0` 已直接接入 `PolicyBundle → TraceCompiler → PolicyEvaluator → RiskGraph` 链路；源码目录与打包目录保持同版本、同内容，并为关键操作保留来源、Trace 和正反例向量。
-- OpenClaw 官方 runtime、filesystem、web、browser、sessions、memory、messaging、automation、agents、human-input、credentials、nodes 和 UI 工具通过显式 profile 建模；低风险 profile 必须满足结构化参数边界才继承只读信任。未知工具或越权参数固定为 `unknown` 并一次审批，不通过自由文本猜测动作类型。
+- OpenClaw 官方 runtime、filesystem、web、browser、sessions、memory、messaging、automation、agents、human-input、credentials、nodes 和 UI 工具通过显式 profile 建模；低风险 profile 必须满足结构化参数边界才继承只读信任。未知工具或越权参数固定为 `unknown` 并一次审批，不通过自由文本猜测动作类型。Hook 事件不再截断收件人或路径实体。
 - Hook 透传 `toolKind`、`toolInputKind`、`derivedPaths`；after 回调只有在 `runId + toolCallId + session/agent/tool` 上下文一致且动作未终态时才能提交执行、principal 和 RV 状态，重复回调会被拒绝。
 - Hook 审批文案在发送给 OpenClaw 前限制为标题 80、说明 512 字符；弹窗只展示意图/目标/风险，完整命令在 Guard 详情中脱敏展示。精确命令授权默认 30 天并可撤销；超过 6 分钟未回调的审批会标记为 `approval_timeout`。
 - 审批回调由 OpenClaw 单一审批中心拥有；Guard 只读同步。回调在写入动作状态后再发布 `action.resolved`，摘要提供 `sync.approval` 聚合指标（最近 128 个延迟样本），前端摘要哈希会响应同步序号变化。
 - PMKB 已新增 `NATIVE-PROCESS-DESTRUCTIVE`、`NATIVE-PROCESS-PRIVILEGED`、`NATIVE-NETWORK-SECRET-EXTERNAL` 三条字段谓词规则；47 条 `LEGACY-*` 继续作为历史回放证据，尚未删除。
-- 2026-09-09 已完成原生工具、RV 窗口重放、主体成功提交、Checkpoint 摘要/授权和 Guard UX 的定向回归；全量回归为 **494 passed / 19 skipped / 4 subtests passed**，Playwright 全栈冒烟 **8 passed**；旧 AgentDojo 评测执行器已清理，历史结果仅保留为证据。
+- 2026-09-15 已完成规则误报修正（外部群发但无敏感/跨组织证据只请求审批）、实体不截断、缺失 after 回调状态修正、LLM 时间预算修正、DSL-only 运行时收敛和分级故障策略；旧 AgentDojo 评测执行器与手写 FSM 生产模块已清理，历史结果/报告仅保留为证据。
 
 ## 5. 当前边界与待办
 
@@ -77,12 +77,12 @@ OpenClaw before_tool_call
 - 基线 DFA 只有在设置 `OPENCLAW_RV_BASELINE_DFA_PATH` 或显式传入路径时才加载，默认不做基线偏离检测。
 - collectors 下的 ptrace/eBPF 仍是 capability 探测桩；不要把它们描述成已落地的系统级采集器。
 - NL2Spec 的当前实现以模板/关键词和确定性 ChainRule 合成为主，LLM 生成接口仍属于可选扩展路径。
-- 前端自动化测试、文档站 CI、审计归档轮转和熔断告警仍在路线图中；主体级 RV 状态持久化已落地，但仍需长期稳定性和跨版本迁移验证。
+- 前端组件级测试、文档站 CI、审计归档轮转和熔断告警仍在路线图中；主体级 RV 状态持久化已落地，但仍需长期稳定性和跨版本迁移验证。当前 E2E 真实回调同步已纳入 Chromium 与 Firefox 冒烟；Firefox 需清除代理变量并串行运行。
 
 ## 6. 维护规则
 
 1. 先看本文件、`docs/architecture/index.md`、`docs/ops/roadmap.md`，再看现行研究文档；历史材料统一在 `docs/archive/`，`testlab/` 仅作为历史实验与证据，不是运行时依赖。
 2. 修改 Hook 合约、RV 判定顺序、默认模式或版本号时，同时更新 API/架构/部署文档和测试基线。
-3. 报告测试数量必须注明运行日期和命令；历史报告中的旧计数是快照，当前回归基线为 **494 passed / 19 skipped / 4 subtests passed**（2026-09-09）。
-4. 运行时是否处于 fail-open 不能从静态文档推断，必须通过进程、健康接口和插件状态现场检查。
-5. 文档与前端构建验证命令分别为 `cd docs && npm run docs:build`、`cd frontend && npm run build`；当前复核均已通过（2026-09-09）。
+3. 报告测试数量必须注明运行日期和命令；历史报告中的旧计数是快照，整改后的最新计数以本文件末次更新为准。
+4. 运行时是否处于分级降级不能从静态文档推断，必须通过进程、健康接口和插件状态现场检查；重点确认高影响工具不可达时仍返回 block。
+5. 文档与前端构建验证命令分别为 `cd docs && npm run docs:build`、`cd frontend && npm run build`；本轮文档构建与代码验证已通过，前端构建需在发布前复跑。

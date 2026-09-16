@@ -273,7 +273,7 @@
           "from": "broadcasting",
           "to": "blocked",
           "verdict": "block",
-          "when": { "all_of": ["channel_send"], "any_of": ["external_recipient", "cross_org", "contains_secret"] }
+          "when": { "all_of": ["channel_send"], "any_of": ["cross_org", "contains_secret"] }
         },
         {
           "id": "broadcasting_default_ask",
@@ -507,4 +507,3 @@
     }
   ]
 }
-

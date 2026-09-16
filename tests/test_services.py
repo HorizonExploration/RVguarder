@@ -4,7 +4,7 @@
 - build_services() 工厂（急热懒冷组件）
 - GuardServices.__init__ 中的 runtime_hook 急切执行
 - rv_status / rv_toggle / cleanup_rv_session
-- _classify_runtime_failure / _dedupe_messages / _auto_complete_previous_actions
+- _classify_runtime_failure / _dedupe_messages / _mark_orphaned_previous_actions
 - export_audit / recent_logs
 - skills / channels CRUD
 - doctor / refresh_runtime_target
@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -156,6 +157,67 @@ class GuardServicesClassifyTests(unittest.TestCase):
         self.assertEqual(code, "runtime_execution_failed")
 
 
+class GuardServicesHookLifecycleTests(unittest.TestCase):
+    """Hook 回调丢失时，旧动作不能被伪造为已执行。"""
+
+    def test_missing_after_callback_is_marked_unknown_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "OpenclawGuard"
+            project.mkdir()
+            config_path = project / "openclaw.json"
+            config_path.write_text(json.dumps({"models": {"providers": {}}}), encoding="utf-8")
+            services = build_services(project, config_path=config_path)
+            common = {
+                "toolName": "read",
+                "params": {"path": str(project / "notes.txt")},
+                "runId": "lifecycle-run",
+                "sessionId": "lifecycle-session",
+                "agentId": "lifecycle-agent",
+            }
+
+            first = services.handle_before_tool_call({**common, "toolCallId": "call-1"})
+            self.assertEqual(first["action"], "allow")
+            actions = services.action_service._load()
+            prior = next(item for item in actions if item.event.metadata.get("tool_call_id") == "call-1")
+            prior.created_at = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+            services.action_service._save_all(actions)
+            second = services.handle_before_tool_call({**common, "toolCallId": "call-2"})
+            self.assertEqual(second["action"], "allow")
+
+            prior = next(
+                item for item in services.list_actions()
+                if item["event"]["metadata"].get("tool_call_id") == "call-1"
+            )
+            self.assertEqual(prior["status"], "failed")
+            self.assertEqual(prior["execution_state"], "unknown")
+            self.assertEqual(prior["execution_result"]["error_code"], "missing_after_callback")
+
+    def test_fresh_executing_action_is_not_marked_orphaned_by_concurrent_before(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "OpenclawGuard"
+            project.mkdir()
+            config_path = project / "openclaw.json"
+            config_path.write_text(json.dumps({"models": {"providers": {}}}), encoding="utf-8")
+            services = build_services(project, config_path=config_path)
+            common = {
+                "toolName": "read",
+                "params": {"path": str(project / "notes.txt")},
+                "runId": "concurrent-run",
+                "sessionId": "concurrent-session",
+                "agentId": "concurrent-agent",
+            }
+
+            services.handle_before_tool_call({**common, "toolCallId": "call-1"})
+            services.handle_before_tool_call({**common, "toolCallId": "call-2"})
+
+            prior = next(
+                item for item in services.list_actions()
+                if item["event"]["metadata"].get("tool_call_id") == "call-1"
+            )
+            self.assertEqual(prior["status"], "executing")
+            self.assertEqual(prior["execution_state"], "running")
+
+
 class GuardServicesDedupeTests(unittest.TestCase):
     """_dedupe_messages 测试。"""
 
@@ -198,6 +260,17 @@ class GuardServicesSkillsChannelsTests(unittest.TestCase):
 
         result = self.services.delete_skill("test-skill")
         self.assertTrue(result["ok"])
+
+    def test_skill_toggle_preserves_existing_metadata(self) -> None:
+        self.services.upsert_skill(
+            "metadata-skill",
+            {"enabled": False, "description": "read only", "permissions": ["file.read"]},
+        )
+        result = self.services.upsert_skill("metadata-skill", {"enabled": True})
+        item = next(item for item in result["skills"]["items"] if item["name"] == "metadata-skill")
+        self.assertTrue(item["enabled"])
+        self.assertEqual(item["description"], "read only")
+        self.assertEqual(item["permissions"], ["file.read"])
 
     def test_upsert_skill_empty_name_raises(self) -> None:
         with self.assertRaises(ValueError):

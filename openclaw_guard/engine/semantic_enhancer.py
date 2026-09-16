@@ -27,7 +27,10 @@ _READONLY_COMMANDS = ("ls", "pwd", "cat ", "grep ", "find ", "echo ")
 
 _DEFAULT_LLM_BASE_URL = "https://api.deepseek.com/v1"
 _DEFAULT_LLM_MODEL = "deepseek-v4-flash"
-_DEFAULT_TIMEOUT_SEC = 10
+# Keep semantic enrichment within the synchronous Hook decision budget.  The
+# local evaluator remains the deterministic fallback when this short request
+# window is exceeded.
+_DEFAULT_TIMEOUT_SEC = 1.5
 _CONFIG_FILE_NAME = "guard-config.json"
 
 
@@ -160,7 +163,7 @@ class SemanticEnhancer:
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.1,
-            "max_tokens": 1024,
+            "max_tokens": 4096,
             "response_format": {"type": "json_object"},
         }
         req_data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -650,7 +653,7 @@ def _extract_recipients(source_message: str, event: BehaviorEvent) -> list[str]:
         address = match.group(0)
         if address not in recipients:
             recipients.append(address)
-    return recipients[:8]
+    return recipients
 
 
 def _extract_constraints(source_message: str, haystack: str, scenario: str) -> dict[str, Any]:

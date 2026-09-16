@@ -28,3 +28,11 @@ def test_trace_timeline_uses_the_same_compact_approval_summary():
     source = (ROOT / "frontend/src/components/TraceTimeline.jsx").read_text(encoding="utf-8")
     assert "approval_presentation" in source
     assert "intent_summary" in source
+
+
+def test_summary_refresh_is_uncached_and_tracks_mutable_skill_state():
+    api_source = (ROOT / "frontend/src/api.js").read_text(encoding="utf-8")
+    store_source = (ROOT / "frontend/src/store.js").read_text(encoding="utf-8")
+    assert "cache: 'no-store'" in api_source
+    assert "_ts=${Date.now()}" in api_source
+    assert "skills: summary.skills || {}" in store_source

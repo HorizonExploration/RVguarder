@@ -1,6 +1,6 @@
 # 个人办公全场景梳理与安全防护目标筛选
 
-**初稿日期**：2026-07-15 | **当前复核**：2026-09-09
+**初稿日期**：2026-07-15 | **当前复核**：2026-09-15
 **分析目标**：围绕 OpenClaw AI 助手在个人办公中的全部潜在场景，按流程阶段系统梳理，并筛选本项目需覆盖的目标场景。
 
 > **阅读边界：** 本文是办公场景分析与测试矩阵。当前规则数量、效果和运行时入口以
@@ -285,6 +285,8 @@
 
 ## 七、场景到 RV 规则的映射
 
+> **代码示例边界：** 7.1 的 `BaseMonitor` / `Machine` 代码是 2026-07 场景设计阶段的不可执行伪代码，仅用于表达需求和规则意图。当前生产实现不加载这些类，也不依赖 `transitions`；请以 `openclaw_guard/rv/rv_rules.json` 的 ChainRule DSL 和[当前架构记忆](../architecture/project-memory.md)为准。
+
 ### 7.1 P0 场景具体化
 
 #### P0-1：消息群发/广播防护
@@ -293,7 +295,7 @@
 class BroadcastMonitor(BaseMonitor):
     """消息群发安全监视器。
 
-    FSM:
+    ChainRule DSL:
       idle → single_chat（单聊，安全）
       idle → broadcast（群发/广播，需审批）
       broadcast → blocked（群发含外部收件人/敏感内容）
@@ -470,13 +472,13 @@ FILE_BATCH_LABELS = ["file_compress", "file_package", "share_link_update",
 
 ### 9.2 原有监视器的扩展
 
-`SecurityChainMonitor`（已在开发方案中）可以直接扩展支持上述 P0 场景的链式检测，无需新增太多独立 FSM 类。大部分链式组合检测可以在 `SecurityChainMonitor.feed()` 中通过 `window.sequence_matches()` 实现。
+`rv_rules.json` 中的 ChainRule DSL 规约可以直接扩展支持上述 P0 场景的链式检测，无需新增独立业务类。大部分链式组合检测通过 `window.sequence_matches()` 等窗口原语实现。
 
 ---
 
 ## 十、总结
 
-**当前覆盖**：5 个场景（邮件收发、日报生成/外发、附件下载）  
+**初稿快照统计（非当前覆盖率）**：5 个场景（邮件收发、日报生成/外发、附件下载）
 **全量办公场景**：63 个（事前/事中/事后 三阶段）  
 **有安全风险需保护**：36 个  
 **P0 立即纳入**：3 个（消息群发、数据库导出、文件批量操作）  

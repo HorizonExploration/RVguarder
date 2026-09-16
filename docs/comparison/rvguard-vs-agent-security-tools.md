@@ -9,7 +9,7 @@
 
 | 工具 | 类型 | 核心机制 | 定位 |
 |---|---|---|---|
-| **OpenClaw-RVGuarder**（本项目） | 运行时验证插件 | Hook 拦截 + 语义理解 + 规则匹配 + ChainRule FSM + 滑动窗口 | OpenClaw 办公场景专用 |
+| **OpenClaw-RVGuarder**（本项目） | 运行时验证插件 | Hook 拦截 + 语义理解 + PMKB 规则 + ChainRule DSL + 滑动窗口 | OpenClaw 办公场景专用 |
 | **Guardrails AI** | 输出验证框架 | RAIL DSL 声明约束 + validators | LLM 输出结构化/质量 |
 | **NVIDIA NeMo Guardrails** | 对话护栏框架 | Colang DSL + 5 层护栏（输入/对话/检索/执行/输出） | 企业对话应用 |
 | **Llama Guard** | 内容安全分类器 | 微调分类模型，分类输入/输出是否 unsafe | 内容审核 |
@@ -44,14 +44,14 @@ GuardAgent（ICML 2025）路线：**LLM 将安全请求转译为可执行护栏�
 
 | 维度 | GuardAgent | RVGuard |
 |---|---|---|
-| 护栏形态 | 每次生成 Python 防护代码并执行 | 编译 ChainRule → `_SpecDrivenMonitor` FSM |
-| 确定性来源 | 代码执行天然确定 | FSM 状态迁移天然确定 |
+| 护栏形态 | 每次生成 Python 防护代码并执行 | 编译 ChainRule → `_SpecDrivenMonitor` |
+| 确定性来源 | 代码执行天然确定 | DSL 状态迁移天然确定 |
 | LLM 角色 | 任务规划 + 代码生成（每请求调用） | 语义标注（每事件调用）+ NL2Spec（离线生成规则） |
 | 延迟 | 代码生成+执行开销大 | 语义标注一次，RV 判定零 LLM 调用 |
 | 记忆机制 | 经验记忆模块（in-context retrieval） | 无（可借鉴） |
 | 评测基准 | EICU-AC（98%）、Mind2Web-SC（83%） | 无正式基准（可借鉴） |
 
-**关键差距**：GuardAgent 的"代码即护栏"思想与 RVGuard 的"规约编译为 FSM"是同一思想的两种实现。RVGuard 优势是**运行时零 LLM 调用**（护栏提前编译好）；GuardAgent 优势是**护栏形态无限灵活**（代码能表达任何逻辑）。值得借鉴的点：GuardAgent 的 **memory-based in-context 演示检索** 可引入到 NL2Spec 生成器中，让 LLM 参考历史已验证的规则模板。
+**关键差距**：GuardAgent 的"代码即护栏"思想与 RVGuard 的"规约编译为监视器"是同一思想的两种实现。RVGuard 优势是**运行时零 LLM 调用**（护栏提前编译好）；GuardAgent 优势是**护栏形态无限灵活**（代码能表达任何逻辑）。值得借鉴的点：GuardAgent 的 **memory-based in-context 演示检索** 可引入到 NL2Spec 生成器中，让 LLM 参考历史已验证的规则模板。
 
 ### 2.3 与 NeMo Guardrails 对比（工业级护栏框架）
 
@@ -59,10 +59,10 @@ NeMo（NVIDIA）是工业界最成熟的护栏框架，其 **Colang DSL** 与 RV
 
 | 维度 | NeMo Guardrails | RVGuard |
 |---|---|---|
-| DSL | Colang（Python 风格对话流建模） | ChainRule JSON（声明式 FSM 规约） |
+| DSL | Colang（Python 风格对话流建模） | ChainRule JSON（声明式时序规约） |
 | 护栏层次 | 5 层：输入/对话/检索/执行/输出 | 单层：工具调用执行路径 |
 | 语义匹配 | KNN 向量意图匹配（Colang 1.0） | LLM 语义标注（7 维度标签） |
-| 时序能力 | 无显式 FSM 时序验证 | 滑动窗口 + FSM 时序链 |
+| 时序能力 | 无显式状态时序验证 | 滑动窗口 + DSL 时序链 |
 | 依赖 | NVIDIA NIM 微服务 + GPU 加速（重） | 纯 Python + DeepSeek API（轻） |
 | 适用场景 | 企业客服/对话 | OpenClaw 个人办公工具链 |
 
@@ -89,7 +89,7 @@ NeMo（NVIDIA）是工业界最成熟的护栏框架，其 **Colang DSL** 与 RV
 |---|---|---|---|---|---|---|
 | 单步规则匹配 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 语义理解（LLM） | ✅ | ❌（谓词硬编码） | ✅（代码生成） | ✅（意图匹配） | ❌ | ❌ |
-| 时序/链式检测 | ✅（FSM+窗口） | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 时序/链式检测 | ✅（DSL 监视器+窗口） | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 会话级状态 | ✅ | ❌ | ❌ | ✅（对话流） | ❌ | ❌ |
 | 参数化/实体判定 | ✅ | ✅（谓词参数） | ✅（代码任意） | ❌ | ❌ | ❌ |
 | LLM 自动生成规则 | ❌（规划中） | ✅（95.56% 精度） | ✅ | ❌ | ❌ | ❌ |
@@ -105,10 +105,10 @@ NeMo（NVIDIA）是工业界最成熟的护栏框架，其 **Colang DSL** 与 RV
 
 ### 4.1 独有能力（其他工具没有）
 
-1. **行为链时序验证**：滑动窗口 + ChainRule FSM 检测跨步骤攻击链（先搜索后删除、收集→打包→外传）。所有对比工具均为单步判定。
+1. **行为链时序验证**：滑动窗口 + ChainRule DSL 检测跨步骤攻击链（先搜索后删除、收集→打包→外传）。所有对比工具均为单步判定。
 2. **审计链完整性**：SQLite + JSONL 双写 + 哈希链校验，符合企业合规要求。
 3. **审批工作台**：本地 Web UI 动作级审批 + Trace Timeline 可视化。
-4. **办公场景专属策略**：PMKB 35 条原生规则 + 47 条 LEGACY 回放记录，以及 DSL/FSM 监视器，针对 OpenClaw 个人办公场景深度定制。
+4. **办公场景专属策略**：PMKB 35 条原生规则 + 47 条 LEGACY 回放记录，以及 DSL 生成监视器，针对 OpenClaw 个人办公场景深度定制。
 
 ### 4.2 需要补齐的差距（他山之石）
 
@@ -130,7 +130,7 @@ NeMo（NVIDIA）是工业界最成熟的护栏框架，其 **Colang DSL** 与 RV
 - 与 GuardAgent 同类（护栏即代码/规约），RVGuard 在运行时开销上有本质优势；
 - 与 NeMo/Guardrails AI/Llama Guard 是互补关系（内容审核 vs 行为验证）。
 
-未来发展的核心差异化路径已明确：**把 AgentSpec 证明可行的 LLM 规则生成 + GuardAgent 的记忆检索 + NeMo 的分层护栏思想，整合进现有的 ChainRule FSM 引擎**，形成"NL 策略 → 自动机 → 运行时验证"的完整闭环。
+未来发展的核心差异化路径已明确：**把 AgentSpec 证明可行的 LLM 规则生成 + GuardAgent 的记忆检索 + NeMo 的分层护栏思想，整合进现有的 ChainRule DSL 编译链**，形成"NL 策略 → 规约 → 运行时验证"的完整闭环。
 
 ---
 

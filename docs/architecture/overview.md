@@ -16,7 +16,7 @@ Openclaw Guard 采用分层、非侵入、模块化设计，核心原则是：**
    PolicyEvaluator
    → 单步规则、覆盖状态、最小权限 Closure/Diff、RiskGraph 组合关系
 4. 运行时验证（RV）
-   ChainRule DSL（默认）/ FSM 回退
+   ChainRule DSL 生成自动机
    → session-local window + principal-global capability state
 5. 决策与审批
    PMKB / RV 结果合并（只升权不降权）
@@ -55,9 +55,8 @@ before_tool_call
 - `engine/semantic_enhancer.py`：本地/LLM 语义标注，输出 `entities`、`labels`、`classification`、`purpose`、`confidence`
 - `policy/`：版本化 PMKB bundle、`TraceCompiler`、规则评估、权限闭包/差分、危险组合图与冻结 LEGACY 回放数据
 - `engine/control.py`：动作决策、审批状态流
-- `rv/runtime_verification.py`：RV 运行时验证引擎（规约驱动 DSL（默认）+ FSM 回退 + 滑动窗口，per-session 隔离）
-- `rv/rv_dsl.py` + `rv/rv_rules.json`：ChainRule 声明式规约与编译监视器（`OPENCLAW_RV_RULE_MODE=dsl` 为默认模式）
-- `rv/rv_monitors.py`：手写 FSM 监视器（规约模式关闭时的回退实现）
+- `rv/runtime_verification.py`：RV 运行时验证引擎（ChainRule DSL 生成自动机 + 滑动窗口，per-session 隔离）
+- `rv/rv_dsl.py` + `rv/rv_rules.json`：ChainRule 声明式规约与编译监视器（唯一生产规则来源）
 - `services.py`：主体级 RV 状态、策略引擎和持久化装配；主体键为 `principal_id + agent_id + capability_lineage`
 - `core/audit_service.py`：SQLite + JSON 审计与哈希链
 - `storage/db_store.py`：DBStore 接口族（SQLiteStore / PostgreSQLStore / SQLAlchemyStore，`DB_STORE_MODE=sqlalchemy` 启用 ORM 存储）

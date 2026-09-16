@@ -1,7 +1,7 @@
 """
-运行时验证核心引擎 —— 滑动窗口管理器 + RV 主引擎。
+运行时验证核心引擎 —— 滑动窗口管理器 + DSL 规约引擎。
 
-基于 transitions FSM 库，为所有安全监视器提供：
+基于声明式 ChainRule DSL，为所有安全监视器提供：
 - 带时间过期的滑动上下文窗口（WindowManager）
 - 多步序列匹配
 - 累积统计
@@ -10,7 +10,7 @@
 - 主引擎编排（RuntimeVerificationEngine）
 
 设计原则：
-- 监视器（Monitors）通过 FSM 状态记忆追踪跨步攻击链
+- 监视器（Monitors）通过 DSL 状态转移追踪跨步攻击链
 - WindowManager 提供统计增强（累积计数、序列匹配、窗口查询）
 - Engine 负责 per-session 窗口隔离和判定融合
 """
@@ -108,7 +108,7 @@ class WindowManager:
             self._expire_old()
 
     def age_of_oldest(self) -> float | None:
-        """返回最老步骤的年龄（秒），用于 FSM 判定。窗口为空返回 None。"""
+        """返回最老步骤的年龄（秒），用于窗口规则判定。窗口为空返回 None。"""
         if not self._buffer:
             return None
         oldest_epoch = self._buffer[0].get("_ts_epoch", 0)
@@ -316,11 +316,10 @@ class RuntimeVerificationEngine:
         self._session_permission_monitors: dict[str, list] = {}
         self._principal_monitors: dict[tuple[str, str, tuple[str, ...]], list] = {}
         # Identity metrics are retained for observability; monitor instances
-        # themselves are rebuilt per evaluation and never kept as FSM state.
+        # themselves are rebuilt per evaluation and never kept as mutable state.
         self._principal_monitor_keys: set[tuple[str, str, tuple[str, ...]]] = set()
         self._principal_states: dict[tuple[str, str, tuple[str, ...]], Any] = {}
         self._principal_state_limit = max(1, principal_state_limit)
-        self._fsm_monitors_template: list | None = None
         self._spec_monitors_template: list | None = None
         self._spec_ruleset: Any | None = None
         self._permission_ruleset: Any | None = None
@@ -339,8 +338,11 @@ class RuntimeVerificationEngine:
         v = str(value).strip().lower()
         if v in {"dsl", "spec", "spec-driven", "spec_driven"}:
             return "dsl"
+        # Handwritten FSM was retired from the production path.  Keep the
+        # historical setting readable so old preferences do not break startup,
+        # but always execute the generated DSL automata.
         if v in {"fsm", "handwritten", "hand-written"}:
-            return "fsm"
+            return "dsl"
         return "dsl"
 
     def _init_baseline_monitor(self, dfa_path: str | None) -> None:
@@ -366,7 +368,6 @@ class RuntimeVerificationEngine:
             return
         self._rule_mode = new_mode
         self._session_monitors.clear()
-        self._fsm_monitors_template = None
         self._spec_monitors_template = None
         self._permission_monitors_template = None
         self._principal_monitors.clear()
@@ -412,30 +413,7 @@ class RuntimeVerificationEngine:
         self._permission_monitors_template = compile_monitors(self._permission_ruleset)
 
     def _lazy_init_monitors(self) -> None:
-        if self._rule_mode == "fsm":
-            self._lazy_init_fsm_monitors()
-        else:
-            self._lazy_init_spec_monitors()
-
-    def _lazy_init_fsm_monitors(self) -> None:
-        if self._fsm_monitors_template is not None:
-            return
-        from openclaw_guard.rv.rv_monitors import (
-            BatchFileMonitor,
-            BroadcastMonitor,
-            DataExportMonitor,
-            MailMonitor,
-            ReportMonitor,
-            SecurityChainMonitor,
-        )
-        self._fsm_monitors_template = [
-            MailMonitor(),
-            ReportMonitor(),
-            SecurityChainMonitor(),
-            BroadcastMonitor(),
-            DataExportMonitor(),
-            BatchFileMonitor(),
-        ]
+        self._lazy_init_spec_monitors()
 
     def _lazy_init_spec_monitors(self) -> None:
         if self._spec_monitors_template is not None:
@@ -450,23 +428,6 @@ class RuntimeVerificationEngine:
     def _create_monitors(self) -> list:
         """基于模板创建新的监视器实例。"""
         self._lazy_init_monitors()
-        if self._rule_mode == "fsm":
-            from openclaw_guard.rv.rv_monitors import (
-                BatchFileMonitor,
-                BroadcastMonitor,
-                DataExportMonitor,
-                MailMonitor,
-                ReportMonitor,
-                SecurityChainMonitor,
-            )
-            return [
-                MailMonitor(),
-                ReportMonitor(),
-                SecurityChainMonitor(),
-                BroadcastMonitor(),
-                DataExportMonitor(),
-                BatchFileMonitor(),
-            ]
         from openclaw_guard.rv.rv_dsl import compile_monitors
 
         return compile_monitors(self._spec_ruleset)
@@ -607,7 +568,7 @@ class RuntimeVerificationEngine:
 
         对语义层产出的 rv_trace 执行：
         1. 将新事件步推入 per-session 滑动窗口
-        2. 依次过所有监视器的 FSM
+        2. 依次过所有生成的 DSL 监视器
         3. 取最高风险等级的判定作为最终结果
 
         Args:
@@ -627,7 +588,7 @@ class RuntimeVerificationEngine:
         permission_step = self._permission_step(authorization_trace, policy_decision)
 
         # Commit first, then reconstruct behavior monitors from the effective
-        # window.  Reusing a prior FSM instance would retain a terminal state
+        # window.  Reusing a prior monitor instance would retain a terminal state
         # after its triggering steps have expired from the window.
         window = self._get_session_window(session_key)
         for step in rv_trace:
@@ -829,10 +790,7 @@ class RuntimeVerificationEngine:
         """获取或创建 per-session 监视器实例。"""
         if session_key == "_default":
             self._lazy_init_monitors()
-            if self._rule_mode == "fsm":
-                return self._fsm_monitors_template  # type: ignore[return-value]
-            else:
-                return self._spec_monitors_template  # type: ignore[return-value]
+            return self._spec_monitors_template  # type: ignore[return-value]
         if session_key not in self._session_monitors:
             self._session_monitors[session_key] = self._create_monitors()
         return self._session_monitors[session_key]
@@ -983,11 +941,7 @@ class RuntimeVerificationEngine:
             # 重置所有
             self.window.clear()
             self._lazy_init_monitors()
-            monitors = (
-                self._fsm_monitors_template
-                if self._rule_mode == "fsm"
-                else self._spec_monitors_template
-            )
+            monitors = self._spec_monitors_template
             if monitors:
                 for m in monitors:
                     try:

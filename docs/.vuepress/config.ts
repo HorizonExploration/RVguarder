@@ -97,6 +97,7 @@ export default defineUserConfig({
             "/research/agent-permission-rv-research-report-2026-08-25.md",
             "/research/pmkb-network-baseline-implementation-report-2026-08-28.md",
             "/research/openclaw-architecture-brief-2026-08-31.md",
+            "/research/group-meeting-report-2026-09-13.md",
           ],
         },
       ],

@@ -8,7 +8,7 @@
 ![OpenClaw](https://img.shields.io/badge/OpenClaw-Plugin%20SDK-111827)
 ![Hook](https://img.shields.io/badge/Hook-before__tool__call-0F766E)
 ![PMKB](https://img.shields.io/badge/PMKB-1.1.0-2563EB)
-![RV](https://img.shields.io/badge/RV-ChainRule%20DSL%20%2B%20FSM-7C3AED)
+![RV](https://img.shields.io/badge/RV-ChainRule%20DSL-7C3AED)
 ![Status](https://img.shields.io/badge/Status-v0.7.0--dev-0F766E)
 
 ---
@@ -23,7 +23,7 @@ Openclaw-RVGuarder（龙虾卫士）是一个面向 [OpenClaw](https://openclaw.
 - **先决策后执行** — 高风险操作必须通过审批才能真正执行
 - **证据驱动** — 每次工具调用先归一化为 Authorization Trace，再由 PMKB 和 RV 给出可解释证据
 - **可取证** — 全链路审计，支持 SQLite/JSONL 双写与导出
-- **可降级** — 后端不可达时自动进入熔断 fail-open，不影响 OpenClaw 正常使用
+- **分级降级** — 后端不可达时低风险只读审计放行，高影响工具保持阻断；`failClosed=true` 可全量阻断
 
 ---
 
@@ -34,10 +34,10 @@ Openclaw-RVGuarder（龙虾卫士）是一个面向 [OpenClaw](https://openclaw.
 | **原生钩子拦截** | `api.on("before_tool_call")` 官方 API，工具执行前物理挂起 Agent | ✅ |
 | **requireApproval 挂起** | 返回 BeforeToolCallResult 类型，Agent 线程真正挂起等待审批 | ✅ |
 | **审批结果同步** | OpenClaw 原生审批卡片唯一决策，Guard Dashboard SSE 只读同步 | ✅ |
-| **电路熔断器** | 后端不可达时自动开启熔断，优雅降级 fail-open，不封锁 OpenClaw | ✅ |
+| **分级故障策略** | 后端不可达时按工具影响分级：低风险只读审计放行，高影响工具阻断 | ✅ |
 | **语义理解增强** | DeepSeek LLM 驱动语义分析，7 维度 50+ 标签，理解自然语言意图 | ✅ |
 | **PMKB 权限建模** | PMKB 1.1.0：47 个操作、35 条原生规则 + 47 条兼容规则、29 条 Trace、9 个危险组合关系；校验最小权限和权限聚合风险 | ✅ |
-| **运行时验证 RV** | 滑动窗口 + ChainRule DSL（FSM 回退），检测链式攻击模式（搜索→删除→外发） | ✅ |
+| **运行时验证 RV** | 滑动窗口 + ChainRule DSL 生成监视器，检测链式攻击模式（搜索→删除→外发） | ✅ |
 | **跨 session 主体验证** | session-local 链路与 principal-global 能力状态分离，持久化主体级 RV 状态 | ✅ |
 | **基线安全扫描** | 配置、端口、用户、依赖全量扫描，输出 JSON/HTML/PDF 报告 | ✅ |
 | **审计链** | SQLite + JSONL 双写，哈希链防篡改，支持 JSON/CSV 导出 | ✅ |
@@ -58,7 +58,7 @@ Openclaw-RVGuarder（龙虾卫士）是一个面向 [OpenClaw](https://openclaw.
 │  ┌─────────┐ ┌──────────┐ ┌────────┐ ┌──────────────┐  │
 │  │ 语义/Trace│ │ PMKB策略 │ │ RV 引擎 │ │ 决策/审计    │  │
 │  │ Semantic│ │ Policy   │ │ DSL+   │ │ Controller   │  │
-│  │ +Trace  │ │ +Graph   │ │ FSM    │ │ +Evidence    │  │
+│  │ +Trace  │ │ +Graph   │ │ DSL    │ │ +Evidence    │  │
 │  └─────────┘ └──────────┘ └────────┘ └──────────────┘  │
 └──────────────────────┬──────────────────────────────────┘
                        │ HTTP POST (before_tool_call)
@@ -162,9 +162,9 @@ openclaw_guard/
 │   ├── evaluator.py       # 单步规则匹配与风险评分
 │   ├── permission_diff.py # 最小权限闭包/差分
 │   └── risk_graph.py      # 危险权限组合图
-├── rv/                   # 运行时验证（ChainRule DSL 默认，FSM 回退）
+├── rv/                   # 运行时验证（ChainRule DSL-only）
 │   ├── runtime_verification.py  # RV 引擎 + session 滑动窗口
-│   └── rv_monitors.py     # FSM 监视器（Mail/Report/Chain/DataBatch）
+│   └── rv_dsl.py          # ChainRule 规约与监视器编译
 ├── integrations/         # OpenClaw 集成层
 │   ├── discovery.py       # 环境发现
 │   ├── hook_runtime.py    # Hook 插件生成与管理
@@ -227,9 +227,9 @@ runtime/openclaw-guard-plugin/
 | `gateway_stop` | 生命周期 | 清理健康检查定时器 |
 
 插件内置**电路熔断器**：
-- 后端不可达 → 优雅期（30s）→ 连续失败 ≥ 3 次 → 熔断 OPEN（fail-open）
-- 后端恢复 → 连续成功 ≥ 2 次 → 熔断 CLOSED（fail-closed）
-- 熔断期内所有工具调用自动放行，不阻塞 OpenClaw
+- 后端不可达 → 低风险只读记录降级审计，高影响工具继续阻断
+- 后端恢复 → 健康检查通过后恢复正常策略
+- `failClosed=true` 时所有工具调用均暂停，避免全局静默放行
 
 ---
 
@@ -277,8 +277,8 @@ agents、human-input、nodes 和 UI 工具均有显式 profile。只有参数边
 
 ## RV 运行时验证 · Runtime Verification
 
-RV 在 PMKB 单步效果之上验证行为序列。默认使用 ChainRule DSL，`OPENCLAW_RV_RULE_MODE=fsm`
-才启用兼容 FSM 回退。当前有两个状态作用域：session-local 用于当前会话窗口，
+RV 在 PMKB 单步效果之上验证行为序列。运行时唯一使用 ChainRule DSL；历史
+`OPENCLAW_RV_RULE_MODE=fsm` 输入仅归一化为 DSL，不会加载旧监视器。当前有两个状态作用域：session-local 用于当前会话窗口，
 principal-global 用 `(principal_id, agent_id, capability_lineage)` 聚合跨 session 能力，
 状态保存于 `runtime/rv-state.json` 并受 TTL/有界状态约束。
 
@@ -292,7 +292,7 @@ principal-global 用 `(principal_id, agent_id, capability_lineage)` 聚合跨 se
   s4: file_write → 合并数据到新文件                  ← 敏感数据被写入
   s5: network_egress → external_target              ← 数据外传
 
-SecurityChainMonitor 触发:
+ChainRule DSL 监视器触发:
   检测到 "不可信来源 → 读取敏感数据 → 外传到外部目标" 链路
   → 判定: BLOCK（自动阻断，级别高于单步规则 ASK）
 ```
@@ -341,7 +341,7 @@ SecurityChainMonitor 触发:
 python -m pytest -q
 ```
 
-本次全量回归（2026-09-09）：`494 passed / 19 skipped / 4 subtests passed`；Playwright 全栈冒烟 `8 passed`。
+本轮全量回归（2026-09-15）：`412 passed / 19 skipped / 4 subtests passed`；Chromium 与 Firefox Playwright 冒烟均为 `5 passed`（Firefox 在清除代理变量、单 worker 的独立环境复跑）。
 
 测试覆盖：
 
@@ -351,8 +351,8 @@ python -m pytest -q
 | `test_semantic_enhancer.py` | 语义增强器输出结构 |
 | `test_pmkb_network_baseline.py` / `test_policy_pipeline.py` / `test_policy_docs.py` | PMKB 规则、Trace、权限闭包/差分、文档合同 |
 | `test_principal_capability_rv.py` / `test_principal_rv_hook_integration.py` | 主体级跨 session RV、TTL 和状态持久化 |
-| `test_rv.py` | RV 引擎 + WindowManager |
-| `test_rv_fsm.py` | FSM 监视器状态转换 |
+| `test_runtime_verification.py` | RV 引擎、窗口、TTL、会话隔离与状态重置 |
+| `test_rv_dsl.py` / `test_rv_dsl_ext.py` | ChainRule DSL 编译、序列和参数化监视器 |
 | `test_baseline.py` | 基线扫描 |
 | `test_web_cli.py` | CLI 命令路由 |
 | `test_frontend_rv_contract.py` | 前端 ←→ 后端 RV 接口契约 |

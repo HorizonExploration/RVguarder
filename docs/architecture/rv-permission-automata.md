@@ -1,13 +1,13 @@
 # RV 权限自动机架构
 
 > **状态：** 当前实现
-> **核对日期：** 2026-09-09
+> **核对日期：** 2026-09-15
 > **适用版本：** PMKB `1.1.0`、RV 默认 DSL 模式
 > **2026-09-03 更新：** 本页的 `clarify_then_retry`、权限监视器持久状态与 ConstraintEngine
 > 迁移描述属于此前方案。当前生产 RV 仅重放成功执行的 TTL 有效窗口，PMKB 保持单步权限权威；
 > 以[三态控制面与 RV 提交边界](./three-state-rv-runtime-plan-2026-09-03.md)为准。
 
-本文档说明当前 RV 层实际运行的三类自动机、PMKB 如何编译为权限监视器，以及旧 FSM/规则层的迁移边界。它与[权限知识库与权限建模运行时架构结果](./permission-kb-runtime-architecture.md)互补：后者描述权限决策语义，本页描述这些语义怎样进入 RV 编译和在线监控。
+本文档说明当前 RV 层实际运行的三类自动机、PMKB 如何编译为权限监视器，以及历史规则层的迁移边界。它与[权限知识库与权限建模运行时架构结果](./permission-kb-runtime-architecture.md)互补：后者描述权限决策语义，本页描述这些语义怎样进入 RV 编译和在线监控。
 
 ## 1. 核心结论
 
@@ -19,7 +19,7 @@
 | 权限监视器 | PMKB `rules`、`relations` → `PermissionAutomatonCompiler` | rule 为 session；relation 为 principal | 将确定性权限规则、最小权限/组合结论纳入 RV 审计与处置 | 默认接入 Hook 链路 |
 | 基线 DFA | 已确认的正常抽象轨迹 → `BaselineLearner` | 当前 BaselineMonitor 实例 | 发现偏离正常轨迹的异常 | 可选、告警信号 |
 
-旧的 `rv_monitors.py` 六个手写 FSM 仍可通过 `OPENCLAW_RV_RULE_MODE=fsm` 启用，但只作为兼容回退；默认行为规则由 DSL 编译。PMKB 不是第二份硬编码规则：它仍由 `PolicyEvaluator`、`PermissionClosure`、`PermissionDiff` 与 `RiskGraph` 计算语义结论，自动机只消费带来源的确定性证据。
+旧的手写 FSM 监视器和 `transitions` 依赖已从生产代码与测试入口移除；历史配置中的 `fsm` 值仅归一化为 DSL。PMKB 不是第二份硬编码规则：它仍由 `PolicyEvaluator`、`PermissionClosure`、`PermissionDiff` 与 `RiskGraph` 计算语义结论，自动机只消费带来源的确定性证据。
 
 ## 2. 端到端架构图
 
@@ -108,7 +108,7 @@ effect 映射为 RV verdict：`auto_allow_audit → ok`、`openclaw_approval →
 | `permission_families_any_of` | `P_after` 闭包中的权限族 |
 | `min_risk_score` | 最小 PMKB 风险分数 |
 
-在线运行时构造的 synthetic step 不包含业务标签（避免把同一动作再次喂给旧行为 FSM），形态如下：
+在线运行时构造的 synthetic step 不包含业务标签（避免把同一动作重复计入行为窗口），形态如下：
 
 ```json
 {
@@ -149,7 +149,7 @@ flowchart TB
 | 旧结构 | 当前兼容方式 | 后续迁移目标 |
 | --- | --- | --- |
 | `rv_rules.json` | 仍是行为链 DSL 的唯一来源 | 只保留跨步行为约束，不承载权限集合语义 |
-| `rv_monitors.py` | `fsm` 模式回退 | DSL 覆盖与行为一致性验证完成后移除重复业务 FSM |
+| 手写 `rv_monitors.py` | 已从生产代码移除 | 历史实现仅在 Git 历史/归档报告中可追溯 |
 | 47 条冻结 LEGACY 元数据 | 已生成同 ID 的 `LEGACY-<old-id>` PMKB 记录；生产 DetectionEngine/ConstraintEngine 已删除 | 新规则优先建模为主体、资源、范围和权限谓词，LEGACY 仅保留回放证据 |
 | `ConstraintEngine` | 已从生产路径退役 | 仅在历史实验/回放材料中保留，不再作为在线依赖 |
 | `BaselineDFA` | 环境变量可选加载 | 保持异常信号，不能成为 allow 的依据 |
@@ -163,8 +163,8 @@ flowchart TB
 
 ```json
 {
-  "behavior": 6,
-  "permission": 72,
+  "behavior": 8,
+  "permission": 82,
   "principal_permission": 9
 }
 ```

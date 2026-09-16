@@ -186,7 +186,7 @@ Guard 页面保留审批记录，但 Hook 动作全部只读：
 将当前散落在首页的 RV 状态集中展示：
 
 - RV 总开关；
-- DSL/FSM 规则模式；
+- ChainRule DSL 规则模式（历史 `fsm` 配置值仅归一化，不加载旧实现）；
 - 当前监视器数量和状态；
 - session 数量；
 - 最近触发的规则；
@@ -343,7 +343,7 @@ GET /api/events?after_seq=7
 - summary 支持 `view=compact`，首页只请求概览数据，Skills 页按需加载完整 summary；
 - `sync.approval` 提供回调总数、accepted/idempotent/conflict/orphan/invalid/error 计数及最近 128 个延迟样本的 p95；
 - 统一前端错误信息读取 `detail`、`message`、`error` 和错误对象本身；
-- 新增审批同步回归测试，并更新 Playwright 预期为“Hook 页面只读”；最近一次全量 Python 回归为 `494 passed / 19 skipped / 4 subtests passed`，E2E 为 8 项通过；Checkpoint 摘要、脱敏详情和精确授权撤销入口已纳入交接页面。
+- 新增审批同步回归测试，并更新 Playwright 预期为“Hook 页面只读”；本轮 Chromium 已覆盖 callback → SSE → Guard UI 的即时更新，最终 Python 全量计数以项目记忆和验证记录为准；Checkpoint 摘要、脱敏详情和精确授权撤销入口已纳入交接页面。
 
 当前仍待后续阶段处理：SSE 事件持久化与跨进程恢复、页面信息架构的完整拆分、真实 OpenClaw Gateway 的端到端 p95 采集。当前本地 SSE/HTTP 冒烟只证明 Guard 进程内链路，不等同于真实 Gateway 可用性证明。
 

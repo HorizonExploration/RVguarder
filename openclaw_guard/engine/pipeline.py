@@ -350,11 +350,11 @@ def handle_before_tool_call_pipeline(
     """
     started = time.perf_counter()
 
-    # 自动收尾该会话中可能残留的"执行中"状态（防止 Hook 事件丢失导致卡死）
+    # 标记该会话中缺失 after 回调的孤儿动作，避免伪造成功状态。
     services.action_service.expire_pending_hook_actions()
     session_id = str(payload.get("sessionId") or "")
     if session_id:
-        services._auto_complete_previous_actions(session_id)
+        services._mark_orphaned_previous_actions(session_id)
 
     event = build_hook_event(payload, managed_project_root=services.context.paths.project_dir)
     hook_source_message = build_hook_source_message(event)

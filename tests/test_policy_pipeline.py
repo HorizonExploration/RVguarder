@@ -76,6 +76,7 @@ def test_p0_internal_message_is_allowed_with_policy_evidence(services, monkeypat
     assert evidence["effect"] == "auto_allow_audit"
     assert evidence["policy_version"]
     assert evidence["grant_source"] == "empty_default"
+    assert result["action_record"]["event"]["metadata"]["authorization_trace"]["resource"]["scope"] == "workspace"
 
 
 def test_p0_auto_allow_is_not_overridden_by_retired_constraint_engine(services):
