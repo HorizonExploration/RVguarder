@@ -15,7 +15,7 @@ def test_legacy_rm_rf_is_blocked_by_the_pmkb_compatibility_record():
         operation=OperationRef(family="unknown_tool", arguments={"action_type": "command_exec"}),
         resource=ResourceRef(type="command", ids=["rm -rf /tmp/x"], scope="workspace"),
         coverage=CoverageResult(status="complete"),
-        legacy_steps=[{"props": ["command_exec", "command_rm_rf"]}],
+        rv_steps=[{"props": ["command_exec", "command_rm_rf"]}],
     )
     root = Path(__file__).parents[1] / "policies" / "permissions"
 
@@ -39,7 +39,7 @@ def test_every_legacy_record_replays_to_an_equivalent_pmkb_effect():
                 operation=OperationRef(family="unknown_tool", arguments={"action_type": action_type}),
                 resource=ResourceRef(type="unknown", scope="unknown"),
                 coverage=CoverageResult(status="complete"),
-                legacy_steps=[{"props": list(rule.match_labels)}],
+                rv_steps=[{"props": list(rule.match_labels)}],
             )
 
             decision = evaluator.evaluate(trace)

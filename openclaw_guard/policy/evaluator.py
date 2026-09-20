@@ -48,12 +48,17 @@ class PolicyEvaluator:
         reasons = ["operation_wildcard" if wildcard else ("operation_exact" if exact else "operation_alias")]
         predicate_count = 0
         predicate_matches = 0
+        fact_trust: set[str] = set()
         conflict = False
         for field, expected in match.items():
             if field in {"operation", "aliases"}:
                 continue
             predicate_count += 1
             actual = self._value(field, trace)
+            if field.startswith("facts."):
+                fact = trace.security_facts.get(field.split(".", 1)[1])
+                if fact is not None:
+                    fact_trust.add(fact.trust)
             if actual is None:
                 missing.append(self._feature_name(field))
             elif self._equals(actual, expected):
@@ -87,9 +92,12 @@ class PolicyEvaluator:
         specificity = predicate_matches / predicate_count if predicate_count else 1.0
         provenance = 1.0 if trace.provenance.trust == "verified" else 0.5
         score = round(0.40 * action + 0.25 * completeness + 0.20 * specificity + 0.15 * provenance, 6)
+        evidence_trust = (
+            "mixed" if len(fact_trust) > 1 else next(iter(fact_trust), "none")
+        )
         return MatchCandidate(rule_id=rule.id, score=score, status=status,
                               matched=status == "matched", reasons=reasons,
-                              missing_features=missing)
+                              missing_features=missing, evidence_trust=evidence_trust)
 
     def _catalog_alias_match(self, rule_operation: str, trace_family: str) -> bool:
         """Resolve either direction of a canonical/alias operation relationship."""
@@ -132,11 +140,21 @@ class PolicyEvaluator:
             effect = "block" if certain else "openclaw_approval"
             status = "matched" if certain else (trace.coverage.status if trace.coverage.status != "complete" else "partial")
         elif applicable:
-            strongest = max(applicable, key=lambda c: (_EFFECT_RANK[self._rule_effect(c.rule_id)], c.score))
+            strongest = max(
+                applicable,
+                key=lambda c: (
+                    _EFFECT_RANK[self._rule_effect(c.rule_id)],
+                    rule_by_id[c.rule_id].priority,
+                    len(rule_by_id[c.rule_id].match),
+                    c.score,
+                ),
+            )
             effect = self._rule_effect(strongest.rule_id)
             status = "matched" if all(c.status == "matched" for c in applicable) else "partial"
-            selected = [c.rule_id for c in applicable
-                        if _EFFECT_RANK[self._rule_effect(c.rule_id)] == _EFFECT_RANK[effect]]
+            selected = [strongest.rule_id]
+            if strongest.evidence_trust == "suggested":
+                effect = "openclaw_approval"
+                status = "partial"
             # Internal, small, classified messages are the calibrated low-impact exception.
             if (trace.operation.family == "message.send" and trace.context.recipient_zone == "internal"
                     and trace.data.classification in {"public", "internal"} and trace.data.quantity <= 10
@@ -146,10 +164,9 @@ class PolicyEvaluator:
             effect, status = "openclaw_approval", "unknown"
         if trace.coverage.status in {"unknown", "conflict"}:
             status = trace.coverage.status
-            if effect == "auto_allow_audit":
-                effect = "openclaw_approval"
-        if status == "partial" and not high_impact and len(missing) <= 2:
-            effect = "block"
+            effect = "openclaw_approval"
+        if status == "partial":
+            effect = "openclaw_approval"
         return PolicyDecision(effect=effect, match_status=status,
                               match_confidence=max((c.score for c in applicable), default=0.0),
                               risk_score=self._risk_score(trace), selected_rule_ids=selected,
@@ -179,10 +196,13 @@ class PolicyEvaluator:
         if field.startswith("operation.arguments."):
             return trace.operation.arguments.get(field.split(".", 2)[2])
         if field.startswith("operation."): return getattr(trace.operation, field.split(".", 1)[1], None)
+        if field.startswith("facts."):
+            fact = trace.security_facts.get(field.split(".", 1)[1])
+            return fact.value if fact is not None else None
         if field in {"legacy_action_type", "legacy_action_types"}:
             return trace.operation.arguments.get("action_type")
         if field == "legacy_labels_all":
-            return [str(label) for step in trace.legacy_steps for label in step.get("props", [])]
+            return [str(label) for step in trace.rv_steps for label in step.get("props", [])]
         return {"scope": trace.resource.scope, "classification": trace.data.classification,
                 "quantity": trace.data.quantity, "recipient_zone": trace.context.recipient_zone,
                 "purpose": trace.context.purpose}.get(field)

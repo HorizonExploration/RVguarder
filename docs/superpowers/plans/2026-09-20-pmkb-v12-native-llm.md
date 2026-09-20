@@ -33,20 +33,20 @@
 
 **Files:** Create `openclaw_guard/engine/semantic_models.py`; modify `semantic_enhancer.py`; create `tests/test_semantic_matcher.py`.
 
-- [ ] Write failing tests for controlled operation candidates, fact validation, secret redaction, empty-intent LLM attempts, invalid JSON, timeout, and local fallback.
-- [ ] Run the focused tests and confirm failures are caused by missing v3 interfaces.
-- [ ] Implement the typed IR, fact registry, sanitizer, validated prompt/response adapter, one-attempt behavior, and audit status.
-- [ ] Run semantic and Hook bridge tests until green.
-- [ ] Commit the task.
+- [x] Write failing tests for controlled operation candidates, fact validation, secret redaction, empty-intent LLM attempts, invalid JSON, timeout, and local fallback.
+- [x] Run the focused tests and confirm failures are caused by missing v3 interfaces.
+- [x] Implement the typed IR, fact registry, sanitizer, validated prompt/response adapter, one-attempt behavior, and audit status.
+- [x] Run semantic and Hook bridge tests until green.
+- [x] Commit the task.
 
 ### Task 2: Authorization Trace evidence and evaluator trust semantics
 
 **Files:** Modify `policy/models.py`, `policy/trace.py`, `policy/evaluator.py`, and focused policy tests.
 
-- [ ] Write failing tests for `security_facts`, deterministic precedence, suggested-only allow/block downgrade, conflict approval, priority selection, and partial-default approval.
-- [ ] Confirm the tests fail on current legacy behavior.
-- [ ] Implement fact evidence propagation, `rv_steps`, nested `facts.*` matching, trust-aware effects, and priority/specificity selection.
-- [ ] Run evaluator, trace, permission, and policy pipeline tests until green.
+- [x] Write failing tests for `security_facts`, deterministic precedence, suggested-only allow/block downgrade, conflict approval, priority selection, and partial-default approval.
+- [x] Confirm the tests fail on current legacy behavior.
+- [x] Implement fact evidence propagation, `rv_steps`, nested `facts.*` matching, trust-aware effects, and priority/specificity selection.
+- [x] Run evaluator, trace, permission, and policy pipeline tests until green.
 - [ ] Commit the task.
 
 ### Task 3: PMKB 1.2 and all 47 native migrations

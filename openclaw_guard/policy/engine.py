@@ -40,10 +40,12 @@ class AuthorizationPolicyEngine:
     def compile_trace(self, event: BehaviorEvent, *, source_message: str = "") -> AuthorizationTrace:
         """Compile the event's already-enriched semantic context into PMKB evidence."""
         semantic = event.metadata.get("semantic")
+        semantic_match = event.metadata.get("semantic_match")
         rv_trace = event.metadata.get("rv_trace")
         return self.trace_compiler.compile(
             event,
             semantic=semantic if isinstance(semantic, dict) else {},
+            semantic_match=semantic_match if isinstance(semantic_match, dict) else None,
             rv_trace=rv_trace if isinstance(rv_trace, list) else [],
             source_message=source_message,
         )

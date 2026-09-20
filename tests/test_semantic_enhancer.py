@@ -100,12 +100,14 @@ class SemanticEnhancerTests(unittest.TestCase):
 
             metadata = payload["event"]["metadata"]
             self.assertEqual(metadata["semantic"]["scenario"], "report_send")
+            self.assertEqual(metadata["semantic_match"]["version"], "v3")
+            self.assertEqual(metadata["semantic_audit"]["llm_status"], "disabled")
             self.assertEqual(metadata["rv_trace"][0]["event"], "report_send")
             self.assertIn("external_recipient", metadata["rv_trace"][0]["props"])
             self.assertEqual(payload["status"], "pending_approval")
 
-    def test_pmkb_blocks_secret_egress_from_semantic_evidence(self) -> None:
-        """A frozen LEGACY rule is evaluated by PMKB, not DetectionEngine."""
+    def test_free_form_semantic_label_cannot_hard_block_incomplete_egress(self) -> None:
+        """Unverified legacy labels cannot replace complete structured evidence."""
         event = BehaviorEvent(
             event_id="evt-2",
             timestamp=utc_now_iso(),
@@ -121,8 +123,7 @@ class SemanticEnhancerTests(unittest.TestCase):
             },
         )
         decision = AuthorizationPolicyEngine().decide(event)
-        self.assertEqual(decision.action, "block")
-        self.assertIn("LEGACY-NET-005", decision.rule_ids)
+        self.assertEqual(decision.action, "ask")
 
     def test_handle_before_tool_call_attaches_semantic_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

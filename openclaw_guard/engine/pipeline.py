@@ -123,6 +123,8 @@ def _annotate_event_context(
     timings = _ensure_pipeline_timings(event)
     timings["semantic_ms"] = round((time.perf_counter() - semantic_started) * 1000.0, 3)
     event.metadata["semantic"] = semantic_payload["semantic"]
+    event.metadata["semantic_match"] = semantic_payload["semantic_match"]
+    event.metadata["semantic_audit"] = semantic_payload["semantic_audit"]
     event.metadata["rv_trace"] = semantic_payload["rv_trace"]
     policy_engine = getattr(services, "policy_engine", None)
     if policy_engine is not None:
