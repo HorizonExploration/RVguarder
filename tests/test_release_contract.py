@@ -18,9 +18,9 @@ def test_product_and_package_versions_share_the_v070_development_line():
     assert 'version = "0.7.0.dev0"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
 
-def test_pmkb_bundle_components_are_all_on_110():
+def test_pmkb_bundle_components_are_all_on_120():
     bundle = PolicyBundle.load(ROOT / "policies" / "permissions")
-    assert bundle.version == "1.1.0"
+    assert bundle.version == "1.2.0"
 
 
 def test_fastapi_is_the_only_cli_web_selector():

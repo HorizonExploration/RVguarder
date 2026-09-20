@@ -125,7 +125,12 @@ class PolicyEvaluator:
             or (c.status == "partial" and rule_by_id.get(c.rule_id, None)
                 and rule_by_id[c.rule_id].partial_behavior == "candidate")
         ]
-        missing = list(dict.fromkeys(trace.coverage.missing_features + [x for c in candidates for x in c.missing_features]))
+        # Missing predicates on an explicitly non-candidate rule mean that
+        # rule is inapplicable; they are not gaps in the trace itself.  This
+        # matters once one operation has several narrow native rules.
+        missing = list(dict.fromkeys(
+            trace.coverage.missing_features + [x for c in applicable for x in c.missing_features]
+        ))
         conflicts = list(trace.coverage.conflicts)
         if any(c.status == "conflict" for c in candidates):
             conflicts.append("rule_conflict")

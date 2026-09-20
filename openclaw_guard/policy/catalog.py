@@ -50,6 +50,7 @@ class PolicyBundle:
     relations: tuple[dict[str, Any], ...]
     vectors: tuple[dict[str, Any], ...]
     version: str = ""
+    migrations: tuple[dict[str, Any], ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "operations", tuple(self.operations))
@@ -57,6 +58,7 @@ class PolicyBundle:
         object.__setattr__(self, "traces", tuple(_freeze_record(item) for item in self.traces))
         object.__setattr__(self, "relations", tuple(_freeze_record(item) for item in self.relations))
         object.__setattr__(self, "vectors", tuple(_freeze_record(item) for item in self.vectors))
+        object.__setattr__(self, "migrations", tuple(_freeze_record(item) for item in self.migrations))
 
     @classmethod
     def load(cls, root: Path | None = None) -> "PolicyBundle":
@@ -68,6 +70,20 @@ class PolicyBundle:
                     return json.load(stream)
             except (OSError, json.JSONDecodeError) as exc:
                 raise PolicyBundleError(f"{relative}: {exc}") from exc
+
+        def read_many(section: str, field: str) -> tuple[list[tuple[str, Any]], list[Any]]:
+            paths = sorted((root / section).glob("*.json"))
+            if not paths:
+                raise PolicyBundleError(f"{section}: no JSON components")
+            documents: list[tuple[str, Any]] = []
+            records: list[Any] = []
+            for path in paths:
+                relative = path.relative_to(root).as_posix()
+                document = read(relative)
+                _version(document, relative)
+                documents.append((relative, document))
+                records.extend(_array(document, field, relative))
+            return documents, records
 
         schema = read("schema/permissions.schema.json")
         if not isinstance(schema, dict):
@@ -102,9 +118,7 @@ class PolicyBundle:
             operation_tokens.update(tokens)
             operations.append(_Operation(family, tuple(tools), tuple(aliases)))
 
-        rules_doc = read("rules/p0-office.json")
-        _version(rules_doc, "rules/p0-office.json")
-        raw_rules = _array(rules_doc, "rules", "rules/p0-office.json")
+        rules_docs, raw_rules = read_many("rules", "rules")
         rules: list[PolicyRule] = []
         rule_ids: set[str] = set()
         seen_rule_ids: set[str] = set()
@@ -141,17 +155,10 @@ class PolicyBundle:
             if operation and operation not in families:
                 raise PolicyBundleError(f"rules/p0-office.json: unknown operation {operation}")
 
-        rules.extend(_legacy_detection_policy_rules())
-
-        traces_doc = read("traces/p0-office.json")
-        relations_doc = read("relations/p0-combinations.json")
-        vectors_doc = read("tests/p0-vectors.json")
-        _version(traces_doc, "traces/p0-office.json")
-        _version(relations_doc, "relations/p0-combinations.json")
-        _version(vectors_doc, "tests/p0-vectors.json")
-        traces = _array(traces_doc, "traces", "traces/p0-office.json")
-        relations = _array(relations_doc, "relations", "relations/p0-combinations.json")
-        vectors = _array(vectors_doc, "vectors", "tests/p0-vectors.json")
+        traces_docs, traces = read_many("traces", "traces")
+        relations_docs, relations = read_many("relations", "relations")
+        vectors_docs, vectors = read_many("tests", "vectors")
+        migration_docs, migrations = read_many("migrations", "migrations")
         trace_ids: set[str] = set()
         for i, trace in enumerate(traces):
             path = f"traces/p0-office.json: $.traces[{i}]"
@@ -210,16 +217,44 @@ class PolicyBundle:
                     and operation not in families
                     and not any(operation in item.aliases for item in operations)):
                 raise PolicyBundleError(f"{path}.operation: unknown operation {operation}")
+        for rule in rules:
+            for vector_id in rule.test_vectors:
+                if vector_id not in vector_ids:
+                    raise PolicyBundleError(f"rules: {rule.id}.test_vectors: unknown vector {vector_id}")
+
+        migration_legacy_ids: set[str] = set()
+        migration_owner_ids: set[str] = set()
+        rules_by_id = {rule.id: rule for rule in rules}
+        for i, migration in enumerate(migrations):
+            path = f"migrations: $.migrations[{i}]"
+            _object(migration, path)
+            legacy_id = _string(migration, "legacy_rule_id", path)
+            owner_id = _string(migration, "native_rule_id", path)
+            if legacy_id in migration_legacy_ids:
+                raise PolicyBundleError(f"{path}: duplicate legacy_rule_id {legacy_id}")
+            if owner_id in migration_owner_ids:
+                raise PolicyBundleError(f"{path}: duplicate native_rule_id {owner_id}")
+            owner = rules_by_id.get(owner_id)
+            if owner is None:
+                raise PolicyBundleError(f"{path}.native_rule_id: unknown rule {owner_id}")
+            if legacy_id not in owner.legacy_rule_ids:
+                raise PolicyBundleError(f"{path}: owner {owner_id} missing legacy_rule_ids {legacy_id}")
+            migration_legacy_ids.add(legacy_id)
+            migration_owner_ids.add(owner_id)
         component_versions = {
             "catalog/operation-catalog.json": _version(catalog, "catalog/operation-catalog.json"),
-            "rules/p0-office.json": _version(rules_doc, "rules/p0-office.json"),
-            "traces/p0-office.json": _version(traces_doc, "traces/p0-office.json"),
-            "relations/p0-combinations.json": _version(relations_doc, "relations/p0-combinations.json"),
-            "tests/p0-vectors.json": _version(vectors_doc, "tests/p0-vectors.json"),
+            **{name: _version(doc, name) for name, doc in rules_docs},
+            **{name: _version(doc, name) for name, doc in traces_docs},
+            **{name: _version(doc, name) for name, doc in relations_docs},
+            **{name: _version(doc, name) for name, doc in vectors_docs},
+            **{name: _version(doc, name) for name, doc in migration_docs},
         }
         if any(version != bundle_version for version in component_versions.values()):
             raise PolicyBundleError(f"policy bundle version mismatch: schema={bundle_version}, components={component_versions}")
-        return cls(tuple(operations), tuple(rules), tuple(traces), tuple(relations), tuple(vectors), bundle_version)
+        return cls(
+            tuple(operations), tuple(rules), tuple(traces), tuple(relations),
+            tuple(vectors), bundle_version, tuple(migrations),
+        )
 
     def operation_for_tool(self, tool_id: str, params: dict[str, Any]) -> OperationRef:
         for operation in self.operations:

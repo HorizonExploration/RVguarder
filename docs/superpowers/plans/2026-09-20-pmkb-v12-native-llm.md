@@ -53,11 +53,11 @@
 
 **Files:** Modify the PMKB loader and data bundle; add native rule/vector/trace/migration JSON files; update package parity tests.
 
-- [ ] Write failing catalog and migration tests requiring PMKB 1.2, glob-loaded components, 47 unique native owners, no runtime `LEGACY-*`, and positive/near-miss replay.
-- [ ] Confirm the current 1.1 bundle fails those requirements.
-- [ ] Add canonical facts and rules for CMD, FILE, NET, API, SKL, CFG, and GEN groups; add `skill.execute`; add migration manifest and 94 vectors.
-- [ ] Extend loader validation for multi-file bundles, migration ownership, unique IDs, references, and packaged parity.
-- [ ] Run catalog, vectors, migration, RiskGraph, RV compiler, and pipeline tests until green.
+- [x] Write failing catalog and migration tests requiring PMKB 1.2, glob-loaded components, 47 unique native owners, no runtime `LEGACY-*`, and positive/near-miss replay.
+- [x] Confirm the current 1.1 bundle fails those requirements.
+- [x] Add canonical facts and rules for CMD, FILE, NET, API, SKL, CFG, and GEN groups; add `skill.execute`; add migration manifest and 94 vectors.
+- [x] Extend loader validation for multi-file bundles, migration ownership, unique IDs, references, and packaged parity.
+- [x] Run catalog, vectors, migration, RiskGraph, RV compiler, and pipeline tests until green.
 - [ ] Commit the task.
 
 ### Task 4: Remove compatibility paths and consolidate tests

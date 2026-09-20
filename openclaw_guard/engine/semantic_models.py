@@ -41,6 +41,8 @@ ALLOWED_OPERATION_FAMILIES = frozenset(
 ALLOWED_SECURITY_FACTS: dict[str, type] = {
     "command.recursive_delete": bool,
     "command.download_pipe_execute": bool,
+    "command.download_pipe_curl": bool,
+    "command.download_pipe_wget": bool,
     "command.privileged": bool,
     "command.remote_shell": bool,
     "command.remote_copy": bool,
@@ -48,6 +50,7 @@ ALLOWED_SECURITY_FACTS: dict[str, type] = {
     "command.owner_change": bool,
     "command.move": bool,
     "command.delete": bool,
+    "command.delete_intent": bool,
     "command.read_only": bool,
     "resource.system_path": bool,
     "resource.sensitive_credentials": bool,
@@ -228,6 +231,15 @@ def local_semantic_match(event: BehaviorEvent, *, engine: str = "builtin-fallbac
     )
     facts: dict[str, FactEvidence] = {}
     command = analyze_command(event.command)
+    raw_command = str(event.command or "").strip().lower()
+    raw_text = " ".join(
+        (
+            raw_command,
+            json.dumps(event.raw_payload, ensure_ascii=False, sort_keys=True).lower(),
+            str(event.channel_name or "").lower(),
+            str(event.skill_name or "").lower(),
+        )
+    )
     if event.command:
         _add_verified(facts, "command.read_only", command.safe_read_only, "command parser")
         _add_verified(
@@ -242,7 +254,21 @@ def local_semantic_match(event: BehaviorEvent, *, engine: str = "builtin-fallbac
             bool(re.search(r"\b(?:curl|wget)\b.*\|\s*(?:sh|bash)\b", event.command.lower())),
             "command parser",
         )
+        _add_verified(facts, "command.download_pipe_curl", bool(re.search(r"\bcurl\b.*\|\s*(?:sh|bash)\b", raw_command)), "command parser")
+        _add_verified(facts, "command.download_pipe_wget", bool(re.search(r"\bwget\b.*\|\s*(?:sh|bash)\b", raw_command)), "command parser")
         _add_verified(facts, "command.privileged", command.classification == "privileged", "command parser")
+        _add_verified(facts, "command.remote_shell", _command_starts(raw_command, "ssh"), "command parser")
+        _add_verified(facts, "command.remote_copy", _command_starts(raw_command, "scp"), "command parser")
+        _add_verified(facts, "command.permission_change", _command_starts(raw_command, "chmod"), "command parser")
+        _add_verified(facts, "command.owner_change", _command_starts(raw_command, "chown"), "command parser")
+        _add_verified(facts, "command.move", _command_starts(raw_command, "mv"), "command parser")
+        _add_verified(facts, "command.delete", _command_starts(raw_command, "rm"), "command parser")
+        _add_verified(
+            facts,
+            "command.delete_intent",
+            any(token in raw_text for token in (" delete ", " remove ", "删除", "移除")),
+            "structured intent classifier",
+        )
     _add_verified(facts, "resource.target_count", len(event.target_paths), "event shape")
     _add_verified(facts, "resource.unresolved", not bool(event.target_paths), "event shape")
     for name in ("system_path", "sensitive_credentials", "log_path", "high_value", "openclaw_config", "script"):
@@ -259,6 +285,36 @@ def local_semantic_match(event: BehaviorEvent, *, engine: str = "builtin-fallbac
             any(name in _network_traits(target) for target in event.network_targets),
             "destination classifier",
         )
+    structured_checks = {
+        "network.upload": any(token in raw_text for token in ("upload", "send file", "post data", "上传", "外发")),
+        "network.secret_payload": any(token in raw_text for token in ("token", "secret", "password", "api_key", "api key")),
+        "network.proxy_change": any(token in raw_text for token in ("proxy", "代理")),
+        "channel.external": _has_external_recipient(raw_text),
+        "channel.admin": any(token in raw_text for token in ("admin", "管理员")),
+        "channel.present": event.action_type == "channel_send" or bool(event.channel_name),
+        "channel.bulk": len(_EMAIL_RE.findall(raw_text)) > 1 or any(token in raw_text for token in ("broadcast", "群发", "bcc")),
+        "skill.shell": any(token in raw_text for token in ("shell", "exec")),
+        "skill.network": any(token in raw_text for token in ("webhook", "requests", "axios", "network")),
+        "skill.delete": any(token in raw_text for token in ("delete", "remove file", "删除")),
+        "skill.write": any(token in raw_text for token in ("write file", "overwrite", "写入")),
+        "skill.persistence": any(token in raw_text for token in ("autorun", "daemon", "startup", "守护", "自启动")),
+        "skill.system_admin": any(token in raw_text for token in ("sudo", "ssh", "system admin", "系统管理")),
+        "config.provider_change": any(token in raw_text for token in ("baseurl", "endpoint", "provider", "模型配置", "网关配置")),
+        "config.auth_disable": _disabled_near(raw_text, ("auth", "鉴权")),
+        "config.approval_bypass": any(token in raw_text for token in ("bypass", "allow_all", "审批绕过")),
+        "config.sandbox_disable": _disabled_near(raw_text, ("sandbox", "沙箱")),
+        "config.audit_disable": _disabled_near(raw_text, ("audit", "logging", "审计", "日志")),
+        "data.sensitive": any(
+            bool(value)
+            for value in (
+                any(name in _path_traits(path) for path in event.target_paths for name in ("sensitive_credentials", "high_value")),
+                any(token in raw_text for token in ("token", "secret", "password", "credential", "身份证", "客户资料")),
+            )
+        ),
+        "destination.external": bool(event.network_targets) or _has_external_recipient(raw_text),
+    }
+    for name, value in structured_checks.items():
+        _add_verified(facts, name, bool(value), "structured parameter classifier")
     return SemanticMatchIR(
         engine=engine,
         operation_candidates=candidates,
@@ -277,6 +333,23 @@ def _add_verified(facts: dict[str, FactEvidence], name: str, value: bool | int, 
         confidence=1.0,
         evidence=evidence,
     )
+
+
+def _command_starts(command: str, executable: str) -> bool:
+    return bool(re.match(rf"^(?:(?:sudo|doas)\s+)?{re.escape(executable)}(?:\s|$)", command))
+
+
+def _has_external_recipient(text: str) -> bool:
+    for match in _EMAIL_RE.finditer(text):
+        domain = match.group(1).lower()
+        if domain not in {"openclaw.ai", "openclaw.local", "internal.local", "company.local"}:
+            return True
+    return False
+
+
+def _disabled_near(text: str, subjects: tuple[str, ...]) -> bool:
+    disabled = ("disable", "disabled", "false", "off", "关闭", "绕过")
+    return any(subject in text for subject in subjects) and any(token in text for token in disabled)
 
 
 def _sanitize_text(value: str) -> str:

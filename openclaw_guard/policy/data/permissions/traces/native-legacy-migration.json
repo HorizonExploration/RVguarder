@@ -1,0 +1,945 @@
+{
+  "version": "1.2.0",
+  "traces": [
+    {
+      "id": "native-cmd-001",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-PROCESS-DESTRUCTIVE",
+      "required_permissions": [
+        {
+          "family": "process.execute",
+          "resource_type": "command",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CMD-001"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-cmd-002",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-CMD-002",
+      "required_permissions": [
+        {
+          "family": "process.execute",
+          "resource_type": "command",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CMD-002"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-cmd-003",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-CMD-003",
+      "required_permissions": [
+        {
+          "family": "process.execute",
+          "resource_type": "command",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CMD-003"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-cmd-004",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-PROCESS-PRIVILEGED",
+      "required_permissions": [
+        {
+          "family": "process.execute",
+          "resource_type": "command",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CMD-004"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-cmd-005",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-CMD-005",
+      "required_permissions": [
+        {
+          "family": "process.execute",
+          "resource_type": "command",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CMD-005"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-cmd-006",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-CMD-006",
+      "required_permissions": [
+        {
+          "family": "process.execute",
+          "resource_type": "command",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CMD-006"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-cmd-007",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-CMD-007",
+      "required_permissions": [
+        {
+          "family": "process.execute",
+          "resource_type": "command",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CMD-007"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-cmd-008",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-CMD-008",
+      "required_permissions": [
+        {
+          "family": "process.execute",
+          "resource_type": "command",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CMD-008"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-cmd-009",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-CMD-009",
+      "required_permissions": [
+        {
+          "family": "process.execute",
+          "resource_type": "command",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CMD-009"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-cmd-010",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-CMD-010",
+      "required_permissions": [
+        {
+          "family": "process.execute",
+          "resource_type": "command",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CMD-010"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-file-001",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-FILE-001",
+      "required_permissions": [
+        {
+          "family": "file.delete",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "FILE-001"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-file-002",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-FILE-002",
+      "required_permissions": [
+        {
+          "family": "file.delete",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "FILE-002"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-file-003",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-FILE-003",
+      "required_permissions": [
+        {
+          "family": "file.delete",
+          "resource_type": "path",
+          "scope": "outside",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "FILE-003"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-file-004",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-FILE-004",
+      "required_permissions": [
+        {
+          "family": "file.delete",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "FILE-004"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-file-005",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-FILE-005",
+      "required_permissions": [
+        {
+          "family": "file.delete",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "FILE-005"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-file-006",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-FILE-006",
+      "required_permissions": [
+        {
+          "family": "config.modify",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "FILE-006"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-file-007",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-FILE-007",
+      "required_permissions": [
+        {
+          "family": "file.write",
+          "resource_type": "path",
+          "scope": "outside",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "FILE-007"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-file-008",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-FILE-008",
+      "required_permissions": [
+        {
+          "family": "file.write",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "FILE-008"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-file-009",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-FILE-009",
+      "required_permissions": [
+        {
+          "family": "file.write",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "FILE-009"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-file-010",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-FILE-010",
+      "required_permissions": [
+        {
+          "family": "file.write",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "FILE-010"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-net-001",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-NET-001",
+      "required_permissions": [
+        {
+          "family": "network.egress",
+          "resource_type": "url",
+          "scope": "external",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "NET-001"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-net-002",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-NET-002",
+      "required_permissions": [
+        {
+          "family": "network.egress",
+          "resource_type": "url",
+          "scope": "external",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "NET-002"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-net-003",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-NET-003",
+      "required_permissions": [
+        {
+          "family": "network.egress",
+          "resource_type": "url",
+          "scope": "external",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "NET-003"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-net-004",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-NET-004",
+      "required_permissions": [
+        {
+          "family": "network.egress",
+          "resource_type": "url",
+          "scope": "external",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "NET-004"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-net-005",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-NETWORK-SECRET-EXTERNAL",
+      "required_permissions": [
+        {
+          "family": "network.egress",
+          "resource_type": "url",
+          "scope": "external",
+          "classification": "secret"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "NET-005"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-net-006",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-NET-006",
+      "required_permissions": [
+        {
+          "family": "network.egress",
+          "resource_type": "url",
+          "scope": "external",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "NET-006"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-api-001",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-API-001",
+      "required_permissions": [
+        {
+          "family": "message.send",
+          "resource_type": "recipient",
+          "scope": "external",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "API-001"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-api-002",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-API-002",
+      "required_permissions": [
+        {
+          "family": "message.send",
+          "resource_type": "recipient",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "API-002"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-api-003",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-API-003",
+      "required_permissions": [
+        {
+          "family": "message.send",
+          "resource_type": "recipient",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "API-003"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-api-004",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-API-004",
+      "required_permissions": [
+        {
+          "family": "message.send",
+          "resource_type": "recipient",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "API-004"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-skl-001",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-SKL-001",
+      "required_permissions": [
+        {
+          "family": "skill.execute",
+          "resource_type": "skill",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "SKL-001"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-skl-002",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-SKL-002",
+      "required_permissions": [
+        {
+          "family": "skill.execute",
+          "resource_type": "skill",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "SKL-002"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-skl-003",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-SKL-003",
+      "required_permissions": [
+        {
+          "family": "skill.execute",
+          "resource_type": "skill",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "SKL-003"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-skl-004",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-SKL-004",
+      "required_permissions": [
+        {
+          "family": "skill.execute",
+          "resource_type": "skill",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "SKL-004"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-skl-005",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-SKL-005",
+      "required_permissions": [
+        {
+          "family": "skill.execute",
+          "resource_type": "skill",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "SKL-005"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-skl-006",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-SKL-006",
+      "required_permissions": [
+        {
+          "family": "skill.execute",
+          "resource_type": "skill",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "SKL-006"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-cfg-001",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-CFG-001",
+      "required_permissions": [
+        {
+          "family": "config.modify",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CFG-001"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-cfg-002",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-CFG-002",
+      "required_permissions": [
+        {
+          "family": "config.modify",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CFG-002"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-cfg-003",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-CFG-003",
+      "required_permissions": [
+        {
+          "family": "config.modify",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CFG-003"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-cfg-004",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-CFG-004",
+      "required_permissions": [
+        {
+          "family": "config.modify",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CFG-004"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-cfg-005",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-CFG-005",
+      "required_permissions": [
+        {
+          "family": "config.modify",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "CFG-005"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-gen-001",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-GEN-001",
+      "required_permissions": [
+        {
+          "family": "file.delete",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "GEN-001"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-gen-002",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-GEN-002",
+      "required_permissions": [
+        {
+          "family": "file.write",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "GEN-002"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-gen-003",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-GEN-003",
+      "required_permissions": [
+        {
+          "family": "process.execute",
+          "resource_type": "command",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "GEN-003"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-gen-004",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-GEN-004",
+      "required_permissions": [
+        {
+          "family": "network.egress",
+          "resource_type": "url",
+          "scope": "external",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "GEN-004"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-gen-005",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-GEN-005",
+      "required_permissions": [
+        {
+          "family": "file.delete",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "internal"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "GEN-005"
+        }
+      ],
+      "negative_examples": []
+    },
+    {
+      "id": "native-gen-006",
+      "version": "1.2.0",
+      "rule_id": "NATIVE-GEN-006",
+      "required_permissions": [
+        {
+          "family": "file.delete",
+          "resource_type": "path",
+          "scope": "workspace",
+          "classification": "sensitive"
+        }
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "legacy_rule_id": "GEN-006"
+        }
+      ],
+      "negative_examples": []
+    }
+  ]
+}

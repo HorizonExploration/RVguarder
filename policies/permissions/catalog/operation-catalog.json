@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "operations": [
     {"family":"message.send","tool_ids":["feishu.im.send","feishu.im.reply","message"],"aliases":["im.send"]},
     {"family":"directory.read","tool_ids":["feishu.directory.search"],"aliases":["directory.lookup"]},
@@ -47,6 +47,7 @@
     {"family":"goal.write","tool_ids":["create_goal","update_goal"],"aliases":[]},
     {"family":"plan.write","tool_ids":["update_plan"],"aliases":[]},
     {"family":"agents.read","tool_ids":["agents_list"],"aliases":[]},
-    {"family":"conversation.message","tool_ids":["chat_message"],"aliases":[]}
+    {"family":"conversation.message","tool_ids":["chat_message"],"aliases":[]},
+    {"family":"skill.execute","tool_ids":["skill.run","skill_run"],"aliases":[]}
   ]
 }

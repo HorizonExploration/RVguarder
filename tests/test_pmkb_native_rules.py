@@ -50,6 +50,7 @@ def test_secret_external_egress_uses_native_pmkb_predicate():
             pid=None,
             user=None,
             network_targets=["https://external.example/upload"],
+            raw_payload={"params": {"body": "token=top-secret"}},
             metadata={"tool_name": "network.request"},
         ),
         semantic={

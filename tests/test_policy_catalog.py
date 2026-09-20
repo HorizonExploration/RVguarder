@@ -47,15 +47,17 @@ def test_catalog_rejects_duplicate_rule_ids(tmp_path):
 
 def test_rules_prefer_exact_operation_index_to_aliases():
     bundle = PolicyBundle.load(ROOT)
-    assert [rule.id for rule in bundle.rules_for_operation("message.send")] == ["EX-10", "P0-MESSAGE-SEND"]
+    rules = bundle.rules_for_operation("message.send")
+    assert {"EX-10", "P0-MESSAGE-SEND", "NATIVE-API-001"} <= {rule.id for rule in rules}
+    assert all(rule.match["operation"] == "message.send" for rule in rules)
 
 
-def test_legacy_detection_rules_are_exposed_to_the_policy_bundle():
+def test_native_migrations_are_audit_metadata_not_runtime_rules():
     bundle = PolicyBundle.load(ROOT)
-    legacy = bundle.legacy_rules()
 
-    assert len(legacy) == 47
-    assert {rule.legacy_rule_ids[0] for rule in legacy} >= {"CMD-001", "NET-005", "CFG-002", "GEN-006"}
+    assert len(bundle.migrations) == 47
+    assert not any(rule.id.startswith("LEGACY-") for rule in bundle.rules)
+    assert {rule.legacy_rule_ids[0] for rule in bundle.rules if rule.legacy_rule_ids} >= {"CMD-001", "NET-005", "CFG-002", "GEN-006"}
     assert [rule.id for rule in bundle.rules_for_operation("data.query")] == ["EX-19"]
     assert [rule.id for rule in bundle.rules_for_operation("file.bulk_transfer")] == ["EX-27"]
 
@@ -74,9 +76,9 @@ def _bundle_copy(tmp_path):
 
 @pytest.mark.parametrize("relative,payload,field", [
     ("schema/permissions.schema.json", {"version": ""}, "version"),
-    ("traces/p0-office.json", {"version": "1", "traces": [{}]}, "traces[0].id"),
+    ("traces/p0-office.json", {"version": "1", "traces": [{}]}, "traces["),
     ("relations/p0-combinations.json", {"version": "1", "relations": [{"id": "x", "requires": [1]}]}, "relations[0].version"),
-    ("tests/p0-vectors.json", {"version": "1", "vectors": [{"id": "x"}]}, "vectors[0].expected_effect"),
+    ("tests/p0-vectors.json", {"version": "1", "vectors": [{"id": "x"}]}, "expected_effect"),
 ])
 def test_loader_rejects_malformed_contracts(tmp_path, relative, payload, field):
     root = _bundle_copy(tmp_path)
@@ -145,10 +147,11 @@ def test_loaded_bundle_rules_and_nested_match_data_are_immutable():
     with pytest.raises(TypeError):
         bundle.rules[0].match["operation"] = "tampered"
     with pytest.raises(TypeError):
-        bundle.rules[0].match["aliases"].append("tampered")
+        next(rule for rule in bundle.rules if "aliases" in rule.match).match["aliases"].append("tampered")
     with pytest.raises(TypeError):
         bundle.rules[0].required_fields.append("tampered")
 
-    assert [rule.id for rule in bundle.rules_for_operation("message.send")] == [
-        "EX-10", "P0-MESSAGE-SEND",
-    ]
+    assert {rule.id for rule in bundle.rules_for_operation("message.send")} == {
+        "EX-10", "P0-MESSAGE-SEND", "NATIVE-API-001", "NATIVE-API-002",
+        "NATIVE-API-003", "NATIVE-API-004",
+    }

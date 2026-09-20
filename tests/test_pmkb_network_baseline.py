@@ -36,7 +36,7 @@ def test_packaged_permission_bundle_matches_source_bundle():
     packaged_root = Path(__file__).parents[1] / "openclaw_guard" / "policy" / "data" / "permissions"
     packaged = PolicyBundle.load(packaged_root)
 
-    assert packaged.version == source.version == "1.1.0"
+    assert packaged.version == source.version == "1.2.0"
     assert {item.family for item in packaged.operations} == {item.family for item in source.operations}
     assert {item.id for item in packaged.rules} == {item.id for item in source.rules}
 
@@ -102,7 +102,7 @@ def test_trace_compiler_and_evaluator_apply_network_egress_baseline():
 
     assert trace.operation.family == "network.egress"
     assert decision.effect == "openclaw_approval"
-    assert "P1-NETWORK-EGRESS" in decision.selected_rule_ids
+    assert decision.selected_rule_ids == ["NATIVE-NET-001"]
 
 
 def test_network_case_relation_blocks_credential_egress_combination():
