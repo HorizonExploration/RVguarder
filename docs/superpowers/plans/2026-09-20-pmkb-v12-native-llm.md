@@ -64,11 +64,11 @@
 
 **Files:** Delete `policy/legacy.py` and obsolete test modules; remove AgentDojo runtime branches; redistribute unique long-term assertions.
 
-- [ ] Write/adjust tests asserting no legacy or AgentDojo runtime symbols remain and historical assets are untouched.
-- [ ] Delete dynamic LEGACY rule generation and legacy-label evaluator branches.
-- [ ] Replace `legacy_steps` with `rv_steps` in current contracts while leaving archived JSON untouched.
-- [ ] Merge unique assertions, then delete one-time/redundant modules named in the approved plan.
-- [ ] Run collection and the complete Python suite; confirm the retained suite exercises each behavior once at the appropriate layer.
+- [x] Write/adjust tests asserting no legacy or AgentDojo runtime symbols remain and historical assets are untouched.
+- [x] Delete dynamic LEGACY rule generation and legacy-label evaluator branches.
+- [x] Replace `legacy_steps` with `rv_steps` in current contracts while leaving archived JSON untouched.
+- [x] Merge unique assertions, then delete one-time/redundant modules named in the approved plan.
+- [x] Run collection and the complete Python suite; confirm the retained suite exercises each behavior once at the appropriate layer.
 - [ ] Commit the task.
 
 ### Task 5: Documentation, builds, and end-to-end verification

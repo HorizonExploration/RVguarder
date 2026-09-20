@@ -57,6 +57,12 @@ def test_pmkb_12_has_no_runtime_legacy_rules_and_adds_skill_operation() -> None:
     assert bundle.version == "1.2.0"
     assert all(not rule.id.startswith("LEGACY-") for rule in bundle.rules)
     assert bundle.operation_for_tool("skill.run", {}).family == "skill.execute"
+    assert bundle.operation_for_tool("session.cookie.read", {}).family == "session.token.read"
+    assert bundle.operation_for_tool("oauth.scope.grant", {}).family == "identity.permission.grant"
+    assert bundle.operation_for_tool("audit.disable", {}).family == "audit.modify"
+    assert {
+        "P1-NETWORK-EGRESS", "P1-SESSION-TOKEN-READ", "P1-PERMISSION-GRANT", "P1-AUDIT-MODIFY",
+    } <= {rule.id for rule in bundle.rules}
 
 
 def test_every_historical_rule_has_one_native_owner() -> None:

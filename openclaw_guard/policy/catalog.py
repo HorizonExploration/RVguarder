@@ -271,10 +271,6 @@ class PolicyBundle:
             return exact
         return [rule for rule in self.rules if family in rule.match.get("aliases", [])]
 
-    def legacy_rules(self) -> list[PolicyRule]:
-        """Return compatibility records that are selected by action metadata."""
-        return [rule for rule in self.rules if rule.match.get("operation") == "*"]
-
     def p0_vectors(self) -> list[dict[str, Any]]:
         # Callers use vectors as test input and may annotate them; return a
         # detached mutable copy so a test cannot alter the loaded policy.
@@ -298,31 +294,6 @@ def _string(value: dict[str, Any], field: str, path: str) -> str:
     if not isinstance(value.get(field), str) or not value[field]:
         raise PolicyBundleError(f"{path}.{field} must be a non-empty string")
     return value[field]
-
-
-def _legacy_detection_policy_rules() -> list[PolicyRule]:
-    """Expose every legacy single-step guard as a versioned PMKB transition rule.
-
-    The records live in the frozen policy compatibility module.  They are
-    loaded as PMKB candidates for replay/audit only; runtime decisions are
-    produced by :class:`AuthorizationPolicyEngine`.
-    """
-    from openclaw_guard.policy.legacy import legacy_rules
-
-    effects = {"block": "block", "ask": "openclaw_approval", "escalate": "openclaw_approval"}
-    return [
-        PolicyRule(
-            id=f"LEGACY-{item.rule_id}", version="1.1.0", effect=effects[item.decision],
-            priority=200 if item.decision == "block" else 150,
-            match={"operation": "*", "legacy_action_types": list(item.action_types),
-                   "legacy_labels_all": list(item.match_labels)},
-            required_fields=[], negative_conditions=[], obligations=["audit"],
-            source="DetectionEngine compatibility migration", test_vectors=[],
-            rollback_state="detection-engine", positive_examples=[], negative_examples=[],
-            legacy_rule_ids=[item.rule_id],
-        )
-        for item in legacy_rules()
-    ]
 
 
 def _version(value: Any, path: str) -> str:

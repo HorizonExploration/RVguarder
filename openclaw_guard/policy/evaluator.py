@@ -28,15 +28,6 @@ class PolicyEvaluator:
         if not exact and not alias:
             return MatchCandidate(rule_id=rule.id, status="unknown", reasons=["operation_mismatch"])
 
-        # Compatibility records are independent legacy detections.  A different
-        # action or absent semantic labels is non-applicability, not a conflict.
-        legacy_actions = match.get("legacy_action_types")
-        if legacy_actions and trace.operation.arguments.get("action_type") not in legacy_actions:
-            return MatchCandidate(rule_id=rule.id, status="unknown", reasons=["legacy_action_mismatch"])
-        legacy_labels = match.get("legacy_labels_all")
-        if legacy_labels and not self._equals(self._value("legacy_labels_all", trace), legacy_labels):
-            return MatchCandidate(rule_id=rule.id, status="unknown", reasons=["legacy_labels_mismatch"])
-
         missing: list[str] = []
         for field in rule.required_fields:
             if not self._field_present(field, trace):
@@ -110,13 +101,6 @@ class PolicyEvaluator:
 
     def evaluate(self, trace: AuthorizationTrace) -> PolicyDecision:
         rules = self.bundle.rules_for_operation(trace.operation.family)
-        # LEGACY records are PMKB records, not a second runtime engine.  Keep
-        # them in the candidate set while their individual replay evidence is
-        # retained, including for a catalogued operation: otherwise a newly
-        # added broad allow/approval rule could silently weaken a historical
-        # hard block such as secret egress or rm -rf.
-        if trace.operation.arguments.get("action_type"):
-            rules = [*rules, *self.bundle.legacy_rules()]
         candidates = [self.match_rule(rule, trace) for rule in rules]
         rule_by_id = {rule.id: rule for rule in rules}
         applicable = [
@@ -204,10 +188,6 @@ class PolicyEvaluator:
         if field.startswith("facts."):
             fact = trace.security_facts.get(field.split(".", 1)[1])
             return fact.value if fact is not None else None
-        if field in {"legacy_action_type", "legacy_action_types"}:
-            return trace.operation.arguments.get("action_type")
-        if field == "legacy_labels_all":
-            return [str(label) for step in trace.rv_steps for label in step.get("props", [])]
         return {"scope": trace.resource.scope, "classification": trace.data.classification,
                 "quantity": trace.data.quantity, "recipient_zone": trace.context.recipient_zone,
                 "purpose": trace.context.purpose}.get(field)

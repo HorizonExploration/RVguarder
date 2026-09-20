@@ -116,7 +116,6 @@ def _annotate_event_context(
             "source_message": source_message,
             "origin": origin,
             "workspace_path": str(workspace) if workspace else None,
-            "evaluation_mode": event.metadata.get("evaluation_mode"),
         },
     )
     _merge_deterministic_semantics(event, semantic_payload)
@@ -197,7 +196,7 @@ def _apply_policy_engine(
     *,
     source_message: str = "",
 ) -> Any:
-    """Attach PMKB evidence to a legacy-compatible decision if it is absent."""
+    """Attach PMKB evidence to the controller decision if it is absent."""
     if getattr(decision, "policy_decision", None):
         return decision
     policy_engine = getattr(services, "policy_engine", None)

@@ -339,14 +339,6 @@ def build_hook_event(
             else "unknown" if tool_profile
             else _infer_risk_class(action_type, command)
         ),
-        # AgentDojo is an authenticated, local synthetic benchmark boundary.
-        # Keep the marker explicit so the semantic layer can select its
-        # deterministic path without changing unmarked OpenClaw requests.
-        "evaluation_mode": (
-            "agentdojo"
-            if payload.get("evaluationMode") == "agentdojo" and payload.get("agentdojoToolName")
-            else None
-        ),
     }
     return BehaviorEvent(
         event_id=metadata["hook_key"],

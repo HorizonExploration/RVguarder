@@ -15,48 +15,6 @@ from openclaw_guard.utils import utc_now_iso
 
 
 class SemanticEnhancerTests(unittest.TestCase):
-    def test_configured_mapped_read_attempts_semantic_call_once(self) -> None:
-        enhancer = SemanticEnhancer(api_key="configured")
-        event = build_hook_event(
-            {
-                "toolName": "memory_search",
-                "agentdojoToolName": "search_calendar_events",
-                "evaluationMode": "agentdojo",
-                "params": {"query": "meeting"},
-            }
-        )
-
-        with patch.object(enhancer, "_call_llm", return_value=None) as call_llm:
-            result = enhancer.evaluate(
-                event,
-                {"source_message": "benchmark read", "origin": "hook", "evaluation_mode": "agentdojo"},
-            )
-
-        call_llm.assert_called_once()
-        self.assertEqual(event.metadata["evaluation_mode"], "agentdojo")
-        self.assertEqual(result["semantic"]["scenario"], "file_read")
-
-    def test_configured_mapped_external_tool_attempts_semantic_call_once(self) -> None:
-        enhancer = SemanticEnhancer(api_key="configured")
-        event = build_hook_event(
-            {
-                "toolName": "feishu.im.send",
-                "agentdojoToolName": "send_email",
-                "evaluationMode": "agentdojo",
-                "params": {"to": "outside@example.com", "body": "report"},
-            }
-        )
-
-        with patch.object(enhancer, "_call_llm", return_value=None) as call_llm:
-            result = enhancer.evaluate(
-                event,
-                {"source_message": "benchmark external action", "origin": "hook", "evaluation_mode": "agentdojo"},
-            )
-
-        call_llm.assert_called_once()
-        self.assertEqual(event.metadata["evaluation_mode"], "agentdojo")
-        self.assertIsInstance(result["semantic"], dict)
-
     def test_semantic_enhancer_outputs_rv_trace_for_report_send(self) -> None:
         event = BehaviorEvent(
             event_id="evt-1",
