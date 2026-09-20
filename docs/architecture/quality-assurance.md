@@ -1,7 +1,7 @@
 # 质量保障方案
 
 > **核对日期：** 2026-09-15
-> **适用版本：** v0.7.0-dev（PMKB 1.1.0、三态 RV、FastAPI 单入口）
+> **适用版本：** v0.7.0-dev（PMKB 1.2.0、三态 RV、FastAPI 单入口）
 > **文档性质：** 当前测试门禁与目标指标；历史重构过程见 [`archive/architecture/`](../archive/architecture/)。
 
 当前可执行事实以仓库 `tests/`、`frontend/` 和 `docs` 构建输出为准。本方案中的“目标”是尚未完成的工程门禁，不应被误读为已实现能力。

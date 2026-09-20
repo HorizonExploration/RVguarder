@@ -5,7 +5,7 @@
 > `before_prompt_build` 预检查；RV 仅对成功执行的工具调用提交状态。当前架构说明见
 > [三态控制面与 RV 提交边界](./three-state-rv-runtime-plan-2026-09-03.md)。
 
-> **版本**：v0.7.0-dev（PMKB 1.1.0、三态 RV 和 OpenClaw 单一审批契约）
+> **版本**：v0.7.0-dev（PMKB 1.2.0、三态 RV 和 OpenClaw 单一审批契约）
 > **分析日期**：2026-09-15（文档与代码清查复核）
 > **分析基准**：当前工作树；精确提交号以 Git 为准
 > **本轮验证口径（2026-09-15）**：`python -m pytest -q` → **412 passed / 19 skipped / 4 subtests passed**；Chromium 与 Firefox Playwright 冒烟均 **5 passed**（Firefox 需清除代理变量并串行运行）。
@@ -21,7 +21,7 @@ v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆
 
 项目整体处于**核心链路可用、治理能力持续完善**阶段。本快照中的双轨 HTTP、生产 DetectionEngine、ConstraintEngine 和旧规则双源问题已经收敛；仍有效的问题主要是前端局部测试门禁、真实 OpenClaw 同步证据、生产存储集成和采集器能力边界。当前事实与维护口径见 [项目理解与当前记忆](./project-memory.md)。
 
-本次升级的可核对结果集中在[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)：PMKB `1.1.0` 已进入 `before_tool_call` 热路径，当前基线为 47 个 canonical operations、35 条 authored 规则、47 条 `LEGACY-<old-id>` 兼容规则（bundle 共 82 条规则）、29 条最小权限 Trace、9 条权限关系和 29 个回归向量；生产 DetectionEngine 已退役，LEGACY 仅用于兼容回放。
+本次升级的可核对结果集中在[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)：PMKB `1.2.0` 已进入 `before_tool_call` 热路径，当前基线为 48 个 canonical operations、79 条 native 规则、47 条迁移归属、76 条最小权限 Trace、9 条权限关系和 123 个回归向量；旧检测引擎和运行时兼容规则路径均已退役。
 
 > **阅读说明：** 第 4–6 节保留 2026-08-30 的问题快照，便于追踪改造前后差异。快照中的 B-1（双轨 HTTP）、C-1（规则双源）和 C-5（重复低风险命令逻辑）已解决；其余仍有效的风险以本节开头列出的工程统一报告为准。
 
@@ -36,7 +36,7 @@ v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆
 | 前端 | Vite 6 + Preact 10 + Zustand 5 + preact-router |
 | 存储 | SQLite（开发）/ PostgreSQL + Redis（生产，可选依赖） |
 | 测试 | Python 全量回归；最新数量以 `project-memory.md` 与 CI 输出为准 |
-| 当前 git | 当前工作树（PMKB 1.1.0 文档与规则基线） |
+| 当前 git | 当前工作树（PMKB 1.2.0 native 规则与迁移基线） |
 
 **后端模块布局**（`openclaw_guard/`）：
 
@@ -72,11 +72,11 @@ v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆
 9. **阶段 D：RV 参数化原语** — entity 匹配、时间间隔、state_counter、quantifier/bind_vars。
 10. **阶段 E：NL2Spec 生成** — `spec/nl2spec_generator.py` + `spec/spec_validator.py` + 正反例 trace 库（`eval_traces.py`）。
 11. **阶段 F（历史实现已收敛）** — `spec/session_state.py` 现为 `PrincipalSecurityState`，只对已成功执行并提交的主体权限证据做有界跨 session 校验，不再累计风险分数或生成 `revise`。
-12. **PMKB 1.1.0** — 网络案例基础规则通过 `PolicyBundle → TraceCompiler → PolicyEvaluator → PermissionClosure/Diff → RiskGraph` 接入运行时；基础规则立即生效，新规则使用离线回放和有限事件样本验证；主体级 RV 状态按受控键持久化并跨 session 聚合。
+12. **PMKB 1.2.0** — native 规则通过 `PolicyBundle → TraceCompiler → PolicyEvaluator → PermissionClosure/Diff → RiskGraph` 接入运行时；47 条历史规则由 migration owner 承接并以正反例回放验证；主体级 RV 状态按受控键持久化并跨 session 聚合。
 
 ### 3.3 核心安全能力
 
-- **PMKB 35 条原生规则 + 47 条 LEGACY 回放记录**（覆盖 CMD/FILE/NET/API/SKL/CFG/GEN 七类）+ RV 监视器。
+- **PMKB 79 条 native 规则 + 47 条 migration provenance**（覆盖 CMD/FILE/NET/API/SKL/CFG/GEN 七类）+ RV 监视器。
 - **双层防线**：PMKB 单步策略（含 LEGACY 回放记录）+ RV 引擎（跨步有状态，<5ms）。
 - **SHA-256 审计哈希链**，SQLite + JSONL 双写。
 - **白名单 Trie 前缀树**，O(n) 匹配效率。
@@ -124,7 +124,7 @@ v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆
 | # | 问题 | 具体表现 | 影响范围 | 严重等级 |
 |---|---|---|---|---|
 | C-1 | ~~检测规则双源并存~~ ✅ 已解决 | `builtin_rules()` 现通过 `match_labels` 承载匹配逻辑，`_semantic_predicates()` 已删除，`evaluate()` 直接遍历规则 | 规则治理 | ~~High~~ 已闭环 |
-| C-2 | ~~**兼容约束规则仍需继续原生化**~~ ✅ 已关闭 | `ConstraintEngine` 已从生产路径删除；47 条 `LEGACY-*` 仅用于逐条 PMKB 回放、审计和回滚证据，新增规则直接使用 PMKB 原生谓词 | 规则治理 | ~~Medium~~ 已闭环 |
+| C-2 | ~~**兼容约束规则仍需继续原生化**~~ ✅ 已关闭 | `ConstraintEngine` 与运行时 legacy 路径已删除；47 条历史规则均有 native owner，迁移数据仅用于回放、审计和回滚证据 | 规则治理 | ~~Medium~~ 已闭环 |
 | C-3 | **LLM 语义增强可选，默认本地降级** | `SemanticEnhancer` 无 `DEEPSEEK_API_KEY` 时使用确定性本地实现；这是离线可运行的明确降级策略，不再依赖已退役的 DetectionEngine | 语义覆盖度 | **Medium** |
 | C-4 | **collectors 采集器为探测桩** | `collectors/` 三件套（ptrace/ebpf/hook_bridge）仅 capability 探测 stub，但 `config.py` 中 `enable_ptrace=True`/`enable_ebpf=True` 配置项存在且默认开启 | 行为采集能力未落地，配置项形同虚设 | **Medium** |
 | C-5 | ~~旧检测模块中的重复低风险逻辑~~ ✅ 已关闭 | 历史 `detection.py` 已从生产包移除，当前命令事实统一由 `command_safety.py` 与语义层提供 | 代码整洁度 | ~~Low~~ 已闭环 |
@@ -183,7 +183,7 @@ v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆
 
 ## 七、结论
 
-项目已完成 v0.3.0 的架构现代化改造，并成功落地 RV 层拆分、ToolCallIR/基线自动机/参数化/NL2Spec 能力与 PMKB 1.1.0 基础规则，具备可运行的检测、审批、审计、基线扫描和跨 session 主体证据链。当前主要风险集中在**前端资源体积与测试缺口**、**真实 OpenClaw 交接证据**、**生产存储集成**和**采集器能力边界**；三态控制面与 RV 提交边界见专项计划。
+项目已完成 v0.3.0 的架构现代化改造，并成功落地 RV 层拆分、ToolCallIR/基线自动机/参数化/NL2Spec 能力与 PMKB 1.2.0 native 规则，具备可运行的检测、审批、审计、基线扫描和跨 session 主体证据链。当前主要风险集中在**前端资源体积与测试缺口**、**真实 OpenClaw 交接证据**、**生产存储集成**和**采集器能力边界**；三态控制面与 RV 提交边界见专项计划。
 
 建议按 P1 → P2 → P3 顺序推进：先补前端测试与构建门禁，再完善生产存储、采集器和 LLM 能力，最后评估默认基线策略与 OpenAPI 暴露，使项目从「架构转型后期」稳步进入「能力完善期」。
 

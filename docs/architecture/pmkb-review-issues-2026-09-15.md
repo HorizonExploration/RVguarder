@@ -1,7 +1,7 @@
 # PMKB 定位、推理能力与链路问题清单（2026-09-15 评审）
 
 > **状态：** 评审清单已进入整改复核；本轮已闭环规则误报、实体截断、缺失 after 状态、LLM 时间预算、DSL-only 和分级故障策略。剩余问题仍以第五节增强项和未闭环的可观测性/知识推理为准。
-> **适用版本：** PMKB `1.1.0`、RV 默认 DSL 模式、Guard 插件 `0.7.0-dev`
+> **适用版本：** PMKB `1.2.0`、RV 默认 DSL 模式、Guard 插件 `0.7.0-dev`
 > **方法：** 全部结论均以代码阅读 + 运行实测取证，命令与原始输出见[附录 A](#附录-a复现命令与实测输出)
 > **来源讨论：** ① PMKB 是否算知识库；② 规则搜索/命中如何实现；③ 为什么不用大模型做模糊匹配；④ 大模型"模糊"体现在哪里；⑤ 什么是知识库的推理机
 >
@@ -13,7 +13,7 @@
 
 | # | 结论 | 影响 |
 |---|---|---|
-| 1 | PMKB 是**策略知识库（policy-as-data）**：声明式、版本化、加载即校验、加载后冻结、可回滚、可溯源；6 类内容里 5 类参与运行时决策 | 「知识库」的说法在工程意义上站得住 |
+| 1 | PMKB 是**策略知识库（policy-as-data）**：声明式、版本化、加载即校验、加载后冻结、可回滚、可溯源；native rules/traces/relations 参与运行时决策，migration 仅作 provenance | 「知识库」的说法在工程意义上站得住 |
 | 2 | 但按知识表示（KR）的严格定义，它**不是完整知识库**：没有推理机，推理在引擎代码里，且唯一的声明式推理通路（`implies`）**当前 0 条数据** | 评审若追问"你的知识库做了什么推理"，现状答不上 |
 | 3 | 规则搜索命中是**确定性流程**：归一化 → 两级候选召回 → 字段级证据比对（四档状态）→ 单调效果合成；无相似度、无 LLM | 这是正确设计，建议在文档里显式写清 |
 | 4 | **语义 LLM 路径曾因预算静默失效**：历史 `max_tokens=1024` 已调整为 4096；仍需补降级率指标 | 已修正，剩余可观测性为 P1 |
@@ -40,9 +40,9 @@
 | 声明式知识表示 | 5 类 JSON + schema 枚举；操作目录是术语表（工具名/别名 → 47 个权限族） | ✅ 但**无形式语义**（无族偏序/包含公理，非 OWL/SHACL；谓词形状由 Python 解释） |
 | 知识 / 推理分离 | 规则、关系、Trace 全是数据，引擎只消费 | ✅ 这正是其核心设计 |
 | 推理（entailment） | 匹配在 `PolicyEvaluator`、闭包在 `PermissionClosure`、差分在 `PermissionDiff`、组合在 `RiskGraph`——全在代码里 | ❌ PMKB 自身推不出任何新事实 |
-| 版本化 / 一致性 | schema `1.1.0` 与 5 个组件版本必须全等；加载即校验（重复 ID、未知操作/端点、引用完整性）；加载后冻结；源码目录与打包镜像一致由测试断言 | ✅✅ 强于一般"策略文件" |
+| 版本化 / 一致性 | schema `1.2.0` 与组件版本必须全等；加载即校验（重复 ID、未知操作/端点、引用完整性、migration owner）；加载后冻结；源码目录与打包镜像一致由测试断言 | ✅✅ 强于一般"策略文件" |
 | 解释与溯源 | 每条记录带 `source`、`rollback_state`、正反例；编译产物带 `source_ids`，审计可按 ID 回链 | ✅ |
-| 知识获取 / 更新 | 人工编目 + 47 条 `LEGACY-*` 自动迁移；**明确不自动从行为学习写回生产规则** | ⚠️ 有意为之，但获取环节是手工的 |
+| 知识获取 / 更新 | 人工编目 + 47 条历史规则到 native owner 的迁移；**明确不自动从行为学习写回生产规则** | ⚠️ 有意为之，但获取环节是手工的 |
 
 ### 2.2 六类内容里，谁在真正参与决策
 
@@ -68,13 +68,13 @@
 ```
 Hook 事件
  → TraceCompiler（归一化：工具→权限族、资源、范围、分类、数量、去向、覆盖度）
- → rules_for_operation（两级候选召回：精确族；无精确则取别名；带 action_type 时追加 47 条 LEGACY）
+ → rules_for_operation（两级候选召回：精确族；无精确则取别名；只召回 native rules）
  → PolicyEvaluator.match_rule（字段级证据比对 → matched / partial / unknown / conflict）
  → evaluate（效果合成：_EFFECT_RANK 单调取最强 + 校准例外 + fail-closed 兜底）
  → 三道门（最小权限差分 / 危险组合 / 覆盖兜底）→ 单调合并 → RV
 ```
 
-实测（同一份 PMKB 1.1.0）：
+实测（同一份 PMKB 1.2.0）：
 
 | 场景 | 候选 | 状态分布 | 结果 |
 |---|---|---|---|
@@ -124,11 +124,11 @@ Hook 事件
 ### I-05 [P1][一致性] 架构文档 `monitor_sources` 示例数字过时（已修正）
 
 - **证据**：`docs/architecture/rv-permission-automata.md` §7 示例写 `behavior 6 / permission 72 / principal 9`；实测 `behavior 8 / permission 82 / principal 9`（82 = 35 原生 + 47 LEGACY）。
-- **当前状态**：已更新为实测值 `behavior 8 / permission 82 / principal_permission 9`；其中 permission 82 = 35 条原生规则 + 47 条 LEGACY 回放记录。
+- **当前状态**：当前统计以 `PolicyBundle` 加载输出和 `tests/test_native_policy_migration.py` 为准：48 operations、79 native rules、76 traces、9 relations、123 vectors、47 migration owners。
 
 ### I-06 [P1][schema] `implies` 关系字段与 provenance `source` 冲突，且当前 0 条数据
 
-- **证据**：`policy/permission_diff.py:_implication_edges()` 依次读 `source`/`target`，再退回 `implies: [from, to]`；但 relation 记录里的 `source` **已是来源出处文本**（如 `"P0 office policy"`）。实测 1.1.0 的 9 条关系 = 5 `block` + 4 `openclaw_approval`，**0 条 `implies`**。
+- **证据**：`policy/permission_diff.py:_implication_edges()` 只消费显式 `implies` 边；当前 1.2.0 的 9 条关系仍为组合处置关系，未声明隐含边。
 - **影响**：闭包的蕴含通路完全空转；若按 `source/target` 写法补数据，会静默不生效或把出处文本误读为权限族。
 - **建议修复**：schema 明确规定 `implies` 关系只允许 `{"effect":"implies","implies":[from,to]}`；加载校验断言"边两端必须是已知权限族"；补数据后加回放测试。
 
@@ -238,7 +238,7 @@ B. 加 implies: document.read ⇒ credential.read：
 
 ```bash
 # 5) 规模核对
-ops 47 | rules 82（native 35 + LEGACY 47）| traces 29 | relations 9（block 5 + approval 4）| vectors 29
+ops 48 | rules 79（native）| traces 76 | relations 9（block 5 + approval 4）| vectors 123
 PMKB 编译产物 91 个监视器（session 82 + principal 9）；行为链 DSL 8 监视器 / 61 条链规则
 ```
 

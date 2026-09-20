@@ -1,7 +1,7 @@
 # 项目理解与当前记忆
 
-> **核对日期**：2026-09-15（全面整改实施中）
-> **核对基准**：当前工作树（PMKB 网络案例基础知识库 `1.1.0`）
+> **核对日期**：2026-09-20（PMKB 1.2 native migration）
+> **核对基准**：当前工作树（PMKB 权限知识库 `1.2.0`）
 > **本轮全量回归（2026-09-15）**：`python -m pytest -q` → **412 passed / 19 skipped / 4 subtests passed**；Chromium 与 Firefox Playwright 冒烟均 **5 passed**（Firefox 以清除代理变量、单 worker 的独立环境复跑，含 OpenClaw 回调→SSE→Guard UI 同步）。
 
 本文档是后续维护项目时的“当前事实源”。历史方案、阶段性审计报告和旧版本说明仍然保留，但如果它们与本文档或当前代码冲突，应以当前代码和本文档为准。
@@ -27,7 +27,7 @@ OpenClaw before_tool_call
   → Hook Bridge / BehaviorEvent
   → SemanticEnhancer（DeepSeek LLM 或本地规则降级）
   → TraceCompiler / PMKB PolicyEvaluator（Authorization Trace、最小权限、RiskGraph）
-  → AuthorizationPolicyEngine（PMKB 原生规则 + LEGACY 回放兼容记录）
+  → AuthorizationPolicyEngine（PMKB 原生规则；migration provenance 仅用于回放）
   → RuntimeVerificationEngine.preview（已提交窗口的纯回放）
   → PrincipalSecurityState.evaluate（已提交主体证据的只读校验）
   → GuardController
@@ -59,21 +59,21 @@ OpenClaw before_tool_call
 - RV：ToolCallIR、基线自动机、实体/时间/计数参数化、NL2Spec + 反例校验；ConstraintEngine、累计会话分数与 revise 干预已从生产路径删除。
 - 运行时唯一执行路径是 `ChainRule DSL → compile_monitors()`；历史 `fsm` 偏好值仅被归一化为 `dsl`，不会加载手写监视器。
 - 规则检测、Hook 审批、resolution 幂等同步、审计双写、基线扫描和前端 RV 状态面板均有现行代码与测试覆盖。
-- PMKB 网络案例基线 `1.1.0` 已直接接入 `PolicyBundle → TraceCompiler → PolicyEvaluator → RiskGraph` 链路；源码目录与打包目录保持同版本、同内容，并为关键操作保留来源、Trace 和正反例向量。
+- PMKB `1.2.0` 已直接接入 `PolicyBundle → TraceCompiler → PolicyEvaluator → RiskGraph` 链路；源码目录与打包目录保持同版本、同内容，48 个 canonical operations、79 条 native rules、47 条迁移归属、76 条 Trace 和 123 个正反例向量均可校验。
 - OpenClaw 官方 runtime、filesystem、web、browser、sessions、memory、messaging、automation、agents、human-input、credentials、nodes 和 UI 工具通过显式 profile 建模；低风险 profile 必须满足结构化参数边界才继承只读信任。未知工具或越权参数固定为 `unknown` 并一次审批，不通过自由文本猜测动作类型。Hook 事件不再截断收件人或路径实体。
 - Hook 透传 `toolKind`、`toolInputKind`、`derivedPaths`；after 回调只有在 `runId + toolCallId + session/agent/tool` 上下文一致且动作未终态时才能提交执行、principal 和 RV 状态，重复回调会被拒绝。
 - Hook 审批文案在发送给 OpenClaw 前限制为标题 80、说明 512 字符；弹窗只展示意图/目标/风险，完整命令在 Guard 详情中脱敏展示。精确命令授权默认 30 天并可撤销；超过 6 分钟未回调的审批会标记为 `approval_timeout`。
 - 审批回调由 OpenClaw 单一审批中心拥有；Guard 只读同步。回调在写入动作状态后再发布 `action.resolved`，摘要提供 `sync.approval` 聚合指标（最近 128 个延迟样本），前端摘要哈希会响应同步序号变化。
-- PMKB 已新增 `NATIVE-PROCESS-DESTRUCTIVE`、`NATIVE-PROCESS-PRIVILEGED`、`NATIVE-NETWORK-SECRET-EXTERNAL` 三条字段谓词规则；47 条 `LEGACY-*` 继续作为历史回放证据，尚未删除。
+- PMKB 已完成 47 条历史规则到 native owner 的迁移；`migrations/legacy-1.1.json` 只记录来源与回放关系，不参与生产候选召回。高频命令、网络、文件、配置、技能和数据动作均通过结构化 facts 匹配。
 - 2026-09-15 已完成规则误报修正（外部群发但无敏感/跨组织证据只请求审批）、实体不截断、缺失 after 回调状态修正、LLM 时间预算修正、DSL-only 运行时收敛和分级故障策略；旧 AgentDojo 评测执行器与手写 FSM 生产模块已清理，历史结果/报告仅保留为证据。
 
 ## 5. 当前边界与待办
 
 这些不是“已完成能力”，维护时不要把它们写成完成状态：
 
-- 代码包版本为 `0.7.0.dev0`（展示为 `v0.7.0-dev`），PMKB bundle 为 `1.1.0`（47 个 canonical operations）；二者分别标识产品构建与策略数据版本。
+- 代码包版本为 `0.7.0.dev0`（展示为 `v0.7.0-dev`），PMKB bundle 为 `1.2.0`（48 个 canonical operations）；二者分别标识产品构建与策略数据版本。
 - FastAPI 是唯一启动入口；旧版 stdlib HTTP 实现已从生产包移除，历史源文件保留在 Git 归档中。
-- 47 条历史单步规则已形成 `LEGACY-<old-id>` PMKB 记录并通过逐条回放门禁；DetectionEngine 已从生产路径删除，冻结元数据仅用于审计和历史评测。
+- 47 条历史单步规则已完成 native owner 迁移并通过逐条 positive/near-miss 回放；旧检测引擎和运行时 legacy 规则路径均已删除，迁移数据仅用于审计和历史评测。
 - 基线 DFA 只有在设置 `OPENCLAW_RV_BASELINE_DFA_PATH` 或显式传入路径时才加载，默认不做基线偏离检测。
 - collectors 下的 ptrace/eBPF 仍是 capability 探测桩；不要把它们描述成已落地的系统级采集器。
 - NL2Spec 的当前实现以模板/关键词和确定性 ChainRule 合成为主，LLM 生成接口仍属于可选扩展路径。

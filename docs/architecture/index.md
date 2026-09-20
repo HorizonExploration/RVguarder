@@ -1,6 +1,6 @@
 # 架构文档索引
 
-> **核对日期：** 2026-09-15
+> **核对日期：** 2026-09-20
 > **文档状态：** 现行架构入口
 
 本目录只放面向当前实现的架构说明。历史选型、已完成重构计划和旧版本快照统一移至 `docs/archive/`，不再参与现行导航。当前实现、测试基线和已知边界以[项目理解与当前记忆](./project-memory.md)为最高优先级。
@@ -35,7 +35,7 @@ OpenClaw before_tool_call
 ```
 
 - OpenClaw 原生审批页是 Hook 决策唯一入口，Guard 页面不再创建第二个审批源。
-- PMKB `1.1.0` 基线直接参与运行时决策；新规则通过离线回放和有限事件样本验证，不设置自然日 shadow gate。
+- PMKB `1.2.0` 基线直接参与运行时决策；迁移清单仅记录 provenance，所有 47 个历史 owner 均由 native rule 承接；新规则通过离线回放和有限事件样本验证，不设置自然日 shadow gate。
 - 语义层先把工具调用归一化为 Authorization Trace，再由 `TraceCompiler` 做覆盖感知匹配；未知工具或缺失特征不会被“相似度”误放行。
 - PMKB 同时校验单步规则、最小必要权限闭包/差分和危险权限组合；证据进入 Guard 页面，审批仍只回到 OpenClaw。历史 `LEGACY-*` 记录只用于回放证据，不再驱动第二个在线规则引擎。
 - RV 分为行为 DSL、PMKB 权限自动机和可选基线 DFA 三族；PMKB 规则为 session 监视器，权限组合关系为 `(principal_id, agent_id, capability_lineage)` 隔离的 principal 监视器。

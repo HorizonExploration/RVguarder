@@ -2,7 +2,7 @@
 
 > **状态：** 当前实现
 > **核对日期：** 2026-09-15
-> **适用版本：** PMKB `1.1.0`、RV 默认 DSL 模式
+> **适用版本：** PMKB `1.2.0`、RV 默认 DSL 模式
 > **2026-09-03 更新：** 本页的 `clarify_then_retry`、权限监视器持久状态与 ConstraintEngine
 > 迁移描述属于此前方案。当前生产 RV 仅重放成功执行的 TTL 有效窗口，PMKB 保持单步权限权威；
 > 以[三态控制面与 RV 提交边界](./three-state-rv-runtime-plan-2026-09-03.md)为准。
@@ -58,7 +58,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    K[PolicyBundle 1.1.0<br/>权限知识库] --> R[PolicyRule<br/>权限规则]
+    K[PolicyBundle 1.2.0<br/>权限知识库] --> R[PolicyRule<br/>权限规则]
     K --> X[Permission relation<br/>权限关系]
     R --> RM[PMKBRule_ID<br/>作用域 scope=session]
     X --> XM[PMKBRelation_ID<br/>作用域 scope=principal]
@@ -150,7 +150,7 @@ flowchart TB
 | --- | --- | --- |
 | `rv_rules.json` | 仍是行为链 DSL 的唯一来源 | 只保留跨步行为约束，不承载权限集合语义 |
 | 手写 `rv_monitors.py` | 已从生产代码移除 | 历史实现仅在 Git 历史/归档报告中可追溯 |
-| 47 条冻结 LEGACY 元数据 | 已生成同 ID 的 `LEGACY-<old-id>` PMKB 记录；生产 DetectionEngine/ConstraintEngine 已删除 | 新规则优先建模为主体、资源、范围和权限谓词，LEGACY 仅保留回放证据 |
+| 47 条迁移 provenance | 已为每条历史规则建立 native owner，并由正反例向量回放；生产 DetectionEngine/ConstraintEngine/legacy 规则路径已删除 | 新规则优先建模为主体、资源、范围和权限谓词，migration 仅保留回放证据 |
 | `ConstraintEngine` | 已从生产路径退役 | 仅在历史实验/回放材料中保留，不再作为在线依赖 |
 | `BaselineDFA` | 环境变量可选加载 | 保持异常信号，不能成为 allow 的依据 |
 | NL2Spec | 生成/校验行为 DSL 的工具 | 不可绕过 PMKB 自动写入生产权限规则 |

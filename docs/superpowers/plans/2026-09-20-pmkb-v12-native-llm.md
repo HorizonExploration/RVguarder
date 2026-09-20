@@ -47,7 +47,7 @@
 - [x] Confirm the tests fail on current legacy behavior.
 - [x] Implement fact evidence propagation, `rv_steps`, nested `facts.*` matching, trust-aware effects, and priority/specificity selection.
 - [x] Run evaluator, trace, permission, and policy pipeline tests until green.
-- [ ] Commit the task.
+- [x] Commit the task (`7976936`).
 
 ### Task 3: PMKB 1.2 and all 47 native migrations
 
@@ -58,7 +58,7 @@
 - [x] Add canonical facts and rules for CMD, FILE, NET, API, SKL, CFG, and GEN groups; add `skill.execute`; add migration manifest and 94 vectors.
 - [x] Extend loader validation for multi-file bundles, migration ownership, unique IDs, references, and packaged parity.
 - [x] Run catalog, vectors, migration, RiskGraph, RV compiler, and pipeline tests until green.
-- [ ] Commit the task.
+- [x] Commit the task (`8d63adb`).
 
 ### Task 4: Remove compatibility paths and consolidate tests
 
@@ -69,14 +69,14 @@
 - [x] Replace `legacy_steps` with `rv_steps` in current contracts while leaving archived JSON untouched.
 - [x] Merge unique assertions, then delete one-time/redundant modules named in the approved plan.
 - [x] Run collection and the complete Python suite; confirm the retained suite exercises each behavior once at the appropriate layer.
-- [ ] Commit the task.
+- [x] Commit the task (`0156d3d`).
 
 ### Task 5: Documentation, builds, and end-to-end verification
 
 **Files:** Update current architecture, project memory, roadmap, semantic method, migration matrix, test design, README, and changelog.
 
-- [ ] Update all current facts and counts to PMKB 1.2 and document LLM privacy/failure semantics.
-- [ ] Build frontend and docs; run link and diff checks.
-- [ ] Run complete pytest, compileall, Chromium and Firefox Playwright smoke tests, and runtime plugin syntax/inspection checks.
-- [ ] Review the whole branch, fix Critical/Important findings with RED→GREEN tests, and record deferred minors.
-- [ ] Commit the verified documentation and fixes.
+- [x] Update all current facts and counts to PMKB 1.2 and document LLM privacy/failure semantics.
+- [x] Build frontend and docs; run link and diff checks.
+- [x] Run complete pytest, compileall, Chromium and Firefox Playwright smoke tests, and runtime plugin syntax/inspection checks.
+- [x] Review the whole branch, fix Critical/Important findings with RED→GREEN tests, and record deferred minors.
+- [x] Commit the verified documentation and fixes.

@@ -1,6 +1,6 @@
 # 发展路线图 · Roadmap
 
-当前版本：**v0.7.0-dev** — PMKB 权限模型、覆盖感知匹配、最小权限闭包/差分、风险组合图、主体能力跨 session RV 和 OpenClaw 单一审批契约已实现。PMKB `1.1.0` 基础规则立即参与运行时决策；新规则采用离线回放与有限事件样本校验，个人模式不依赖长时间留存记录。
+当前版本：**v0.7.0-dev** — PMKB 权限模型、覆盖感知匹配、最小权限闭包/差分、风险组合图、主体能力跨 session RV 和 OpenClaw 单一审批契约已实现。PMKB `1.2.0` 的 79 条 native rules 立即参与运行时决策；47 条历史规则均有 native owner，迁移清单只用于 provenance/replay。
 
 ---
 
@@ -23,7 +23,7 @@
 | **IR 结构化透传** | **v0.4.0** | ToolCallIR（11 字段）+ 语义层实体/约束/置信度透传；现由 PMKB 原生谓词和 RV DSL 消费结构化证据，旧约束推理引擎已退役 |
 | **基线自动机 + 参数化** | **v0.5.0** | BaselineLearner 偏离检测 + QEA 式 bind_vars + 实体守卫 + 时间原语 + 状态计数器 |
 | **NL2Spec + RV 收敛** | **v0.7.0-dev** | Nl2SpecGenerator + SpecValidator 反例验证；生产 RV 仅回放成功执行窗口，不含 revise 或累计会话评分 |
-| **PMKB 权限模型与跨 session RV** | **v0.7.0-dev** | PMKB 1.1.0（47 operations / 35 authored rules + 47 compatibility rules / 29 traces / 9 relations）、Authorization Trace、最小权限闭包/差分、RiskGraph、主体级状态持久化和 OpenClaw 单一审批契约 |
+| **PMKB 权限模型与跨 session RV** | **v0.7.0-dev** | PMKB 1.2.0（48 operations / 79 native rules / 47 migration owners / 76 traces / 9 relations / 123 vectors）、Authorization Trace、最小权限闭包/差分、RiskGraph、主体级状态持久化和 OpenClaw 单一审批契约 |
 
 ---
 
@@ -60,7 +60,7 @@
 
 ## PMKB 发布门禁、指标与回滚
 
-当前 `1.1.0` 基础 bundle 已直接接入运行时；高风险阻断、普通审批和明确低风险自动放行立即生效。
+当前 `1.2.0` bundle 已直接接入运行时；高风险阻断、普通审批和明确低风险自动放行立即生效。
 新规则或用户化偏好先通过离线规则/攻击向量回放，再进行最多 20 条相关事件的有限样本校验；个人模式也可通过一次显式确认立即启用范围受限的偏好。用户偏好不能降低既有安全下限。
 
 以下指标用于新规则晋级、自动放行范围扩大和回滚判断，而不是基础 PMKB 的生效前置条件：
