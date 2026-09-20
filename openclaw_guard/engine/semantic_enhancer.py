@@ -12,6 +12,14 @@ from typing import Any
 
 from openclaw_guard.models import BehaviorEvent
 from openclaw_guard.engine.command_safety import analyze_command
+from openclaw_guard.engine.semantic_models import (
+    ALLOWED_OPERATION_FAMILIES,
+    ALLOWED_SECURITY_FACTS,
+    SemanticMatchIR,
+    build_sanitized_llm_input,
+    local_semantic_match,
+    parse_semantic_match_response,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -108,33 +116,56 @@ class SemanticEnhancer:
         tool_name = str(event.metadata.get("tool_name") or "")
         origin = str(ctx.get("origin") or event.source or "unknown")
 
-        # A Hook event with no trusted native profile is a coverage gap.  Do
-        # not let arbitrary tool parameters or user text manufacture
-        # dangerous labels; the policy layer will route the unknown operation
-        # to the single OpenClaw approval gate.
-        if event.metadata.get("hook_bridge") is True and event.action_type == "unknown":
-            return _unknown_hook_result(tool_name=tool_name, origin=origin)
-
         haystack = _build_haystack(event, source_message, tool_name)
 
         result: dict[str, Any] | None = None
+        llm_attempted = False
 
-        # 1. 若配置了 LLM，优先调用 LLM API。AgentDojo 的已映射合成
-        # 请求使用确定性本地语义，避免全量基准的每个工具调用都产生
-        # 外部往返；未标记的真实 OpenClaw 请求仍保持原有 LLM 优先策略。
-        benchmark_local_only = (
-            ctx.get("evaluation_mode") == "agentdojo"
-            and event.metadata.get("hook_bridge") is True
-        )
-        if self._llm_enabled and source_message and not benchmark_local_only:
+        # A configured request gets exactly one best-effort semantic call,
+        # including empty-intent and unknown-tool events.  Authorization never
+        # depends on availability of this external enrichment.
+        if self._llm_enabled:
+            llm_attempted = True
             try:
                 result = self._call_llm(event, source_message, tool_name, haystack, origin)
             except Exception as exc:
                 logger.warning("LLM semantic analysis failed, falling back to local rules: %s", exc)
 
-        # 2. 降级到本地规则化实现
+        # Unknown Hook tools preserve their fail-closed coverage marker.  The
+        # model may suggest a candidate, but cannot turn the tool into a
+        # trusted native profile.
         if result is None:
-            result = self._local_evaluate(event, source_message, tool_name, haystack, origin)
+            if event.metadata.get("hook_bridge") is True and event.action_type == "unknown":
+                result = _unknown_hook_result(tool_name=tool_name, origin=origin)
+            else:
+                result = self._local_evaluate(event, source_message, tool_name, haystack, origin)
+
+        if event.metadata.get("hook_bridge") is True and event.action_type == "unknown":
+            # Keep the LLM candidate as suggested evidence, but do not expose
+            # it through the trusted v2 labels used during the migration.
+            suggested_match = result.get("semantic_match")
+            llm_valid = result.get("_llm_valid")
+            result = _unknown_hook_result(tool_name=tool_name, origin=origin)
+            if suggested_match:
+                uncertainties = list(suggested_match.get("uncertainties", []))
+                if "operation_unverified" not in uncertainties:
+                    uncertainties.append("operation_unverified")
+                suggested_match["uncertainties"] = uncertainties
+                result["semantic_match"] = suggested_match
+            if llm_valid:
+                result["_llm_valid"] = True
+
+        result.setdefault(
+            "semantic_match",
+            local_semantic_match(event).model_dump(mode="json"),
+        )
+        result["semantic_audit"] = {
+            "llm_attempted": llm_attempted,
+            "llm_status": "success" if llm_attempted and result.get("_llm_valid") else (
+                "fallback" if llm_attempted else "disabled"
+            ),
+        }
+        result.pop("_llm_valid", None)
 
         # 3. Hard validation: 根据工具名称硬性纠正语义标签，防止 LLM 幻觉误分类
         hard_tool_name = (
@@ -208,103 +239,32 @@ class SemanticEnhancer:
             logger.warning("LLM content is not valid JSON: %.200s", content)
             return None
 
-        # 校验必要字段
-        semantic = parsed.get("semantic")
-        rv_trace = parsed.get("rv_trace")
-        if not isinstance(semantic, dict) or not isinstance(rv_trace, list):
-            logger.warning("LLM output missing required fields: semantic=%s, rv_trace=%s", type(semantic).__name__, type(rv_trace).__name__)
-            return None
-
-        # 补全缺失字段
-        semantic.setdefault("version", "v2")
-        semantic.setdefault("engine", f"llm-{self.model}")
-        semantic.setdefault("origin", origin)
-        semantic.setdefault("scenario", event.action_type)
-        semantic.setdefault("intent", {"category": event.action_type, "goal": ""})
-        semantic.setdefault("entities", {"paths": [], "urls": [], "recipients": [], "tool_name": None})
-        semantic.setdefault("constraints", {})
-        semantic.setdefault("confidence", 0.5)
-        semantic.setdefault("labels", [event.action_type])
-
-        # 从 semantic 中提取结构化实体和约束（供 rv_trace 透传）
-        semantic_entities = _build_entities(semantic.get("entities", {}))
-        semantic_constraints = _build_constraints(semantic.get("constraints", {}))
-
-        # 确保 rv_trace 每条都有 step_id/event/props + 结构化字段
-        for item in rv_trace:
-            if not isinstance(item, dict):
-                continue
-            item.setdefault("step_id", "s1")
-            item.setdefault("event", semantic.get("scenario", event.action_type))
-            item.setdefault("props", [])
-            item.setdefault("entities", semantic_entities)
-            item.setdefault("constraints", semantic_constraints)
-            item.setdefault("confidence", semantic.get("confidence"))
-
-        return {"semantic": semantic, "rv_trace": rv_trace}
+        semantic_match = parse_semantic_match_response(content)
+        if semantic_match is not None:
+            return _semantic_match_result(
+                event=event,
+                match=semantic_match,
+                origin=origin,
+                tool_name=tool_name,
+            )
+        logger.warning("LLM output did not match the controlled v3 semantic protocol")
+        return None
 
     def _build_prompt(self, event: BehaviorEvent, source_message: str, tool_name: str, haystack: str) -> str:
-        return f"""分析以下安全事件，输出严格的结构化 JSON。
-
-## 事件信息
-- action_type: {event.action_type}
-- command: {event.command or "N/A"}
-- target_paths: {event.target_paths}
-- network_targets: {event.network_targets}
-- channel_name: {event.channel_name or "N/A"}
-- api_name: {event.api_name or "N/A"}
-- skill_name: {event.skill_name or "N/A"}
-- tool_name: {tool_name or "N/A"}
-- outside_workspace: {event.metadata.get("outside_workspace", False)}
-- source_message: {source_message or "N/A"}
-
-## 要求输出的 JSON 结构
-{{
-  "semantic": {{
-    "version": "v2",
-    "engine": "llm-deepseek-chat",
-    "origin": "chat|hook|reply",
-    "scenario": "请判断最匹配的场景：mail_send / mail_read / report_generate / report_send / attachment_download / file_delete / file_write / config_modify / network_egress / channel_send / skill_run / command_exec / chat_message",
-    "intent": {{
-      "category": "场景分类",
-      "goal": "用中文简明扼要地概括用户本次动作的目标，如：发送汇报邮件、删除系统日志、访问外部API等"
-    }},
-    "entities": {{
-      "paths": ["目标路径列表"],
-      "urls": ["目标URL列表"],
-      "recipients": ["收件人邮箱列表"],
-      "tool_name": "工具名或null"
-    }},
-    "constraints": {{
-      "exclude": ["排除条件列表，如attachments/logs/internal_bug_details"],
-      "time_range": "时间范围: today/yesterday/this_week/null",
-      "has_exclude": true/false,
-      "has_time_constraint": true/false,
-      "has_scope_constraint": true/false,
-      "requires_human_review": true/false
-    }},
-    "confidence": 0.0-1.0,
-    "labels": [
-      "根据事件类型选择标签：动作类型标签(如file_delete/network_egress/command_exec/mail_send等)、命令标签(command_rm_rf/command_sudo/command_readonly等)、路径标签(path_system_root/path_sensitive_creds/path_high_value/path_log等)、网络标签(network_http/network_public_ip/network_secret_payload等)、配置标签(config_auth_disable/config_audit_disable等)、渠道标签(channel_external_send/bulk_send等)、技能标签(skill_shell/skill_persistence等)、办公标签(external_recipient/contains_secret/contains_attachment/ai_generated_content/internal_source/bulk_send/has_recipient等)、通用标签(outside_workspace/multi_target/unparsed_target等)"
-    ]
-  }},
-  "rv_trace": [
-    {{
-      "step_id": "s1",
-      "event": "scenario值",
-      "props": ["来自labels的标签列表"]
-    }}
-  ]
-}}
-
-## 注意事项
-1. 只输出 JSON，不要输出任何其他文字
-2. scenario 必须从上面列表中选取
-3. labels 必须包含 action_type、scenario 和有意义的语义标签
-4. confidence 反映你对语义理解的把握程度
-5. constraints 中的 exclude 列表列出用户明确要求排除的内容
-6. rv_trace 第一条的 event 必须与 scenario 一致
-"""
+        sanitized = build_sanitized_llm_input(event, source_message, tool_name)
+        return (
+            "分析净化后的工具调用，只输出一个 JSON 对象。不得给出 allow/ask/block 决策。\n"
+            "operation_candidates 最多 3 项；family 只能来自 allowed_operations。\n"
+            "facts 的键只能来自 allowed_facts；所有事实使用 source=llm、trust=suggested。\n"
+            "不要还原被遮盖的秘密、路径、正文或身份。\n"
+            f"allowed_operations={json.dumps(sorted(ALLOWED_OPERATION_FAMILIES), ensure_ascii=False)}\n"
+            f"allowed_facts={json.dumps(sorted(ALLOWED_SECURITY_FACTS), ensure_ascii=False)}\n"
+            "output_schema={\"version\":\"v3\",\"engine\":\"llm\","
+            "\"operation_candidates\":[{\"family\":\"process.execute\",\"confidence\":0.0,"
+            "\"evidence\":\"short reason\"}],\"facts\":{},\"entities\":{},"
+            "\"constraints\":{},\"uncertainties\":[]}\n"
+            f"sanitized_input={json.dumps(sanitized, ensure_ascii=False, sort_keys=True)}"
+        )
 
     @staticmethod
     def _validate_tool_name(tool_name: str, semantic: dict) -> dict:
@@ -747,6 +707,48 @@ def _unknown_hook_result(*, tool_name: str, origin: str) -> dict[str, Any]:
             "constraints": [],
             "confidence": 0.0,
         }],
+    }
+
+
+def _semantic_match_result(
+    *,
+    event: BehaviorEvent,
+    match: SemanticMatchIR,
+    origin: str,
+    tool_name: str,
+) -> dict[str, Any]:
+    """Expose a v2 RV projection while v3 becomes the policy evidence source."""
+
+    primary = match.operation_candidates[0].family if match.operation_candidates else ""
+    labels = sorted(name for name, fact in match.facts.items() if fact.value is True)
+    semantic = {
+        "version": "v3",
+        "engine": f"llm-{match.engine}",
+        "origin": origin,
+        "scenario": primary,
+        "intent": {"category": primary or event.action_type, "goal": ""},
+        "entities": {
+            "paths": [],
+            "urls": [],
+            "recipients": [],
+            "tool_name": tool_name or None,
+        },
+        "constraints": match.constraints,
+        "confidence": match.operation_candidates[0].confidence if match.operation_candidates else 0.0,
+        "labels": labels,
+    }
+    return {
+        "semantic": semantic,
+        "semantic_match": match.model_dump(mode="json"),
+        "rv_trace": [{
+            "step_id": "s1",
+            "event": primary or event.action_type,
+            "props": labels,
+            "entities": _build_entities(semantic["entities"]),
+            "constraints": _build_constraints(match.constraints),
+            "confidence": semantic["confidence"],
+        }],
+        "_llm_valid": True,
     }
 
 
