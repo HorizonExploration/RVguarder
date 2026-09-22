@@ -136,6 +136,7 @@ def test_report_has_sources_safety_boundary_and_html_bundle(tmp_path: Path):
     assert "DSH-2026-853" in html
     assert "approval_all" in html
     assert "attack_goal_success" in html
+    assert "关键案例时间线" in html
     assert "不会启动 shell" in html
     assert "report.html" not in html
 

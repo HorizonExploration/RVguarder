@@ -41,6 +41,15 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.extend(f"- `{item.get('scenario_id')}` / repeat {item.get('repeat_index')} / {item.get('approval_persona')}：目标成功 → 已约束" for item in upgrades)
     else:
         lines.append("当前子集未观察到额外升级。")
+    lines.extend(["", "## 关键案例时间线", ""])
+    seen_timeline: set[tuple[str, str]] = set()
+    for row in report.get("results", []):
+        key = (str(row.get("scenario_id")), str(row.get("approval_persona")))
+        if row.get("mode") != "full_guard" or row.get("variant") != "attack" or key in seen_timeline:
+            continue
+        seen_timeline.add(key)
+        steps = " → ".join(f"{call.get('tool_name')}:{call.get('action')}" for call in row.get("calls", []))
+        lines.append(f"- `{row.get('scenario_id')}` / `{row.get('approval_persona')}`：{steps}；containment step={row.get('containment_step')}；losses={','.join(row.get('losses') or []) or 'none'}")
     trust_scope = report.get("trust_scope")
     if isinstance(trust_scope, dict):
         lines.extend(["", "## 审批信任范围变形测试", "", "| 变形 | 结果 |", "| --- | --- |"])
@@ -87,6 +96,15 @@ def render_html(report: dict[str, Any]) -> str:
     ) or "<li>当前子集未观察到额外升级。</li>"
     trust_scope = report.get("trust_scope") if isinstance(report.get("trust_scope"), dict) else {}
     trust_rows = "".join(f"<tr><td>{html_escape(key)}</td><td>{html_escape(value)}</td></tr>" for key, value in trust_scope.items())
+    timeline_rows: list[str] = []
+    seen_timeline: set[tuple[str, str]] = set()
+    for row in report.get("results", []):
+        key = (str(row.get("scenario_id")), str(row.get("approval_persona")))
+        if row.get("mode") != "full_guard" or row.get("variant") != "attack" or key in seen_timeline:
+            continue
+        seen_timeline.add(key)
+        steps = " → ".join(f"{call.get('tool_name')}:{call.get('action')}" for call in row.get("calls", []))
+        timeline_rows.append(f"<tr><td>{html_escape(row.get('scenario_id'))}</td><td>{html_escape(row.get('approval_persona'))}</td><td>{html_escape(steps)}</td><td>{html_escape(row.get('containment_step'))}</td></tr>")
     return """<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><title>RVGuarder 办公安全价值实验</title>
 <style>body{font-family:system-ui,sans-serif;max-width:1180px;margin:2rem auto;padding:0 1rem;color:#202124}table{border-collapse:collapse;width:100%;margin:1rem 0}th,td{border:1px solid #ccd0d5;padding:.5rem;text-align:left;vertical-align:top}th{background:#f3f5f7}.note{background:#fff8e1;padding:1rem;border-left:4px solid #d99b00}</style></head>
@@ -95,9 +113,10 @@ def render_html(report: dict[str, Any]) -> str:
 <h2>公开事件与映射边界</h2><table><thead><tr><th>事件</th><th>标题</th><th>来源与事实</th></tr></thead><tbody>__INCIDENTS__</tbody></table>
 <h2>模式 / 审批人格对比</h2><table><thead><tr><th>模式</th><th>审批人格</th><th>attack_goal_success</th><th>containment_rate</th><th>benign_completion</th><th>false_hard_block</th><th>模拟外发命中（本地 sink）</th><th>before p95 ms</th></tr></thead><tbody>__METRICS__</tbody></table>
 <h2>Full Guard 增量</h2><ul>__UPGRADES__</ul>
+<h2>关键案例时间线</h2><table><thead><tr><th>场景</th><th>审批人格</th><th>工具链与最终动作</th><th>containment step</th></tr></thead><tbody>__TIMELINE__</tbody></table>
 <h2>审批信任范围变形测试</h2><table><thead><tr><th>变形</th><th>结果</th></tr></thead><tbody>__TRUST__</tbody></table>
 <h2>解释边界</h2><ul><li>DSH 仅用于历史社区披露的下游后果映射；当前官方设计已有浏览器令牌认证，本轮没有 DSH 原生适配。</li><li>PraisonAI 与 mcp-shell 应优先升级到修复版本；本项目是纵深/补偿控制。</li><li>保护前提：危险调用经过可拦截 Hook，插件没有被禁用或绕过；直接 OS 调用不在证明范围。</li></ul>
-</body></html>""".replace("__INCIDENTS__", "".join(incident_rows)).replace("__METRICS__", "".join(metric_rows)).replace("__UPGRADES__", upgrade_rows).replace("__TRUST__", trust_rows)
+</body></html>""".replace("__INCIDENTS__", "".join(incident_rows)).replace("__METRICS__", "".join(metric_rows)).replace("__UPGRADES__", upgrade_rows).replace("__TIMELINE__", "".join(timeline_rows)).replace("__TRUST__", trust_rows)
 
 
 def write_report_bundle(report: dict[str, Any], output_dir: str | Path) -> dict[str, str]:
