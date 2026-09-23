@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from pathlib import Path
+
+import pytest
 
 from testlab.office_value.report import render_html, write_report_bundle
 from testlab.office_value.runner import (
@@ -40,6 +43,68 @@ def test_incident_matrix_is_balanced_and_explicitly_mapped():
             assert isinstance(event["hook_payload"].get("params"), dict)
             assert isinstance(event["effect"], dict)
             assert isinstance(event["oracle"], dict)
+
+
+def test_dependency_validation_rejects_forward_reference(tmp_path: Path):
+    matrix = load_scenarios()
+    matrix["scenarios"][0]["events"][0]["event_id"] = "first"
+    matrix["scenarios"][0]["events"][0]["depends_on"] = ["later"]
+    path = tmp_path / "invalid.json"
+    path.write_text(json.dumps(matrix), encoding="utf-8")
+    with pytest.raises(ValueError, match="depends_on"):
+        load_scenarios(path)
+
+
+def test_dependency_skip_preserves_independent_later_event(tmp_path: Path):
+    scenario = deepcopy(load_scenarios()["scenarios"][0])
+    first = deepcopy(scenario["events"][0])
+    first["event_id"] = "first"
+    first["effect"] = {"kind": "read", "path": "missing.txt"}
+    dependent = deepcopy(scenario["events"][0])
+    dependent["event_id"] = "dependent"
+    dependent["depends_on"] = ["first"]
+    independent = deepcopy(scenario["events"][0])
+    independent["event_id"] = "independent"
+    scenario["events"] = [first, dependent, independent]
+
+    result = run_scenario(scenario, "pass_through", root=tmp_path / "dependency")
+    assert [call["status"] for call in result["calls"]] == ["executed", "skipped_dependency", "executed"]
+    assert result["calls"][1]["dependency_missing"] == ["first"]
+    assert result["calls"][1]["effect_applied"] is False
+    assert result["calls"][2]["effect_applied"] is True
+    assert result["effect_skipped_dependency"] == 1
+    assert result["benign_completed"] is False
+
+
+def test_dependency_validation_precedes_any_custom_replay(tmp_path: Path):
+    valid = deepcopy(load_scenarios()["scenarios"][0])
+    invalid = deepcopy(valid)
+    invalid["scenario_id"] = "INVALID-DEPENDENCY"
+    invalid["events"][0]["depends_on"] = ["missing"]
+    root = tmp_path / "custom"
+    with pytest.raises(ValueError, match="depends_on"):
+        run_experiment(scenarios=[valid, invalid], mode="pass_through", root=root)
+    assert not root.exists()
+
+
+def test_dependency_generated_id_collision_is_rejected(tmp_path: Path):
+    scenario = deepcopy(load_scenarios()["scenarios"][0])
+    duplicate = deepcopy(scenario["events"][0])
+    duplicate["event_id"] = "step-1"
+    scenario["events"].append(duplicate)
+    root = tmp_path / "collision"
+    with pytest.raises(ValueError, match="event_id"):
+        run_scenario(scenario, "pass_through", root=root)
+    assert not root.exists()
+
+
+def test_persistent_rule_failure_skips_dependent_followup(tmp_path: Path):
+    scenario = next(item for item in load_scenarios()["scenarios"] if item["scenario_id"] == "PRAISON-A01")
+    result = run_scenario(scenario, "pmkb_only", approval_persona="risk_aware", root=tmp_path / "rule")
+    assert result["calls"][0]["effect_applied"] is False
+    assert [call["status"] for call in result["calls"][1:]] == ["skipped_dependency", "skipped_dependency"]
+    assert result["effect_skipped_dependency"] == 2
+    assert result["sandbox"]["external_sink_count"] == 0
 
 
 def test_modes_and_personas_are_comparable(tmp_path: Path):

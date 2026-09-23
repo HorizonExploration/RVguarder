@@ -80,8 +80,26 @@ def load_scenarios(path: str | Path | None = None) -> dict[str, Any]:
                 raise ValueError(f"场景 {scenario_id} 事件[{event_index}] hook_payload 不完整")
             if not isinstance(hook["params"], dict) or not isinstance(event["effect"], dict):
                 raise ValueError(f"场景 {scenario_id} 事件[{event_index}] params/effect 类型无效")
+        _event_ids(events, scenario_id)
         seen_ids.add(scenario_id)
     return deepcopy(payload)
+
+
+def _event_ids(events: list[dict[str, Any]], scenario_id: str) -> list[str]:
+    """Validate dependency references and return stable replay-local event IDs."""
+    identifiers: list[str] = []
+    seen: set[str] = set()
+    for index, event in enumerate(events, 1):
+        raw_id = event.get("event_id")
+        event_id = f"step-{index}" if raw_id is None else raw_id
+        if not isinstance(event_id, str) or not event_id.strip() or event_id in seen:
+            raise ValueError(f"场景 {scenario_id} event_id 无效或重复：{event_id!r}")
+        dependencies = event.get("depends_on", [])
+        if not isinstance(dependencies, list) or any(not isinstance(item, str) or item not in seen for item in dependencies):
+            raise ValueError(f"场景 {scenario_id} depends_on 必须引用更早的事件：{dependencies!r}")
+        identifiers.append(event_id)
+        seen.add(event_id)
+    return identifiers
 
 
 def run_scenario(
@@ -96,6 +114,10 @@ def run_scenario(
         raise ValueError(f"未知实验模式：{mode}")
     if approval_persona not in APPROVAL_PERSONAS:
         raise ValueError(f"未知审批人格：{approval_persona}")
+    events = scenario.get("events")
+    if not isinstance(events, list) or not events or any(not isinstance(event, dict) for event in events):
+        raise ValueError(f"场景 {scenario.get('scenario_id')} events 无效")
+    event_ids = _event_ids(events, str(scenario.get("scenario_id")))
 
     temporary: tempfile.TemporaryDirectory[str] | None = None
     if root is None:
@@ -112,6 +134,7 @@ def run_scenario(
     sandbox.initialize()
     services = None if mode == "pass_through" else _build_replay_services(project_root, mode)
     calls: list[dict[str, Any]] = []
+    applied_by_id: dict[str, bool] = {}
     started = time.perf_counter()
     blocked_at_step: int | None = None
     effect_attempted = 0
@@ -119,7 +142,16 @@ def run_scenario(
     approval_counts = {"required": 0, "allow": 0, "deny": 0}
 
     try:
-        for event_index, event in enumerate(scenario.get("events", []), 1):
+        for event_index, event in enumerate(events, 1):
+            event_id = event_ids[event_index - 1]
+            missing = [name for name in event.get("depends_on", []) if not applied_by_id.get(name, False)]
+            if missing:
+                calls.append({
+                    "index": event_index, "event_id": event_id, "status": "skipped_dependency",
+                    "dependency_missing": missing, "effect_applied": False,
+                })
+                applied_by_id[event_id] = False
+                continue
             # Count a requested effect even when Guard later denies it; the
             # paired ``effect_applied`` counter is the actual sandbox loss.
             effect_attempted += 1
@@ -198,6 +230,8 @@ def run_scenario(
             calls.append(
                 {
                     "index": event_index,
+                    "event_id": event_id,
+                    "status": "executed",
                     "tool_name": str(raw_payload.get("toolName") or ""),
                     "session_id": str(raw_payload.get("sessionId") or ""),
                     "guard_action": guard_action,
@@ -213,6 +247,7 @@ def run_scenario(
                     "after": after_response,
                 }
             )
+            applied_by_id[event_id] = bool(effect_result.get("applied"))
     finally:
         if temporary is not None:
             temporary.cleanup()
@@ -220,15 +255,16 @@ def run_scenario(
     attack = str(scenario.get("variant")) == "attack"
     oracle = scenario.get("oracle") if isinstance(scenario.get("oracle"), dict) else {}
     goal_achieved = sandbox.attack_goal_achieved(oracle) if attack else False
-    actions = [str(call["action"]) for call in calls]
+    executed_calls = [call for call in calls if call.get("status") == "executed"]
+    actions = [str(call["action"]) for call in executed_calls]
     lifecycle_complete = all(
         call["action"] != "allow" or (isinstance(call.get("after"), dict) and call["after"].get("ok") is True)
-        for call in calls
+        for call in executed_calls
     ) if mode != "pass_through" else True
     if not lifecycle_complete:
         raise RuntimeError(f"Hook lifecycle incomplete for {scenario.get('scenario_id')}")
     benign_completed = not attack and all(call["effect_applied"] for call in calls)
-    evidence_complete = all(bool(call["evidence"].get("evidence_complete")) for call in calls) if mode != "pass_through" else False
+    evidence_complete = all(bool(call["evidence"].get("evidence_complete")) for call in executed_calls) if mode != "pass_through" else False
     external_effects = sandbox.summary()["external_sink_count"]
     containment_step = blocked_at_step if attack and not goal_achieved and blocked_at_step is not None else None
     return {
@@ -247,6 +283,7 @@ def run_scenario(
         "containment_step": containment_step,
         "effect_attempted": effect_attempted,
         "effect_applied": effect_applied,
+        "effect_skipped_dependency": len(calls) - len(executed_calls),
         "attack_goal_achieved": goal_achieved,
         "losses": sandbox.summary()["loss_categories"],
         "sandbox": sandbox.summary(),
@@ -259,8 +296,8 @@ def run_scenario(
         "intervened": any(action != "allow" for action in actions),
         "silent_unsafe_allow": attack and goal_achieved,
         "duration_ms": round((time.perf_counter() - started) * 1000.0, 3),
-        "latency_ms": [call["guard_latency_ms"] for call in calls],
-        "total_latency_ms": [call["duration_ms"] for call in calls],
+        "latency_ms": [call["guard_latency_ms"] for call in executed_calls],
+        "total_latency_ms": [call["duration_ms"] for call in executed_calls],
         "oracle_match": (not attack and benign_completed) or (attack and not goal_achieved),
         "lifecycle_complete": lifecycle_complete,
     }
@@ -295,6 +332,11 @@ def run_experiment(
             "incidents": [item for item in full_matrix["incidents"] if item.get("incident_id") in selected_ids],
         }
     selected_scenarios = [item for item in matrix["scenarios"] if split == "all" or item.get("split") == split]
+    for selected in selected_scenarios:
+        events = selected.get("events")
+        if not isinstance(events, list) or not events or any(not isinstance(event, dict) for event in events):
+            raise ValueError(f"场景 {selected.get('scenario_id')} events 无效")
+        _event_ids(events, str(selected.get("scenario_id")))
     results: list[dict[str, Any]] = []
     base_root = Path(root) if root is not None else None
     if base_root is not None:
