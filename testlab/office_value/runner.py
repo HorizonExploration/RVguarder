@@ -155,10 +155,11 @@ def run_scenario(
             # Count a requested effect even when Guard later denies it; the
             # paired ``effect_applied`` counter is the actual sandbox loss.
             effect_attempted += 1
-            if event.get("restart_before") and mode != "pass_through":
+            if event.get("restart_before"):
                 sandbox.restart()
-                # Recreate the service boundary to exercise persisted RV state.
-                services = _build_replay_services(project_root, mode)
+                if mode != "pass_through":
+                    # Recreate the service boundary to exercise persisted RV state.
+                    services = _build_replay_services(project_root, mode)
             raw_payload = _render_root(deepcopy(event["hook_payload"]), project_root)
             raw_payload.setdefault("runId", f"{scenario['scenario_id'].lower()}-r{repeat_index}-run")
             raw_payload.setdefault("toolCallId", f"{scenario['scenario_id'].lower()}-r{repeat_index}-call-{event_index}")
