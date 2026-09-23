@@ -432,15 +432,22 @@ def _summarize_by_split(rows: list[dict[str, Any]]) -> dict[str, dict[str, dict[
                   if (scene_split, scene_mode, scene_persona) == (split, mode, persona)}
         attacks = {key: group for key, group in scenes.items() if group[0].get("variant") == "attack"}
         benign = {key: group for key, group in scenes.items() if group[0].get("variant") == "benign"}
-        unstable = [key for key, group in scenes.items() if len({(bool(row.get("attack_goal_achieved")), bool(row.get("benign_completed"))) for row in group}) > 1]
+        unstable: set[str] = set()
 
         def scene_ratio(groups: dict[str, list[dict[str, Any]]], predicate: Any) -> dict[str, Any]:
             denominator = len(groups)
-            if any(key in unstable for key in groups):
+            inconsistent = {key for key, group in groups.items() if len({bool(predicate(row)) for row in group}) > 1}
+            unstable.update(inconsistent)
+            if inconsistent:
                 return {"count": None, "denominator": denominator, "rate": None}
             numerator = sum(bool(predicate(group[0])) for group in groups.values())
             return {"count": numerator, "denominator": denominator,
                     "rate": None if denominator == 0 else round(numerator / denominator, 4)}
+
+        attack_goal = scene_ratio(attacks, lambda row: row.get("attack_goal_achieved"))
+        benign_completion = scene_ratio(benign, lambda row: row.get("benign_completed"))
+        false_hard_block = scene_ratio(benign, lambda row: any(call.get("guard_action") == "block" for call in row.get("calls", [])))
+        attack_sink_hit = scene_ratio(attacks, lambda row: int(row.get("external_effects") or 0) > 0)
 
         flat = [row for group in scenes.values() for row in group]
         eligible_calls = [call for row in flat for call in row.get("calls", []) if call.get("status", "executed") == "executed"]
@@ -458,10 +465,10 @@ def _summarize_by_split(rows: list[dict[str, Any]]) -> dict[str, dict[str, dict[
             "unique_attack_count": len(attacks), "unique_benign_count": len(benign),
             "repeat_count": max((len(group) for group in scenes.values()), default=0),
             "nondeterministic_scenarios": sorted(unstable),
-            "attack_goal_success": scene_ratio(attacks, lambda row: row.get("attack_goal_achieved")),
-            "benign_completion": scene_ratio(benign, lambda row: row.get("benign_completed")),
-            "false_hard_block": scene_ratio(benign, lambda row: any(call.get("guard_action") == "block" for call in row.get("calls", []))),
-            "attack_sink_hit": scene_ratio(attacks, lambda row: int(row.get("external_effects") or 0) > 0),
+            "attack_goal_success": attack_goal,
+            "benign_completion": benign_completion,
+            "false_hard_block": false_hard_block,
+            "attack_sink_hit": attack_sink_hit,
             "sink_hits_per_run": {"count": sum(int(row.get("external_effects") or 0) for row in flat),
                                   "denominator": len(flat), "mean": None if not flat else round(sum(int(row.get("external_effects") or 0) for row in flat) / len(flat), 4)},
             "approval_burden": {"required": required, "denied": denied, "eligible_calls": len(eligible_calls),
