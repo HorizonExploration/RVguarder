@@ -17,6 +17,7 @@
 - Preserve existing repeat5 artifacts and the user's unrelated change in `docs/architecture/permission-kb-runtime-architecture.md`.
 - Do not present repeats as independent security samples or infer real-environment interception rates.
 - Record every metric's numerator, denominator, and split; undefined denominator is `null`, not zero percent.
+- Keep the input fixture at schema 2 for legacy compatibility; write new raw, summary and manifest artifacts as schema 3, with a distinct output directory that must not already exist.
 
 ## Review Focus
 
@@ -25,6 +26,7 @@
 3. Reading an unrelated sensitive object must not taint a later message that references a different object (Task 2 test).
 4. Missing persistence or shell observation must fail the correspondingly named compound attack goal (Task 2 test).
 5. A holdout with zero benign scenes must display an undefined benign rate, never `0%` or `100%` (Task 3 test).
+6. Direct `run_scenario` and custom `run_experiment(scenarios=...)` calls must validate dependencies too; generated `step-N` IDs cannot collide with explicit IDs (Task 1 test).
 
 ---
 
@@ -55,7 +57,7 @@ def test_dependency_validation_rejects_forward_reference(tmp_path):
 The replay test should build its event list from deep copies of a benign fixture, use a Guard-independent sandbox failure for `first`, and assert the independent event's `effect_applied=True`. Import `pytest` and `deepcopy` in the test file.
 
 - [ ] **Step 2: Run red test.** Run `pytest -q tests/test_office_value_experiment.py -k 'dependency'`. Expected: at least one failure because current loader ignores `depends_on` and runner has no `status`.
-- [ ] **Step 3: Implement dependencies.** Validate unique nonempty IDs and backward-only references in `load_scenarios`; absent IDs get deterministic `step-<index>` at replay time for legacy compatibility. Before rendering a dependent event, check a map of prior `effect_applied` statuses. If missing, append a minimal skipped call (`status`, `event_id`, `dependency_missing`, no latency, no Hook invocation) and continue. Add `event_id`, `status="executed"` to normal call records. Set `effect_attempted` only for eligible events; add `effect_skipped_dependency` to result.
+- [ ] **Step 3: Implement dependencies.** Factor event validation into one helper used by `load_scenarios`, direct `run_scenario`, and `run_experiment(scenarios=...)`; validate unique nonempty IDs, generated-ID collisions, and backward-only references. Absent IDs get deterministic `step-<index>` at replay time for legacy compatibility. Before rendering a dependent event, check a map of prior `effect_applied` statuses. If missing, append a skipped call (`status`, `event_id`, `dependency_missing`, no latency, no Hook invocation) and continue. Add `event_id`, `status="executed"` to normal call records. Filter skipped calls out of action/lifecycle/evidence/latency aggregation; a skipped necessary benign effect still makes the task incomplete. Set `effect_attempted` only for eligible events; add `effect_skipped_dependency` to result.
 
 ```python
 event_id = str(event.get("event_id") or f"step-{event_index}")
@@ -67,7 +69,7 @@ if missing:
     continue
 ```
 
-Adapt existing summary/lifecycle computations to ignore skipped calls. Put `event_id` and `depends_on` on compound-chain fixture events only where the claimed attack requires a prerequisite; do not force the DSH gateway action to be a prerequisite to every later act without source support. Make that mapping choice explicit in README.
+Give skipped calls all keys consumed by timeline/summary code or explicitly filter on `status`; do not allow `None:None` in the timeline. Put `event_id` and `depends_on` on compound-chain fixture events only where the claimed attack requires a prerequisite; do not force the DSH gateway action to be a prerequisite to every later act without source support. Make that mapping choice explicit in README.
 
 - [ ] **Step 4: Run green tests.** Run `pytest -q tests/test_office_value_experiment.py`. Expected: all office-value tests pass after any legacy assertions affected by corrected causality are updated to assert the new honest behavior.
 - [ ] **Step 5: Commit.** `git add testlab/office_value/runner.py testlab/office_value/scenarios.json testlab/office_value/README.md tests/test_office_value_experiment.py && git commit -m "testlab: model replay event dependencies"`.
@@ -113,7 +115,7 @@ def attack_goal_achieved(self, oracle: dict[str, Any]) -> bool:
     # Preserve existing delete and permission-change goals below.
 ```
 
-Update every existing egress fixture with a `source_object_id` and its originating read/archive with stable `object_id`, so v3 explicitly identifies the sent object. A fixture lacking object provenance is invalid in v3, not silently successful. Validate references at effect application; no raw content goes into results.
+Update every existing egress fixture with a `source_object_id` and its originating read/archive with stable `object_id`, so v3 explicitly identifies the sent object. A fixture lacking object provenance is invalid in v3, not silently successful. `MCP-SHELL-A03` contains no shell event: either reclassify its goal as credential exfiltration or add an evidenced shell event; prefer the former and document the correction. Validate references at effect application; no raw content goes into results.
 
 - [ ] **Step 4: Run green tests.** `pytest -q tests/test_office_value_experiment.py`. Expected: all tests pass; report any corrected legacy success counts as a methodology change, not an improvement claim.
 - [ ] **Step 5: Commit.** `git add testlab/office_value/sandbox.py testlab/office_value/scenarios.json testlab/office_value/runner.py tests/test_office_value_experiment.py && git commit -m "testlab: require object provenance for attack goals"`.
@@ -144,7 +146,7 @@ def test_holdout_benign_rate_is_undefined(tmp_path):
 ```
 
 - [ ] **Step 2: Run red test.** `pytest -q tests/test_office_value_experiment.py -k 'holdout_benign_rate or split_report'`. Expected: KeyError for `by_split`.
-- [ ] **Step 3: Implement scenario-level aggregation and presentation.** Group rows by `(split, mode, persona, scenario_id)`; assert repeated rows of a scenario have the same attack success/benign completion, or expose a nondeterminism count and refrain from collapsing to one Boolean. Compute scene counts from groups, not runs. Display split tables as the main result and label legacy combined metrics as run-level diagnostics. Keep approval and latency call-level denominators explicit. Replace `external_effects.rate` with `sink_hits_per_run` and add attack sink-hit scenario ratio. Remove `silent_unsafe_allow` from the headline because it duplicates the goal oracle. Distinguish `guard_block`, `approval_deny`, `dependency_skip`, `effect_error` in outcomes; report unclassified cases rather than inventing attribution.
+- [ ] **Step 3: Implement scenario-level aggregation and presentation.** Group rows by `(split, mode, persona, scenario_id)`; assert repeated rows of a scenario have the same attack success/benign completion, or expose a nondeterminism count and refrain from collapsing to one Boolean. Compute scene counts from groups, not runs. Display split tables as the main result and label legacy combined metrics as run-level diagnostics. Fold the duplicate pass-through personas into one logical baseline. Keep approval and latency call-level denominators explicit. Replace `external_effects.rate` with `sink_hits_per_run` and add attack sink-hit scenario ratio; preserve legacy key only if labeled as such. Remove `silent_unsafe_allow` from the headline because it duplicates the goal oracle. Distinguish `guard_block`, `approval_deny`, `dependency_skip`, `effect_error` in outcomes; report unclassified cases rather than inventing attribution. Update `_rate_text` so `rate is None` renders `N/A`, not `float(None)`; include numerator and denominator in displayed ratios. Make upgrade pairs split-aware and scenario-level, leaving repeat records as diagnostics only. Reject unknown split values. Write schema-3 manifest with scenario version, rule version and rerun command; refuse to overwrite an existing artifact directory.
 
 ```python
 key = (str(row["split"]), str(row["mode"]), str(row["approval_persona"]),
