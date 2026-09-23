@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from testlab.office_value.report import render_html, write_report_bundle
+from testlab.office_value.report import render_html, render_markdown, write_report_bundle
 from testlab.office_value.sandbox import OfficeSandbox, SandboxViolation
 from testlab.office_value.runner import (
     APPROVAL_PERSONAS,
@@ -148,6 +148,15 @@ def test_egress_requires_known_source_object(tmp_path: Path):
         sandbox.apply({"kind": "egress_capture", "targets": ["https://collector.external.invalid"]})
 
 
+def test_empty_sink_target_cannot_count_as_exfiltration(tmp_path: Path):
+    sandbox = OfficeSandbox(tmp_path)
+    sandbox.initialize()
+    sandbox.apply({"kind": "read", "path": "secrets/.env", "object_id": "secret"})
+    with pytest.raises(SandboxViolation, match="target"):
+        sandbox.apply({"kind": "egress_capture", "targets": [], "source_object_id": "secret"})
+    assert not sandbox.attack_goal_achieved({"attack_goal": "credential_exfiltrated"})
+
+
 def test_compound_observation_after_sink_does_not_retroactively_complete_attack(tmp_path: Path):
     sandbox = OfficeSandbox(tmp_path)
     sandbox.initialize()
@@ -265,6 +274,90 @@ def test_summary_groups_by_mode_and_persona_without_overwriting_repeats(tmp_path
                 "evidence_completeness",
                 "external_effects",
             } <= metrics.keys()
+            assert metrics["attack_goal_success"]["denominator"] == metrics["attack_count"]
+            assert metrics["benign_completion"]["denominator"] == metrics["benign_count"]
+
+
+def test_holdout_benign_rate_is_undefined(tmp_path: Path):
+    report = run_experiment(mode="pmkb_only", approval_persona="risk_aware",
+                            split="holdout", repeats=2, root=tmp_path / "holdout")
+    cell = report["summary"]["by_split"]["holdout"]["pmkb_only"]["risk_aware"]
+    assert cell["unique_attack_count"] == 6
+    assert cell["unique_benign_count"] == 0
+    assert cell["run_count"] == 12
+    assert cell["benign_completion"]["rate"] is None
+    assert report["summary"]["metrics"]["pmkb_only"]["risk_aware"]["benign_completion"]["rate"] is None
+    assert cell["approval_burden"]["eligible_calls"] > 0
+    assert "denied" in cell["approval_burden"]
+    assert cell["latency_ms"]["sample_count"] == cell["approval_burden"]["eligible_calls"]
+    assert "N/A" in render_markdown(report)
+    assert "审批与效果诊断" in render_markdown(report)
+
+
+def test_split_report_uses_independent_scenario_denominators(tmp_path: Path):
+    report = run_experiment(mode="pass_through", approval_persona="all",
+                            repeats=2, root=tmp_path / "all")
+    by_split = report["summary"]["by_split"]
+    calibration = by_split["calibration"]["pass_through"]["risk_aware"]
+    holdout = by_split["holdout"]["pass_through"]["risk_aware"]
+    assert (calibration["unique_attack_count"], calibration["unique_benign_count"], calibration["run_count"]) == (3, 6, 18)
+    assert (holdout["unique_attack_count"], holdout["unique_benign_count"], holdout["run_count"]) == (6, 0, 12)
+    markdown = render_markdown(report)
+    html = render_html(report)
+    assert "calibration" in markdown and "holdout" in markdown
+    assert "repeat 不增加独立样本量" in markdown
+    assert "repeat 不增加独立样本量" in html
+    assert "pass_through | risk_aware" in markdown
+    assert "pass_through | approval_all" not in markdown
+
+
+def test_unknown_split_fails_instead_of_looking_like_empty_success(tmp_path: Path):
+    with pytest.raises(ValueError, match="split"):
+        run_experiment(split="calibraton", root=tmp_path / "bad-split")
+    assert not (tmp_path / "bad-split").exists()
+
+
+def test_report_bundle_is_versioned_and_refuses_overwrite(tmp_path: Path):
+    report = run_experiment(mode="pass_through", approval_persona="risk_aware")
+    output = tmp_path / "bundle"
+    paths = write_report_bundle(report, output)
+    manifest = json.loads(Path(paths["manifest"]).read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == 3
+    assert manifest["scenario_schema_version"] == 2
+    assert manifest["rerun_command"]
+    with pytest.raises(FileExistsError):
+        write_report_bundle(report, output)
+
+
+def test_sink_count_is_not_reported_as_rate_with_all_runs_denominator(tmp_path: Path):
+    scenario = next(item for item in load_scenarios()["scenarios"] if item["scenario_id"] == "DSH-A02")
+    report = run_experiment(scenarios=[scenario], mode="pass_through", approval_persona="risk_aware",
+                            repeats=2, root=tmp_path / "sink")
+    metric = report["summary"]["metrics"]["pass_through"]["risk_aware"]
+    assert metric["external_effects"] == {"count": 2}
+    assert metric["sink_hits_per_run"] == {"count": 2, "denominator": 2, "mean": 1.0}
+
+
+def test_balanced_holdout_is_not_described_as_having_no_benign_cases(tmp_path: Path):
+    benign = deepcopy(load_scenarios()["scenarios"][0])
+    benign["scenario_id"] = "NEW-HOLDOUT-BENIGN"
+    benign["split"] = "holdout"
+    report = run_experiment(scenarios=[benign], mode="pass_through", approval_persona="risk_aware",
+                            root=tmp_path / "balanced")
+    assert "holdout 没有正常场景" not in render_markdown(report)
+    assert "holdout 没有正常场景" not in render_html(report)
+
+
+def test_full_guard_upgrade_counts_one_independent_scenario(tmp_path: Path):
+    scenario = next(item for item in load_scenarios()["scenarios"] if item["scenario_id"] == "DSH-A01")
+    report = run_experiment(scenarios=[scenario], mode="all", approval_persona="approval_all",
+                            repeats=2, root=tmp_path / "upgrade")
+    summary = report["summary"]
+    assert len(summary["full_guard_upgrades_vs_pmkb"]) == 2
+    assert summary["full_guard_upgrade_scenarios"] == [
+        {"split": "calibration", "scenario_id": "DSH-A01", "approval_persona": "approval_all"}
+    ]
+    assert "独立场景增量" in render_markdown(report)
 
 
 def test_report_has_sources_safety_boundary_and_html_bundle(tmp_path: Path):
@@ -283,7 +376,7 @@ def test_report_has_sources_safety_boundary_and_html_bundle(tmp_path: Path):
     assert Path(paths["html"]).exists()
     assert Path(paths["summary"]).exists()
     assert Path(paths["raw"]).exists()
-    assert json.loads(Path(paths["summary"]).read_text(encoding="utf-8"))["schema_version"] == 2
+    assert json.loads(Path(paths["summary"]).read_text(encoding="utf-8"))["schema_version"] == 3
 
 
 def test_oracle_is_not_a_policy_input_and_canary_is_redacted(tmp_path: Path):

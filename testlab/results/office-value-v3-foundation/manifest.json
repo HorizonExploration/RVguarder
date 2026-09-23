@@ -1,0 +1,27 @@
+{
+  "schema_version": 3,
+  "scenario_schema_version": 2,
+  "scenario_digest": "0e21b84f05f8c8262ce678a82a7325950212c2eed6f4441d8a647c41966a6e77",
+  "policy_versions": [
+    "1.1.0"
+  ],
+  "run_spec": {
+    "mode": "all",
+    "approval_persona": "all",
+    "split": "all",
+    "repeats": 5,
+    "built_in_scenarios": true
+  },
+  "rerun_command": "python -m testlab.office_value.run --mode all --approval-persona all --split all --repeat 5 --output testlab/results/office-value-v3-foundation-rerun --root /tmp/rvguard-office-value-v3-rerun",
+  "artifact_files": [
+    "summary.json",
+    "raw.jsonl",
+    "report.md",
+    "report.html"
+  ],
+  "incident_ids": [
+    "DSH-2026-853",
+    "PRAISON-2026-55532",
+    "MCP-SHELL-2026-55580"
+  ]
+}

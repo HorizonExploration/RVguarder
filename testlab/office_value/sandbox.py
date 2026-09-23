@@ -141,8 +141,10 @@ class OfficeSandbox:
             self._register_object(effect, path=target, sensitive=bool(source_object["sensitive"]), source_id=str(effect["source_object_id"]))
             return {"applied": True, "kind": kind, "loss_categories": []}
         if kind in {"egress_capture", "message_capture"}:
-            targets = effect.get("targets") or [effect.get("target", "")]
-            targets = [str(item) for item in targets if item]
+            raw_targets = effect["targets"] if "targets" in effect else [effect.get("target")]
+            if not isinstance(raw_targets, list) or not raw_targets or any(not isinstance(item, str) or not item.strip() for item in raw_targets):
+                raise SandboxViolation("capture target must be a nonempty string list")
+            targets = raw_targets
             external = [item for item in targets if not self._is_internal_target(item)]
             source_object = self._source_object(effect) if kind == "egress_capture" or external else None
             if kind == "egress_capture" or external:

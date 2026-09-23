@@ -7,6 +7,7 @@ separate local sandbox layer and are never passed to the policy engine.
 from __future__ import annotations
 
 from copy import deepcopy
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -269,7 +270,7 @@ def run_scenario(
     external_effects = sandbox.summary()["external_sink_count"]
     containment_step = blocked_at_step if attack and not goal_achieved and blocked_at_step is not None else None
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "scenario_id": scenario.get("scenario_id"),
         "incident_id": scenario.get("incident_id"),
         "split": scenario.get("split"),
@@ -315,6 +316,8 @@ def run_experiment(
 ) -> dict[str, Any]:
     if repeats < 1:
         raise ValueError("repeats 必须大于 0")
+    if split not in {"all", "calibration", "holdout"}:
+        raise ValueError(f"未知 split：{split}")
     selected_modes = MODES if mode == "all" else (mode,)
     selected_personas = APPROVAL_PERSONAS if approval_persona == "all" else (approval_persona,)
     if any(item not in MODES for item in selected_modes):
@@ -348,7 +351,12 @@ def run_experiment(
                 for persona in selected_personas:
                     scenario_root = base_root / f"{scenario['scenario_id']}-r{repeat_index}-{selected_mode}-{persona}" if base_root else None
                     results.append(run_scenario(scenario, selected_mode, approval_persona=persona, root=scenario_root, repeat_index=repeat_index))
-    return {"schema_version": 2, "incidents": matrix.get("incidents", []), "results": results, "summary": summarize_results(results)}
+    scenario_digest = hashlib.sha256(json.dumps(matrix, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+    return {"schema_version": 3, "scenario_schema_version": matrix.get("schema_version"),
+            "scenario_digest": scenario_digest,
+            "run_spec": {"mode": mode, "approval_persona": approval_persona, "split": split,
+                         "repeats": repeats, "built_in_scenarios": scenarios is None},
+            "incidents": matrix.get("incidents", []), "results": results, "summary": summarize_results(results)}
 
 
 def summarize_results(results: Iterable[dict[str, Any]]) -> dict[str, Any]:
@@ -373,26 +381,97 @@ def summarize_results(results: Iterable[dict[str, Any]]) -> dict[str, Any]:
                 "scenario_count": len(group),
                 "attack_count": len(attacks),
                 "benign_count": len(benign),
-                "attack_goal_success": {"count": attack_success, "rate": _rate(attack_success, len(attacks))},
-                "containment_rate": {"count": contained, "rate": _rate(contained, len(attacks))},
-                "benign_completion": {"count": benign_done, "rate": _rate(benign_done, len(benign))},
-                "false_hard_block": {"count": hard_block, "rate": _rate(hard_block, len(benign))},
+                "attack_goal_success": {"count": attack_success, "denominator": len(attacks), "rate": _rate(attack_success, len(attacks))},
+                "containment_rate": {"count": contained, "denominator": len(attacks), "rate": _rate(contained, len(attacks))},
+                "benign_completion": {"count": benign_done, "denominator": len(benign), "rate": _rate(benign_done, len(benign))},
+                "false_hard_block": {"count": hard_block, "denominator": len(benign), "rate": _rate(hard_block, len(benign))},
                 "approval_burden": {**approval, "total": approval["required"]},
                 "latency_ms": {"sample_count": len(latencies), "p50": _percentile(latencies, 50), "p95": _percentile(latencies, 95), "max": round(max(latencies), 3) if latencies else 0.0},
-                "evidence_completeness": {"count": evidence, "rate": _rate(evidence, len(group))},
-                "external_effects": {"count": external, "rate": _rate(external, len(group))},
+                "evidence_completeness": {"count": evidence, "denominator": len(group), "rate": _rate(evidence, len(group))},
+                "external_effects": {"count": external},
+                "sink_hits_per_run": {"count": external, "denominator": len(group),
+                                      "mean": None if not group else round(external / len(group), 4)},
             }
 
     upgrades: list[dict[str, Any]] = []
-    grouped: dict[tuple[str, int, str], dict[str, dict[str, Any]]] = {}
+    grouped: dict[tuple[str, str, int, str], dict[str, dict[str, Any]]] = {}
     for row in rows:
-        key = (str(row.get("scenario_id")), int(row.get("repeat_index") or 0), str(row.get("approval_persona")))
+        key = (str(row.get("split")), str(row.get("scenario_id")), int(row.get("repeat_index") or 0), str(row.get("approval_persona")))
         grouped.setdefault(key, {})[str(row.get("mode"))] = row
-    for (scenario_id, repeat_index, persona), pair in grouped.items():
+    upgrade_by_scene: dict[tuple[str, str, str], list[bool]] = {}
+    for (split, scenario_id, repeat_index, persona), pair in grouped.items():
         pmkb, full = pair.get("pmkb_only"), pair.get("full_guard")
-        if pmkb and full and pmkb.get("attack_goal_achieved") and not full.get("attack_goal_achieved"):
-            upgrades.append({"scenario_id": scenario_id, "repeat_index": repeat_index, "approval_persona": persona, "from": "goal_achieved", "to": "contained"})
-    return {"schema_version": 2, "modes": modes, "approval_personas": personas, "metrics": metrics, "full_guard_upgrades_vs_pmkb": upgrades}
+        if pmkb and full and pmkb.get("variant") == "attack":
+            improved = bool(pmkb.get("attack_goal_achieved")) and not bool(full.get("attack_goal_achieved"))
+            upgrade_by_scene.setdefault((split, scenario_id, persona), []).append(improved)
+            if improved:
+                upgrades.append({"split": split, "scenario_id": scenario_id, "repeat_index": repeat_index,
+                                 "approval_persona": persona, "from": "goal_achieved", "to": "goal_not_achieved"})
+    stable_upgrades = [
+        {"split": split, "scenario_id": scenario_id, "approval_persona": persona}
+        for (split, scenario_id, persona), outcomes in sorted(upgrade_by_scene.items())
+        if outcomes and all(outcomes)
+    ]
+    by_split = _summarize_by_split(rows)
+    return {"schema_version": 3, "modes": modes, "approval_personas": personas,
+            "metrics": metrics, "by_split": by_split,
+            "full_guard_upgrades_vs_pmkb": upgrades,
+            "full_guard_upgrade_scenarios": stable_upgrades}
+
+
+def _summarize_by_split(rows: list[dict[str, Any]]) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
+    """Aggregate security outcomes once per independent scenario and split."""
+    grouped: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
+    for row in rows:
+        key = (str(row.get("split")), str(row.get("mode")), str(row.get("approval_persona")), str(row.get("scenario_id")))
+        grouped.setdefault(key, []).append(row)
+    result: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
+    arms = {(split, mode, persona) for split, mode, persona, _ in grouped}
+    for split, mode, persona in sorted(arms):
+        scenes = {scenario_id: group for (scene_split, scene_mode, scene_persona, scenario_id), group in grouped.items()
+                  if (scene_split, scene_mode, scene_persona) == (split, mode, persona)}
+        attacks = {key: group for key, group in scenes.items() if group[0].get("variant") == "attack"}
+        benign = {key: group for key, group in scenes.items() if group[0].get("variant") == "benign"}
+        unstable = [key for key, group in scenes.items() if len({(bool(row.get("attack_goal_achieved")), bool(row.get("benign_completed"))) for row in group}) > 1]
+
+        def scene_ratio(groups: dict[str, list[dict[str, Any]]], predicate: Any) -> dict[str, Any]:
+            denominator = len(groups)
+            if any(key in unstable for key in groups):
+                return {"count": None, "denominator": denominator, "rate": None}
+            numerator = sum(bool(predicate(group[0])) for group in groups.values())
+            return {"count": numerator, "denominator": denominator,
+                    "rate": None if denominator == 0 else round(numerator / denominator, 4)}
+
+        flat = [row for group in scenes.values() for row in group]
+        eligible_calls = [call for row in flat for call in row.get("calls", []) if call.get("status", "executed") == "executed"]
+        required = sum(int((row.get("approval_burden") or {}).get("required", 0)) for row in flat)
+        denied = sum(int((row.get("approval_burden") or {}).get("deny", 0)) for row in flat)
+        latencies = [float(call["guard_latency_ms"]) for call in eligible_calls if mode != "pass_through" and "guard_latency_ms" in call]
+        observations = {
+            "guard_hard_block": sum(any(call.get("guard_action") == "block" for call in row.get("calls", [])) for row in flat),
+            "approval_denied": sum(any(call.get("approval_resolution") == "deny" for call in row.get("calls", [])) for row in flat),
+            "dependency_skipped": sum(bool(row.get("effect_skipped_dependency")) for row in flat),
+            "effect_error": sum(any(bool(call.get("effect", {}).get("error")) for call in row.get("calls", [])) for row in flat),
+        }
+        cell = {
+            "run_count": len(flat), "unique_scenario_count": len(scenes),
+            "unique_attack_count": len(attacks), "unique_benign_count": len(benign),
+            "repeat_count": max((len(group) for group in scenes.values()), default=0),
+            "nondeterministic_scenarios": sorted(unstable),
+            "attack_goal_success": scene_ratio(attacks, lambda row: row.get("attack_goal_achieved")),
+            "benign_completion": scene_ratio(benign, lambda row: row.get("benign_completed")),
+            "false_hard_block": scene_ratio(benign, lambda row: any(call.get("guard_action") == "block" for call in row.get("calls", []))),
+            "attack_sink_hit": scene_ratio(attacks, lambda row: int(row.get("external_effects") or 0) > 0),
+            "sink_hits_per_run": {"count": sum(int(row.get("external_effects") or 0) for row in flat),
+                                  "denominator": len(flat), "mean": None if not flat else round(sum(int(row.get("external_effects") or 0) for row in flat) / len(flat), 4)},
+            "approval_burden": {"required": required, "denied": denied, "eligible_calls": len(eligible_calls),
+                                "rate": None if not eligible_calls else round(required / len(eligible_calls), 4)},
+            "latency_ms": {"sample_count": len(latencies), "p50": _percentile(latencies, 50),
+                           "p95": _percentile(latencies, 95)},
+            "observed_events_run_level": observations,
+        }
+        result.setdefault(split, {}).setdefault(mode, {})[persona] = cell
+    return result
 
 
 def run_trust_scope_checks() -> dict[str, str]:
@@ -572,8 +651,8 @@ def _scrub_report_value(value: Any, *, key: str = "") -> Any:
     return value
 
 
-def _rate(numerator: int, denominator: int) -> float:
-    return round(numerator / denominator, 4) if denominator else 0.0
+def _rate(numerator: int, denominator: int) -> float | None:
+    return round(numerator / denominator, 4) if denominator else None
 
 
 def _percentile(values: list[float], percentile: int) -> float:

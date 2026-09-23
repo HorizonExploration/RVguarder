@@ -22,15 +22,17 @@
 - `risk_aware`：遇到外部目标、凭据、持久化、权限扩张或破坏性命令会拒绝审批。
 - `approval_all`：模拟审批疲劳/审批通道被接管，所有待审批动作都允许；Full Guard 必须仍能依靠链路证据约束后果。
 
-报告按模式与审批人格给出 `attack_goal_success`、`containment_rate`、`benign_completion`、`false_hard_block`、审批负担、before Hook p50/p95、证据完整度、模拟外发命中（本地 capture sink）和 Full Guard 增量；不会发生真实外部 I/O。
+v3-foundation 报告以 split 下的**独立场景**为安全比例分母：攻击目标成功、正常任务完成、正常误硬阻断、攻击 sink 命中分别列出 numerator/denominator；repeat 只用于检查确定性与调用延迟，不增加安全样本量。当前 legacy holdout 只有攻击、没有正常场景，正常比例必须显示 N/A。旧的按运行次数合计放在「重复运行诊断」，其中 `containment_rate` 只表示目标未达且曾有阻断，并不自动归因于 Guard。Full Guard 相对 PMKB 的主增量按稳定的独立场景列出，repeat 明细仅作诊断。
+
+报告另以调用／运行级诊断表提供审批请求及拒绝、Guard 硬阻断、依赖跳过、效果错误和 before Hook p95；这些事件可以并存，不能直接相加成因果归因。sink 总次数与攻击场景 sink 命中率分别计算。新 bundle 的原始记录、汇总和 manifest 使用 schema 3，输入场景仍为 schema 2；manifest 保存输入摘要、策略版本及重跑命令。产物目录不可覆盖，旧 repeat5 文件保持不变；不会发生真实外部 I/O。
 
 ## 运行
 
 ```bash
 python -m testlab.office_value.run \
   --mode all --approval-persona all --split all --repeat 5 \
-  --output testlab/results/office-value-v2 \
-  --root /tmp/rvguard-office-value-v2
+  --output testlab/results/office-value-v3-foundation \
+  --root /tmp/rvguard-office-value-v3-foundation
 ```
 
 产物包括 `manifest.json`、`summary.json`、`raw.jsonl`、`report.md` 和 HTML 报告。`--split calibration` 用于初始校准；`--split holdout` 用于冻结后的泛化验证，不能针对 holdout 逐案加规则。
