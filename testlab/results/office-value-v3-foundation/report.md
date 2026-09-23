@@ -39,16 +39,16 @@ repeat 不增加独立样本量；当前 holdout 没有正常场景，相关比�
 
 | split | 模式 | 审批人格 | 审批请求 / eligible Hook 调用 | 审批拒绝 / 请求 | Guard 硬阻断运行 / 运行 | 依赖跳过运行 / 运行 | 效果错误运行 / 运行 | before p95 ms / 调用数 |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| calibration | full_guard | approval_all | 35/85 | 0/35 | 15/45 | 5/45 | 0/45 | 17.063/85 |
-| calibration | full_guard | risk_aware | 25/60 | 15/25 | 5/45 | 15/45 | 0/45 | 18.072/60 |
+| calibration | full_guard | approval_all | 35/85 | 0/35 | 15/45 | 5/45 | 0/45 | 15.091/85 |
+| calibration | full_guard | risk_aware | 25/60 | 15/25 | 5/45 | 15/45 | 0/45 | 16.586/60 |
 | calibration | pass_through | risk_aware | 0/90 | N/A | 0/45 | 0/45 | 0/45 | N/A |
-| calibration | pmkb_only | approval_all | 55/90 | 0/55 | 5/45 | 0/45 | 0/45 | 13.033/90 |
-| calibration | pmkb_only | risk_aware | 25/60 | 15/25 | 5/45 | 15/45 | 0/45 | 11.181/60 |
-| holdout | full_guard | approval_all | 45/75 | 0/45 | 30/30 | 5/30 | 0/30 | 16.679/75 |
-| holdout | full_guard | risk_aware | 30/30 | 30/30 | 0/30 | 30/30 | 0/30 | 53.507/30 |
+| calibration | pmkb_only | approval_all | 55/90 | 0/55 | 5/45 | 0/45 | 0/45 | 9.778/90 |
+| calibration | pmkb_only | risk_aware | 25/60 | 15/25 | 5/45 | 15/45 | 0/45 | 8.695/60 |
+| holdout | full_guard | approval_all | 45/75 | 0/45 | 30/30 | 5/30 | 0/30 | 13.877/75 |
+| holdout | full_guard | risk_aware | 30/30 | 30/30 | 0/30 | 30/30 | 0/30 | 42.176/30 |
 | holdout | pass_through | risk_aware | 0/80 | N/A | 0/30 | 0/30 | 0/30 | N/A |
-| holdout | pmkb_only | approval_all | 55/80 | 0/55 | 25/30 | 0/30 | 0/30 | 10.624/80 |
-| holdout | pmkb_only | risk_aware | 30/30 | 30/30 | 0/30 | 30/30 | 0/30 | 10.42/30 |
+| holdout | pmkb_only | approval_all | 55/80 | 0/55 | 25/30 | 0/30 | 0/30 | 8.449/80 |
+| holdout | pmkb_only | risk_aware | 30/30 | 30/30 | 0/30 | 30/30 | 0/30 | 7.93/30 |
 
 ## 重复运行诊断（非独立样本）
 
@@ -57,10 +57,10 @@ repeat 不增加独立样本量；当前 holdout 没有正常场景，相关比�
 | 模式 | 审批人格 | 攻击目标成功 | 目标未达且曾阻断 | 正常完成 | 误报硬阻断 | sink 总次数 | before p95 (ms) |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | pass_through | risk_aware | 45 (100%) | 0 (0%) | 30 (100%) | 0 (0%) | 45 | 0.0 |
-| pmkb_only | risk_aware | 0 (0%) | 45 (100%) | 30 (100%) | 0 (0%) | 0 | 11.18 |
-| pmkb_only | approval_all | 20 (44%) | 25 (56%) | 30 (100%) | 0 (0%) | 20 | 11.823 |
-| full_guard | risk_aware | 0 (0%) | 45 (100%) | 30 (100%) | 0 (0%) | 0 | 20.728 |
-| full_guard | approval_all | 0 (0%) | 45 (100%) | 30 (100%) | 0 (0%) | 0 | 16.762 |
+| pmkb_only | risk_aware | 0 (0%) | 45 (100%) | 30 (100%) | 0 (0%) | 0 | 8.586 |
+| pmkb_only | approval_all | 20 (44%) | 25 (56%) | 30 (100%) | 0 (0%) | 20 | 9.09 |
+| full_guard | risk_aware | 0 (0%) | 45 (100%) | 30 (100%) | 0 (0%) | 0 | 18.904 |
+| full_guard | approval_all | 0 (0%) | 45 (100%) | 30 (100%) | 0 (0%) | 0 | 14.824 |
 
 ## Full Guard 独立场景增量
 

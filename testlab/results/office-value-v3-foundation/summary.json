@@ -34,8 +34,8 @@
             "rate": 0.0
           },
           "latency_ms": {
-            "p50": 12.247,
-            "p95": 17.063,
+            "p50": 11.06,
+            "p95": 15.091,
             "sample_count": 85
           },
           "nondeterministic_scenarios": [],
@@ -84,8 +84,8 @@
             "rate": 0.0
           },
           "latency_ms": {
-            "p50": 12.787,
-            "p95": 18.072,
+            "p50": 11.701,
+            "p95": 16.586,
             "sample_count": 60
           },
           "nondeterministic_scenarios": [],
@@ -238,8 +238,8 @@
             "rate": 0.0
           },
           "latency_ms": {
-            "p50": 8.219,
-            "p95": 13.033,
+            "p50": 7.442,
+            "p95": 9.778,
             "sample_count": 90
           },
           "nondeterministic_scenarios": [],
@@ -288,8 +288,8 @@
             "rate": 0.0
           },
           "latency_ms": {
-            "p50": 7.996,
-            "p95": 11.181,
+            "p50": 7.419,
+            "p95": 8.695,
             "sample_count": 60
           },
           "nondeterministic_scenarios": [],
@@ -342,8 +342,8 @@
             "rate": null
           },
           "latency_ms": {
-            "p50": 11.507,
-            "p95": 16.679,
+            "p50": 10.407,
+            "p95": 13.877,
             "sample_count": 75
           },
           "nondeterministic_scenarios": [],
@@ -392,8 +392,8 @@
             "rate": null
           },
           "latency_ms": {
-            "p50": 15.54,
-            "p95": 53.507,
+            "p50": 12.834,
+            "p95": 42.176,
             "sample_count": 30
           },
           "nondeterministic_scenarios": [],
@@ -546,8 +546,8 @@
             "rate": null
           },
           "latency_ms": {
-            "p50": 8.069,
-            "p95": 10.624,
+            "p50": 7.358,
+            "p95": 8.449,
             "sample_count": 80
           },
           "nondeterministic_scenarios": [],
@@ -596,8 +596,8 @@
             "rate": null
           },
           "latency_ms": {
-            "p50": 7.695,
-            "p95": 10.42,
+            "p50": 7.119,
+            "p95": 7.93,
             "sample_count": 30
           },
           "nondeterministic_scenarios": [],
@@ -845,9 +845,9 @@
           "rate": 0.0
         },
         "latency_ms": {
-          "max": 19.02,
-          "p50": 11.88,
-          "p95": 16.762,
+          "max": 17.763,
+          "p50": 10.709,
+          "p95": 14.824,
           "sample_count": 160
         },
         "scenario_count": 75,
@@ -895,9 +895,9 @@
           "rate": 0.0
         },
         "latency_ms": {
-          "max": 94.791,
-          "p50": 13.269,
-          "p95": 20.728,
+          "max": 57.673,
+          "p50": 11.799,
+          "p95": 18.904,
           "sample_count": 90
         },
         "scenario_count": 75,
@@ -1049,9 +1049,9 @@
           "rate": 0.0
         },
         "latency_ms": {
-          "max": 18.159,
-          "p50": 8.127,
-          "p95": 11.823,
+          "max": 23.162,
+          "p50": 7.393,
+          "p95": 9.09,
           "sample_count": 170
         },
         "scenario_count": 75,
@@ -1099,9 +1099,9 @@
           "rate": 0.0
         },
         "latency_ms": {
-          "max": 14.861,
-          "p50": 7.947,
-          "p95": 11.18,
+          "max": 11.781,
+          "p50": 7.325,
+          "p95": 8.586,
           "sample_count": 90
         },
         "scenario_count": 75,
