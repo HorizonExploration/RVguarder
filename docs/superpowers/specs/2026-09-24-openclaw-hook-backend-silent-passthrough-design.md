@@ -10,9 +10,9 @@
 
 ## 状态与数据流
 
-插件决策状态为 `silent`、`active` 两态，另有不改变决策的诊断标志 `backend_response_error`。进程启动时为 `silent`，立即在后台发起健康检查；首次成功即可进入 `active`。在 `silent` 时，`before_tool_call` 对任何工具和任何 Agent 返回 `undefined`，不发起同步 Guard 决策请求；`after_tool_call` 不等待 Guard 回调；既有审批回调若因后端失联而触发，不应额外延迟 OpenClaw 的审批结果。插件可以在后台记录本地、脱敏的状态日志，并继续健康探测。
+插件决策状态为 `silent`、`active` 两态，另有不改变决策的诊断标志 `backend_response_error`。进程启动时为 `silent`，立即在后台发起健康检查；首次成功即可进入 `active`。健康接口明确返回非 2xx 时说明传输可达，也进入 `active`，但置 `backend_response_error=true`，随后工具调用按有响应错误的分级策略处理；状态不能宣称保护正常。在 `silent` 时，`before_tool_call` 对任何工具和任何 Agent 返回 `undefined`，不发起同步 Guard 决策请求；`after_tool_call` 不等待 Guard 回调；既有审批回调若因后端失联而触发，不应额外延迟 OpenClaw 的审批结果。插件可以在后台记录本地、脱敏的状态日志，并继续健康探测。
 
-在 `active` 时仍走现有 Guard Hook 决策。若 `before_tool_call` 的后端请求发生传输故障，当次调用返回 `undefined`，状态立即变为 `silent`，后续工具调用无须等待再次失败。`after_tool_call` 或审批结果同步出现传输故障也应触发 `silent`，但不得反向改变已由 OpenClaw 执行的动作。健康检查连续成功达到恢复条件后回到 `active`；恢复不重放静默期间错过的阻断或审批。
+在 `active` 时仍走现有 Guard Hook 决策。若 `before_tool_call` 的后端请求发生传输故障，当次调用返回 `undefined`，状态立即变为 `silent`，后续工具调用无须等待再次失败。`after_tool_call` 或审批结果同步出现传输故障也应触发 `silent`，但不得反向改变已由 OpenClaw 执行的动作。失联后的健康检查连续成功达到恢复条件，才清除恢复中诊断并恢复“防护正常”状态；一个非 2xx 健康响应虽结束传输静默，却不能计作成功恢复。恢复不重放静默期间错过的阻断或审批。
 
 后台健康检查不得阻塞任何工具调用。即便已处于 `active`，后端在上次健康检查后突然断开时，首个受影响的 Hook 调用仍可能等待一次有界的连接/决策超时；这是无法在同步拦截架构中完全消除的竞态。验收上限沿用当前 `decisionTimeoutMs` 默认 2000 ms；此后必须保持静默透传，不对每个工具重复支付该超时。初始启动只需一次成功健康检查；失联后的恢复保留两次连续成功的门槛，避免抖动。插件状态和日志应能区分 `silent`、`active` 与“后端有响应但报错”，以便使用者知道 Guard 保护是否暂停或异常。日志不得包含原始命令、消息正文或凭据。
 
