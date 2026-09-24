@@ -311,6 +311,7 @@ def run_experiment(
     approval_persona: str = "all",
     split: str = "all",
     scenarios: Iterable[dict[str, Any]] | None = None,
+    scenario_path: str | Path | None = None,
     repeats: int = 1,
     root: str | Path | None = None,
 ) -> dict[str, Any]:
@@ -324,8 +325,10 @@ def run_experiment(
         raise ValueError(f"未知实验模式：{mode}")
     if any(item not in APPROVAL_PERSONAS for item in selected_personas):
         raise ValueError(f"未知审批人格：{approval_persona}")
+    if scenarios is not None and scenario_path is not None:
+        raise ValueError("scenarios and scenario_path are mutually exclusive")
     if scenarios is None:
-        matrix = load_scenarios()
+        matrix = load_scenarios(scenario_path)
     else:
         selected_rows = list(scenarios)
         full_matrix = load_scenarios()
@@ -355,7 +358,8 @@ def run_experiment(
     return {"schema_version": 3, "scenario_schema_version": matrix.get("schema_version"),
             "scenario_digest": scenario_digest,
             "run_spec": {"mode": mode, "approval_persona": approval_persona, "split": split,
-                         "repeats": repeats, "built_in_scenarios": scenarios is None},
+                         "repeats": repeats, "built_in_scenarios": scenarios is None and scenario_path is None,
+                         "scenario_path": str(scenario_path) if scenario_path is not None else None},
             "incidents": matrix.get("incidents", []), "results": results, "summary": summarize_results(results)}
 
 

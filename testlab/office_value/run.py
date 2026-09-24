@@ -15,11 +15,12 @@ def main() -> int:
     parser.add_argument("--approval-persona", choices=["all", *APPROVAL_PERSONAS], default="all")
     parser.add_argument("--split", choices=["all", "calibration", "holdout"], default="all")
     parser.add_argument("--repeat", type=int, default=1)
+    parser.add_argument("--scenario-path", help="explicit frozen scenario matrix JSON")
     parser.add_argument("--output", help="write summary.json, raw.jsonl and report.md to this directory")
     parser.add_argument("--root", help="base directory for disposable scenario sandboxes")
     args = parser.parse_args()
 
-    report = run_experiment(mode=args.mode, approval_persona=args.approval_persona, split=args.split, repeats=args.repeat, root=args.root)
+    report = run_experiment(mode=args.mode, approval_persona=args.approval_persona, split=args.split, repeats=args.repeat, root=args.root, scenario_path=args.scenario_path)
     report["trust_scope"] = run_trust_scope_checks()
     if args.output:
         paths = write_report_bundle(report, args.output)

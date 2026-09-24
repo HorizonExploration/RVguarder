@@ -188,9 +188,9 @@ def write_report_bundle(report: dict[str, Any], output_dir: str | Path) -> dict[
                               if isinstance(policy, dict) and policy.get("policy_version")})
     run_spec = report.get("run_spec") if isinstance(report.get("run_spec"), dict) else {}
     rerun_command = None
-    if run_spec.get("built_in_scenarios"):
+    if run_spec.get("built_in_scenarios") or run_spec.get("scenario_path"):
         rerun_output = destination.with_name(destination.name + "-rerun")
-        rerun_command = " ".join([
+        rerun_parts = [
             "python -m testlab.office_value.run",
             "--mode", shlex.quote(str(run_spec.get("mode", "all"))),
             "--approval-persona", shlex.quote(str(run_spec.get("approval_persona", "all"))),
@@ -198,7 +198,10 @@ def write_report_bundle(report: dict[str, Any], output_dir: str | Path) -> dict[
             "--repeat", shlex.quote(str(run_spec.get("repeats", 1))),
             "--output", shlex.quote(str(rerun_output)),
             "--root", shlex.quote("/tmp/rvguard-office-value-v3-rerun"),
-        ])
+        ]
+        if run_spec.get("scenario_path"):
+            rerun_parts.extend(["--scenario-path", shlex.quote(str(run_spec["scenario_path"]))])
+        rerun_command = " ".join(rerun_parts)
     manifest = {"schema_version": 3, "scenario_schema_version": report.get("scenario_schema_version"),
                 "scenario_digest": report.get("scenario_digest"), "policy_versions": policy_versions,
                 "run_spec": run_spec, "rerun_command": rerun_command,
