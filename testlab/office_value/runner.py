@@ -563,6 +563,8 @@ def _build_replay_services(project_root: Path, mode: str):
     if mode in {"pmkb_only", "chain_rv_only"}:
         services.controller = GuardController(services.whitelist, decision_overlay=None)
         services.record_executed_principal_action = lambda action: None  # type: ignore[method-assign]
+    if mode == "chain_rv_only":
+        services.rv_engine.configure_permission_monitors(None)
     if mode in {"pmkb_only", "principal_rv_only"}:
         services.rv_enabled = lambda: False  # type: ignore[method-assign]
     return services

@@ -44,6 +44,14 @@ def test_pair_rejects_wrong_variant_principal_and_source():
         validate_pair(attack, benign)
 
 
+def test_pair_rejects_hidden_sandbox_sink_not_in_hook():
+    attack, benign = _pair()
+    attack["events"][-1]["effect"]["targets"] = ["https://hidden.example/receive"]
+    benign["events"][-1]["effect"]["targets"] = ["https://hidden.example/receive"]
+    with pytest.raises(ValueError, match="Hook destination"):
+        validate_pair(attack, benign)
+
+
 def test_oracle_only_edit_cannot_change_pmkb_decisions(tmp_path: Path):
     attack, _ = _pair()
     changed = deepcopy(attack)
@@ -109,6 +117,9 @@ def test_ablation_modes_use_real_hook_lifecycle(tmp_path: Path):
     assert rows["principal_rv_only"]["calls"][-1]["evidence"]["rv_result"] is None
     assert rows["chain_rv_only"]["calls"][-1]["evidence"]["rv_result"] is not None
     assert rows["principal_rv_only"]["calls"][-1]["evidence"]["principal_rv"] is not None
+    chain_sources = rows["chain_rv_only"]["calls"][-1]["evidence"]["rv_result"]["monitor_sources"]
+    assert chain_sources["permission"] == 0
+    assert chain_sources["principal_permission"] == 0
 
 
 def test_decisive_layer_requires_ablation_and_trace_agreement():
@@ -117,8 +128,9 @@ def test_decisive_layer_requires_ablation_and_trace_agreement():
                 "evidence": {"rv_result": rv, "principal_rv": principal}}]}
 
     base = row("pmkb_only", "allow")
-    full = row("full_guard", "block")
-    chain = row("chain_rv_only", "block", rv={"verdict": "block", "triggered_by": "SecurityChainMonitor", "window_size": 2})
+    chain_evidence = {"verdict": "block", "triggered_by": "SecurityChainMonitor", "triggered_rule_id": "chain-1", "matched_history_step_ids": ["source"]}
+    full = row("full_guard", "block", rv=deepcopy(chain_evidence))
+    chain = row("chain_rv_only", "block", rv=deepcopy(chain_evidence))
     principal = row("principal_rv_only", "allow")
     assert decisive_layer({item["mode"]: item for item in (base, full, chain, principal)}) == "chain_rv"
     chain["calls"][0]["evidence"]["rv_result"] = None
@@ -126,7 +138,20 @@ def test_decisive_layer_requires_ablation_and_trace_agreement():
     chain["calls"][0]["guard_action"] = "allow"
     principal["calls"][0]["guard_action"] = "block"
     principal["calls"][0]["evidence"]["principal_rv"] = {"effect": "block"}
+    full["calls"][0]["evidence"]["principal_rv"] = {"effect": "block"}
     assert decisive_layer({item["mode"]: item for item in (base, full, chain, principal)}) == "principal_rv"
+
+
+def test_decisive_layer_rejects_mismatched_full_guard_rule():
+    def arm(mode: str, action: str, rv=None):
+        return {"mode": mode, "calls": [{"guard_action": action, "evidence": {"rv_result": rv}}]}
+    chain = {"verdict": "block", "triggered_by": "SecurityChainMonitor", "triggered_rule_id": "history-rule", "matched_history_step_ids": ["read"], "window_size": 2}
+    other = {**chain, "triggered_rule_id": "different-rule"}
+    arms = {item["mode"]: item for item in (
+        arm("pmkb_only", "allow"), arm("full_guard", "block", other),
+        arm("chain_rv_only", "block", chain), arm("principal_rv_only", "allow"),
+    )}
+    assert decisive_layer(arms) == "mixed_or_unresolved"
 
 
 def test_decisive_layer_does_not_credit_single_step_pmkb_monitor():
@@ -163,6 +188,7 @@ def test_gate_report_is_calibration_only_and_preserves_failed_reason(tmp_path: P
     assert summary["gate_passed"] is False
     assert "risk_aware approval denied" in summary["reason"]
     assert "approval_eligibility" in summary["failed_conditions"]
+    assert "negative_control_history_unobserved" in summary["failed_conditions"]
     assert summary["independent_scenarios"] == 3
     assert summary["run_count"] == 12
     output = tmp_path / "bundle"
