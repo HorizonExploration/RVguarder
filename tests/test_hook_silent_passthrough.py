@@ -58,7 +58,7 @@ const plugin = (await import(process.argv[1])).default;
 let decisionPosts = 0;
 let offline = false;
 globalThis.fetch = async (url) => {
-  if (url.endsWith("/api/health")) return {ok: true};
+  if (url.endsWith("/api/health")) return {ok: true, text: async () => JSON.stringify({ok: true, product: "openclaw-guard"})};
   decisionPosts++;
   if (offline) throw new Error("connection refused");
   return {ok: true, text: async () => JSON.stringify({action: "allow"})};
@@ -89,7 +89,7 @@ def test_http_errors_are_not_transport_silence(tmp_path: Path, status: int) -> N
 const plugin = (await import(process.argv[1])).default;
 let decisionPosts = 0;
 globalThis.fetch = async (url) => {{
-  if (url.endsWith("/api/health")) return {{ok: true}};
+  if (url.endsWith("/api/health")) return {{ok: true, text: async () => JSON.stringify({{ok: true, product: "openclaw-guard"}})}};
   decisionPosts++;
   return {{ok: false, status: {status}, text: async () => JSON.stringify({{detail: "response error"}})}};
 }};
@@ -117,7 +117,7 @@ def test_after_transport_failure_silences_later_tool_and_reports_status(tmp_path
 const plugin = (await import(process.argv[1])).default;
 let decisionPosts = 0;
 globalThis.fetch = async (url) => {
-  if (url.endsWith("/api/health")) return {ok: true};
+  if (url.endsWith("/api/health")) return {ok: true, text: async () => JSON.stringify({ok: true, product: "openclaw-guard"})};
   if (url.endsWith("/after-tool-call")) throw new Error("offline");
   decisionPosts++;
   return {ok: true, text: async () => JSON.stringify({action: "allow"})};
@@ -149,7 +149,7 @@ const plugin = (await import(process.argv[1])).default;
 let offline = false;
 let syncPosts = 0;
 globalThis.fetch = async (url) => {
-  if (url.endsWith("/api/health")) return {ok: true};
+  if (url.endsWith("/api/health")) return {ok: true, text: async () => JSON.stringify({ok: true, product: "openclaw-guard"})};
   if (url.endsWith("/resolve-approval")) { syncPosts++; if (offline) throw new Error("offline"); return {ok: true, text: async () => "{}"}; }
   if (offline) throw new Error("offline");
   return {ok: true, text: async () => JSON.stringify({action: "require_approval", action_record: {action_id: "a1"}})};
@@ -187,7 +187,7 @@ let action = "allow";
 let decisionPosts = 0;
 globalThis.fetch = async (url) => {
   if (offline) throw new Error("offline");
-  if (url.endsWith("/api/health")) return {ok: true};
+  if (url.endsWith("/api/health")) return {ok: true, text: async () => JSON.stringify({ok: true, product: "openclaw-guard"})};
   decisionPosts++;
   return {ok: true, text: async () => JSON.stringify({action, action_record: {action_id: "a2"}})};
 };
@@ -290,3 +290,107 @@ def test_generated_config_contract_describes_fail_closed_compatibility(tmp_path:
     description = properties["failClosed"]["description"]
     assert "transport" in description.lower()
     assert "pass through" in description.lower()
+
+
+@pytest.mark.parametrize("failure_name", ["TypeError", "AbortError"])
+def test_success_response_body_disconnect_passes_through(tmp_path: Path, failure_name: str) -> None:
+    """Connection loss after 200 headers must not block writes or retry per tool."""
+    _run_generated_plugin(tmp_path, f'''
+const plugin = (await import(process.argv[1])).default;
+let decisionPosts = 0;
+globalThis.fetch = async (url) => {{
+  if (url.endsWith("/api/health")) return {{ok: true, text: async () => JSON.stringify({{ok: true, product: "openclaw-guard"}})}};
+  decisionPosts++;
+  return new Response(new ReadableStream({{
+    start(controller) {{ controller.error(new DOMException("stream ended", "{failure_name}")); }},
+  }}), {{status: 200}});
+}};
+const hooks = {{}};
+plugin.register({{
+  pluginConfig: {{guardUrl: "http://guard.test", failClosed: true}},
+  on(name, handler) {{ hooks[name] = handler; }},
+  registerGatewayMethod() {{}},
+  logger: {{info() {{}}, warn() {{}}}},
+}});
+await hooks.gateway_start();
+if (await hooks.before_tool_call({{toolName: "shell_exec", params: {{}}}}, {{}}) !== undefined) throw new Error("body disconnect blocked first exec");
+if (await hooks.before_tool_call({{toolName: "write", params: {{}}}}, {{}}) !== undefined) throw new Error("body disconnect blocked later write");
+if (decisionPosts !== 1) throw new Error("silent bridge retried after body disconnect");
+hooks.gateway_stop();
+''')
+
+
+def test_http_error_with_unreadable_body_stays_responsive(tmp_path: Path) -> None:
+    """A received 500 must not be reclassified as a transport outage."""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+let decisionPosts = 0;
+globalThis.fetch = async (url) => {
+  if (url.endsWith("/api/health")) return {ok: true, text: async () => JSON.stringify({ok: true, product: "openclaw-guard"})};
+  decisionPosts++;
+  return new Response(new ReadableStream({start(controller) { controller.error(new TypeError("terminated")); }}), {status: 500});
+};
+const hooks = {};
+plugin.register({
+  pluginConfig: {guardUrl: "http://guard.test"},
+  on(name, handler) { hooks[name] = handler; },
+  registerGatewayMethod() {},
+  logger: {info() {}, warn() {}},
+});
+await hooks.gateway_start();
+for (let i = 0; i < 2; i++) {
+  if ((await hooks.before_tool_call({toolName: "shell_exec", params: {}}, {}))?.block !== true) throw new Error("received HTTP 500 silently allowed");
+}
+if (decisionPosts !== 2) throw new Error("HTTP 500 was mislabeled offline");
+hooks.gateway_stop();
+''')
+
+
+def test_local_payload_serialization_error_does_not_silence_guard(tmp_path: Path) -> None:
+    """A bad local payload must not be reported as a dead backend."""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+let decisionPosts = 0;
+globalThis.fetch = async (url) => {
+  if (url.endsWith("/api/health")) return {ok: true, text: async () => JSON.stringify({ok: true, product: "openclaw-guard"})};
+  decisionPosts++;
+  return {ok: true, text: async () => JSON.stringify({action: "block"})};
+};
+const hooks = {};
+plugin.register({
+  pluginConfig: {guardUrl: "http://guard.test"},
+  on(name, handler) { hooks[name] = handler; },
+  registerGatewayMethod() {},
+  logger: {info() {}, warn() {}},
+});
+await hooks.gateway_start();
+const params = {}; params.self = params;
+if ((await hooks.before_tool_call({toolName: "shell_exec", params}, {}))?.block !== true) throw new Error("bad local payload opened Guard");
+if ((await hooks.before_tool_call({toolName: "shell_exec", params: {}}, {}))?.block !== true) throw new Error("Guard stayed silent after local serialization error");
+if (decisionPosts !== 1) throw new Error("healthy Guard was not queried after local error");
+hooks.gateway_stop();
+''')
+
+
+def test_unrelated_http_200_does_not_activate_guard(tmp_path: Path) -> None:
+    """A different process on the configured port is not Guard recovery."""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+let decisionPosts = 0;
+globalThis.fetch = async (url) => {
+  if (url.endsWith("/api/health")) return {ok: true, text: async () => JSON.stringify({ok: true, product: "other-service"})};
+  decisionPosts++;
+  return {ok: false, status: 404, text: async () => "{}"};
+};
+const hooks = {};
+plugin.register({
+  pluginConfig: {guardUrl: "http://guard.test", failClosed: true},
+  on(name, handler) { hooks[name] = handler; },
+  registerGatewayMethod() {},
+  logger: {info() {}, warn() {}},
+});
+await hooks.gateway_start();
+if (await hooks.before_tool_call({toolName: "shell_exec", params: {}}, {}) !== undefined) throw new Error("unrelated service blocked exec");
+if (decisionPosts !== 0) throw new Error("unrelated service caused decision POST");
+hooks.gateway_stop();
+''')

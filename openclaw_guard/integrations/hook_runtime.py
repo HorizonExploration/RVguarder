@@ -414,6 +414,14 @@ async function postJson(url, payload, timeoutMs, authToken) {{
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), Math.max(timeoutMs, 1000));
   try {{
+    let requestBody;
+    try {{
+      requestBody = JSON.stringify(payload);
+    }} catch (_error) {{
+      const failure = new Error("Guard request payload invalid");
+      failure.kind = "protocol";
+      throw failure;
+    }}
     let response;
     try {{
       response = await fetch(url, {{
@@ -422,7 +430,7 @@ async function postJson(url, payload, timeoutMs, authToken) {{
           "content-type": "application/json",
           ...(authToken ? {{ "x-openclaw-guard-token": authToken }} : {{}}),
         }},
-        body: JSON.stringify(payload),
+        body: requestBody,
         signal: controller.signal,
       }});
     }} catch (error) {{
@@ -435,7 +443,10 @@ async function postJson(url, payload, timeoutMs, authToken) {{
       responseText = await response.text();
     }} catch (error) {{
       const failure = new Error("Guard response unreadable");
-      failure.kind = "protocol";
+      // A successful response whose body stream aborts is a lost connection.
+      // An explicit non-2xx response still follows the HTTP error policy.
+      failure.kind = response.ok ? "transport" : "http";
+      failure.status = response.status;
       throw failure;
     }}
     let data = {{}};
@@ -519,6 +530,17 @@ export default {{
           signal: controller.signal,
         }});
         if (response.ok) {{
+          let health;
+          try {{
+            health = JSON.parse(await response.text());
+          }} catch (_error) {{
+            enterSilent("health_identity");
+            return;
+          }}
+          if (health?.ok !== true || health?.product !== "openclaw-guard") {{
+            enterSilent("health_identity");
+            return;
+          }}
           consecutiveSuccesses++;
           if (!recoveryRequired || consecutiveSuccesses >= RECOVERY_THRESHOLD) {{
             const wasSilent = backendState === "silent";

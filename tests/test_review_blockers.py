@@ -99,7 +99,7 @@ def test_generated_plugin_uses_tiered_safety_for_http_errors(tmp_path):
     script = r'''
 const plugin = (await import(process.argv[1])).default;
 globalThis.fetch = async (url) => url.endsWith("/api/health")
-  ? { ok: true }
+  ? { ok: true, text: async () => JSON.stringify({ ok: true, product: "openclaw-guard" }) }
   : { ok: false, status: 500, text: async () => JSON.stringify({ detail: "guard responded with error" }) };
 const callbacks = {};
 const api = {
@@ -141,7 +141,7 @@ const plugin = (await import(process.argv[1])).default;
 const callbacks = {};
 globalThis.fetch = async (url) => ({
   ok: true,
-  text: async () => JSON.stringify(url.includes("before-tool-call") ? {
+  text: async () => JSON.stringify(url.includes("/api/health") ? { ok: true, product: "openclaw-guard" } : url.includes("before-tool-call") ? {
     action: "require_approval",
     title: "T".repeat(300),
     message: "M".repeat(1000),
@@ -165,7 +165,7 @@ if (result.requireApproval.title.length > 80) process.exit(1);
 if (result.requireApproval.description.length > 512) process.exit(2);
 if (!result.requireApproval.description.endsWith("…")) process.exit(3);
 globalThis.fetch = async (url) => url.endsWith("/api/health")
-  ? { ok: true }
+  ? { ok: true, text: async () => JSON.stringify({ ok: true, product: "openclaw-guard" }) }
   : { ok: false, status: 500, text: async () => JSON.stringify({ detail: "E".repeat(1000) }) };
 const failedCallbacks = {};
 plugin.register({
