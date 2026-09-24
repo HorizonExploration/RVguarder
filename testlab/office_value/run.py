@@ -6,12 +6,12 @@ import argparse
 import json
 
 from .report import render_markdown, write_report_bundle
-from .runner import APPROVAL_PERSONAS, MODES, run_experiment, run_trust_scope_checks
+from .runner import APPROVAL_PERSONAS, SUPPORTED_MODES, run_experiment, run_trust_scope_checks
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the offline personal-office RVGuarder value replay")
-    parser.add_argument("--mode", choices=["all", *MODES], default="all")
+    parser.add_argument("--mode", choices=["all", *SUPPORTED_MODES], default="all")
     parser.add_argument("--approval-persona", choices=["all", *APPROVAL_PERSONAS], default="all")
     parser.add_argument("--split", choices=["all", "calibration", "holdout"], default="all")
     parser.add_argument("--repeat", type=int, default=1)

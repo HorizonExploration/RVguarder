@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from testlab.office_value.paired_probe import classify_outcome, paired_probe_results, validate_pair
+from testlab.office_value.paired_probe import classify_outcome, decisive_layer, paired_probe_results, validate_pair
 from testlab.office_value.sandbox import OfficeSandbox
-from testlab.office_value.runner import load_scenarios, run_experiment, run_scenario
+from testlab.office_value.runner import SUPPORTED_MODES, load_scenarios, run_experiment, run_scenario
 
 
 MATRIX = Path("testlab/office_value/paired_calibration.json")
@@ -95,3 +95,54 @@ def test_outcome_label_uses_effects_not_guard_intention(tmp_path: Path):
     decoy_row["calls"][-1]["action"] = "block"
     decoy_row["sandbox"]["external_sink_count"] = 0
     assert classify_outcome(decoy_row) == {"outcome": "no_sink", "overblock_public_send": True}
+
+
+def test_ablation_modes_use_real_hook_lifecycle(tmp_path: Path):
+    assert {"chain_rv_only", "principal_rv_only"} <= set(SUPPORTED_MODES)
+    benign = _pair()[1]
+    rows = {mode: run_scenario(benign, mode, approval_persona="approval_all", root=tmp_path / mode)
+            for mode in ("pmkb_only", "chain_rv_only", "principal_rv_only", "full_guard")}
+    assert all(row["lifecycle_complete"] for row in rows.values())
+    assert all(row["calls"][-1]["after"]["ok"] for row in rows.values())
+    assert rows["chain_rv_only"]["calls"][-1]["evidence"]["principal_rv"] is None
+    assert rows["principal_rv_only"]["calls"][-1]["evidence"]["rv_result"] is None
+    assert rows["chain_rv_only"]["calls"][-1]["evidence"]["rv_result"] is not None
+    assert rows["principal_rv_only"]["calls"][-1]["evidence"]["principal_rv"] is not None
+
+
+def test_decisive_layer_requires_ablation_and_trace_agreement():
+    def row(mode: str, action: str, *, rv=None, principal=None):
+        return {"mode": mode, "calls": [{"status": "executed", "guard_action": action,
+                "evidence": {"rv_result": rv, "principal_rv": principal}}]}
+
+    base = row("pmkb_only", "allow")
+    full = row("full_guard", "block")
+    chain = row("chain_rv_only", "block", rv={"verdict": "block", "triggered_by": "SecurityChainMonitor", "window_size": 2})
+    principal = row("principal_rv_only", "allow")
+    assert decisive_layer({item["mode"]: item for item in (base, full, chain, principal)}) == "chain_rv"
+    chain["calls"][0]["evidence"]["rv_result"] = None
+    assert decisive_layer({item["mode"]: item for item in (base, full, chain, principal)}) == "mixed_or_unresolved"
+    chain["calls"][0]["guard_action"] = "allow"
+    principal["calls"][0]["guard_action"] = "block"
+    principal["calls"][0]["evidence"]["principal_rv"] = {"effect": "block"}
+    assert decisive_layer({item["mode"]: item for item in (base, full, chain, principal)}) == "principal_rv"
+
+
+def test_decisive_layer_does_not_credit_single_step_pmkb_monitor():
+    def arm(mode: str, action: str, rv=None):
+        return {"mode": mode, "calls": [{"guard_action": action, "evidence": {"rv_result": rv}}]}
+    arms = {item["mode"]: item for item in (
+        arm("pmkb_only", "allow"), arm("full_guard", "block"),
+        arm("chain_rv_only", "block", {"verdict": "block", "triggered_by": "PMKBRule_LEGACY_NET_005", "window_size": 1}),
+        arm("principal_rv_only", "allow"),
+    )}
+    assert decisive_layer(arms) == "mixed_or_unresolved"
+
+
+def test_paired_probe_runs_all_component_arms_and_attributes_each_scene(tmp_path: Path):
+    result = paired_probe_results(MATRIX, tmp_path)
+    assert len(result["rows"]) == 12
+    for scenario_id in {row["scenario_id"] for row in result["rows"]}:
+        arms = {row["mode"]: row for row in result["rows"] if row["scenario_id"] == scenario_id}
+        assert set(arms) == {"pmkb_only", "chain_rv_only", "principal_rv_only", "full_guard"}
+        assert all("decisive_layer" in row["calls"][-1] for row in arms.values())

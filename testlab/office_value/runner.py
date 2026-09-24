@@ -26,6 +26,8 @@ from .sandbox import OfficeSandbox, SandboxViolation, safe_effect_summary
 
 
 MODES = ("pass_through", "pmkb_only", "full_guard")
+ABLATION_MODES = ("chain_rv_only", "principal_rv_only")
+SUPPORTED_MODES = (*MODES, *ABLATION_MODES)
 APPROVAL_PERSONAS = ("risk_aware", "approval_all")
 _REQUIRED_INCIDENT_FIELDS = {"incident_id", "title", "source_urls", "public_fact", "mapping_assumption"}
 _REQUIRED_EVENT_FIELDS = {"hook_payload", "effect", "oracle"}
@@ -111,7 +113,7 @@ def run_scenario(
     root: str | Path | None = None,
     repeat_index: int = 0,
 ) -> dict[str, Any]:
-    if mode not in MODES:
+    if mode not in SUPPORTED_MODES:
         raise ValueError(f"未知实验模式：{mode}")
     if approval_persona not in APPROVAL_PERSONAS:
         raise ValueError(f"未知审批人格：{approval_persona}")
@@ -321,7 +323,7 @@ def run_experiment(
         raise ValueError(f"未知 split：{split}")
     selected_modes = MODES if mode == "all" else (mode,)
     selected_personas = APPROVAL_PERSONAS if approval_persona == "all" else (approval_persona,)
-    if any(item not in MODES for item in selected_modes):
+    if any(item not in SUPPORTED_MODES for item in selected_modes):
         raise ValueError(f"未知实验模式：{mode}")
     if any(item not in APPROVAL_PERSONAS for item in selected_personas):
         raise ValueError(f"未知审批人格：{approval_persona}")
@@ -558,10 +560,11 @@ def _build_replay_services(project_root: Path, mode: str):
         services = build_services(project_root, config_path=config_path)
     services.semantic_enhancer.api_key = ""
     services.semantic_enhancer._llm_enabled = False
-    if mode == "pmkb_only":
+    if mode in {"pmkb_only", "chain_rv_only"}:
         services.controller = GuardController(services.whitelist, decision_overlay=None)
-        services.rv_enabled = lambda: False  # type: ignore[method-assign]
         services.record_executed_principal_action = lambda action: None  # type: ignore[method-assign]
+    if mode in {"pmkb_only", "principal_rv_only"}:
+        services.rv_enabled = lambda: False  # type: ignore[method-assign]
     return services
 
 
@@ -585,7 +588,7 @@ def _evidence_from_action(action: Any, response: dict[str, Any], *, mode: str) -
     semantic = metadata.get("semantic") if isinstance(metadata, dict) else None
     timings = metadata.get("pipeline_timings_ms") if isinstance(metadata, dict) else None
     required = (policy, trace, semantic, timings)
-    if mode == "full_guard":
+    if mode in {"full_guard", "chain_rv_only"}:
         required = (*required, rv_result)
     return _scrub_report_value({
         "policy_decision": policy, "authorization_trace": trace, "rv_result": rv_result, "semantic": semantic,

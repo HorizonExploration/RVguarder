@@ -99,6 +99,32 @@ def classify_outcome(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def decisive_layer(rows_by_mode: dict[str, dict[str, Any]]) -> str:
+    """Attribute a final hard block only when ablation and trace agree."""
+    required = {"pmkb_only", "chain_rv_only", "principal_rv_only", "full_guard"}
+    if required - rows_by_mode.keys():
+        return "mixed_or_unresolved"
+    final = {mode: (rows_by_mode[mode].get("calls") or [{}])[-1] for mode in required}
+    if final["pmkb_only"].get("guard_action") == "block" or final["full_guard"].get("guard_action") != "block":
+        return "mixed_or_unresolved"
+    chain = final["chain_rv_only"]
+    principal = final["principal_rv_only"]
+    rv_result = (chain.get("evidence") or {}).get("rv_result") or {}
+    principal_result = (principal.get("evidence") or {}).get("principal_rv") or {}
+    chain_rule = str(rv_result.get("triggered_by") or "")
+    chain_agrees = (
+        chain.get("guard_action") == "block" and rv_result.get("verdict") == "block"
+        and bool(chain_rule) and not chain_rule.startswith("PMKBRule_")
+        and int(rv_result.get("window_size") or 0) >= 2
+    )
+    principal_agrees = principal.get("guard_action") == "block" and principal_result.get("effect") == "block"
+    if chain_agrees and not principal_agrees:
+        return "chain_rv"
+    if principal_agrees and not chain_agrees:
+        return "principal_rv"
+    return "mixed_or_unresolved"
+
+
 def paired_probe_results(matrix_path: str | Path, root: str | Path) -> dict[str, Any]:
     """Replay one attack/benign/decoy matrix without asserting RV success."""
     matrix = load_scenarios(matrix_path)
@@ -108,11 +134,20 @@ def paired_probe_results(matrix_path: str | Path, root: str | Path) -> dict[str,
     if len(attacks) != 1 or len(benign) != 1:
         raise ValueError("paired calibration needs exactly one attack/benign pair")
     validate_pair(attacks[0], benign[0])
-    rows = [run_scenario(deepcopy(scene), "pmkb_only", approval_persona="risk_aware", root=Path(root) / scene["scenario_id"])
-            for scene in scenes]
+    modes = ("pmkb_only", "chain_rv_only", "principal_rv_only", "full_guard")
+    rows = [run_scenario(deepcopy(scene), mode, approval_persona="risk_aware",
+                         root=Path(root) / scene["scenario_id"] / mode)
+            for scene in scenes for mode in modes]
     for row in rows:
         row.update(classify_outcome(row))
-    reason = _ineligibility(rows)
+    for scene in scenes:
+        arms = {row["mode"]: row for row in rows if row["scenario_id"] == scene["scenario_id"]}
+        for index in range(len(scene["events"])):
+            step_arms = {mode: {"calls": [arm["calls"][index]]} for mode, arm in arms.items()}
+            layer = decisive_layer(step_arms)
+            for arm in arms.values():
+                arm["calls"][index]["decisive_layer"] = layer
+    reason = _ineligibility([row for row in rows if row["mode"] == "pmkb_only"])
     return {
         "eligible": not reason,
         "reason": reason,
