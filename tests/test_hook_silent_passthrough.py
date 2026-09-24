@@ -5,10 +5,13 @@ from __future__ import annotations
 import shutil
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from openclaw_guard.integrations.hook_runtime import _plugin_source
+from openclaw_guard.config import OpenClawTarget
+from openclaw_guard.integrations.openclaw_adapter import OpenClawRelayError, get_guard_hook_status
 
 
 def _run_generated_plugin(tmp_path: Path, script: str) -> None:
@@ -105,3 +108,147 @@ for (let i = 0; i < 2; i++) {{
 if (decisionPosts !== 2) throw new Error("HTTP error was mistaken for transport silence");
 hooks.gateway_stop();
 ''')
+
+
+def test_after_transport_failure_silences_later_tool_and_reports_status(tmp_path: Path) -> None:
+    """A failed audit callback must not make later agents wait for Guard."""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+let decisionPosts = 0;
+globalThis.fetch = async (url) => {
+  if (url.endsWith("/api/health")) return {ok: true};
+  if (url.endsWith("/after-tool-call")) throw new Error("offline");
+  decisionPosts++;
+  return {ok: true, text: async () => JSON.stringify({action: "allow"})};
+};
+const hooks = {};
+let statusHandler;
+plugin.register({
+  pluginConfig: {guardUrl: "http://guard.test", failClosed: true},
+  on(name, handler) { hooks[name] = handler; },
+  registerGatewayMethod(_name, handler) { statusHandler = handler; },
+  logger: {info() {}, warn() {}},
+});
+hooks.gateway_start();
+await new Promise(resolve => setImmediate(resolve));
+await hooks.after_tool_call({toolName: "write", params: {}}, {});
+const result = await hooks.before_tool_call({toolName: "shell_exec", params: {}}, {});
+if (result !== undefined || decisionPosts !== 0) throw new Error("after failure did not silence Guard");
+let state;
+await statusHandler({respond(_ok, value) { state = value; }});
+if (state.state !== "silent" || state.circuitOpen !== true) throw new Error("silent status is false");
+hooks.gateway_stop();
+''')
+
+
+def test_pending_approval_does_not_sync_when_bridge_turns_silent(tmp_path: Path) -> None:
+    """An existing native approval may finish without waiting for dead Guard."""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+let offline = false;
+let syncPosts = 0;
+globalThis.fetch = async (url) => {
+  if (url.endsWith("/api/health")) return {ok: true};
+  if (url.endsWith("/resolve-approval")) { syncPosts++; if (offline) throw new Error("offline"); return {ok: true, text: async () => "{}"}; }
+  if (offline) throw new Error("offline");
+  return {ok: true, text: async () => JSON.stringify({action: "require_approval", action_record: {action_id: "a1"}})};
+};
+const hooks = {};
+plugin.register({
+  pluginConfig: {guardUrl: "http://guard.test"},
+  on(name, handler) { hooks[name] = handler; },
+  registerGatewayMethod() {},
+  logger: {info() {}, warn() {}},
+});
+hooks.gateway_start();
+await new Promise(resolve => setImmediate(resolve));
+const approval = await hooks.before_tool_call({toolName: "write", params: {}}, {});
+if (!approval?.requireApproval) throw new Error("healthy approval lost");
+await approval.requireApproval.onResolution("allow-once");
+if (syncPosts !== 1) throw new Error("active approval did not sync");
+offline = true;
+await hooks.before_tool_call({toolName: "shell_exec", params: {}}, {});
+await approval.requireApproval.onResolution("allow-once");
+if (syncPosts !== 1) throw new Error("silent approval attempted sync");
+hooks.gateway_stop();
+''')
+
+
+def test_recovery_restores_guard_block_and_approval(tmp_path: Path) -> None:
+    """One post-outage health success is insufficient; two restore decisions."""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+let intervalCallback;
+globalThis.setInterval = callback => { intervalCallback = callback; return 1; };
+globalThis.clearInterval = () => {};
+let offline = false;
+let action = "allow";
+let decisionPosts = 0;
+globalThis.fetch = async (url) => {
+  if (offline) throw new Error("offline");
+  if (url.endsWith("/api/health")) return {ok: true};
+  decisionPosts++;
+  return {ok: true, text: async () => JSON.stringify({action, action_record: {action_id: "a2"}})};
+};
+const hooks = {};
+let statusHandler;
+plugin.register({
+  pluginConfig: {guardUrl: "http://guard.test"},
+  on(name, handler) { hooks[name] = handler; },
+  registerGatewayMethod(_name, handler) { statusHandler = handler; },
+  logger: {info() {}, warn() {}},
+});
+await hooks.gateway_start();
+offline = true;
+await hooks.before_tool_call({toolName: "write", params: {}}, {});
+offline = false;
+await intervalCallback();
+let state;
+await statusHandler({respond(_ok, value) { state = value; }});
+if (state.state !== "silent") throw new Error("recovered after only one health result");
+await intervalCallback();
+await statusHandler({respond(_ok, value) { state = value; }});
+if (state.state !== "active" || state.backendResponseError) throw new Error("did not recover after two results");
+action = "block";
+if ((await hooks.before_tool_call({toolName: "write", params: {}}, {}))?.block !== true) throw new Error("block lost");
+action = "require_approval";
+if (!(await hooks.before_tool_call({toolName: "write", params: {}}, {}))?.requireApproval) throw new Error("approval lost");
+if (decisionPosts !== 2) throw new Error("unexpected number of successful decision requests");
+hooks.gateway_stop();
+''')
+
+
+def test_health_http_error_is_responsive_not_silent(tmp_path: Path) -> None:
+    """A reachable but unhealthy server must not appear transport-offline."""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+globalThis.fetch = async (url) => url.endsWith("/api/health")
+  ? {ok: false, status: 500}
+  : {ok: false, status: 500, text: async () => "{}"};
+const hooks = {};
+let statusHandler;
+plugin.register({
+  pluginConfig: {guardUrl: "http://guard.test"},
+  on(name, handler) { hooks[name] = handler; },
+  registerGatewayMethod(_name, handler) { statusHandler = handler; },
+  logger: {info() {}, warn() {}},
+});
+await hooks.gateway_start();
+let state;
+await statusHandler({respond(_ok, value) { state = value; }});
+if (state.state !== "active" || state.backendResponseError !== true) throw new Error("response error labeled offline or healthy");
+if ((await hooks.before_tool_call({toolName: "shell_exec", params: {}}, {}))?.block !== true) throw new Error("response error allowed shell");
+hooks.gateway_stop();
+''')
+
+
+def test_status_fallback_does_not_invent_fail_closed_setting() -> None:
+    """Plugin-list fallback cannot know a live bridge's failure policy."""
+    target = OpenClawTarget()
+    with patch("openclaw_guard.integrations.openclaw_adapter._gateway_call", side_effect=OpenClawRelayError("unreachable", "offline")), patch(
+        "openclaw_guard.integrations.openclaw_adapter.inspect_guard_plugin",
+        return_value={"found": True, "status": "loaded"},
+    ):
+        status = get_guard_hook_status(target)
+    assert status["state"] == "unknown"
+    assert status["failClosed"] is None

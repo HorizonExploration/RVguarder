@@ -381,7 +381,8 @@ def get_guard_hook_status(target: OpenClawTarget) -> dict[str, Any]:
                 "ok": True,
                 "pluginId": "openclaw-guard-hook",
                 "guardUrl": None,
-                "failClosed": True,
+                "state": "unknown",
+                "failClosed": None,
                 "decisionTimeoutMs": DEFAULT_DECISION_TIMEOUT_MS,
             }
         raise

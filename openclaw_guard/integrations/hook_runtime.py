@@ -485,9 +485,11 @@ export default {{
     // The bridge is transparent until a background health check confirms availability.
     let backendState = "silent";
     let backendResponseError = false;
+    let recoveryRequired = false;
     function enterSilent(reason) {{
       if (backendState !== "silent") {{
         api.logger.warn(`[${{PLUGIN_ID}}] Guard transport unavailable (${{reason}}); agent tools pass through`);
+        recoveryRequired = true;
       }}
       backendState = "silent";
       backendResponseError = false;
@@ -498,59 +500,42 @@ export default {{
       backendState = "active";
       backendResponseError = false;
       circuitOpen = false;
+      recoveryRequired = false;
     }}
 
-    // Circuit breaker state
-    let circuitOpen = false;
-    let consecutiveFails = 0;
+    // A silent bridge never blocks tools or synchronously probes Guard.
+    let circuitOpen = true;
     let consecutiveSuccesses = 0;
-    const FAIL_THRESHOLD = Number(pluginConfig.failThreshold || 3);
     const RECOVERY_THRESHOLD = Number(pluginConfig.recoveryThreshold || 2);
-    const failClosedGracePeriodMs = Number(pluginConfig.failClosedGracePeriodMs || 30000);
-    let graceStartedAt = null;
     let healthCheckTimer = null;
 
     async function doHealthCheck() {{
-      const wasOpen = circuitOpen;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
       try {{
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
         const response = await fetch(`${{guardUrl}}/api/health`, {{
           method: "GET",
           signal: controller.signal,
         }});
-        clearTimeout(timeout);
         if (response.ok) {{
-          enterActive();
-          consecutiveFails = 0;
           consecutiveSuccesses++;
-          graceStartedAt = null;
-          if (circuitOpen && consecutiveSuccesses >= RECOVERY_THRESHOLD) {{
-            circuitOpen = false;
-            api.logger.info(`[${{PLUGIN_ID}}] Circuit CLOSED — Guard backend recovered after ${{consecutiveSuccesses}} successful checks`);
+          if (!recoveryRequired || consecutiveSuccesses >= RECOVERY_THRESHOLD) {{
+            const wasSilent = backendState === "silent";
+            enterActive();
+            if (wasSilent) api.logger.info(`[${{PLUGIN_ID}}] Guard backend healthy; protection resumed`);
           }}
         }} else {{
-          _handleHealthFailure();
+          // An HTTP response is not a transport outage. Keep the error visible.
+          backendState = "active";
+          backendResponseError = true;
+          circuitOpen = false;
+          recoveryRequired = true;
+          consecutiveSuccesses = 0;
         }}
       }} catch (_err) {{
-        _handleHealthFailure();
-      }}
-      if (wasOpen !== circuitOpen) {{
-        api.logger.info(`[${{PLUGIN_ID}}] Circuit state changed: ${{circuitOpen ? "OPEN (tiered-degraded)" : "CLOSED"}}`);
-      }}
-    }}
-
-    function _handleHealthFailure() {{
-      consecutiveSuccesses = 0;
-      consecutiveFails++;
-      if (!graceStartedAt) {{
-        graceStartedAt = Date.now();
-        api.logger.warn(`[${{PLUGIN_ID}}] Health check failed — grace period started (${{failClosedGracePeriodMs / 1000}}s)`);
-      }}
-      const inGrace = (Date.now() - graceStartedAt) < failClosedGracePeriodMs;
-      if (!circuitOpen && !inGrace && consecutiveFails >= FAIL_THRESHOLD) {{
-        circuitOpen = true;
-        api.logger.warn(`[${{PLUGIN_ID}}] Circuit OPEN — Guard backend unreachable for ${{consecutiveFails}} checks; applying tiered failure safety`);
+        enterSilent("health_transport");
+      }} finally {{
+        clearTimeout(timeout);
       }}
     }}
 
@@ -562,6 +547,8 @@ export default {{
           pluginId: PLUGIN_ID,
           guardUrl,
           failClosed,
+          state: backendState,
+          backendResponseError,
           circuitOpen,
           decisionTimeoutMs,
         });
@@ -612,6 +599,7 @@ export default {{
                 allowedDecisions: result.allowed_decisions || ["allow-once", "deny"],
                 timeoutMs: 300000,
                 onResolution: async (decision) => {{
+                  if (backendState === "silent") return;
                   try {{
                     const normalizedDecision = decision === "allow-always" ? "allow-always" : decision;
                     await postJson(
@@ -623,8 +611,9 @@ export default {{
                       5000,
                       authToken,
                     );
-                  }} catch (e) {{
-                    api.logger.warn(`[${{PLUGIN_ID}}] Failed to sync resolution to guard: ${{e}}`);
+                  }} catch (error) {{
+                    if (error?.kind === "transport") enterSilent("approval_transport");
+                    else backendResponseError = true;
                   }}
                 }},
               }},
@@ -663,6 +652,7 @@ export default {{
     api.on(
       "after_tool_call",
       async (event, hookCtx) => {{
+        if (backendState === "silent") return;
         try {{
           await postJson(
             `${{guardUrl}}/api/hook/after-tool-call`,
@@ -685,8 +675,8 @@ export default {{
             authToken,
           );
         }} catch (error) {{
-          const detail = error instanceof Error ? error.message : String(error);
-          api.logger.warn(`[${{PLUGIN_ID}}] after_tool_call bridge failed: ${{detail}}`);
+          if (error?.kind === "transport") enterSilent("audit_transport");
+          else backendResponseError = true;
         }}
       }},
       {{ registrationId: "openclaw_guard_after_tool_call" }},
@@ -698,8 +688,9 @@ export default {{
       () => {{
         api.logger.info(`[${{PLUGIN_ID}}] Gateway started — initializing health check (30s interval)`);
         // Immediate first check
-        doHealthCheck();
+        const initialCheck = doHealthCheck();
         healthCheckTimer = setInterval(doHealthCheck, 30000);
+        return initialCheck;
       }},
       {{ registrationId: "openclaw_guard_gateway_start" }},
     );
