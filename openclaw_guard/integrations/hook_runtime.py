@@ -414,26 +414,47 @@ async function postJson(url, payload, timeoutMs, authToken) {{
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), Math.max(timeoutMs, 1000));
   try {{
-    const response = await fetch(url, {{
-      method: "POST",
-      headers: {{
-        "content-type": "application/json",
-        ...(authToken ? {{ "x-openclaw-guard-token": authToken }} : {{}}),
-      }},
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    }});
-    const text = await response.text();
+    let response;
+    try {{
+      response = await fetch(url, {{
+        method: "POST",
+        headers: {{
+          "content-type": "application/json",
+          ...(authToken ? {{ "x-openclaw-guard-token": authToken }} : {{}}),
+        }},
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      }});
+    }} catch (error) {{
+      const failure = new Error("Guard transport unavailable");
+      failure.kind = "transport";
+      throw failure;
+    }}
+    let responseText;
+    try {{
+      responseText = await response.text();
+    }} catch (error) {{
+      const failure = new Error("Guard response unreadable");
+      failure.kind = "protocol";
+      throw failure;
+    }}
     let data = {{}};
-    if (text) {{
+    if (responseText) {{
       try {{
-        data = JSON.parse(text);
+        data = JSON.parse(responseText);
       }} catch (_error) {{
-        data = {{ raw: text }};
+        if (response.ok) {{
+          const failure = new Error("Guard response invalid");
+          failure.kind = "protocol";
+          throw failure;
+        }}
       }}
     }}
     if (!response.ok) {{
-      throw new Error(data.detail || data.message || `guard endpoint failed: ${{response.status}}`);
+      const failure = new Error(`Guard HTTP ${{response.status}}`);
+      failure.kind = "http";
+      failure.status = response.status;
+      throw failure;
     }}
     return data;
   }} finally {{
@@ -461,6 +482,24 @@ export default {{
     const decisionTimeoutMs = Number(pluginConfig.decisionTimeoutMs || DEFAULT_DECISION_TIMEOUT_MS);
     const callbackTimeoutMs = Number(pluginConfig.callbackTimeoutMs || 15000);
 
+    // The bridge is transparent until a background health check confirms availability.
+    let backendState = "silent";
+    let backendResponseError = false;
+    function enterSilent(reason) {{
+      if (backendState !== "silent") {{
+        api.logger.warn(`[${{PLUGIN_ID}}] Guard transport unavailable (${{reason}}); agent tools pass through`);
+      }}
+      backendState = "silent";
+      backendResponseError = false;
+      circuitOpen = true;
+      consecutiveSuccesses = 0;
+    }}
+    function enterActive() {{
+      backendState = "active";
+      backendResponseError = false;
+      circuitOpen = false;
+    }}
+
     // Circuit breaker state
     let circuitOpen = false;
     let consecutiveFails = 0;
@@ -482,6 +521,7 @@ export default {{
         }});
         clearTimeout(timeout);
         if (response.ok) {{
+          enterActive();
           consecutiveFails = 0;
           consecutiveSuccesses++;
           graceStartedAt = null;
@@ -535,6 +575,9 @@ export default {{
     api.on(
       "before_tool_call",
       async (event, hookCtx) => {{
+        if (backendState === "silent") {{
+          return undefined;
+        }}
         api.logger.info(`[${{PLUGIN_ID}}] before_tool_call FIRED: ${{event.toolName}}`);
         try {{
           const result = await postJson(
@@ -593,17 +636,21 @@ export default {{
             blockReason: boundedApprovalText(result.blockReason || result.message, "龙虾卫士已阻止该操作，请查看风险说明。", MAX_APPROVAL_DESCRIPTION_CHARS),
           }};
         }} catch (error) {{
-          const detail = error instanceof Error ? error.message : String(error);
-          api.logger.warn(`[${{PLUGIN_ID}}] before_tool_call bridge failed: ${{detail}}`);
+          if (error?.kind === "transport") {{
+            enterSilent("decision_transport");
+            return undefined;
+          }}
+          backendResponseError = true;
+          api.logger.warn(`[${{PLUGIN_ID}}] before_tool_call response error (${{error?.kind || "unknown"}})`);
           if (!failClosed && !isHighImpactTool(event)) {{
             return undefined;
           }}
-          api.logger.warn(`[${{PLUGIN_ID}}] Guard unavailable — blocking high-impact tool call (tiered failure safety)`);
+          api.logger.warn(`[${{PLUGIN_ID}}] Guard responded with an error — blocking high-impact tool call`);
           return {{
             block: true,
             blockReason: boundedApprovalText(
-              `龙虾卫士服务暂时不可达，已按安全策略暂停该操作。详情：${{detail}}`,
-              "龙虾卫士服务暂时不可达，已按安全策略暂停该操作。",
+              "龙虾卫士服务返回错误，已按安全策略暂停该操作。",
+              "龙虾卫士服务返回错误，已按安全策略暂停该操作。",
               MAX_APPROVAL_DESCRIPTION_CHARS,
             ),
           }};
