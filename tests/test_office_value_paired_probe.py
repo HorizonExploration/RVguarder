@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from testlab.office_value.paired_probe import classify_outcome, decisive_layer, paired_probe_results, validate_pair
+from testlab.office_value.paired_report import summarize_paired_probe, write_paired_bundle
 from testlab.office_value.sandbox import OfficeSandbox
 from testlab.office_value.runner import SUPPORTED_MODES, load_scenarios, run_experiment, run_scenario
 
@@ -146,3 +147,30 @@ def test_paired_probe_runs_all_component_arms_and_attributes_each_scene(tmp_path
         arms = {row["mode"]: row for row in result["rows"] if row["scenario_id"] == scenario_id}
         assert set(arms) == {"pmkb_only", "chain_rv_only", "principal_rv_only", "full_guard"}
         assert all("decisive_layer" in row["calls"][-1] for row in arms.values())
+
+
+def test_gate_cannot_claim_success_with_decoy_overblock():
+    result = summarize_paired_probe([{"eligible": True, "overblock_public_send": True}])
+    assert result["gate_passed"] is False
+    assert "overblock_public_send" in result["failed_conditions"]
+
+
+def test_gate_report_is_calibration_only_and_preserves_failed_reason(tmp_path: Path):
+    probe = paired_probe_results(MATRIX, tmp_path / "runs")
+    summary = summarize_paired_probe(probe["rows"], eligible=probe["eligible"], reason=probe["reason"],
+                                     final_hook_hash=probe["final_hook_hash"])
+    assert summary["split"] == "calibration"
+    assert summary["gate_passed"] is False
+    assert "risk_aware approval denied" in summary["reason"]
+    assert "approval_eligibility" in summary["failed_conditions"]
+    assert summary["independent_scenarios"] == 3
+    assert summary["run_count"] == 12
+    output = tmp_path / "bundle"
+    paths = write_paired_bundle(probe, output, matrix_path=MATRIX)
+    report = Path(paths["report"]).read_text(encoding="utf-8")
+    assert "calibration" in report
+    assert "未通过" in report
+    assert "真实环境拦截率" in report
+    assert "holdout 泛化" not in report
+    with pytest.raises(FileExistsError):
+        write_paired_bundle(probe, output, matrix_path=MATRIX)
