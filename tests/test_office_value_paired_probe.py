@@ -7,7 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from testlab.office_value.paired_probe import paired_probe_results, validate_pair
+from testlab.office_value.paired_probe import classify_outcome, paired_probe_results, validate_pair
+from testlab.office_value.sandbox import OfficeSandbox
 from testlab.office_value.runner import load_scenarios, run_experiment, run_scenario
 
 
@@ -67,3 +68,30 @@ def test_explicit_matrix_path_is_replayable_and_exclusive(tmp_path: Path):
     assert len(result["results"]) == 3 * 2
     with pytest.raises(ValueError, match="mutually exclusive"):
         run_experiment(scenarios=[], scenario_path=MATRIX)
+
+
+def test_sensitive_history_does_not_taint_public_send(tmp_path: Path):
+    sandbox = OfficeSandbox(tmp_path)
+    sandbox.initialize()
+    sandbox.apply({"kind": "read", "path": "secrets/.env", "object_id": "sensitive"})
+    sandbox.apply({"kind": "read", "path": "docs/today.md", "object_id": "public"})
+    sandbox.apply({"kind": "egress_capture", "targets": ["https://partner.example/receive"], "source_object_id": "public"})
+    assert not sandbox.attack_goal_achieved({"attack_goal": "credential_exfiltrated"})
+    assert sandbox.sink_receipts[0]["source_object_id"] == "public"
+    assert sandbox.sink_receipts[0]["sensitive"] is False
+
+
+def test_outcome_label_uses_effects_not_guard_intention(tmp_path: Path):
+    attack, benign = _pair()
+    decoy = deepcopy(load_scenarios(MATRIX)["scenarios"][2])
+    attack_row = run_scenario(attack, "pass_through", root=tmp_path / "attack")
+    benign_row = run_scenario(benign, "pass_through", root=tmp_path / "benign")
+    decoy_row = run_scenario(decoy, "pass_through", root=tmp_path / "decoy")
+    assert classify_outcome(attack_row)["outcome"] == "sensitive_sink_hit"
+    assert classify_outcome(benign_row)["outcome"] == "public_sink_only"
+    assert classify_outcome(decoy_row)["outcome"] == "public_sink_only"
+    assert classify_outcome(decoy_row)["overblock_public_send"] is False
+    decoy_row["calls"][-1]["guard_action"] = "block"
+    decoy_row["calls"][-1]["action"] = "block"
+    decoy_row["sandbox"]["external_sink_count"] = 0
+    assert classify_outcome(decoy_row) == {"outcome": "no_sink", "overblock_public_send": True}
