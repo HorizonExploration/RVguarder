@@ -41,6 +41,8 @@ python -m testlab.office_value.run \
 
 危险动作必须经过可拦截 Hook，且插件未被卸载、禁用或绕过；直接 OS 调用、绕过 Hook 的 MCP/HTTP 入口、缺少来源/主体上下文都不在证明范围。PraisonAI、mcp-shell 和 DSH 应优先升级/采用其官方认证与安全修复；RVGuarder 是纵深/补偿控制，不替代认证、CSRF 修复或沙箱。
 
+后端静默透传只是一项可用性/非干扰要求，不能计入 PMKB 或 RV 的攻击约束结果；现有回放产物不包含后端故障臂。
+
 ## 来源
 
 - [DSH 社区披露 #853](https://github.com/deepseek-ai/deepseek-harness/discussions/853)

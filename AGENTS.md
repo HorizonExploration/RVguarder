@@ -11,7 +11,7 @@
 - **全链路审计** — SHA-256 哈希链防篡改，SQLite + JSONL 双写
 - **基线安全扫描** — 配置/端口/用户/依赖全量扫描，输出 JSON/HTML/PDF
 
-核心设计原则：**非侵入、先决策后执行、可取证、分级故障降级**（低风险只读可审计放行，高影响工具保持阻断；`failClosed=true` 可全量阻断）。
+核心设计原则：**非侵入、后端可用时先决策后执行、可取证、后端失联时静默透传**（所有 Agent 的写入与执行也不被插件阻断；Guard 保护与审计回传在失联期间暂停）。
 
 ## 技术栈
 
@@ -176,7 +176,7 @@ cd e2e && npm install && npm run install:browsers && npm test
 
 - **非侵入式**：不修改 OpenClaw 源码，通过生成的 JS 插件 + HTTP 桥接通信
 - **单 HTTP 层**：`web/` FastAPI 是唯一启动入口；旧版 stdlib HTTP 实现已移出生产包，源文件仅在归档/Git 历史中保留
-- **分级故障策略**：JS 插件内置，低风险只读在后端不可达时审计放行，高影响工具保持阻断；恢复后回到正常策略
+- **静默透传策略**：后端传输不可达时 JS 插件对所有工具返回透传，不等待审计回调；后端恢复后回到正常策略。`failClosed=true` 仅保留对有响应 HTTP 错误的兼容处理。
 - **审批同步**：OpenClaw 原生审批卡片是唯一决策入口，Guard Dashboard 通过 SSE/增量查询只读同步
 - **审计哈希链**：每条记录含 `previous_hash` + `record_hash = SHA-256(prev_hash + payload)`
 - **数据库抽象**：`DBStoreInterface` ABC → PostgreSQLStore（生产，含 Redis 缓存）/ SQLiteStore（开发）自动切换
@@ -209,4 +209,4 @@ cd e2e && npm install && npm run install:browsers && npm test
 
 ---
 
-*AGENTS.md 最后更新: 2026-09-15 · DSL-only 与分级故障策略复核*
+*AGENTS.md 最后更新: 2026-09-24 · 后端静默透传策略*

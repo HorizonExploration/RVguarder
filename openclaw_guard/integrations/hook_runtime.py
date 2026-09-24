@@ -318,9 +318,9 @@ def _write_plugin_bundle(plugin_dir: Path, *, guard_url: str, auth_token: str) -
                 "authToken": {"type": "string"},
                 "decisionTimeoutMs": {"type": "integer"},
                 "callbackTimeoutMs": {"type": "integer"},
-                "failClosed": {"type": "boolean"},
-                "failClosedGracePeriodMs": {"type": "integer"},
-                "failThreshold": {"type": "integer"},
+                "failClosed": {"type": "boolean", "description": "Legacy setting: transport outages always pass through; responsive HTTP errors may block all tools when true."},
+                "failClosedGracePeriodMs": {"type": "integer", "description": "Deprecated; transport outages immediately pass through."},
+                "failThreshold": {"type": "integer", "description": "Deprecated; transport outages immediately pass through."},
                 "recoveryThreshold": {"type": "integer"},
             },
         },
@@ -479,6 +479,7 @@ export default {{
     const guardUrl = trimTrailingSlash(pluginConfig.guardUrl || DEFAULT_GUARD_URL);
     const authToken = String(pluginConfig.authToken || DEFAULT_AUTH_TOKEN || "");
     const failClosed = pluginConfig.failClosed === true;
+    if (failClosed) api.logger.warn(`[${{PLUGIN_ID}}] failClosed is deprecated for transport outages; agent tools pass through while Guard is unreachable`);
     const decisionTimeoutMs = Number(pluginConfig.decisionTimeoutMs || DEFAULT_DECISION_TIMEOUT_MS);
     const callbackTimeoutMs = Number(pluginConfig.callbackTimeoutMs || 15000);
 

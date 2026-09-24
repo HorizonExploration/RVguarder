@@ -115,37 +115,36 @@ Guard 会同时返回 `user_summary`、`approval`、`allowed_decisions`、`polic
 范围使用 `workspace / managed_project / outside / external / unknown` 五级模型，不再把所有
 非 workspace 目标直接视为恶意。
 
-### 电路熔断器与分级故障策略（Circuit Breaker）
+### 后端静默透传与恢复（Circuit Breaker）
 
-Guard 后端可能因维护、故障或网络隔离而不可达。插件保持 OpenClaw 可用性，但不做全局放行，按工具影响面执行分级策略。
+Guard 后端可能因维护、故障或网络隔离而不可达。此时插件以 OpenClaw 可用性为先：所有 Agent 的工具调用都由 OpenClaw 自身规则继续处理，Guard 不提供保护。
 
 1. **健康状态**：正常请求由 Guard 返回 `allow`、`requireApproval` 或 `block`。
-2. **故障降级**：低风险、只读工具返回 `undefined`（由 OpenClaw 继续执行），并记录降级日志；
-   写入、删除、执行命令、网络、发送、浏览器、会话控制等高影响工具返回 `{ block: true }` 暂停。
-3. **强制暂停**：`failClosed: true` 时所有工具在 Guard 不可达时都暂停；健康检查恢复后再回到正常审批。
-4. **熔断状态**：连续失败/恢复计数只用于状态展示、告警和恢复判断，不会把高影响调用改成全局放行。
+2. **传输故障**：连接拒绝或超时时，当前与后续 `before_tool_call` 对所有工具返回 `undefined`；`after_tool_call` 和既有审批的 Guard 同步不再等待后端。写入与执行也不例外。
+3. **恢复**：后台健康检查成功后重新启用 Guard。启动时一次成功即可启用；失联后需连续两次成功。静默期间错过的阻断和审计不会重放。
+4. **有响应的错误**：后端明确返回 HTTP 401/4xx/5xx 不等同于传输失联，仍按分级错误策略处理；遗留 `failClosed: true` 只在此类错误时可全量阻断。
 
 行为总结：
 
-| 后端状态 | 熔断器状态 | 行为 | 含义 |
+| 后端状态 | 桥接状态 | 行为 | 含义 |
 |----------|-----------|------|------|
-| 正常 | CLOSED | 返回 requireApproval / block / allow | 正常审批 |
-| 刚断开（< 30s） | CLOSED（优雅期） | 低风险放行并审计；高影响 block | 短时故障按风险分级 |
-| 断开（> 30s，≥ 3 次失败） | OPEN | 低风险放行并审计；高影响 block | 熔断不改变高影响安全下限 |
-| 恢复（≥ 2 次健康检查成功） | CLOSED | 返回 requireApproval / block / allow | 恢复正常审批 |
+| 启动尚未确认健康 | silent | 所有工具透传 | Guard 防护暂停 |
+| 传输不可达 | silent | 所有工具透传，无同步回调 | Guard 防护暂停 |
+| HTTP 错误有响应 | active + backendResponseError | 低影响透传，高影响阻断；遗留 `failClosed=true` 可全量阻断 | 后端异常，不是静默 |
+| 恢复（≥ 2 次连续健康检查成功） | active | 返回 requireApproval / block / allow | 恢复正常审批 |
 
 通过 `pluginConfig` 可配置：
 
 ```javascript
 pluginConfig = {
-  failClosed: false,                   // true: 后端不可达时所有工具均暂停
-  failThreshold: 3,                    // 连续失败次数阈值
+  failClosed: false,                   // 旧兼容项：仅对有响应的 HTTP 错误生效，传输故障一律透传
+  failThreshold: 3,                    // 已弃用：传输故障立即透传
   recoveryThreshold: 2,                // 恢复成功次数阈值
-  failClosedGracePeriodMs: 30000,      // 优雅期毫秒数
+  failClosedGracePeriodMs: 30000,      // 已弃用：无传输故障阻断优雅期
 }
 ```
 
-> **系统默认**：首次写入 `openclaw.json` 时写入 `failClosed: false`，但仍执行上述分级策略，并非所有工具都放行。生产环境应监控 `hook_status` 的 `circuitOpen` 和降级日志。
+> **系统默认**：首次写入 `openclaw.json` 时仍为兼容保留 `failClosed: false`。传输故障时即使旧配置为 `true`，所有工具也静默透传。后端从可用状态突然断开时，首个失败调用可能等待一次决策超时（默认 2 秒），后续调用不再同步请求。生产环境应监控 `hook_status` 的 `state`、`backendResponseError` 和 `circuitOpen`；只有 `state=active` 且无响应错误时才可认为 Guard 防护正常。
 
 ## 审批结果同步机制
 

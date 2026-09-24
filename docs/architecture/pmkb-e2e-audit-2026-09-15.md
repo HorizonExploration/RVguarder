@@ -288,3 +288,5 @@ VuePress build success，Rendering 40 pages
 说明：第一次在受限沙箱执行 E2E 时因不能监听本地端口而得到 PermissionError: Operation not permitted；在获得本地测试端口权限后 Chromium 5/5 通过。Firefox 的并行网络错误属于测试环境问题，已通过清除代理变量、单 worker 复跑得到 5/5 证据。
 
 本报告记录本轮修复后的复核结果；工作区其他已有改动保持原样。后续应补语义降级指标、断线重连和 19 个未直接覆盖 operation 的小规模样本。
+
+> 2026-09-24 后续设计变更：本报告的“后端失联时高影响工具阻断”是 2026-09-15 当时版本的观察，不再描述当前 Hook 策略。当前后端传输不可达时插件对所有 Agent 工具调用静默透传（含写入与执行），Guard 防护暂停；有响应的 HTTP 错误仍按分级策略处理。见 [现行 Hook 策略](../features/runtime-hook.md)。

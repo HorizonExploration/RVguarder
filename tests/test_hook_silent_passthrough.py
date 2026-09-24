@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import json
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from openclaw_guard.integrations.hook_runtime import _plugin_source
+from openclaw_guard.integrations.hook_runtime import _plugin_source, _write_plugin_bundle
 from openclaw_guard.config import OpenClawTarget
 from openclaw_guard.integrations.openclaw_adapter import OpenClawRelayError, get_guard_hook_status
 
@@ -252,3 +253,40 @@ def test_status_fallback_does_not_invent_fail_closed_setting() -> None:
         status = get_guard_hook_status(target)
     assert status["state"] == "unknown"
     assert status["failClosed"] is None
+
+
+def test_silent_non_interference_for_tools_and_agents(tmp_path: Path) -> None:
+    """A stalled backend cannot add tool decisions to any agent's workflow."""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+let posts = 0;
+globalThis.fetch = async () => { posts++; throw new Error("Guard stopped"); };
+const hooks = {};
+plugin.register({
+  pluginConfig: {guardUrl: "http://guard.test", failClosed: true},
+  on(name, handler) { hooks[name] = handler; },
+  registerGatewayMethod() {},
+  logger: {info() {}, warn() {}},
+});
+await hooks.gateway_start();
+for (const agentId of ["agent-a", "agent-b"]) {
+  for (const toolName of ["read", "write", "shell_exec", "message"]) {
+    const outcome = await hooks.before_tool_call({toolName, params: {}, context: {agentId}}, {});
+    if (outcome !== undefined) throw new Error(`${agentId}/${toolName} differs from no-plugin pass-through`);
+  }
+}
+if (posts !== 1) throw new Error("silent tool calls contacted Guard"); // one background health probe only
+hooks.gateway_stop();
+''')
+
+
+def test_generated_config_contract_describes_fail_closed_compatibility(tmp_path: Path) -> None:
+    """The installed manifest must not advertise outage blocking that no longer exists."""
+    plugin_dir = tmp_path / "plugin"
+    _write_plugin_bundle(plugin_dir, guard_url="http://guard.test", auth_token="fixture")
+    manifest = json.loads((plugin_dir / "openclaw.plugin.json").read_text(encoding="utf-8"))
+    properties = manifest["configSchema"]["properties"]
+    assert properties["failClosed"]["type"] == "boolean"
+    description = properties["failClosed"]["description"]
+    assert "transport" in description.lower()
+    assert "pass through" in description.lower()

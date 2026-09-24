@@ -16,8 +16,8 @@ features:
     details: 基于 OpenClaw 官方 `api.on("before_tool_call")` API，工具执行前挂起 agent，通过 `requireApproval` 实现物理拦截。不再有「先执行后审批」的尴尬。
   - title: 🔄 审批结果同步
     details: OpenClaw 原生审批卡片是唯一 Hook 审批入口，Guard Dashboard 通过 `onResolution`、SSE 和增量查询及时同步结果。
-  - title: ⚡ 电路熔断降级
-    details: 后端不可达时按工具风险分级降级：低风险只读调用放行并审计，高影响调用暂停；后端恢复后自动闭合。
+  - title: ⚡ 后端静默透传
+    details: 后端传输不可达时所有 Agent 的工具调用（含写入与执行）由 OpenClaw 自身规则继续处理，Guard 防护暂停；后端恢复后自动启用。
   - title: 🧠 语义理解增强
     details: DeepSeek LLM 驱动的语义分析引擎，理解自然语言约束而非简单关键词匹配。7 维度 50+ 标签，双模式运行（LLM / 本地规则）。
   - title: 🧩 权限知识库 PMKB
@@ -84,7 +84,7 @@ v0.7.0-dev builds on the v0.6.0 six-phase refactor and RV phases A–F with a ve
 |------|------|------------|
 | **原生钩子拦截** | `api.on("before_tool_call")`，工具执行前物理挂起 | Official hook API, physically pauses agent before tool execution |
 | **审批结果同步** | OpenClaw 负责 Hook 审批，Guard 只读同步与审计 | OpenClaw owns Hook approval; Guard provides read-only sync and audit |
-| **电路熔断器** | 按工具风险分级降级：低风险审计放行，高影响暂停 | Tiered degradation: audit low-risk reads, pause high-impact calls |
+| **静默透传** | Guard 后端不可达时所有工具透传；恢复后重新启用防护 | Pass through all tools while Guard is unreachable; resume protection on recovery |
 | **语义理解** | DeepSeek LLM + 7 维度标签体系 | Understands natural language intent, 50+ labels across 7 dimensions |
 | **运行时验证 RV** | 滑动窗口 + ChainRule DSL 生成监视器检测链式攻击 | Sliding window + ChainRule DSL monitors for chain-attack detection |
 | **基线扫描** | 配置/端口/用户/依赖 全量安全扫描 | Full security scan: config, ports, users, dependencies |
@@ -98,7 +98,7 @@ Backend:   Python 3.13+ · FastAPI(唯一入口) · DeepSeek API · SQLite · SQ
 Frontend:  Preact · Vite · Zustand · 单页 SPA · SSE + 增量轮询降级
 Plugin:    JavaScript · OpenClaw Plugin SDK (api.on) · registerGatewayMethod
 Core:      Runtime Verification (RV) · 滑动窗口 · ChainRule DSL 生成自动机 · 白名单 Trie 树
-Safety:    Circuit Breaker · tiered failure safety · requireApproval · block
+Safety:    Silent passthrough on backend outage · requireApproval · block when healthy
 ```
 
 ## 快速开始 · Quick Start

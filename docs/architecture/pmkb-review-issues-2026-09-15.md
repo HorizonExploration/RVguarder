@@ -27,6 +27,8 @@
 - Hook 事件的路径、收件人实体不再固定截断为 8 条；缺失 `after_tool_call` 的旧动作标记为 `failed/unknown`。
 - 手写 FSM/`transitions` 已从生产和测试入口移除；历史 `fsm` 配置值归一化为 DSL。
 - 后端不可达时改为分级策略：低风险只读放行并审计，高影响工具暂停；`failClosed=true` 仍可全量暂停。
+
+> 2026-09-24 后续变更：上条是当时版本的历史观察。当前 Guard 后端传输不可达时插件对所有 Agent 工具调用静默透传（含写入与执行）；有响应的 HTTP 错误仍按分级错误策略处理。见 [现行 Hook 策略](../features/runtime-hook.md)。
 - 新增双浏览器 E2E：OpenClaw resolution → SSE `action.resolved` → Guard 页面状态对账。
 
 ---
