@@ -1,0 +1,38 @@
+{
+  "approval_persona": "risk_aware",
+  "artifacts": [
+    "manifest.json",
+    "raw.jsonl",
+    "summary.json",
+    "report.md"
+  ],
+  "component_modes": {
+    "chain_rv_only": [
+      "pmkb",
+      "chain_rv"
+    ],
+    "full_guard": [
+      "pmkb",
+      "chain_rv",
+      "principal_rv"
+    ],
+    "pmkb_only": [
+      "pmkb"
+    ],
+    "principal_rv_only": [
+      "pmkb",
+      "principal_rv"
+    ]
+  },
+  "final_hook_sha256": "031d4c5d1615b0e4c47005d8cd9f2050f9c652dcc57b955618726157c2d2f5c6",
+  "git_commit": "870eaa1f5586bb9d6c1df7528224a00e666b0163",
+  "matrix_path": "testlab/office_value/paired_calibration.json",
+  "matrix_sha256": "f9c9fba0b82d1783eb40163022690cf6da73517361d9bbbe60419db2aae6b773",
+  "policy_versions": [
+    "1.1.0"
+  ],
+  "repeat_count": 1,
+  "run_command": "python -m testlab.office_value.paired_report --matrix testlab/office_value/paired_calibration.json --output testlab/results/office-value-v3-rv-gate-rerun",
+  "schema_version": 1,
+  "split": "calibration"
+}
