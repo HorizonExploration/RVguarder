@@ -123,7 +123,13 @@ def _annotate_event_context(
     timings = _ensure_pipeline_timings(event)
     timings["semantic_ms"] = round((time.perf_counter() - semantic_started) * 1000.0, 3)
     event.metadata["semantic"] = semantic_payload["semantic"]
-    event.metadata["rv_trace"] = semantic_payload["rv_trace"]
+    run_id = str(event.metadata.get("run_id") or "").strip()
+    tool_call_id = str(event.metadata.get("tool_call_id") or "").strip()
+    call_identity = f"{run_id}:{tool_call_id}" if run_id and tool_call_id else str(event.event_id)
+    event.metadata["rv_trace"] = [
+        {**step, "step_id": f"{call_identity}:{index}"}
+        for index, step in enumerate(semantic_payload["rv_trace"], 1)
+    ]
     policy_engine = getattr(services, "policy_engine", None)
     if policy_engine is not None:
         authorization_trace = policy_engine.compile_trace(event, source_message=source_message)

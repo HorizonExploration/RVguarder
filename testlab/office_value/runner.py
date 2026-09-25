@@ -589,11 +589,14 @@ def _evidence_from_action(action: Any, response: dict[str, Any], *, mode: str) -
     rv_result = metadata.get("rv_result") if isinstance(metadata, dict) else None
     semantic = metadata.get("semantic") if isinstance(metadata, dict) else None
     timings = metadata.get("pipeline_timings_ms") if isinstance(metadata, dict) else None
+    rv_trace = metadata.get("rv_trace") if isinstance(metadata, dict) else None
     required = (policy, trace, semantic, timings)
     if mode in {"full_guard", "chain_rv_only"}:
         required = (*required, rv_result)
     return _scrub_report_value({
         "policy_decision": policy, "authorization_trace": trace, "rv_result": rv_result, "semantic": semantic,
+        "rv_step_ids": [str(step["step_id"]) for step in rv_trace
+                        if isinstance(step, dict) and step.get("step_id")],
         "approval_presentation": metadata.get("approval_presentation") if isinstance(metadata, dict) else None,
         "principal_rv": metadata.get("principal_rv") if isinstance(metadata, dict) else None,
         "pipeline_timings_ms": timings, "decision_trace": getattr(decision, "trace", None) if decision is not None else None,
