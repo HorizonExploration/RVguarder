@@ -47,7 +47,7 @@
 
 **Files:** Modify `openclaw_guard/engine/pipeline.py`, `testlab/office_value/runner.py`; test `tests/test_office_history_value.py` and existing Hook regression tests.
 
-**Interfaces:** Consume `event.metadata["hook_key"]` from `build_hook_event` and `semantic_payload["rv_trace"]`; produce a call-scoped `step_id` such as `<hook_key>:<ordinal>` in `event.metadata["rv_trace"]`. If Hook identity is absent, preserve an existing unique explicit ID or prefix with `event.event_id`; never use semantic `s1` alone across calls. This is diagnostic identity, not authority.
+**Interfaces:** Consume `event.metadata["run_id"]`, `event.metadata["tool_call_id"]` and `semantic_payload["rv_trace"]`; produce a call-scoped `step_id` such as `<run_id>:<tool_call_id>:<ordinal>` in `event.metadata["rv_trace"]`. If either Hook call ID is missing, prefix with `event.event_id`; do not use `hook_key` alone because it can be a parameter fingerprint when IDs are missing. Never use semantic `s1` alone across calls. This is diagnostic identity, not authority.
 
 - [ ] **Step 1: Write failing tests.** Build a two-event in-memory scene from native `read` Hook calls for `docs/today.md` and `docs/meeting-notes.md`, with matching declarative read effects and different `toolCallId` under one `sessionId`. Run it through `run_scenario(..., "chain_rv_only")`; inspect each real action's RV trace via a narrowly exposed runner diagnostic and assert IDs differ, while the same fixture call has the same ID across ablation modes. Also assert `hook_payload` is not mutated. This test does not depend on Task 3's matrix.
 
@@ -67,10 +67,12 @@ def test_hook_rv_steps_are_call_scoped(tmp_path):
 ```
 
 - [ ] **Step 2: Verify red.** Run `python -m pytest -q tests/test_office_history_value.py -k hook_rv_steps`; expected failure: `rv_step_ids` absent or duplicate `s1`.
-- [ ] **Step 3: Implement minimal annotation.** In `_annotate_event_context`, after deterministic semantic merge and before assigning `event.metadata["rv_trace"]`, copy each trace step, derive `base = str(event.metadata.get("hook_key") or event.event_id)`, set `step["step_id"] = f"{base}:{index}"`, and leave all other props/entities unchanged. In runner `_evidence_from_action`, expose only the resulting `rv_step_ids` list (not unredacted source content) for test and attribution.
+- [ ] **Step 3: Implement minimal annotation.** In `_annotate_event_context`, after deterministic semantic merge and before assigning `event.metadata["rv_trace"]`, copy each trace step, derive `base` from `run_id` and `tool_call_id` when both are nonempty or else use `event.event_id`, set `step["step_id"] = f"{base}:{index}"`, and leave all other props/entities unchanged. In runner `_evidence_from_action`, expose only the resulting `rv_step_ids` list (not unredacted source content) for test and attribution.
 
 ```python
-base = str(event.metadata.get("hook_key") or event.event_id)
+run_id = str(event.metadata.get("run_id") or "").strip()
+tool_call_id = str(event.metadata.get("tool_call_id") or "").strip()
+base = f"{run_id}:{tool_call_id}" if run_id and tool_call_id else str(event.event_id)
 event.metadata["rv_trace"] = [
     {**step, "step_id": f"{base}:{index}"}
     for index, step in enumerate(semantic_payload["rv_trace"], 1)
