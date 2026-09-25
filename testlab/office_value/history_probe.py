@@ -22,9 +22,9 @@ def _canonical(value: Any) -> str:
 
 def _workspace_relative_path(value: str) -> str:
     """Normalize fixture and rendered absolute paths to workspace-relative form."""
-    marker = "/office-workspace/"
-    if marker in value:
-        return value.split(marker, 1)[1]
+    fixture_prefix = "${ROOT}/office-workspace/"
+    if value.startswith(fixture_prefix):
+        return value[len(fixture_prefix):]
     return value.removeprefix("${ROOT}/").lstrip("/")
 
 
