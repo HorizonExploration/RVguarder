@@ -488,20 +488,32 @@ class RuntimeVerificationEngine:
         }
         final = "ok"
         triggered_by: str | None = None
+        triggered_rule_id: str | None = None
+        trigger_step_id: str | None = None
+        matched_history_step_ids: list[str] = []
         reason: str | None = None
         monitor_timings: dict[str, float] = {}
         monitors = self._create_monitors()
+        candidate_start = len(history)
         for monitor in monitors:
             started = _time.perf_counter()
-            for step in replay_steps:
+            prefix_window = WindowManager(max_size=self._window_size, ttl_seconds=self._window_ttl)
+            for index, step in enumerate(replay_steps):
+                prefix_window.push(dict(step), preserve_timestamp=index < candidate_start and "_ts_epoch" in step)
                 try:
-                    result = monitor.feed(step, replay_window)
+                    result = monitor.feed(step, prefix_window)
                 except Exception:
                     result = None
+                if index < candidate_start:
+                    continue
                 if result and severity_map.get(result, 0) > severity_map.get(final, 0):
                     final = result
                     triggered_by = monitor.__class__.__name__
                     reason = f"{monitor.__class__.__name__}: {result}"
+                    match = getattr(monitor, "last_match", None) or {}
+                    triggered_rule_id = match.get("rule_id")
+                    trigger_step_id = match.get("trigger_step_id")
+                    matched_history_step_ids = list(match.get("matched_history_step_ids") or [])
             monitor_timings[monitor.__class__.__name__] = round(
                 (_time.perf_counter() - started) * 1000.0, 4
             )
@@ -517,6 +529,10 @@ class RuntimeVerificationEngine:
                 final = result
                 triggered_by = monitor.__class__.__name__
                 reason = f"{monitor.__class__.__name__}: {result}"
+                match = getattr(monitor, "last_match", None) or {}
+                triggered_rule_id = match.get("rule_id")
+                trigger_step_id = match.get("trigger_step_id")
+                matched_history_step_ids = list(match.get("matched_history_step_ids") or [])
             monitor_timings[monitor.__class__.__name__] = round(
                 (_time.perf_counter() - started) * 1000.0, 4
             )
@@ -536,6 +552,10 @@ class RuntimeVerificationEngine:
                 final = result
                 triggered_by = monitor.__class__.__name__
                 reason = f"{monitor.__class__.__name__}: {result}"
+                match = getattr(monitor, "last_match", None) or {}
+                triggered_rule_id = match.get("rule_id")
+                trigger_step_id = match.get("trigger_step_id")
+                matched_history_step_ids = list(match.get("matched_history_step_ids") or [])
             monitor_timings[monitor.__class__.__name__] = round(
                 (_time.perf_counter() - started) * 1000.0, 4
             )
@@ -543,6 +563,9 @@ class RuntimeVerificationEngine:
         return {
             "verdict": final,
             "triggered_by": triggered_by,
+            "triggered_rule_id": triggered_rule_id,
+            "trigger_step_id": trigger_step_id,
+            "matched_history_step_ids": matched_history_step_ids,
             "reason": reason,
             "window_size": len(replay_window),
             "session_key": session_key,
@@ -602,20 +625,32 @@ class RuntimeVerificationEngine:
         }
         final = "ok"
         triggered_by: str | None = None
+        triggered_rule_id: str | None = None
+        trigger_step_id: str | None = None
+        matched_history_step_ids: list[str] = []
         reason: str | None = None
         monitor_timings: dict[str, float] = {}
+        candidate_start = max(0, len(committed_steps) - len(rv_trace))
 
         for monitor in monitors:
             m_start = _time.perf_counter()
-            for step in committed_steps:
+            prefix_window = WindowManager(max_size=self._window_size, ttl_seconds=self._window_ttl)
+            for index, step in enumerate(committed_steps):
+                prefix_window.push(dict(step), preserve_timestamp="_ts_epoch" in step)
                 try:
-                    result = monitor.feed(step, window)
+                    result = monitor.feed(step, prefix_window)
                 except Exception:
                     result = None
+                if index < candidate_start:
+                    continue
                 if result and severity_map.get(result, 0) > severity_map.get(final, 0):
                     final = result
                     triggered_by = monitor.__class__.__name__
                     reason = f"{monitor.__class__.__name__}: {result}"
+                    match = getattr(monitor, "last_match", None) or {}
+                    triggered_rule_id = match.get("rule_id")
+                    trigger_step_id = match.get("trigger_step_id")
+                    matched_history_step_ids = list(match.get("matched_history_step_ids") or [])
             monitor_timings[monitor.__class__.__name__] = round(
                 (_time.perf_counter() - m_start) * 1000.0, 4
             )
@@ -635,6 +670,10 @@ class RuntimeVerificationEngine:
                     final = result
                     triggered_by = monitor.__class__.__name__
                     reason = f"{monitor.__class__.__name__}: {result}"
+                    match = getattr(monitor, "last_match", None) or {}
+                    triggered_rule_id = match.get("rule_id")
+                    trigger_step_id = match.get("trigger_step_id")
+                    matched_history_step_ids = list(match.get("matched_history_step_ids") or [])
                 monitor_timings[monitor.__class__.__name__] = round(
                     (_time.perf_counter() - m_start) * 1000.0, 4
                 )
@@ -658,6 +697,10 @@ class RuntimeVerificationEngine:
                     final = result
                     triggered_by = monitor.__class__.__name__
                     reason = f"{monitor.__class__.__name__}: {result}"
+                    match = getattr(monitor, "last_match", None) or {}
+                    triggered_rule_id = match.get("rule_id")
+                    trigger_step_id = match.get("trigger_step_id")
+                    matched_history_step_ids = list(match.get("matched_history_step_ids") or [])
                 monitor_timings[monitor.__class__.__name__] = round(
                     (_time.perf_counter() - m_start) * 1000.0, 4
                 )
@@ -665,6 +708,9 @@ class RuntimeVerificationEngine:
         return {
             "verdict": final,
             "triggered_by": triggered_by,
+            "triggered_rule_id": triggered_rule_id,
+            "trigger_step_id": trigger_step_id,
+            "matched_history_step_ids": matched_history_step_ids,
             "reason": reason,
             "window_size": len(window),
             "session_key": session_key,
@@ -701,7 +747,7 @@ class RuntimeVerificationEngine:
         props = ["pmkb", f"pmkb:operation:{policy['operation_family']}"]
         props.extend(f"pmkb:rule:{item}" for item in policy.get("selected_rule_ids", []) if item)
         props.extend(f"pmkb:relation:{item}" for item in policy.get("combo_violations", []) if item)
-        return {"event": "pmkb.permission", "props": props, "policy": policy}
+        return {"step_id": str(trace.get("trace_id") or ""), "event": "pmkb.permission", "props": props, "policy": policy}
 
     def _get_principal_monitors(self, authorization_trace: Any) -> list:
         """Get generated relation monitors for a verified principal identity."""

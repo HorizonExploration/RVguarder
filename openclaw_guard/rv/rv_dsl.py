@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import time
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -274,26 +275,115 @@ def _policy_matches(guard: PolicyGuard, step: dict[str, Any]) -> bool:
     return True
 
 
-def _sequence_matches(seq: SequenceRequirement, *, window: Any) -> bool:
+class _WindowPrefixView:
+    """读取轨迹某一步为止的窗口视图，供嵌套 DSL 查询避免前视。"""
+
+    def __init__(self, steps: list[dict[str, Any]]) -> None:
+        self._steps = steps
+
+    def snapshot(self) -> list[dict[str, Any]]:
+        return list(self._steps)
+
+    def cumulative_count(self, label: str, window_size: int | None = None) -> int:
+        steps = self._steps[-window_size:] if window_size else self._steps
+        return sum(label in set(step.get("props", [])) for step in steps)
+
+    def contains_any(self, labels: set[str], window_size: int | None = None) -> bool:
+        steps = self._steps[-window_size:] if window_size else self._steps
+        return any(labels & set(step.get("props", [])) for step in steps)
+
+    def age_of_oldest(self) -> float | None:
+        if not self._steps:
+            return None
+        oldest_epoch = self._steps[0].get("_ts_epoch")
+        if oldest_epoch is None:
+            return None
+        return time.time() - float(oldest_epoch)
+
+    @staticmethod
+    def step_gap(older_step: dict[str, Any] | None, newer_step: dict[str, Any] | None) -> float | None:
+        if older_step is None or newer_step is None:
+            return None
+        older_epoch = older_step.get("_ts_epoch")
+        newer_epoch = newer_step.get("_ts_epoch")
+        if older_epoch is None or newer_epoch is None:
+            return None
+        return abs(float(newer_epoch) - float(older_epoch))
+
+
+def _sequence_matched_steps(seq: SequenceRequirement, *, window: Any) -> list[dict[str, Any]] | None:
     recent: list[dict[str, Any]] = getattr(window, "snapshot")()
     if seq.window_size and seq.window_size < len(recent):
         recent = recent[-seq.window_size :]
 
-    idx = 0
-    steps = seq.steps
-    prev_step: dict[str, Any] | None = None
-    for step in recent:
-        if idx >= len(steps):
+    matched: list[dict[str, Any]] = []
+    for index, step in enumerate(recent):
+        if len(matched) >= len(seq.steps):
             break
+        prefix = _WindowPrefixView(recent[: index + 1])
         props = set(step.get("props", []))
         event = str(step.get("event", "") or "")
+        previous = matched[-1] if matched else None
         if _matches_requirement(
-            steps[idx], props=props, event=event, window=window,
-            prev_step=prev_step, current_step=step,
+            seq.steps[len(matched)], props=props, event=event, window=prefix,
+            prev_step=previous, current_step=step,
         ):
-            prev_step = step
-            idx += 1
-    return idx == len(steps)
+            matched.append(step)
+    if len(matched) != len(seq.steps):
+        return None
+    return matched
+
+
+def _sequence_match_step_ids(seq: SequenceRequirement, *, window: Any) -> list[str]:
+    matched = _sequence_matched_steps(seq, window=window)
+    if matched is None:
+        return []
+    return [str(step["step_id"]) for step in matched if step.get("step_id")]
+
+
+def _sequence_matches(seq: SequenceRequirement, *, window: Any) -> bool:
+    return _sequence_matched_steps(seq, window=window) is not None
+
+
+def _requirement_history_step_ids(
+    requirement: StepRequirement,
+    *,
+    window: Any,
+    previous_step: dict[str, Any] | None,
+) -> list[str]:
+    """收集当前 DSL 谓词实际依赖的历史步骤 ID。"""
+    matched: list[str] = []
+    steps = getattr(window, "snapshot")()
+    if requirement.window_any_of:
+        recent = steps
+        if requirement.window_any_of.window_size and requirement.window_any_of.window_size < len(recent):
+            recent = recent[-requirement.window_any_of.window_size :]
+        labels = set(requirement.window_any_of.labels)
+        matched.extend(
+            str(step["step_id"]) for step in recent
+            if labels & set(step.get("props", [])) and step.get("step_id")
+        )
+    if requirement.count_gte:
+        recent = steps
+        if requirement.count_gte.window_size and requirement.count_gte.window_size < len(recent):
+            recent = recent[-requirement.count_gte.window_size :]
+        candidates = [step for step in recent if requirement.count_gte.label in set(step.get("props", []))]
+        candidates = candidates[-requirement.count_gte.threshold :] if requirement.count_gte.threshold else []
+        matched.extend(str(step["step_id"]) for step in candidates if step.get("step_id"))
+    if requirement.sequence:
+        matched.extend(_sequence_match_step_ids(requirement.sequence, window=window))
+    if (requirement.step_gap_within_seconds is not None or requirement.step_gap_at_least_seconds is not None) and previous_step:
+        previous_id = previous_step.get("step_id")
+        if previous_id:
+            matched.append(str(previous_id))
+    if requirement.window_age_gt_seconds is not None and steps and steps[0].get("step_id"):
+        matched.append(str(steps[0]["step_id"]))
+    return list(dict.fromkeys(matched))
+
+
+def _merge_step_ids(*groups: list[str]) -> list[str]:
+    """按出现次序合并步骤 ID 并去重。"""
+    return list(dict.fromkeys(step_id for group in groups for step_id in group if step_id))
 
 
 class _SpecDrivenMonitor:
@@ -303,6 +393,8 @@ class _SpecDrivenMonitor:
         self._props_snapshot: set[str] = set()
         self._state_counts: dict[str, int] = {}
         self._prev_step: dict[str, Any] | None = None
+        self._state_step_ids: dict[str, list[str]] = {spec.initial: []}
+        self.last_match: dict[str, Any] | None = None
 
     @property
     def current_state(self) -> str:
@@ -312,6 +404,9 @@ class _SpecDrivenMonitor:
         self._state = self._spec.initial
         self._props_snapshot = set()
         self._state_counts = {}
+        self._prev_step = None
+        self._state_step_ids = {self._spec.initial: []}
+        self.last_match = None
 
     def state_summary(self) -> dict[str, Any]:
         return {
@@ -325,8 +420,10 @@ class _SpecDrivenMonitor:
         return from_state == "*" or from_state == self._state
 
     def feed(self, step: dict[str, Any], window: Any) -> str | None:
+        self.last_match = None
         self._props_snapshot = set(step.get("props", []))
         event = str(step.get("event", "") or "")
+        current_step_id = str(step.get("step_id") or "")
 
         for rule in self._spec.rules:
             if rule.verdict is not None:
@@ -339,12 +436,22 @@ class _SpecDrivenMonitor:
                 current_step=step, state_counts=self._state_counts,
             ):
                 if rule.to_state is not None:
+                    source_state = self._state
+                    source_ids = self._state_step_ids.get(source_state, [])
+                    requirement_ids = _requirement_history_step_ids(
+                        rule.when, window=window, previous_step=self._prev_step,
+                    )
+                    transition_ids = _merge_step_ids(
+                        source_ids, requirement_ids, [current_step_id],
+                    )
                     self._state = rule.to_state
+                    self._state_step_ids[rule.to_state] = transition_ids
                     # 更新状态计数器（仅限非终端状态）
                     if rule.to_state not in ("blocked", "escalated"):
                         self._state_counts[rule.to_state] = self._state_counts.get(rule.to_state, 0) + 1
 
         best: Verdict | None = None
+        best_match: dict[str, Any] | None = None
         for rule in self._spec.rules:
             if rule.verdict is None:
                 continue
@@ -355,14 +462,29 @@ class _SpecDrivenMonitor:
                 current_state=self._state, prev_step=self._prev_step,
                 current_step=step, state_counts=self._state_counts,
             ):
+                state_ids = self._state_step_ids.get(self._state, [])
+                requirement_ids = _requirement_history_step_ids(
+                    rule.when, window=window, previous_step=self._prev_step,
+                )
+                history_ids = [step_id for step_id in _merge_step_ids(state_ids, requirement_ids)
+                               if step_id != current_step_id]
                 if rule.to_state is not None:
                     self._state = rule.to_state
+                    self._state_step_ids[rule.to_state] = _merge_step_ids(
+                        history_ids, [current_step_id],
+                    )
                     if rule.to_state not in ("blocked", "escalated"):
                         self._state_counts[rule.to_state] = self._state_counts.get(rule.to_state, 0) + 1
                 if best is None or _severity(rule.verdict) > _severity(best):
                     best = rule.verdict
+                    best_match = {
+                        "rule_id": rule.id,
+                        "trigger_step_id": current_step_id or None,
+                        "matched_history_step_ids": history_ids,
+                    }
 
         self._prev_step = step
+        self.last_match = best_match
         return best
 
 
@@ -395,6 +517,7 @@ class _ParameterizedMonitor:
         self._children: dict[tuple, _SpecDrivenMonitor] = {}
         self._initialized = False
         self._child_class = type(f"{spec.name}Child", (_SpecDrivenMonitor,), {})
+        self.last_match: dict[str, Any] | None = None
 
     @property
     def current_state(self) -> str:
@@ -405,6 +528,7 @@ class _ParameterizedMonitor:
     def reset(self) -> None:
         for child in self._children.values():
             child.reset()
+        self.last_match = None
 
     def state_summary(self) -> dict[str, Any]:
         return {
@@ -416,6 +540,7 @@ class _ParameterizedMonitor:
         }
 
     def feed(self, step: dict[str, Any], window: Any) -> str | None:
+        self.last_match = None
         if not self._spec.bind_vars:
             return None
 
@@ -431,7 +556,14 @@ class _ParameterizedMonitor:
             self._initialized = True
 
         child = self._children[bind_key]
-        child_verdict = child.feed(step, window)
+        binding_history = [
+            historical_step for historical_step in getattr(window, "snapshot")()
+            if tuple(self._extract_bind_values(historical_step)) == bind_key
+        ]
+        child_window = _WindowPrefixView(binding_history)
+        child_verdict = child.feed(step, child_window)
+        if child_verdict:
+            self.last_match = child.last_match
 
         if self._spec.quantifier == "forall":
             # forall: 任一子监视器触发 → 整体触发
