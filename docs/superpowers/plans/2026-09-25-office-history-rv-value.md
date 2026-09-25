@@ -45,7 +45,7 @@
 
 ### Task 1: Stable RV Step Identity in the Existing Hook Path
 
-**Files:** Modify `openclaw_guard/engine/pipeline.py`; test `tests/test_office_history_value.py` and existing Hook regression tests.
+**Files:** Modify `openclaw_guard/engine/pipeline.py`, `testlab/office_value/runner.py`; test `tests/test_office_history_value.py` and existing Hook regression tests.
 
 **Interfaces:** Consume `event.metadata["hook_key"]` from `build_hook_event` and `semantic_payload["rv_trace"]`; produce a call-scoped `step_id` such as `<hook_key>:<ordinal>` in `event.metadata["rv_trace"]`. If Hook identity is absent, preserve an existing unique explicit ID or prefix with `event.event_id`; never use semantic `s1` alone across calls. This is diagnostic identity, not authority.
 
