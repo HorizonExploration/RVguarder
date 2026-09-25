@@ -1,0 +1,44 @@
+{
+  "attack_scenarios": 1,
+  "benign_scenarios": 4,
+  "bundle_file_sha256": {
+    "raw.jsonl": "fa046c96859a3e993d58d7a1408cea3bf1085e7904a476a961f61138cf2a80e4",
+    "report.md": "32e3c1526051368b98a830cc9f24105ecf70c357745b031ff4577058d62b0d57",
+    "summary.json": "a2ec3ef0f87e6bee006c98d2e64cd16a2b7035632c818e0cdb043099f0941993"
+  },
+  "bundle_id": "office-history-rv-calibration-v1",
+  "code_commit": "21a70a5f263e0e7451760b36bd036b5607deedcf",
+  "earlier_development_diagnostic": {
+    "arm_count": 4,
+    "included_in_summary_or_denominators": false,
+    "note": "One unarchived 4-scene x 4-mode development diagnostic occurred before the fifth authorized near-miss was added; do not pool it with this retained bundle.",
+    "raw_rows_retained": false,
+    "scene_count": 4,
+    "temporary_sandbox_cleaned": true
+  },
+  "evidence_class": "retained calibration replay; no holdout",
+  "execution_attestation": {
+    "effects": "local declarative sandbox state transitions using synthetic fixtures only",
+    "network_connected": false,
+    "office_sdk_called": false,
+    "real_credentials_used": false,
+    "shell_started": false
+  },
+  "failed_conditions": [
+    "preserved_controls"
+  ],
+  "gate_passed": false,
+  "independent_scenarios": 5,
+  "no_real_side_effects": true,
+  "python_version": "3.13.13",
+  "repeat_count": 1,
+  "run_command": "python -m testlab.office_value.history_report --matrix testlab/office_value/history_calibration.json --output testlab/results/office-history-rv-calibration-v1",
+  "rv_rule_file": "openclaw_guard/rv/rv_rules.json",
+  "rv_rule_file_sha256": "131d5c12fce4eed3a54e73a965fce67d3f51d6f138a406af008ccc7c8ebd4763",
+  "schema_version": 1,
+  "source_matrix": "testlab/office_value/history_calibration.json",
+  "source_matrix_sha256": "826d2a8c397356e3cddb73220fc5238d60f3d6710623803a4ff825186b154e38",
+  "source_worktree_changes": [],
+  "source_worktree_clean": true,
+  "split": "calibration"
+}
