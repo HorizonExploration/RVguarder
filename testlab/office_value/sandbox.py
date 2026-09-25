@@ -188,6 +188,7 @@ class OfficeSandbox:
     def summary(self) -> dict[str, Any]:
         return {
             "external_sink_count": len(self.external_sinks),
+            "sink_receipt_count": len(self.sink_receipts),
             "sensitive_receipt_count": sum(bool(item["sensitive"]) for item in self.sink_receipts),
             "tracked_object_count": len(self.objects),
             "observation_types": sorted(self.observations),

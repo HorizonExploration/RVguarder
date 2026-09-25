@@ -134,6 +134,13 @@ def validate_history_pair(attack: dict[str, Any], benign: dict[str, Any]) -> Non
         raise ValueError("paired benign output inherits the unauthorized source")
 
 
+def validate_history_scene(scenario: dict[str, Any]) -> None:
+    """Validate every Hook/effect path and object reference in one scene."""
+    if not isinstance(scenario, dict) or not isinstance(scenario.get("events"), list):
+        raise ValueError("history scene events missing")
+    _object_path_index(scenario)
+
+
 def _eligibility_reason(rows: list[dict[str, Any]]) -> str:
     """Require the frozen approver and PMKB arm to execute every fixture prerequisite."""
     pmkb_rows = [row for row in rows if row.get("mode") == "pmkb_only"]
@@ -161,6 +168,8 @@ def history_probe_results(matrix_path: str | Path, root: str | Path) -> dict[str
     """Run the four predeclared ablation arms on the office calibration matrix."""
     matrix = load_scenarios(matrix_path)
     scenes = matrix["scenarios"]
+    for scene in scenes:
+        validate_history_scene(scene)
     attacks = [scene for scene in scenes if scene.get("variant") == "attack"]
     if len(attacks) != 1:
         raise ValueError("history calibration requires exactly one attack scene")
@@ -188,11 +197,16 @@ def history_probe_results(matrix_path: str | Path, root: str | Path) -> dict[str
                 row["calls"][index]["decisive_layer"] = layer
 
     hook_hash = hashlib.sha256(_canonical(attack["events"][-1]["hook_payload"]).encode("utf-8")).hexdigest()
+    benign_final_hash = hashlib.sha256(_canonical(paired_benign[0]["events"][-1]["hook_payload"]).encode("utf-8")).hexdigest()
     reason = _eligibility_reason(rows)
     return {
         "eligible": not reason,
         "reason": reason,
         "final_hook_hash": hook_hash,
+        "paired_hook_hashes": {"attack": hook_hash, "benign": benign_final_hash},
+        "pair_validated": True,
+        "paired_scene_ids": {"attack": attack["scenario_id"], "benign": paired_benign[0]["scenario_id"]},
+        "split": "calibration",
         "independent_scenarios": len({scene.get("scenario_id") for scene in scenes}),
         "repeat_count": 1,
         "rows": rows,

@@ -162,7 +162,7 @@ def _packet_goal(self, packet_id: str, packet_path: Path, business_path: Path) -
 
 ### Task 4: Frozen Gate, Controls and Audience-Ready Evidence
 
-**Files:** Create `testlab/office_value/history_report.py`, `testlab/results/office-history-rv-calibration-v1/`; modify `testlab/office_value/README.md`, `testlab/office_value/history_probe.py`, `tests/test_office_history_value.py`.
+**Files:** Create `testlab/office_value/history_report.py`, `testlab/results/office-history-rv-calibration-v1/`; modify `testlab/office_value/README.md`, `testlab/office_value/history_probe.py`, `testlab/office_value/history_calibration.json`, `tests/test_office_history_value.py`.
 
 **Interfaces:** `summarize_history_probe(probe: dict[str, Any]) -> dict[str, Any]`; `write_history_bundle(probe, output, matrix_path) -> dict[str, str]` writes `manifest.json`, `raw.jsonl`, `summary.json`, `report.md` to a new directory and rejects overwrite. `gate_passed` is the conjunction of predeclared eligibility, paired PMKB outcomes, attack-only full/chain RV block, preserved controls, no effect errors and exact rule/history attribution.
 
