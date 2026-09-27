@@ -7,10 +7,12 @@ from typing import Any
 from uuid import uuid4
 
 from openclaw_guard.models import BehaviorEvent
+from openclaw_guard.engine.command_safety import analyze_command
+from openclaw_guard.engine.semantic_models import SemanticMatchIR, local_semantic_match
 from openclaw_guard.policy.catalog import PolicyBundle
 from openclaw_guard.policy.models import (
     AuthorizationTrace, ContextRef, CoverageResult, DataRef,
-    PrincipalRef, ProvenanceRef, ResourceRef,
+    PrincipalRef, ProvenanceRef, ResourceRef, SecurityFactEvidence,
 )
 
 
@@ -26,7 +28,8 @@ class TraceCompiler:
         self.bundle = bundle
 
     def compile(self, event: BehaviorEvent, *, semantic: dict[str, Any],
-                rv_trace: list[dict[str, Any]], source_message: str = "") -> AuthorizationTrace:
+                rv_trace: list[dict[str, Any]], semantic_match: dict[str, Any] | None = None,
+                source_message: str = "") -> AuthorizationTrace:
         semantic = semantic or {}
         steps = [item.model_dump() if hasattr(item, "model_dump") else dict(item)
                  for item in (rv_trace or []) if isinstance(item, Mapping) or hasattr(item, "model_dump")]
@@ -34,6 +37,8 @@ class TraceCompiler:
         params = dict(event.raw_payload.get("params", {})) if isinstance(event.raw_payload.get("params", {}), dict) else {}
         params.setdefault("action_type", event.action_type)
         command_safety = event.metadata.get("command_safety")
+        if not isinstance(command_safety, dict) and event.command:
+            command_safety = analyze_command(event.command).to_dict()
         if isinstance(command_safety, dict):
             params.setdefault("command_safety", str(command_safety.get("classification") or "unknown"))
         if event.command:
@@ -102,8 +107,14 @@ class TraceCompiler:
         gaps = list(operation.gaps)
         if resource_gap:
             gaps.append(resource_gap)
-        coverage = CoverageResult(status="complete" if not missing else "partial", missing_features=missing,
-                                  gaps=list(dict.fromkeys(gaps)))
+        security_facts, fact_conflicts = _security_facts(event, semantic_match)
+        coverage_status = "conflict" if fact_conflicts else ("complete" if not missing else "partial")
+        coverage = CoverageResult(
+            status=coverage_status,
+            missing_features=missing,
+            gaps=list(dict.fromkeys(gaps)),
+            conflicts=fact_conflicts,
+        )
         trusted_identity = event.metadata.get("trusted_identity")
         if not isinstance(trusted_identity, dict) or trusted_identity.get("trust") != "verified":
             trusted_identity = {}
@@ -142,8 +153,34 @@ class TraceCompiler:
             context=ContextRef(recipient_zone=recipient_zone, purpose=purpose),
             provenance=ProvenanceRef(source=str(semantic.get("origin") or event.source or "unknown"),
                 trust=str(event.metadata.get("provenance_trust") or "unknown")),
-            confidence=confidence, legacy_steps=steps,
+            confidence=confidence, security_facts=security_facts, rv_steps=steps,
         )
+
+
+def _security_facts(
+    event: BehaviorEvent,
+    semantic_match: dict[str, Any] | None,
+) -> tuple[dict[str, SecurityFactEvidence], list[str]]:
+    suggested: dict[str, SecurityFactEvidence] = {}
+    if isinstance(semantic_match, dict):
+        try:
+            parsed = SemanticMatchIR.model_validate(semantic_match)
+        except ValueError:
+            parsed = None
+        if parsed is not None:
+            suggested = {
+                name: SecurityFactEvidence.model_validate(fact.model_dump())
+                for name, fact in parsed.facts.items()
+            }
+
+    deterministic = local_semantic_match(event).facts
+    conflicts: list[str] = []
+    for name, fact in deterministic.items():
+        existing = suggested.get(name)
+        if existing is not None and existing.value != fact.value:
+            conflicts.append(f"fact_conflict:{name}")
+        suggested[name] = SecurityFactEvidence.model_validate(fact.model_dump())
+    return suggested, conflicts
 
 
 def _entities(semantic, steps, kind):

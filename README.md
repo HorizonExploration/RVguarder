@@ -7,7 +7,7 @@
 ![Python](https://img.shields.io/badge/Python-3.13%2B-3776AB?logo=python&logoColor=white)
 ![OpenClaw](https://img.shields.io/badge/OpenClaw-Plugin%20SDK-111827)
 ![Hook](https://img.shields.io/badge/Hook-before__tool__call-0F766E)
-![PMKB](https://img.shields.io/badge/PMKB-1.1.0-2563EB)
+![PMKB](https://img.shields.io/badge/PMKB-1.2.0-2563EB)
 ![RV](https://img.shields.io/badge/RV-ChainRule%20DSL-7C3AED)
 ![Status](https://img.shields.io/badge/Status-v0.7.0--dev-0F766E)
 
@@ -36,7 +36,7 @@ RVguarder（龙虾卫士）是一个面向 [OpenClaw](https://openclaw.ai/) 的*
 | **审批结果同步** | OpenClaw 原生审批卡片唯一决策，Guard Dashboard SSE 只读同步 | ✅ |
 | **后端静默透传** | 后端传输不可达时所有工具透传，Guard 保护与审计回传暂停；后端恢复后重启防护 | ✅ |
 | **语义理解增强** | DeepSeek LLM 驱动语义分析，7 维度 50+ 标签，理解自然语言意图 | ✅ |
-| **PMKB 权限建模** | PMKB 1.1.0：47 个操作、35 条原生规则 + 47 条兼容规则、29 条 Trace、9 个危险组合关系；校验最小权限和权限聚合风险 | ✅ |
+| **PMKB 权限建模** | PMKB 1.2.0：48 个 canonical operations、79 条原生规则、47 条迁移归属、76 条 Trace、9 个危险组合关系、123 个回归向量；校验最小权限和权限聚合风险 | ✅ |
 | **运行时验证 RV** | 滑动窗口 + ChainRule DSL 生成监视器，检测链式攻击模式（搜索→删除→外发） | ✅ |
 | **跨 session 主体验证** | session-local 链路与 principal-global 能力状态分离，持久化主体级 RV 状态 | ✅ |
 | **基线安全扫描** | 配置、端口、用户、依赖全量扫描，输出 JSON/HTML/PDF 报告 | ✅ |
@@ -157,7 +157,7 @@ openclaw_guard/
 │   └── whitelist.py       # 白名单匹配引擎
 ├── policy/                # PMKB、Authorization Trace 与权限关系运行时
 │   ├── catalog.py         # 版本化策略包加载/校验（PolicyBundle）
-│   ├── legacy.py          # 冻结 LEGACY 回放元数据（非运行时引擎）
+│   ├── semantic_models.py  # 受控语义 IR、事实白名单与本地降级
 │   ├── trace.py           # TraceCompiler 与语义覆盖计算
 │   ├── evaluator.py       # 单步规则匹配与风险评分
 │   ├── permission_diff.py # 最小权限闭包/差分
@@ -244,11 +244,12 @@ office rules、least-privilege traces、permission relations 和 test vectors �
 
 | 数据 | 当前基线 | 运行时用途 |
 |------|----------|------------|
-| operations | 47 | 将工具/动作归一化为 canonical operation |
-| rules | 35（另有 47 条 LEGACY 兼容记录） | 单步规则、风险等级、效果和 required trace |
-| traces | 29 | 描述主体在办公场景的最小必要权限范围 |
+| operations | 48 | 将工具/动作归一化为 canonical operation |
+| rules | 79 native | 单步规则、风险等级、效果和 required trace |
+| migrations | 47 | 历史规则到 native owner 的 provenance/replay 映射 |
+| traces | 76 | 描述主体在办公场景的最小必要权限范围 |
 | relations | 9 | 互斥、聚合和毒性权限组合 |
-| vectors | 29 | 规则、Trace、组合和回退路径回归样例 |
+| vectors | 123 | 规则、Trace、组合和迁移正反例回归样例 |
 
 处理顺序是：
 
@@ -264,7 +265,7 @@ office rules、least-privilege traces、permission relations 和 test vectors �
 未知操作、缺失主体或缺失关键 Trace 特征不会因为模糊相似度而自动放行；结果会携带
 `match_status`、`missing_features`、`requested_delta`、`excessive_permissions`、
 `combo_violations`、`policy_version` 等证据。当前 PMKB 是办公个人场景的可用基线；47 条历史
-单步规则已保留为 `LEGACY-<old-id>` 兼容记录并进入 PMKB 统一评估链路；生产 DetectionEngine 已退役，冻结元数据仅用于逐条回放与历史评测。
+单步规则均有 native owner，迁移清单仅用于逐条回放与历史评测，不进入运行时候选召回。生产旧检测引擎已退役。
 PMKB 不会自动从用户行为学习写入生产规则。
 
 OpenClaw 原生 runtime、filesystem、web、browser、sessions、memory、messaging、automation、

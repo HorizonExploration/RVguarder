@@ -52,6 +52,6 @@ RV 状态、过期窗口自动机降维，以及主体证据仅在成功 callbac
 ## 后续工作
 
 1. 以历史 LEGACY 记录和 PMKB native 规则逐条离线回放，确认效果与证据一致后删除
-   `policy/legacy.py` 兼容层。
+   历史 `policy/legacy.py` 兼容层（已在 PMKB 1.2 native migration 中删除）。
 2. 将 OpenClaw 真机审批回调延迟、超时和失败原因汇总为脱敏指标；不回写第二套审批状态机。
 3. 为前端补充最小组件/E2E 测试，覆盖 OpenClaw 唯一审批提示和 RV 已提交窗口展示。

@@ -116,13 +116,14 @@ def _annotate_event_context(
             "source_message": source_message,
             "origin": origin,
             "workspace_path": str(workspace) if workspace else None,
-            "evaluation_mode": event.metadata.get("evaluation_mode"),
         },
     )
     _merge_deterministic_semantics(event, semantic_payload)
     timings = _ensure_pipeline_timings(event)
     timings["semantic_ms"] = round((time.perf_counter() - semantic_started) * 1000.0, 3)
     event.metadata["semantic"] = semantic_payload["semantic"]
+    event.metadata["semantic_match"] = semantic_payload["semantic_match"]
+    event.metadata["semantic_audit"] = semantic_payload["semantic_audit"]
     run_id = str(event.metadata.get("run_id") or "").strip()
     tool_call_id = str(event.metadata.get("tool_call_id") or "").strip()
     call_identity = f"{run_id}:{tool_call_id}" if run_id and tool_call_id else str(event.event_id)
@@ -201,7 +202,7 @@ def _apply_policy_engine(
     *,
     source_message: str = "",
 ) -> Any:
-    """Attach PMKB evidence to a legacy-compatible decision if it is absent."""
+    """Attach PMKB evidence to the controller decision if it is absent."""
     if getattr(decision, "policy_decision", None):
         return decision
     policy_engine = getattr(services, "policy_engine", None)

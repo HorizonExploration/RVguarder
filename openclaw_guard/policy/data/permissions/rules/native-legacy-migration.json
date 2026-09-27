@@ -1,0 +1,1770 @@
+{
+  "version": "1.2.0",
+  "rules": [
+    {
+      "id": "NATIVE-CMD-002",
+      "version": "1.2.0",
+      "effect": "block",
+      "priority": 120,
+      "match": {
+        "operation": "process.execute",
+        "facts.command.download_pipe_curl": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule CMD-002",
+      "test_vectors": [
+        "migration-CMD-002-positive",
+        "migration-CMD-002-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "command.download_pipe_curl": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "command.download_pipe_curl": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "CMD-002"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-CMD-003",
+      "version": "1.2.0",
+      "effect": "block",
+      "priority": 120,
+      "match": {
+        "operation": "process.execute",
+        "facts.command.download_pipe_wget": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule CMD-003",
+      "test_vectors": [
+        "migration-CMD-003-positive",
+        "migration-CMD-003-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "command.download_pipe_wget": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "command.download_pipe_wget": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "CMD-003"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-CMD-005",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "process.execute",
+        "facts.command.remote_shell": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule CMD-005",
+      "test_vectors": [
+        "migration-CMD-005-positive",
+        "migration-CMD-005-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "command.remote_shell": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "command.remote_shell": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "CMD-005"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-CMD-006",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "process.execute",
+        "facts.command.remote_copy": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule CMD-006",
+      "test_vectors": [
+        "migration-CMD-006-positive",
+        "migration-CMD-006-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "command.remote_copy": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "command.remote_copy": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "CMD-006"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-CMD-007",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "process.execute",
+        "facts.command.permission_change": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule CMD-007",
+      "test_vectors": [
+        "migration-CMD-007-positive",
+        "migration-CMD-007-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "command.permission_change": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "command.permission_change": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "CMD-007"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-CMD-008",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "process.execute",
+        "facts.command.owner_change": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule CMD-008",
+      "test_vectors": [
+        "migration-CMD-008-positive",
+        "migration-CMD-008-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "command.owner_change": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "command.owner_change": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "CMD-008"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-CMD-009",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "process.execute",
+        "facts.command.move": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule CMD-009",
+      "test_vectors": [
+        "migration-CMD-009-positive",
+        "migration-CMD-009-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "command.move": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "command.move": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "CMD-009"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-CMD-010",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "process.execute",
+        "facts.command.delete": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule CMD-010",
+      "test_vectors": [
+        "migration-CMD-010-positive",
+        "migration-CMD-010-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "command.delete": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "command.delete": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "CMD-010"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-FILE-001",
+      "version": "1.2.0",
+      "effect": "block",
+      "priority": 120,
+      "match": {
+        "operation": "file.delete",
+        "facts.resource.system_path": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule FILE-001",
+      "test_vectors": [
+        "migration-FILE-001-positive",
+        "migration-FILE-001-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "resource.system_path": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "resource.system_path": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "FILE-001"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-FILE-002",
+      "version": "1.2.0",
+      "effect": "block",
+      "priority": 120,
+      "match": {
+        "operation": "file.delete",
+        "facts.resource.sensitive_credentials": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule FILE-002",
+      "test_vectors": [
+        "migration-FILE-002-positive",
+        "migration-FILE-002-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "resource.sensitive_credentials": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "resource.sensitive_credentials": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "FILE-002"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-FILE-003",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "file.delete",
+        "scope": "outside"
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule FILE-003",
+      "test_vectors": [
+        "migration-FILE-003-positive",
+        "migration-FILE-003-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "scope": "outside"
+        }
+      ],
+      "negative_examples": [
+        {
+          "scope": "workspace"
+        }
+      ],
+      "legacy_rule_ids": [
+        "FILE-003"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-FILE-004",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "file.delete",
+        "facts.resource.log_path": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule FILE-004",
+      "test_vectors": [
+        "migration-FILE-004-positive",
+        "migration-FILE-004-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "resource.log_path": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "resource.log_path": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "FILE-004"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-FILE-005",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "file.delete",
+        "facts.resource.high_value": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule FILE-005",
+      "test_vectors": [
+        "migration-FILE-005-positive",
+        "migration-FILE-005-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "resource.high_value": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "resource.high_value": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "FILE-005"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-FILE-006",
+      "version": "1.2.0",
+      "effect": "block",
+      "priority": 120,
+      "match": {
+        "operation": "config.modify",
+        "facts.resource.openclaw_config": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule FILE-006",
+      "test_vectors": [
+        "migration-FILE-006-positive",
+        "migration-FILE-006-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "resource.openclaw_config": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "resource.openclaw_config": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "FILE-006"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-FILE-007",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "file.write",
+        "scope": "outside"
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule FILE-007",
+      "test_vectors": [
+        "migration-FILE-007-positive",
+        "migration-FILE-007-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "scope": "outside"
+        }
+      ],
+      "negative_examples": [
+        {
+          "scope": "workspace"
+        }
+      ],
+      "legacy_rule_ids": [
+        "FILE-007"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-FILE-008",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "file.write",
+        "facts.resource.script": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule FILE-008",
+      "test_vectors": [
+        "migration-FILE-008-positive",
+        "migration-FILE-008-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "resource.script": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "resource.script": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "FILE-008"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-FILE-009",
+      "version": "1.2.0",
+      "effect": "block",
+      "priority": 120,
+      "match": {
+        "operation": "file.write",
+        "facts.resource.sensitive_credentials": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule FILE-009",
+      "test_vectors": [
+        "migration-FILE-009-positive",
+        "migration-FILE-009-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "resource.sensitive_credentials": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "resource.sensitive_credentials": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "FILE-009"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-FILE-010",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "file.write",
+        "facts.resource.target_count": {
+          "gte": 2
+        }
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule FILE-010",
+      "test_vectors": [
+        "migration-FILE-010-positive",
+        "migration-FILE-010-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "resource.target_count": 2
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "resource.target_count": 1
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "FILE-010"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-NET-001",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "network.egress",
+        "facts.network.http": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule NET-001",
+      "test_vectors": [
+        "migration-NET-001-positive",
+        "migration-NET-001-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "network.http": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "network.http": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "NET-001"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-NET-002",
+      "version": "1.2.0",
+      "effect": "block",
+      "priority": 120,
+      "match": {
+        "operation": "network.egress",
+        "facts.network.public_ip": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule NET-002",
+      "test_vectors": [
+        "migration-NET-002-positive",
+        "migration-NET-002-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "network.public_ip": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "network.public_ip": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "NET-002"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-NET-003",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "network.egress",
+        "facts.network.webhook": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule NET-003",
+      "test_vectors": [
+        "migration-NET-003-positive",
+        "migration-NET-003-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "network.webhook": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "network.webhook": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "NET-003"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-NET-004",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "network.egress",
+        "facts.network.upload": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule NET-004",
+      "test_vectors": [
+        "migration-NET-004-positive",
+        "migration-NET-004-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "network.upload": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "network.upload": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "NET-004"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-NET-006",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "network.egress",
+        "facts.network.proxy_change": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule NET-006",
+      "test_vectors": [
+        "migration-NET-006-positive",
+        "migration-NET-006-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "network.proxy_change": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "network.proxy_change": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "NET-006"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-API-001",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "message.send",
+        "facts.channel.external": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule API-001",
+      "test_vectors": [
+        "migration-API-001-positive",
+        "migration-API-001-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "channel.external": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "channel.external": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "API-001"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-API-002",
+      "version": "1.2.0",
+      "effect": "block",
+      "priority": 120,
+      "match": {
+        "operation": "message.send",
+        "facts.channel.admin": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule API-002",
+      "test_vectors": [
+        "migration-API-002-positive",
+        "migration-API-002-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "channel.admin": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "channel.admin": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "API-002"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-API-003",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "message.send",
+        "facts.channel.present": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule API-003",
+      "test_vectors": [
+        "migration-API-003-positive",
+        "migration-API-003-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "channel.present": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "channel.present": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "API-003"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-API-004",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "message.send",
+        "facts.channel.bulk": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule API-004",
+      "test_vectors": [
+        "migration-API-004-positive",
+        "migration-API-004-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "channel.bulk": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "channel.bulk": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "API-004"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-SKL-001",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "skill.execute",
+        "facts.skill.shell": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule SKL-001",
+      "test_vectors": [
+        "migration-SKL-001-positive",
+        "migration-SKL-001-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "skill.shell": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "skill.shell": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "SKL-001"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-SKL-002",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "skill.execute",
+        "facts.skill.network": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule SKL-002",
+      "test_vectors": [
+        "migration-SKL-002-positive",
+        "migration-SKL-002-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "skill.network": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "skill.network": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "SKL-002"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-SKL-003",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "skill.execute",
+        "facts.skill.delete": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule SKL-003",
+      "test_vectors": [
+        "migration-SKL-003-positive",
+        "migration-SKL-003-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "skill.delete": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "skill.delete": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "SKL-003"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-SKL-004",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "skill.execute",
+        "facts.skill.write": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule SKL-004",
+      "test_vectors": [
+        "migration-SKL-004-positive",
+        "migration-SKL-004-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "skill.write": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "skill.write": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "SKL-004"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-SKL-005",
+      "version": "1.2.0",
+      "effect": "block",
+      "priority": 120,
+      "match": {
+        "operation": "skill.execute",
+        "facts.skill.persistence": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule SKL-005",
+      "test_vectors": [
+        "migration-SKL-005-positive",
+        "migration-SKL-005-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "skill.persistence": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "skill.persistence": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "SKL-005"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-SKL-006",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "skill.execute",
+        "facts.skill.system_admin": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule SKL-006",
+      "test_vectors": [
+        "migration-SKL-006-positive",
+        "migration-SKL-006-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "skill.system_admin": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "skill.system_admin": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "SKL-006"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-CFG-001",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "config.modify",
+        "facts.config.provider_change": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule CFG-001",
+      "test_vectors": [
+        "migration-CFG-001-positive",
+        "migration-CFG-001-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "config.provider_change": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "config.provider_change": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "CFG-001"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-CFG-002",
+      "version": "1.2.0",
+      "effect": "block",
+      "priority": 120,
+      "match": {
+        "operation": "config.modify",
+        "facts.config.auth_disable": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule CFG-002",
+      "test_vectors": [
+        "migration-CFG-002-positive",
+        "migration-CFG-002-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "config.auth_disable": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "config.auth_disable": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "CFG-002"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-CFG-003",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "config.modify",
+        "facts.config.approval_bypass": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule CFG-003",
+      "test_vectors": [
+        "migration-CFG-003-positive",
+        "migration-CFG-003-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "config.approval_bypass": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "config.approval_bypass": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "CFG-003"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-CFG-004",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "config.modify",
+        "facts.config.sandbox_disable": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule CFG-004",
+      "test_vectors": [
+        "migration-CFG-004-positive",
+        "migration-CFG-004-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "config.sandbox_disable": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "config.sandbox_disable": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "CFG-004"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-CFG-005",
+      "version": "1.2.0",
+      "effect": "block",
+      "priority": 120,
+      "match": {
+        "operation": "config.modify",
+        "facts.config.audit_disable": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule CFG-005",
+      "test_vectors": [
+        "migration-CFG-005-positive",
+        "migration-CFG-005-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "config.audit_disable": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "config.audit_disable": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "CFG-005"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-GEN-001",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "file.delete",
+        "facts.resource.unresolved": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule GEN-001",
+      "test_vectors": [
+        "migration-GEN-001-positive",
+        "migration-GEN-001-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "resource.unresolved": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "resource.unresolved": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "GEN-001"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-GEN-002",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "file.write",
+        "facts.resource.unresolved": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule GEN-002",
+      "test_vectors": [
+        "migration-GEN-002-positive",
+        "migration-GEN-002-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "resource.unresolved": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "resource.unresolved": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "GEN-002"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-GEN-003",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "process.execute",
+        "facts.command.delete_intent": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule GEN-003",
+      "test_vectors": [
+        "migration-GEN-003-positive",
+        "migration-GEN-003-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "command.delete_intent": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "command.delete_intent": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "GEN-003"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-GEN-004",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "network.egress",
+        "facts.resource.unresolved": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule GEN-004",
+      "test_vectors": [
+        "migration-GEN-004-positive",
+        "migration-GEN-004-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "resource.unresolved": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "resource.unresolved": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "GEN-004"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-GEN-005",
+      "version": "1.2.0",
+      "effect": "openclaw_approval",
+      "priority": 100,
+      "match": {
+        "operation": "file.delete",
+        "aliases": [
+          "file.write"
+        ],
+        "facts.resource.high_value": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule GEN-005",
+      "test_vectors": [
+        "migration-GEN-005-positive",
+        "migration-GEN-005-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "resource.high_value": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "resource.high_value": false
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "GEN-005"
+      ],
+      "partial_behavior": "ignore"
+    },
+    {
+      "id": "NATIVE-GEN-006",
+      "version": "1.2.0",
+      "effect": "block",
+      "priority": 120,
+      "match": {
+        "operation": "file.delete",
+        "aliases": [
+          "file.write"
+        ],
+        "facts.resource.target_count": {
+          "gte": 2
+        },
+        "facts.data.sensitive": true
+      },
+      "required_fields": [],
+      "negative_conditions": [],
+      "obligations": [
+        "audit",
+        "native_migration_review"
+      ],
+      "source": "PMKB 1.2 native migration from historical rule GEN-006",
+      "test_vectors": [
+        "migration-GEN-006-positive",
+        "migration-GEN-006-near-miss"
+      ],
+      "rollback_state": "previous",
+      "positive_examples": [
+        {
+          "facts": {
+            "resource.target_count": 2,
+            "data.sensitive": true
+          }
+        }
+      ],
+      "negative_examples": [
+        {
+          "facts": {
+            "resource.target_count": 1,
+            "data.sensitive": true
+          }
+        }
+      ],
+      "legacy_rule_ids": [
+        "GEN-006"
+      ],
+      "partial_behavior": "ignore"
+    }
+  ]
+}

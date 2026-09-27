@@ -12,7 +12,7 @@
 | 单元 | 语义、命令安全、PMKB、权限差分与自动机 | `tests/test_semantic_enhancer.py`、`test_policy_*.py`、`test_rv*.py`、`test_three_state_control.py` |
 | 流水线 | `before_tool_call` / `after_tool_call`、动作状态和审计 | `tests/test_pipeline.py`、`test_hook_runtime.py`、`test_services.py` |
 | 交接合同 | OpenClaw 原生审批、回调幂等、SSE/序号同步和超时 | `tests/test_approval_sync.py`、`test_principal_rv_hook_integration.py`、`test_three_state_control.py` |
-| 兼容回放 | `LEGACY-*` 与 PMKB 判定一致性、版本和 bundle 完整性 | `tests/test_legacy_policy_migration.py`、`test_pmkb_*.py` |
+| 迁移回放 | 47 条历史规则到 native owner 的判定一致性、版本和 bundle 完整性 | `tests/test_native_policy_migration.py`、`test_policy_*.py` |
 | 研究夹具 | 历史结果与无副作用权限/RV 场景 | `testlab/results/`、`testlab/实验结果/`、`testlab/research/`；不作为每次提交门禁 |
 
 ## 当前控制合同

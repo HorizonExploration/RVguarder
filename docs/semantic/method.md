@@ -48,9 +48,12 @@ BehaviorEvent
 
 ## 判定与降级边界
 
-1. 配置 `DEEPSEEK_API_KEY` 时，真实 Hook 请求可优先调用 LLM；超时、网络错误或
-   非法 JSON 自动回退本地规则。离线研究夹具显式使用本地确定性模式。
-2. 工具名和命令事实由本地校验覆盖 LLM 输出，避免模型把危险工具误标为普通文本。
+1. 配置 `DEEPSEEK_API_KEY` 时，每个配置工具调用（包括空意图和未知 Hook）只发送一次
+   结构化、脱敏的语义请求，预算为 1.5 秒且不重试；超时、网络错误、非法 JSON 或 schema
+   不合规都自动回退本地确定性规则，并在 `semantic_audit` 记录尝试结果。
+2. LLM 只能返回受控 `SemanticMatchIR`：canonical operation candidate 和有限 security facts，
+   标记为 `suggested`；原始 payload、完整命令、凭据、cookie、Bearer、邮箱、路径和 URL
+   敏感值不会出进程。工具名、命令和范围事实由本地校验覆盖模型输出。
 3. `complete` 才表示所需字段齐全；`partial`、`unknown` 或 `conflict` 不得因为相似度
    被静默放行。它们由 PMKB 映射为 OpenClaw 审批或阻断，Guard 不发起澄清重试。
 4. 生产插件不注册 `before_prompt_build`；真正的审批只发生在 `before_tool_call`，由
@@ -83,5 +86,5 @@ python -m pytest -q tests/test_semantic_enhancer.py tests/test_authorization_tra
 以下是与 API/回归测试一致的最小证据样例（字段可继续扩展，但不得省略覆盖状态）：
 
 ```json
-{"trace_id":"trace-demo","match_status":"matched","policy_version":"1.1.0","selected_rule_ids":["EX-10"],"missing_features":[],"requested_delta":[],"redundant_permissions":[],"excessive_permissions":[]}
+{"trace_id":"trace-demo","match_status":"matched","policy_version":"1.2.0","selected_rule_ids":["EX-10"],"missing_features":[],"requested_delta":[],"redundant_permissions":[],"excessive_permissions":[]}
 ```

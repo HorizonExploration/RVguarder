@@ -1,4 +1,4 @@
-{"version":"1.1.0","vectors":[
+{"version":"1.2.0","vectors":[
   {"id":"p0-ex10","version":"1.0.0","category":"risk","rule_id":"EX-10","operation":"message.send","expected_effect":"openclaw_approval"},
   {"id":"p0-ex19","version":"1.0.0","category":"risk","rule_id":"EX-19","operation":"data.query","expected_effect":"block"},
   {"id":"p0-ex27","version":"1.0.0","category":"boundary","rule_id":"EX-27","operation":"file.bulk_transfer","expected_effect":"openclaw_approval"},
@@ -18,7 +18,7 @@
   {"id":"p1-config-modify","version":"1.1.0","category":"privilege","rule_id":"P1-CONFIG-MODIFY","operation":"config.modify","expected_effect":"openclaw_approval"},
   {"id":"p1-secret-read","version":"1.1.0","category":"credential","rule_id":"P1-SECRET-READ","operation":"secret.read","classification":"secret","expected_effect":"openclaw_approval"},
   {"id":"p1-credential-read","version":"1.1.0","category":"credential","rule_id":"P1-CREDENTIAL-READ","operation":"credential.read","classification":"sensitive","expected_effect":"openclaw_approval"},
-  {"id":"p1-process-execute","version":"1.1.0","category":"execution","rule_id":"NATIVE-PROCESS-DESTRUCTIVE","operation":"process.execute","expected_effect":"block"},
+  {"id":"p1-process-execute","version":"1.1.0","category":"execution","rule_id":"NATIVE-PROCESS-DESTRUCTIVE","operation":"process.execute","command_safety":"destructive","expected_effect":"block"},
   {"id":"p1-file-write","version":"1.1.0","category":"persistence","rule_id":"P1-FILE-WRITE","operation":"file.write","expected_effect":"openclaw_approval"},
   {"id":"p1-file-write-outside","version":"1.1.0","category":"boundary","rule_id":"P1-FILE-WRITE-OUTSIDE","operation":"file.write","scope":"outside","expected_effect":"openclaw_approval"},
   {"id":"p1-file-bulk-transfer","version":"1.1.0","category":"network","rule_id":"EX-27","operation":"file.bulk_transfer","expected_effect":"openclaw_approval"},

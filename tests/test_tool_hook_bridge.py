@@ -38,17 +38,24 @@ def test_openclaw_native_tools_have_explicit_semantic_mapping():
         assert summary in build_hook_source_message(event)
 
 
-def test_agentdojo_evaluation_marker_is_propagated_for_mapped_tool():
-    event = build_hook_event(
-        {
-            "toolName": "memory_search",
-            "agentdojoToolName": "search_calendar_events",
-            "evaluationMode": "agentdojo",
-            "params": {"query": "meeting"},
-        }
-    )
+def test_openclaw_read_profiles_are_auto_allowed_by_pmkb():
+    from openclaw_guard.policy.engine import AuthorizationPolicyEngine
 
-    assert event.metadata["evaluation_mode"] == "agentdojo"
+    engine = AuthorizationPolicyEngine()
+    for tool_name in (
+        "sessions_history", "sessions_list", "session_status", "memory_search",
+        "memory_get", "get_goal", "agents_list",
+    ):
+        event = build_hook_event({
+            "toolName": tool_name,
+            "params": {"query": "daily"},
+            "runId": f"run-{tool_name}",
+            "toolCallId": f"call-{tool_name}",
+            "sessionId": "native-policy-test",
+        })
+        decision = engine.evaluate(event)
+        assert decision.effect == "auto_allow_audit"
+        assert decision.match_status == "matched"
 
 
 def test_dangerous_session_control_tools_do_not_inherit_read_only_native_mapping():

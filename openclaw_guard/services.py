@@ -688,7 +688,8 @@ class GuardServices:
             },
             "policy": {
                 "template": self.context.settings.policy_template,
-                "legacy_replay_rule_count": len(self.policy_engine.bundle.legacy_rules()),
+                "native_rule_count": len(self.policy_engine.bundle.rules),
+                "migration_count": len(self.policy_engine.bundle.migrations),
                 "whitelist": asdict(default_police_whitelist()),
             },
             "rv": {

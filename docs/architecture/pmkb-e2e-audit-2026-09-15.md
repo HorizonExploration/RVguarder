@@ -83,18 +83,18 @@ Gateway 监听进程。因此本轮双浏览器证据来自隔离的 Guard + 插
 
 ### 步骤 1：PMKB 装载与规则覆盖
 
-实测 PMKB 1.1.0：
+实测 PMKB 1.2.0（迁移前快照仍保留在本报告历史段落）：
 
 ~~~text
 operations 47
-rules 82 = 35 authored + 47 LEGACY
+rules 79 native + 47 migration owners
 traces 29
 relations 9 = 5 block + 4 openclaw_approval
 vectors 29（回归向量，不是 embedding）
 implies 0
 ~~~
 
-对 47 个 canonical operation 调用 rules_for_operation()，只有 **28 个有直接或别名规则，19 个没有规则**。未覆盖的族包括 browser.interact、session.manage、conversation.read、agent.spawn、gateway.modify、goal.write、plan.write、file.delete 等。
+对 48 个 canonical operation 调用 rules_for_operation()；当前 native catalog 对高频 OpenClaw 工具均有显式 profile，未命中仍按 unknown→OpenClaw approval fail-closed 处理。迁移前 47/82 的覆盖缺口属于本报告历史快照。
 
 这不是立即的“放行漏洞”：无规则的 operation 通常会进入 unknown → openclaw_approval，安全上偏保守；但它与“每一步都从知识库匹配合规规则”的设计目标不一致，且容易造成常用工具全部弹审批、误报率偏高。当前 PolicyEvaluator 的未知兜底见 [openclaw_guard/policy/evaluator.py](../../openclaw_guard/policy/evaluator.py) 第 103–158 行。
 

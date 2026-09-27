@@ -15,54 +15,6 @@ from openclaw_guard.utils import utc_now_iso
 
 
 class SemanticEnhancerTests(unittest.TestCase):
-    def test_agentdojo_evaluation_mode_uses_local_semantics_for_mapped_read(self) -> None:
-        enhancer = SemanticEnhancer(api_key="configured")
-        event = build_hook_event(
-            {
-                "toolName": "memory_search",
-                "agentdojoToolName": "search_calendar_events",
-                "evaluationMode": "agentdojo",
-                "params": {"query": "meeting"},
-            }
-        )
-
-        with patch.object(enhancer, "_call_llm", side_effect=AssertionError("LLM must not run")):
-            result = enhancer.evaluate(
-                event,
-                {"source_message": "benchmark read", "origin": "hook", "evaluation_mode": "agentdojo"},
-            )
-
-        self.assertEqual(event.metadata["evaluation_mode"], "agentdojo")
-        self.assertEqual(result["semantic"]["scenario"], "file_read")
-
-    def test_agentdojo_evaluation_mode_uses_local_semantics_for_mapped_external_tool(self) -> None:
-        enhancer = SemanticEnhancer(api_key="configured")
-        event = build_hook_event(
-            {
-                "toolName": "feishu.im.send",
-                "agentdojoToolName": "send_email",
-                "evaluationMode": "agentdojo",
-                "params": {"to": "outside@example.com", "body": "report"},
-            }
-        )
-
-        called = False
-
-        def record_call(*_args, **_kwargs):
-            nonlocal called
-            called = True
-            return None
-
-        with patch.object(enhancer, "_call_llm", side_effect=record_call):
-            result = enhancer.evaluate(
-                event,
-                {"source_message": "benchmark external action", "origin": "hook", "evaluation_mode": "agentdojo"},
-            )
-
-        self.assertEqual(event.metadata["evaluation_mode"], "agentdojo")
-        self.assertIsInstance(result["semantic"], dict)
-        self.assertFalse(called)
-
     def test_semantic_enhancer_outputs_rv_trace_for_report_send(self) -> None:
         event = BehaviorEvent(
             event_id="evt-1",
@@ -106,12 +58,14 @@ class SemanticEnhancerTests(unittest.TestCase):
 
             metadata = payload["event"]["metadata"]
             self.assertEqual(metadata["semantic"]["scenario"], "report_send")
+            self.assertEqual(metadata["semantic_match"]["version"], "v3")
+            self.assertEqual(metadata["semantic_audit"]["llm_status"], "disabled")
             self.assertEqual(metadata["rv_trace"][0]["event"], "report_send")
             self.assertIn("external_recipient", metadata["rv_trace"][0]["props"])
             self.assertEqual(payload["status"], "pending_approval")
 
-    def test_pmkb_blocks_secret_egress_from_semantic_evidence(self) -> None:
-        """A frozen LEGACY rule is evaluated by PMKB, not DetectionEngine."""
+    def test_free_form_semantic_label_cannot_hard_block_incomplete_egress(self) -> None:
+        """Unverified legacy labels cannot replace complete structured evidence."""
         event = BehaviorEvent(
             event_id="evt-2",
             timestamp=utc_now_iso(),
@@ -127,8 +81,7 @@ class SemanticEnhancerTests(unittest.TestCase):
             },
         )
         decision = AuthorizationPolicyEngine().decide(event)
-        self.assertEqual(decision.action, "block")
-        self.assertIn("LEGACY-NET-005", decision.rule_ids)
+        self.assertEqual(decision.action, "ask")
 
     def test_handle_before_tool_call_attaches_semantic_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -195,18 +148,25 @@ class SemanticEnhancerTests(unittest.TestCase):
         )
 
         inner = json.dumps({
-            "semantic": {
-                "version": "v2",
-                "engine": "llm-deepseek-chat",
-                "origin": "chat",
-                "scenario": "report_send",
-                "intent": {"category": "report_send", "goal": "send daily report to external recipient"},
-                "entities": {"paths": [], "urls": [], "recipients": ["alice@example.com"], "tool_name": None},
-                "constraints": {"exclude": [], "time_range": "today", "has_exclude": False, "has_time_constraint": True, "has_scope_constraint": False, "requires_human_review": False},
+            "version": "v3",
+            "engine": "deepseek-chat",
+            "operation_candidates": [{
+                "family": "message.send",
                 "confidence": 0.88,
-                "labels": ["report_send", "chat_message", "external_recipient", "has_recipient"],
+                "evidence": "send intent",
+            }],
+            "facts": {
+                "channel.external": {
+                    "value": True,
+                    "source": "llm",
+                    "trust": "suggested",
+                    "confidence": 0.84,
+                    "evidence": "external destination",
+                }
             },
-            "rv_trace": [{"step_id": "s1", "event": "report_send", "props": ["report_send", "external_recipient", "has_recipient"]}],
+            "entities": {"recipient_zone": "external"},
+            "constraints": {},
+            "uncertainties": [],
         })
         fake_llm_response = json.dumps({
             "choices": [
@@ -226,14 +186,15 @@ class SemanticEnhancerTests(unittest.TestCase):
             payload = enhancer.evaluate(event, {"source_message": "把今天的日报发给 alice@example.com", "origin": "chat"})
 
         self.assertEqual(payload["semantic"]["engine"], "llm-deepseek-chat")
-        self.assertEqual(payload["semantic"]["scenario"], "report_send")
-        self.assertEqual(payload["rv_trace"][0]["event"], "report_send")
-        self.assertIn("external_recipient", payload["rv_trace"][0]["props"])
+        self.assertEqual(payload["semantic"]["scenario"], "message.send")
+        self.assertEqual(payload["rv_trace"][0]["event"], "message.send")
+        self.assertIn("channel.external", payload["rv_trace"][0]["props"])
         # 阶段 A：LLM 路径应透传结构化字段
         self.assertIn("entities", payload["rv_trace"][0])
         self.assertIn("constraints", payload["rv_trace"][0])
         self.assertIn("confidence", payload["rv_trace"][0])
         self.assertEqual(payload["rv_trace"][0]["confidence"], 0.88)
+        self.assertEqual(payload["semantic_match"]["facts"]["channel.external"]["trust"], "suggested")
 
     def test_llm_failure_falls_back_to_local_rules(self) -> None:
         """LLM 失败时自动降级到本地规则化实现。"""

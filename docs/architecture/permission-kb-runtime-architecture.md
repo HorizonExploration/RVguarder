@@ -1,9 +1,9 @@
 # 权限知识库与权限建模运行时升级结果
 
 > **状态：** 当前实现结果与架构事实源
-> **核对日期：** 2026-09-15
-> **PMKB 版本：** `1.1.0`
-> **测试基线：** 2026-09-15 全量回归为 `412 passed / 19 skipped / 4 subtests passed`；Chromium 与 Firefox Playwright 冒烟均 `5 passed`。`494 passed / 19 skipped / 4 subtests passed`、`8 passed` 和更早的 `513 passed` 仅作历史对照。
+> **核对日期：** 2026-09-20
+> **PMKB 版本：** `1.2.0`
+> **测试基线：** 本轮整改后以最终验证命令输出为准；此前 `412 passed` 等数字仅作历史对照。
 
 > **2026-09-09 复核：** 下文关于 ConstraintEngine、SessionSafetyState、`revise` 和
 > `before_prompt_build` 的描述是旧阶段快照。生产链路只使用 PMKB、显式工具 profile、成功执行
@@ -25,7 +25,7 @@
 
 当前仍未完成以下工作：
 
-- 47 条历史单步检测规则已完成兼容迁移并经逐条回放（`47 / 47`）；冻结的 `LEGACY-*` 元数据仍保留作兼容回放、审计和回滚证据，逐条删除仍受[旧规则迁移矩阵](./legacy-rule-migration-matrix.md)门槛约束；
+- 47 条历史单步检测规则已完成 PMKB 原生归属并经逐条正反例回放（`47 / 47`）；迁移清单保留为 provenance、审计和回滚证据，不参与运行时候选召回，也不生成 `LEGACY-*` 在线规则；
 - 未实现从人工审批记录自动学习并永久生成 `allow` 规则；
 - 未提供完整的用户权限管理 UI 和企业级目录同步；
 - 尚无真实个人办公流量的人工审批下降实测，因此路线图中的 `-40%`、`-60%` 是验收目标，不是已达成结果。
@@ -40,7 +40,7 @@ OpenClaw before_tool_call
        └─ rv_trace（历史步骤与实体）
   → PolicyBundle.load + TraceCompiler
        └─ AuthorizationTrace（操作、资源、主体、覆盖度、来源）
-  → AuthorizationPolicyEngine（PMKB 原生规则 + 历史兼容记录）
+  → AuthorizationPolicyEngine（PMKB 原生规则；migration provenance 仅供回放）
        ├─ PolicyEvaluator（规则匹配与风险评分）
        ├─ PermissionClosure + PermissionDiff（最小权限）
        └─ RiskGraph（危险权限组合）
@@ -77,12 +77,12 @@ OpenClaw before_tool_call
 | 文件 | 当前数量 | 作用 |
 | --- | ---: | --- |
 | `schema/permissions.schema.json` | 1 | 约束 bundle 必须包含 operations、rules、traces、relations、vectors |
-| `catalog/operation-catalog.json` | 47 operations | OpenClaw 原生工具、业务工具名/别名到 canonical permission family 的映射 |
-| `rules/p0-office.json` | 35 authored rules（22 条 `P1-*`、3 条 `NATIVE-*`，其余为 `P0-*`、`EX-*`、`OC-*`） | 单步权限规则、匹配条件、处置效果和来源 |
-| 运行时兼容规则 | 47 `LEGACY-<old-id>` records | 冻结的历史 action/semantic 元数据，仅用于 PMKB 兼容回放；不再进入独立检测引擎 |
-| `traces/p0-office.json` | 29 traces | 每条规则对应的最小必要权限范围和正反例 |
+| `catalog/operation-catalog.json` | 48 operations | OpenClaw 原生工具、业务工具名/别名到 canonical permission family 的映射 |
+| `rules/*.json` | 79 native rules | 单步权限规则、匹配条件、处置效果和来源；含 47 条迁移归属的原生 owner |
+| `migrations/legacy-1.1.json` | 47 migration records | 历史规则到 native owner 的 provenance/replay 映射，不进入运行时候选召回 |
+| `traces/*.json` | 76 traces | 每条规则对应的最小必要权限范围和正反例 |
 | `relations/p0-combinations.json` | 9 relations | `toxic_with`、`conflicts`、`implies` 等权限关系 |
-| `policies/permissions/tests/p0-vectors.json` | 29 vectors | 固定输入、预期效果和回归类别 |
+| `policies/permissions/tests/*.json` | 123 vectors | 固定输入、预期效果和回归类别，含 94 个迁移正反例 |
 
 每个规则记录至少包含：`id`、`version`、`effect`、`priority`、`match`、`required_fields`、`negative_conditions`、`source`、`test_vectors`、`rollback_state`、`positive_examples` 和 `negative_examples`。加载器会拒绝重复 ID、未知 operation、版本不一致或缺少必填字段的 bundle，并递归冻结已加载记录，防止运行时篡改。
 
@@ -246,13 +246,13 @@ PMKB 效果到 Guard 动作的映射为：
 
 本次升级的测试证据包括：
 
-- `tests/test_pmkb_network_baseline.py`：版本、目录 parity、网络案例规则、Trace、RiskGraph 和统一引擎；
+- `tests/test_native_policy_migration.py`：版本、目录 parity、47 个 migration owner、76 条 Trace、123 个向量和 native replay；
 - `tests/test_policy_catalog.py`、`test_policy_models.py`、`test_policy_vectors.py`：schema、冻结、版本和正反例；
 - `tests/test_authorization_trace.py`、`test_policy_pipeline.py`：语义到 Hook 决策的运行时接入；
 - `tests/test_permission_diff.py`、`test_permission_risk_graph.py`：最小权限、scope expansion 和危险组合；
 - `tests/test_principal_capability_rv.py`、`test_principal_rv_hook_integration.py`：跨 session 主体状态和持久化；
 - `tests/test_permission_rv_compiler.py`：PMKB 规则/关系自动机编译、effect 投影和 principal 作用域隔离；
-- 本轮全量回归：`412 passed / 19 skipped / 4 subtests passed`（2026-09-15）；Chromium 与 Firefox Playwright 冒烟均 `5 passed`（Firefox 清除代理变量、单 worker 复跑）。
+- 本轮全量回归：`395 passed / 19 skipped / 4 subtests passed`（2026-09-20）；Chromium 与 Firefox Playwright 冒烟均 `5 passed`。
 - 历史定向回归曾覆盖 Hook 配置清理、OpenClaw 原生工具映射、PMKB 命中、Trace 编译、审批同步、超时收拢和审批文案边界；旧计数与详情保存在 `docs/archive/research/openclaw-approval-chain-optimization-report-2026-08-30.md`（归档不参与站点构建）。
 
 路线图目标 `complete coverage ≥85%`、`unknown rate ≤10%`、`low-risk auto-allow precision ≥99%`、`high-risk recall ≥98%`、人工审批量下降 40% 等，当前仅是发布和扩大自动放行范围的验收门槛，尚未由真实个人使用数据验证。

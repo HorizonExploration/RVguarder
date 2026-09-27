@@ -4,6 +4,8 @@
 > **项目版本：** `v0.7.0-dev`（包元数据 `0.7.0.dev0`）  
 > **PMKB 版本：** `1.1.0`
 
+> **历史快照说明：** 本报告记录 2026-09-02 的工程统一阶段；现行 PMKB 已升级为 `1.2.0`，当前事实以[权限知识库与 RV 运行时架构结果](./permission-kb-runtime-architecture.md)为准。
+
 ## 结论
 
 项目的 OpenClaw Hook、PMKB、RV、审计和只读 Dashboard 同步链已具备可运行主链。此次收敛将生产 HTTP 入口固定为 FastAPI，并以 PMKB 取代旧 `DetectionEngine` 的运行时裁决；47 条历史规则保留为可审计的 `LEGACY-*` PMKB 兼容记录，不再保留第二个单步规则引擎。

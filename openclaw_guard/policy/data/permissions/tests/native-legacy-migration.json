@@ -1,0 +1,1129 @@
+{
+  "version": "1.2.0",
+  "vectors": [
+    {
+      "id": "migration-CMD-001-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-PROCESS-DESTRUCTIVE",
+      "legacy_rule_id": "CMD-001",
+      "operation": "process.execute",
+      "expected_effect": "block",
+      "arguments": {
+        "command_safety": "destructive"
+      }
+    },
+    {
+      "id": "migration-CMD-001-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-PROCESS-DESTRUCTIVE",
+      "legacy_rule_id": "CMD-001",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "arguments": {
+        "command_safety": "read_only"
+      }
+    },
+    {
+      "id": "migration-CMD-002-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-CMD-002",
+      "legacy_rule_id": "CMD-002",
+      "operation": "process.execute",
+      "expected_effect": "block",
+      "facts": {
+        "command.download_pipe_curl": true
+      }
+    },
+    {
+      "id": "migration-CMD-002-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-CMD-002",
+      "legacy_rule_id": "CMD-002",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.download_pipe_curl": false
+      }
+    },
+    {
+      "id": "migration-CMD-003-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-CMD-003",
+      "legacy_rule_id": "CMD-003",
+      "operation": "process.execute",
+      "expected_effect": "block",
+      "facts": {
+        "command.download_pipe_wget": true
+      }
+    },
+    {
+      "id": "migration-CMD-003-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-CMD-003",
+      "legacy_rule_id": "CMD-003",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.download_pipe_wget": false
+      }
+    },
+    {
+      "id": "migration-CMD-004-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-PROCESS-PRIVILEGED",
+      "legacy_rule_id": "CMD-004",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "arguments": {
+        "command_safety": "privileged"
+      }
+    },
+    {
+      "id": "migration-CMD-004-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-PROCESS-PRIVILEGED",
+      "legacy_rule_id": "CMD-004",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "arguments": {
+        "command_safety": "read_only"
+      }
+    },
+    {
+      "id": "migration-CMD-005-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-CMD-005",
+      "legacy_rule_id": "CMD-005",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.remote_shell": true
+      }
+    },
+    {
+      "id": "migration-CMD-005-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-CMD-005",
+      "legacy_rule_id": "CMD-005",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.remote_shell": false
+      }
+    },
+    {
+      "id": "migration-CMD-006-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-CMD-006",
+      "legacy_rule_id": "CMD-006",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.remote_copy": true
+      }
+    },
+    {
+      "id": "migration-CMD-006-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-CMD-006",
+      "legacy_rule_id": "CMD-006",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.remote_copy": false
+      }
+    },
+    {
+      "id": "migration-CMD-007-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-CMD-007",
+      "legacy_rule_id": "CMD-007",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.permission_change": true
+      }
+    },
+    {
+      "id": "migration-CMD-007-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-CMD-007",
+      "legacy_rule_id": "CMD-007",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.permission_change": false
+      }
+    },
+    {
+      "id": "migration-CMD-008-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-CMD-008",
+      "legacy_rule_id": "CMD-008",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.owner_change": true
+      }
+    },
+    {
+      "id": "migration-CMD-008-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-CMD-008",
+      "legacy_rule_id": "CMD-008",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.owner_change": false
+      }
+    },
+    {
+      "id": "migration-CMD-009-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-CMD-009",
+      "legacy_rule_id": "CMD-009",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.move": true
+      }
+    },
+    {
+      "id": "migration-CMD-009-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-CMD-009",
+      "legacy_rule_id": "CMD-009",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.move": false
+      }
+    },
+    {
+      "id": "migration-CMD-010-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-CMD-010",
+      "legacy_rule_id": "CMD-010",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.delete": true
+      }
+    },
+    {
+      "id": "migration-CMD-010-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-CMD-010",
+      "legacy_rule_id": "CMD-010",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.delete": false
+      }
+    },
+    {
+      "id": "migration-FILE-001-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-FILE-001",
+      "legacy_rule_id": "FILE-001",
+      "operation": "file.delete",
+      "expected_effect": "block",
+      "facts": {
+        "resource.system_path": true
+      }
+    },
+    {
+      "id": "migration-FILE-001-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-FILE-001",
+      "legacy_rule_id": "FILE-001",
+      "operation": "file.delete",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.system_path": false
+      }
+    },
+    {
+      "id": "migration-FILE-002-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-FILE-002",
+      "legacy_rule_id": "FILE-002",
+      "operation": "file.delete",
+      "expected_effect": "block",
+      "facts": {
+        "resource.sensitive_credentials": true
+      }
+    },
+    {
+      "id": "migration-FILE-002-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-FILE-002",
+      "legacy_rule_id": "FILE-002",
+      "operation": "file.delete",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.sensitive_credentials": false
+      }
+    },
+    {
+      "id": "migration-FILE-003-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-FILE-003",
+      "legacy_rule_id": "FILE-003",
+      "operation": "file.delete",
+      "expected_effect": "openclaw_approval",
+      "scope": "outside"
+    },
+    {
+      "id": "migration-FILE-003-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-FILE-003",
+      "legacy_rule_id": "FILE-003",
+      "operation": "file.delete",
+      "expected_effect": "openclaw_approval",
+      "scope": "workspace"
+    },
+    {
+      "id": "migration-FILE-004-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-FILE-004",
+      "legacy_rule_id": "FILE-004",
+      "operation": "file.delete",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.log_path": true
+      }
+    },
+    {
+      "id": "migration-FILE-004-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-FILE-004",
+      "legacy_rule_id": "FILE-004",
+      "operation": "file.delete",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.log_path": false
+      }
+    },
+    {
+      "id": "migration-FILE-005-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-FILE-005",
+      "legacy_rule_id": "FILE-005",
+      "operation": "file.delete",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.high_value": true
+      }
+    },
+    {
+      "id": "migration-FILE-005-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-FILE-005",
+      "legacy_rule_id": "FILE-005",
+      "operation": "file.delete",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.high_value": false
+      }
+    },
+    {
+      "id": "migration-FILE-006-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-FILE-006",
+      "legacy_rule_id": "FILE-006",
+      "operation": "config.modify",
+      "expected_effect": "block",
+      "facts": {
+        "resource.openclaw_config": true
+      }
+    },
+    {
+      "id": "migration-FILE-006-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-FILE-006",
+      "legacy_rule_id": "FILE-006",
+      "operation": "config.modify",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.openclaw_config": false
+      }
+    },
+    {
+      "id": "migration-FILE-007-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-FILE-007",
+      "legacy_rule_id": "FILE-007",
+      "operation": "file.write",
+      "expected_effect": "openclaw_approval",
+      "scope": "outside"
+    },
+    {
+      "id": "migration-FILE-007-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-FILE-007",
+      "legacy_rule_id": "FILE-007",
+      "operation": "file.write",
+      "expected_effect": "openclaw_approval",
+      "scope": "workspace"
+    },
+    {
+      "id": "migration-FILE-008-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-FILE-008",
+      "legacy_rule_id": "FILE-008",
+      "operation": "file.write",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.script": true
+      }
+    },
+    {
+      "id": "migration-FILE-008-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-FILE-008",
+      "legacy_rule_id": "FILE-008",
+      "operation": "file.write",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.script": false
+      }
+    },
+    {
+      "id": "migration-FILE-009-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-FILE-009",
+      "legacy_rule_id": "FILE-009",
+      "operation": "file.write",
+      "expected_effect": "block",
+      "facts": {
+        "resource.sensitive_credentials": true
+      }
+    },
+    {
+      "id": "migration-FILE-009-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-FILE-009",
+      "legacy_rule_id": "FILE-009",
+      "operation": "file.write",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.sensitive_credentials": false
+      }
+    },
+    {
+      "id": "migration-FILE-010-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-FILE-010",
+      "legacy_rule_id": "FILE-010",
+      "operation": "file.write",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.target_count": 2
+      }
+    },
+    {
+      "id": "migration-FILE-010-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-FILE-010",
+      "legacy_rule_id": "FILE-010",
+      "operation": "file.write",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.target_count": 1
+      }
+    },
+    {
+      "id": "migration-NET-001-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-NET-001",
+      "legacy_rule_id": "NET-001",
+      "operation": "network.egress",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "network.http": true
+      }
+    },
+    {
+      "id": "migration-NET-001-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-NET-001",
+      "legacy_rule_id": "NET-001",
+      "operation": "network.egress",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "network.http": false
+      }
+    },
+    {
+      "id": "migration-NET-002-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-NET-002",
+      "legacy_rule_id": "NET-002",
+      "operation": "network.egress",
+      "expected_effect": "block",
+      "facts": {
+        "network.public_ip": true
+      }
+    },
+    {
+      "id": "migration-NET-002-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-NET-002",
+      "legacy_rule_id": "NET-002",
+      "operation": "network.egress",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "network.public_ip": false
+      }
+    },
+    {
+      "id": "migration-NET-003-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-NET-003",
+      "legacy_rule_id": "NET-003",
+      "operation": "network.egress",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "network.webhook": true
+      }
+    },
+    {
+      "id": "migration-NET-003-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-NET-003",
+      "legacy_rule_id": "NET-003",
+      "operation": "network.egress",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "network.webhook": false
+      }
+    },
+    {
+      "id": "migration-NET-004-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-NET-004",
+      "legacy_rule_id": "NET-004",
+      "operation": "network.egress",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "network.upload": true
+      }
+    },
+    {
+      "id": "migration-NET-004-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-NET-004",
+      "legacy_rule_id": "NET-004",
+      "operation": "network.egress",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "network.upload": false
+      }
+    },
+    {
+      "id": "migration-NET-005-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-NETWORK-SECRET-EXTERNAL",
+      "legacy_rule_id": "NET-005",
+      "operation": "network.egress",
+      "expected_effect": "block",
+      "scope": "external",
+      "facts": {
+        "network.secret_payload": true
+      }
+    },
+    {
+      "id": "migration-NET-005-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-NETWORK-SECRET-EXTERNAL",
+      "legacy_rule_id": "NET-005",
+      "operation": "network.egress",
+      "expected_effect": "openclaw_approval",
+      "scope": "external",
+      "facts": {
+        "network.secret_payload": false
+      }
+    },
+    {
+      "id": "migration-NET-006-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-NET-006",
+      "legacy_rule_id": "NET-006",
+      "operation": "network.egress",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "network.proxy_change": true
+      }
+    },
+    {
+      "id": "migration-NET-006-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-NET-006",
+      "legacy_rule_id": "NET-006",
+      "operation": "network.egress",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "network.proxy_change": false
+      }
+    },
+    {
+      "id": "migration-API-001-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-API-001",
+      "legacy_rule_id": "API-001",
+      "operation": "message.send",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "channel.external": true
+      }
+    },
+    {
+      "id": "migration-API-001-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-API-001",
+      "legacy_rule_id": "API-001",
+      "operation": "message.send",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "channel.external": false
+      }
+    },
+    {
+      "id": "migration-API-002-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-API-002",
+      "legacy_rule_id": "API-002",
+      "operation": "message.send",
+      "expected_effect": "block",
+      "facts": {
+        "channel.admin": true
+      }
+    },
+    {
+      "id": "migration-API-002-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-API-002",
+      "legacy_rule_id": "API-002",
+      "operation": "message.send",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "channel.admin": false
+      }
+    },
+    {
+      "id": "migration-API-003-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-API-003",
+      "legacy_rule_id": "API-003",
+      "operation": "message.send",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "channel.present": true
+      }
+    },
+    {
+      "id": "migration-API-003-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-API-003",
+      "legacy_rule_id": "API-003",
+      "operation": "message.send",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "channel.present": false
+      }
+    },
+    {
+      "id": "migration-API-004-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-API-004",
+      "legacy_rule_id": "API-004",
+      "operation": "message.send",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "channel.bulk": true
+      }
+    },
+    {
+      "id": "migration-API-004-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-API-004",
+      "legacy_rule_id": "API-004",
+      "operation": "message.send",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "channel.bulk": false
+      }
+    },
+    {
+      "id": "migration-SKL-001-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-SKL-001",
+      "legacy_rule_id": "SKL-001",
+      "operation": "skill.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "skill.shell": true
+      }
+    },
+    {
+      "id": "migration-SKL-001-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-SKL-001",
+      "legacy_rule_id": "SKL-001",
+      "operation": "skill.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "skill.shell": false
+      }
+    },
+    {
+      "id": "migration-SKL-002-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-SKL-002",
+      "legacy_rule_id": "SKL-002",
+      "operation": "skill.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "skill.network": true
+      }
+    },
+    {
+      "id": "migration-SKL-002-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-SKL-002",
+      "legacy_rule_id": "SKL-002",
+      "operation": "skill.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "skill.network": false
+      }
+    },
+    {
+      "id": "migration-SKL-003-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-SKL-003",
+      "legacy_rule_id": "SKL-003",
+      "operation": "skill.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "skill.delete": true
+      }
+    },
+    {
+      "id": "migration-SKL-003-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-SKL-003",
+      "legacy_rule_id": "SKL-003",
+      "operation": "skill.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "skill.delete": false
+      }
+    },
+    {
+      "id": "migration-SKL-004-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-SKL-004",
+      "legacy_rule_id": "SKL-004",
+      "operation": "skill.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "skill.write": true
+      }
+    },
+    {
+      "id": "migration-SKL-004-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-SKL-004",
+      "legacy_rule_id": "SKL-004",
+      "operation": "skill.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "skill.write": false
+      }
+    },
+    {
+      "id": "migration-SKL-005-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-SKL-005",
+      "legacy_rule_id": "SKL-005",
+      "operation": "skill.execute",
+      "expected_effect": "block",
+      "facts": {
+        "skill.persistence": true
+      }
+    },
+    {
+      "id": "migration-SKL-005-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-SKL-005",
+      "legacy_rule_id": "SKL-005",
+      "operation": "skill.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "skill.persistence": false
+      }
+    },
+    {
+      "id": "migration-SKL-006-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-SKL-006",
+      "legacy_rule_id": "SKL-006",
+      "operation": "skill.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "skill.system_admin": true
+      }
+    },
+    {
+      "id": "migration-SKL-006-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-SKL-006",
+      "legacy_rule_id": "SKL-006",
+      "operation": "skill.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "skill.system_admin": false
+      }
+    },
+    {
+      "id": "migration-CFG-001-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-CFG-001",
+      "legacy_rule_id": "CFG-001",
+      "operation": "config.modify",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "config.provider_change": true
+      }
+    },
+    {
+      "id": "migration-CFG-001-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-CFG-001",
+      "legacy_rule_id": "CFG-001",
+      "operation": "config.modify",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "config.provider_change": false
+      }
+    },
+    {
+      "id": "migration-CFG-002-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-CFG-002",
+      "legacy_rule_id": "CFG-002",
+      "operation": "config.modify",
+      "expected_effect": "block",
+      "facts": {
+        "config.auth_disable": true
+      }
+    },
+    {
+      "id": "migration-CFG-002-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-CFG-002",
+      "legacy_rule_id": "CFG-002",
+      "operation": "config.modify",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "config.auth_disable": false
+      }
+    },
+    {
+      "id": "migration-CFG-003-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-CFG-003",
+      "legacy_rule_id": "CFG-003",
+      "operation": "config.modify",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "config.approval_bypass": true
+      }
+    },
+    {
+      "id": "migration-CFG-003-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-CFG-003",
+      "legacy_rule_id": "CFG-003",
+      "operation": "config.modify",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "config.approval_bypass": false
+      }
+    },
+    {
+      "id": "migration-CFG-004-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-CFG-004",
+      "legacy_rule_id": "CFG-004",
+      "operation": "config.modify",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "config.sandbox_disable": true
+      }
+    },
+    {
+      "id": "migration-CFG-004-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-CFG-004",
+      "legacy_rule_id": "CFG-004",
+      "operation": "config.modify",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "config.sandbox_disable": false
+      }
+    },
+    {
+      "id": "migration-CFG-005-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-CFG-005",
+      "legacy_rule_id": "CFG-005",
+      "operation": "config.modify",
+      "expected_effect": "block",
+      "facts": {
+        "config.audit_disable": true
+      }
+    },
+    {
+      "id": "migration-CFG-005-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-CFG-005",
+      "legacy_rule_id": "CFG-005",
+      "operation": "config.modify",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "config.audit_disable": false
+      }
+    },
+    {
+      "id": "migration-GEN-001-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-GEN-001",
+      "legacy_rule_id": "GEN-001",
+      "operation": "file.delete",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.unresolved": true
+      }
+    },
+    {
+      "id": "migration-GEN-001-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-GEN-001",
+      "legacy_rule_id": "GEN-001",
+      "operation": "file.delete",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.unresolved": false
+      }
+    },
+    {
+      "id": "migration-GEN-002-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-GEN-002",
+      "legacy_rule_id": "GEN-002",
+      "operation": "file.write",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.unresolved": true
+      }
+    },
+    {
+      "id": "migration-GEN-002-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-GEN-002",
+      "legacy_rule_id": "GEN-002",
+      "operation": "file.write",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.unresolved": false
+      }
+    },
+    {
+      "id": "migration-GEN-003-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-GEN-003",
+      "legacy_rule_id": "GEN-003",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.delete_intent": true
+      }
+    },
+    {
+      "id": "migration-GEN-003-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-GEN-003",
+      "legacy_rule_id": "GEN-003",
+      "operation": "process.execute",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "command.delete_intent": false
+      }
+    },
+    {
+      "id": "migration-GEN-004-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-GEN-004",
+      "legacy_rule_id": "GEN-004",
+      "operation": "network.egress",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.unresolved": true
+      }
+    },
+    {
+      "id": "migration-GEN-004-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-GEN-004",
+      "legacy_rule_id": "GEN-004",
+      "operation": "network.egress",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.unresolved": false
+      }
+    },
+    {
+      "id": "migration-GEN-005-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-GEN-005",
+      "legacy_rule_id": "GEN-005",
+      "operation": "file.delete",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.high_value": true
+      }
+    },
+    {
+      "id": "migration-GEN-005-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-GEN-005",
+      "legacy_rule_id": "GEN-005",
+      "operation": "file.delete",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.high_value": false
+      }
+    },
+    {
+      "id": "migration-GEN-006-positive",
+      "version": "1.2.0",
+      "category": "migration-positive",
+      "rule_id": "NATIVE-GEN-006",
+      "legacy_rule_id": "GEN-006",
+      "operation": "file.delete",
+      "expected_effect": "block",
+      "facts": {
+        "resource.target_count": 2,
+        "data.sensitive": true
+      }
+    },
+    {
+      "id": "migration-GEN-006-near-miss",
+      "version": "1.2.0",
+      "category": "migration-near-miss",
+      "rule_id": "NATIVE-GEN-006",
+      "legacy_rule_id": "GEN-006",
+      "operation": "file.delete",
+      "expected_effect": "openclaw_approval",
+      "facts": {
+        "resource.target_count": 1,
+        "data.sensitive": true
+      }
+    }
+  ]
+}

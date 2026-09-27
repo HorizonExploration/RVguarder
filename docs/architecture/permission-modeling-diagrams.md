@@ -2,7 +2,7 @@
 
 > **用途：** 组会汇报图稿
 > **核对日期：** 2026-09-15
-> **当前实现基线：** v0.7.0-dev / PMKB 1.1.0
+> **当前实现基线：** v0.7.0-dev / PMKB 1.2.0
 >
 > Mermaid 是图稿源格式。VuePress 构建后可直接展示；如需放入 PPT，可使用 Mermaid 编辑器或本地工具导出 SVG/PNG。
 
@@ -60,7 +60,7 @@ flowchart LR
 ### 讲解要点
 
 - Guard 不修改 OpenClaw 源码，只通过 Hook 接入。
-- PMKB 是唯一单步运行时裁决来源；47 条 LEGACY 记录仅保留为可回放兼容数据，RV 负责跨步升权。
+- PMKB 是唯一单步运行时裁决来源；47 条迁移 provenance 仅保留为可回放审计数据，RV 负责跨步升权。
 - OpenClaw 原生审批页是唯一决策入口，Guard 页面不再创建第二套审批状态。
 - 生产插件不注册 `before_prompt_build`；实际执行前门禁只有 `before_tool_call`。
 

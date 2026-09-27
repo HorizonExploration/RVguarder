@@ -12,9 +12,9 @@ from openclaw_guard.policy.engine import AuthorizationPolicyEngine
 
 
 class PolicyDecisionAdapterTests(unittest.TestCase):
-    def test_frozen_legacy_record_count_is_47(self) -> None:
+    def test_native_migration_record_count_is_47(self) -> None:
         engine = AuthorizationPolicyEngine()
-        self.assertEqual(len(engine.bundle.legacy_rules()), 47)
+        self.assertEqual(len(engine.bundle.migrations), 47)
 
     def test_rm_rf_is_blocked_by_pmkb(self) -> None:
         event = BehaviorCollectorManager().ingest(
@@ -24,7 +24,7 @@ class PolicyDecisionAdapterTests(unittest.TestCase):
         event.metadata["rv_trace"] = [{"props": ["command_rm_rf"]}]
         decision = AuthorizationPolicyEngine().decide(event)
         self.assertEqual(decision.action, "block")
-        self.assertIn("LEGACY-CMD-001", decision.rule_ids)
+        self.assertIn("NATIVE-PROCESS-DESTRUCTIVE", decision.rule_ids)
 
     def test_outside_workspace_delete_enters_pending(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

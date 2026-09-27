@@ -1,0 +1,428 @@
+{
+  "version": "1.2.0",
+  "migrations": [
+    {
+      "legacy_rule_id": "CMD-001",
+      "native_rule_id": "NATIVE-PROCESS-DESTRUCTIVE",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CMD-001-positive",
+        "migration-CMD-001-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "CMD-002",
+      "native_rule_id": "NATIVE-CMD-002",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CMD-002-positive",
+        "migration-CMD-002-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "CMD-003",
+      "native_rule_id": "NATIVE-CMD-003",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CMD-003-positive",
+        "migration-CMD-003-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "CMD-004",
+      "native_rule_id": "NATIVE-PROCESS-PRIVILEGED",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CMD-004-positive",
+        "migration-CMD-004-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "CMD-005",
+      "native_rule_id": "NATIVE-CMD-005",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CMD-005-positive",
+        "migration-CMD-005-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "CMD-006",
+      "native_rule_id": "NATIVE-CMD-006",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CMD-006-positive",
+        "migration-CMD-006-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "CMD-007",
+      "native_rule_id": "NATIVE-CMD-007",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CMD-007-positive",
+        "migration-CMD-007-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "CMD-008",
+      "native_rule_id": "NATIVE-CMD-008",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CMD-008-positive",
+        "migration-CMD-008-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "CMD-009",
+      "native_rule_id": "NATIVE-CMD-009",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CMD-009-positive",
+        "migration-CMD-009-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "CMD-010",
+      "native_rule_id": "NATIVE-CMD-010",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CMD-010-positive",
+        "migration-CMD-010-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "FILE-001",
+      "native_rule_id": "NATIVE-FILE-001",
+      "status": "native",
+      "replay_vectors": [
+        "migration-FILE-001-positive",
+        "migration-FILE-001-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "FILE-002",
+      "native_rule_id": "NATIVE-FILE-002",
+      "status": "native",
+      "replay_vectors": [
+        "migration-FILE-002-positive",
+        "migration-FILE-002-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "FILE-003",
+      "native_rule_id": "NATIVE-FILE-003",
+      "status": "native",
+      "replay_vectors": [
+        "migration-FILE-003-positive",
+        "migration-FILE-003-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "FILE-004",
+      "native_rule_id": "NATIVE-FILE-004",
+      "status": "native",
+      "replay_vectors": [
+        "migration-FILE-004-positive",
+        "migration-FILE-004-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "FILE-005",
+      "native_rule_id": "NATIVE-FILE-005",
+      "status": "native",
+      "replay_vectors": [
+        "migration-FILE-005-positive",
+        "migration-FILE-005-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "FILE-006",
+      "native_rule_id": "NATIVE-FILE-006",
+      "status": "native",
+      "replay_vectors": [
+        "migration-FILE-006-positive",
+        "migration-FILE-006-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "FILE-007",
+      "native_rule_id": "NATIVE-FILE-007",
+      "status": "native",
+      "replay_vectors": [
+        "migration-FILE-007-positive",
+        "migration-FILE-007-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "FILE-008",
+      "native_rule_id": "NATIVE-FILE-008",
+      "status": "native",
+      "replay_vectors": [
+        "migration-FILE-008-positive",
+        "migration-FILE-008-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "FILE-009",
+      "native_rule_id": "NATIVE-FILE-009",
+      "status": "native",
+      "replay_vectors": [
+        "migration-FILE-009-positive",
+        "migration-FILE-009-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "FILE-010",
+      "native_rule_id": "NATIVE-FILE-010",
+      "status": "native",
+      "replay_vectors": [
+        "migration-FILE-010-positive",
+        "migration-FILE-010-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "NET-001",
+      "native_rule_id": "NATIVE-NET-001",
+      "status": "native",
+      "replay_vectors": [
+        "migration-NET-001-positive",
+        "migration-NET-001-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "NET-002",
+      "native_rule_id": "NATIVE-NET-002",
+      "status": "native",
+      "replay_vectors": [
+        "migration-NET-002-positive",
+        "migration-NET-002-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "NET-003",
+      "native_rule_id": "NATIVE-NET-003",
+      "status": "native",
+      "replay_vectors": [
+        "migration-NET-003-positive",
+        "migration-NET-003-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "NET-004",
+      "native_rule_id": "NATIVE-NET-004",
+      "status": "native",
+      "replay_vectors": [
+        "migration-NET-004-positive",
+        "migration-NET-004-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "NET-005",
+      "native_rule_id": "NATIVE-NETWORK-SECRET-EXTERNAL",
+      "status": "native",
+      "replay_vectors": [
+        "migration-NET-005-positive",
+        "migration-NET-005-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "NET-006",
+      "native_rule_id": "NATIVE-NET-006",
+      "status": "native",
+      "replay_vectors": [
+        "migration-NET-006-positive",
+        "migration-NET-006-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "API-001",
+      "native_rule_id": "NATIVE-API-001",
+      "status": "native",
+      "replay_vectors": [
+        "migration-API-001-positive",
+        "migration-API-001-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "API-002",
+      "native_rule_id": "NATIVE-API-002",
+      "status": "native",
+      "replay_vectors": [
+        "migration-API-002-positive",
+        "migration-API-002-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "API-003",
+      "native_rule_id": "NATIVE-API-003",
+      "status": "native",
+      "replay_vectors": [
+        "migration-API-003-positive",
+        "migration-API-003-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "API-004",
+      "native_rule_id": "NATIVE-API-004",
+      "status": "native",
+      "replay_vectors": [
+        "migration-API-004-positive",
+        "migration-API-004-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "SKL-001",
+      "native_rule_id": "NATIVE-SKL-001",
+      "status": "native",
+      "replay_vectors": [
+        "migration-SKL-001-positive",
+        "migration-SKL-001-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "SKL-002",
+      "native_rule_id": "NATIVE-SKL-002",
+      "status": "native",
+      "replay_vectors": [
+        "migration-SKL-002-positive",
+        "migration-SKL-002-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "SKL-003",
+      "native_rule_id": "NATIVE-SKL-003",
+      "status": "native",
+      "replay_vectors": [
+        "migration-SKL-003-positive",
+        "migration-SKL-003-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "SKL-004",
+      "native_rule_id": "NATIVE-SKL-004",
+      "status": "native",
+      "replay_vectors": [
+        "migration-SKL-004-positive",
+        "migration-SKL-004-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "SKL-005",
+      "native_rule_id": "NATIVE-SKL-005",
+      "status": "native",
+      "replay_vectors": [
+        "migration-SKL-005-positive",
+        "migration-SKL-005-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "SKL-006",
+      "native_rule_id": "NATIVE-SKL-006",
+      "status": "native",
+      "replay_vectors": [
+        "migration-SKL-006-positive",
+        "migration-SKL-006-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "CFG-001",
+      "native_rule_id": "NATIVE-CFG-001",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CFG-001-positive",
+        "migration-CFG-001-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "CFG-002",
+      "native_rule_id": "NATIVE-CFG-002",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CFG-002-positive",
+        "migration-CFG-002-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "CFG-003",
+      "native_rule_id": "NATIVE-CFG-003",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CFG-003-positive",
+        "migration-CFG-003-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "CFG-004",
+      "native_rule_id": "NATIVE-CFG-004",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CFG-004-positive",
+        "migration-CFG-004-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "CFG-005",
+      "native_rule_id": "NATIVE-CFG-005",
+      "status": "native",
+      "replay_vectors": [
+        "migration-CFG-005-positive",
+        "migration-CFG-005-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "GEN-001",
+      "native_rule_id": "NATIVE-GEN-001",
+      "status": "native",
+      "replay_vectors": [
+        "migration-GEN-001-positive",
+        "migration-GEN-001-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "GEN-002",
+      "native_rule_id": "NATIVE-GEN-002",
+      "status": "native",
+      "replay_vectors": [
+        "migration-GEN-002-positive",
+        "migration-GEN-002-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "GEN-003",
+      "native_rule_id": "NATIVE-GEN-003",
+      "status": "native",
+      "replay_vectors": [
+        "migration-GEN-003-positive",
+        "migration-GEN-003-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "GEN-004",
+      "native_rule_id": "NATIVE-GEN-004",
+      "status": "native",
+      "replay_vectors": [
+        "migration-GEN-004-positive",
+        "migration-GEN-004-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "GEN-005",
+      "native_rule_id": "NATIVE-GEN-005",
+      "status": "native",
+      "replay_vectors": [
+        "migration-GEN-005-positive",
+        "migration-GEN-005-near-miss"
+      ]
+    },
+    {
+      "legacy_rule_id": "GEN-006",
+      "native_rule_id": "NATIVE-GEN-006",
+      "status": "native",
+      "replay_vectors": [
+        "migration-GEN-006-positive",
+        "migration-GEN-006-near-miss"
+      ]
+    }
+  ]
+}

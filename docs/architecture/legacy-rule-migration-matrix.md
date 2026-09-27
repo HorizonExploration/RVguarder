@@ -1,17 +1,15 @@
 # 旧规则迁移矩阵 / Legacy Rule Migration Matrix
 
 > **状态 / Status：** PMKB 逐条回放完成；生产 DetectionEngine 已删除 / PMKB replay complete; production DetectionEngine removed
-> **核对日期 / Verified:** 2026-09-15
+> **核对日期 / Verified:** 2026-09-20
 
 ## 结论 / Conclusion
 
-47 条历史单步规则保留为 PMKB `LEGACY-<old-id>` 兼容记录，带 `legacy_rule_ids`、原 action type 和原语义标签。ConstraintEngine 已从生产路径删除；`policy/legacy.py` 仅用于兼容回放，native PMKB 等价验证完成后再退役。
+47 条历史单步规则已迁移到 PMKB native owner，映射保存在 `migrations/legacy-1.1.json`，并由 94 个正反例向量和 47 个 trace 做回放验证。生产路径不再生成或召回 `LEGACY-*` 规则；ConstraintEngine 与 `policy/legacy.py` 已删除。
 
-旧代码的**退役迁移**为 **47 / 47**。`tests/test_legacy_policy_migration.py` 对每个 action type 和标签集合回放 PMKB，要求处置级别等价或更严格；通过后已删除生产 `DetectionEngine` 实现。
+旧代码的**退役迁移**为 **47 / 47**。`tests/test_native_policy_migration.py` 对每个 owner 回放 positive/near-miss 向量，要求处置级别等价或更严格。
 
-PMKB 1.1.0 的原生规则与历史规则标签存在语义重叠，但不是替代证明。例如 PMKB 的
-`process.execute` 默认审批不能替代 `CMD-001` 的 `rm -rf` 硬阻断；`config.modify` 审批不能替代
-`CFG-002` 的关闭鉴权阻断。因此不能以“看起来类似”为理由删掉 LEGACY 回放证据。
+PMKB 1.2.0 的 native predicates 以 operation/resource/scope/facts 表达历史边界；迁移文件只证明来源与回放覆盖，不能作为第二套在线规则来源。
 
 ## 已完成的 PMKB 原生化增量 / Native predicate increment
 
@@ -23,23 +21,22 @@ PMKB 1.1.0 的原生规则与历史规则标签存在语义重叠，但不是替
 | `CMD-004` 类提权命令 | `NATIVE-PROCESS-PRIVILEGED` | `operation.arguments.command_safety=privileged` | OpenClaw approval |
 | `NET-005` 类敏感外传 | `NATIVE-NETWORK-SECRET-EXTERNAL` | `scope=external` + `classification=secret` | block |
 
-原 47 条 `LEGACY-*` 不在本轮删除，仍用于逐条 replay 与回滚证据；新增规则不得再依赖标签字段。只有完成对应正反例、未知字段和 Hook 回放门禁后，才可从兼容集合中移除单条历史记录。
+47 条迁移记录保留用于逐条 replay、审计和回滚；新增规则不得依赖历史标签字段，也不得恢复独立检测引擎。
 
 ## 分类 / Classification
 
 | 旧规则组 / Legacy group | 数量 | 当前归属 / Current owner | PMKB 状态 / PMKB status | 可删除？ / Removable? |
 | --- | ---: | --- | --- | --- |
-| `CMD-001`–`CMD-010` | 10 | PMKB 原生规则 + `LEGACY-*` 回放 | action + labels | 逐条满足门槛后 / gated |
-| `FILE-001`–`FILE-010` | 10 | PMKB 原生规则 + `LEGACY-*` 回放 | action + labels | 逐条满足门槛后 / gated |
-| `NET-001`–`NET-006` | 6 | PMKB 原生规则/RiskGraph + `LEGACY-*` 回放 | action + labels + 风险组合 | 逐条满足门槛后 / gated |
-| `API-001`–`API-004` | 4 | PMKB 原生规则 + `LEGACY-*` 回放 | action + labels | 逐条满足门槛后 / gated |
-| `SKL-001`–`SKL-006` | 6 | PMKB 原生规则 + `LEGACY-*` 回放 | action + labels | 逐条满足门槛后 / gated |
-| `CFG-001`–`CFG-005` | 5 | PMKB 原生规则/RiskGraph + `LEGACY-*` 回放 | action + labels + 权限关系 | 逐条满足门槛后 / gated |
-| `GEN-001`–`GEN-006` | 6 | PMKB 原生规则 + `LEGACY-*` 回放 | action + labels | 逐条满足门槛后 / gated |
+| `CMD-001`–`CMD-010` | 10 | PMKB native owner + migration replay | operation + facts | 已完成 |
+| `FILE-001`–`FILE-010` | 10 | PMKB native owner + migration replay | operation + facts | 已完成 |
+| `NET-001`–`NET-006` | 6 | PMKB native owner/RiskGraph + migration replay | operation + facts + risk graph | 已完成 |
+| `API-001`–`API-004` | 4 | PMKB native owner + migration replay | operation + facts | 已完成 |
+| `SKL-001`–`SKL-006` | 6 | PMKB native owner + migration replay | operation + facts | 已完成 |
+| `CFG-001`–`CFG-005` | 5 | PMKB native owner/RiskGraph + migration replay | operation + facts + relations | 已完成 |
+| `GEN-001`–`GEN-006` | 6 | PMKB native owner + migration replay | operation + facts | 已完成 |
 
-47 条 LEGACY 记录仍保留 action、标签和来源 ID，供回放、审计和回滚使用；它们不会在生产路径
-动态生成第二套在线规则。后续新增规则应优先使用主体、资源、范围和权限谓词，只有迁移门禁通过后
-才可退役对应的历史记录。
+47 条迁移记录保留 action、标签和来源 ID，供回放、审计和回滚使用；它们不会进入生产候选集。
+后续新增规则应优先使用主体、资源、范围和权限谓词。
 
 ## 已迁移的非 47 规则 / Migrated Rules Outside the 47
 

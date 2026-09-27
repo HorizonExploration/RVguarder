@@ -1,7 +1,7 @@
 # v0.7.0-dev 工程统一与文档清查
 
 **日期**：2026-09-09
-**当前口径**：FastAPI 单入口、PMKB `1.1.0`、三态 RV、OpenClaw 原生审批唯一入口
+**当前口径**：FastAPI 单入口、PMKB `1.2.0`、三态 RV、OpenClaw 原生审批唯一入口
 
 ## Checkpoint / Guard UX 升级
 
@@ -15,7 +15,7 @@
 
 - 生产决策统一为 `allow / ask / block`；`ask` 只由 OpenClaw 原生审批承接，Guard Dashboard 只读同步。
 - `ConstraintEngine`、累计会话风险和 `revise` 已退出生产路径；RV 只对有效窗口做执行前预览，并在成功 `after_tool_call` 后提交主体证据。
-- PMKB 当前包含 47 个 canonical operations、35 条原生规则、47 条 `LEGACY-*` 回放记录、29 条 Trace、9 条关系和 29 个回归向量。
+- PMKB 当前包含 48 个 canonical operations、79 条原生规则、47 条迁移归属、76 条 Trace、9 条关系和 123 个回归向量；迁移清单仅用于 provenance/replay，不生成第二套运行时规则。
 - 旧版 stdlib HTTP 服务已从生产代码移除；历史方案、实验结果和现场证据保留在 `docs/archive/`，不参与当前文档站导航。
 - 文档导航、代码路径、测试示例和架构描述已按当前代码复核；本轮验证为 Python `412 passed / 19 skipped / 4 subtests passed`、Playwright Chromium/Firefox 各 `5 passed`、前端构建通过、VuePress 渲染 40 页。
 

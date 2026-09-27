@@ -12,7 +12,7 @@ RVguarder 采用分层、非侵入、模块化设计，核心原则是：**不�
    SemanticEnhancer
    → action / resource / scope / data / context / principal / identity
    → TraceCompiler / canonical operation
-3. 规则知识库与权限模型（PMKB 1.1.0）
+3. 规则知识库与权限模型（PMKB 1.2.0）
    PolicyEvaluator
    → 单步规则、覆盖状态、最小权限 Closure/Diff、RiskGraph 组合关系
 4. 运行时验证（RV）

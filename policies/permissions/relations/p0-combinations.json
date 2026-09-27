@@ -1,4 +1,4 @@
-{"version":"1.1.0","relations":[
+{"version":"1.2.0","relations":[
   {"id":"secret-egress","version":"1.0.0","effect":"block","requires":["secret.read","network.egress","external_target"],"source":"P0 office policy","evidence":{"scenario":"secret egress"},"rollback_state":"previous","positive_examples":[{}],"negative_examples":[]},
   {"id":"export-sensitive-recipient","version":"1.0.0","effect":"openclaw_approval","requires":["data.export","external_recipient","sensitive_data"],"source":"P0 office policy","evidence":{"scenario":"sensitive export"},"rollback_state":"previous","positive_examples":[{}],"negative_examples":[]},
   {"id":"config-audit","version":"1.0.0","effect":"openclaw_approval","requires":["config.modify","audit.modify"],"source":"P0 office policy","evidence":{"scenario":"audit tampering"},"rollback_state":"previous","positive_examples":[{}],"negative_examples":[]},

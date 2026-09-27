@@ -2,7 +2,13 @@ from pathlib import Path
 
 from openclaw_guard.policy.catalog import PolicyBundle
 from openclaw_guard.policy.evaluator import PolicyEvaluator
-from openclaw_guard.policy.models import CoverageResult, OperationRef, PrincipalRef
+from openclaw_guard.policy.models import (
+    CoverageResult,
+    OperationRef,
+    PolicyRule,
+    PrincipalRef,
+    SecurityFactEvidence,
+)
 from tests.policy_factories import trace_for_message
 
 
@@ -66,7 +72,7 @@ def test_unknown_or_conflict_coverage_is_retained_and_fail_closed():
 
 
 def test_partial_match_cannot_weaken_real_block_rule():
-    """A clarification fallback must not replace a selected hard-block rule."""
+    """Incomplete evidence routes to the single approval gate."""
     evaluator = PolicyEvaluator(PolicyBundle.load(ROOT))
     trace = trace_for_message().model_copy(update={
         "principal": PrincipalRef(id="unknown", type="agent", trust="unknown"),
@@ -78,4 +84,89 @@ def test_partial_match_cannot_weaken_real_block_rule():
 
     assert result.match_status == "partial"
     assert result.selected_rule_ids == ["EX-19"]
+    assert result.effect == "openclaw_approval"
+
+
+def _fact_rule(rule_id: str, effect: str, *, priority: int = 10, extra_match=None) -> PolicyRule:
+    match = {"operation": "network.egress", "facts.network.upload": True}
+    match.update(extra_match or {})
+    return PolicyRule(
+        id=rule_id,
+        version="test",
+        effect=effect,
+        priority=priority,
+        match=match,
+        required_fields=[],
+        negative_conditions=[],
+        obligations=["audit"],
+        source="test",
+        test_vectors=[],
+        rollback_state="previous",
+        positive_examples=[],
+        negative_examples=[],
+    )
+
+
+def _evaluator_for(*rules: PolicyRule) -> PolicyEvaluator:
+    base = PolicyBundle.load(ROOT)
+    bundle = PolicyBundle(base.operations, rules, (), (), (), "test")
+    return PolicyEvaluator(bundle)
+
+
+def _network_trace(*, trust: str, coverage: str = "complete"):
+    return trace_for_message(recipient_zone="internal").model_copy(update={
+        "operation": OperationRef(family="network.egress", tool_id="network.request"),
+        "coverage": CoverageResult(status=coverage),
+        "security_facts": {
+            "network.upload": SecurityFactEvidence(
+                value=True,
+                source="llm" if trust == "suggested" else "deterministic",
+                trust=trust,
+                confidence=0.9,
+                evidence="test",
+            )
+        },
+    })
+
+
+def test_suggested_only_fact_cannot_auto_allow_or_hard_block():
+    for effect in ("auto_allow_audit", "block"):
+        result = _evaluator_for(_fact_rule(f"rule-{effect}", effect)).evaluate(
+            _network_trace(trust="suggested")
+        )
+        assert result.effect == "openclaw_approval"
+        assert result.match_status == "partial"
+
+
+def test_verified_fact_can_select_hard_block():
+    result = _evaluator_for(_fact_rule("verified-block", "block")).evaluate(
+        _network_trace(trust="verified")
+    )
     assert result.effect == "block"
+    assert result.selected_rule_ids == ["verified-block"]
+
+
+def test_conflicting_evidence_always_routes_to_approval():
+    trace = _network_trace(trust="verified").model_copy(update={
+        "coverage": CoverageResult(
+            status="conflict",
+            conflicts=["fact_conflict:network.upload"],
+        )
+    })
+    result = _evaluator_for(_fact_rule("conflicted-block", "block")).evaluate(trace)
+    assert result.effect == "openclaw_approval"
+    assert result.match_status == "conflict"
+
+
+def test_primary_rule_uses_priority_then_specificity_and_retains_candidates():
+    broad = _fact_rule("broad", "openclaw_approval", priority=10)
+    specific = _fact_rule(
+        "specific",
+        "openclaw_approval",
+        priority=20,
+        extra_match={"scope": "workspace"},
+    )
+    result = _evaluator_for(broad, specific).evaluate(_network_trace(trust="verified"))
+
+    assert result.selected_rule_ids == ["specific"]
+    assert result.candidate_rule_ids == ["broad", "specific"]

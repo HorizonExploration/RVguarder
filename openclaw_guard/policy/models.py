@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, StrictBool, StrictFloat, StrictInt, StrictStr
 
 from openclaw_guard.models import GuardBaseModel
 
@@ -83,6 +83,14 @@ class CoverageResult(GuardBaseModel):
     conflicts: list[str] = Field(default_factory=list)
 
 
+class SecurityFactEvidence(GuardBaseModel):
+    value: StrictBool | StrictInt | StrictFloat | StrictStr
+    source: Literal["deterministic", "llm", "local"]
+    trust: Literal["verified", "suggested"]
+    confidence: float = Field(ge=0.0, le=1.0)
+    evidence: str = ""
+
+
 class AuthorizationTrace(GuardBaseModel):
     trace_id: str
     principal: PrincipalRef
@@ -98,7 +106,8 @@ class AuthorizationTrace(GuardBaseModel):
     context: ContextRef = Field(default_factory=ContextRef)
     provenance: ProvenanceRef = Field(default_factory=ProvenanceRef)
     confidence: dict[str, float] = Field(default_factory=dict)
-    legacy_steps: list[dict[str, Any]] = Field(default_factory=list)
+    security_facts: dict[str, SecurityFactEvidence] = Field(default_factory=dict)
+    rv_steps: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class PermissionRef(GuardBaseModel):
@@ -137,6 +146,7 @@ class MatchCandidate(GuardBaseModel):
     matched: bool = False
     reasons: list[str] = Field(default_factory=list)
     missing_features: list[str] = Field(default_factory=list)
+    evidence_trust: Literal["verified", "suggested", "mixed", "none"] = "none"
 
 
 class PolicyDecision(GuardBaseModel):
