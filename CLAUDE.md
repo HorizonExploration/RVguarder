@@ -1,6 +1,6 @@
 # CLAUDE.md — RVguarder（龙虾卫士）
 
-> 面向 OpenClaw 的非侵入式运行时安全保护系统 | v0.7.0-dev（PMKB 1.1.0）
+> 面向 OpenClaw 的非侵入式运行时安全保护系统 | v0.7.0-dev（PMKB 1.2.0）
 
 ## 通用执行准则
 
@@ -200,7 +200,7 @@ cd e2e && npm install && npm run install:browsers && npm test
 ### 决策流水线（PMKB + RV）
 
 ```
-1. PMKB（单步、版本化、可回放）— 原生规则 + 47 条 `LEGACY-*` 兼容记录
+1. PMKB（单步、版本化、可回放）— 79 条原生规则 + 47 条迁移记录（`migrations/legacy-1.1.json`，仅用于 provenance/replay，不进入运行时候选召回）
    └─ 处理：授权 Trace、最小权限和单步硬约束
 2. RV 引擎（跨步、有状态、时序）— DSL 生成监视器 + 滑动窗口
    └─ 处理：链式攻击（搜索→删除→外发）、多步累积模式
@@ -236,7 +236,7 @@ cd e2e && npm install && npm run install:browsers && npm test
 
 ## 当前状态
 
-- **版本**: v0.7.0-dev（PMKB 1.1.0 基线已接入）
+- **版本**: v0.7.0-dev（PMKB 1.2.0 基线已接入）
 - **Python 版本要求**: 3.13+
 - **许可证**: Apache 2.0
 - **作者**: Codex
@@ -248,7 +248,7 @@ cd e2e && npm install && npm run install:browsers && npm test
   - ✅ RV 层拆分 — engine/ 下 RV 相关拆分为 rv/ + spec/ 子包
   - ✅ 阶段 A（ToolCallIR）/ C（基线自动机）/ D（RV 参数化原语）
   - ✅ 阶段 E（NL2Spec 生成 + 规约校验）；阶段 B/F 的旧在线实现已收敛为 PMKB 原生规则和主体成功证据状态
-  - ✅ PMKB 1.1.0 网络案例基础规则 — 直接参与运行时决策，新规则采用离线回放与有限事件样本校验
+  - ✅ PMKB 1.2.0 原生规则基线 — 48 个 canonical operations、79 条原生规则、76 条 Trace、9 个危险组合关系、123 个回归向量；直接参与运行时决策，新规则采用离线回放与有限事件样本校验
 - **下一步计划**: 见 `CHANGELOG.md`、`docs/architecture/index.md`、`docs/ops/roadmap.md` 和 `docs/research/index.md`
 
 ---
