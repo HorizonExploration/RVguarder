@@ -1,0 +1,13 @@
+# 实验结果索引
+
+工作树按独立实验保留最终成套产物。旧版运行和排错记录可从 Git 历史追溯；本目录中的报告仍须按各自的实验边界解读，不代表当前版本的真实环境效果。
+
+| 实验 | 最终产物 | 说明 |
+| --- | --- | --- |
+| 2026-07-29 RV A/B/C | `comprehensive_rv_report_20260729_201159.md`、同时间的 `aggregate_metrics_20260729_201159.json`，以及 A `201139`、B/C `200555` 分项 JSON | 早期静态与 RV 对比；对应当时的实现 |
+| 2026-08-30 AgentDojo 升级 | `agentdojo-upgrade/20260830T123022Z-combined/` | 三臂最终汇总，含原始 episode、工具轨迹、指标、报告和 manifest；无防护攻击成功为零，不能据此计算防护效果 |
+| 15 场景办公回放 | `office-value-v3-foundation/` | v3 口径重算，含完整原始记录；旧 repeat5 产物已移出工作树 |
+| RV 配对可行性门 | `office-value-v3-rv-gate-reviewed/` | 代码复核后的最终版；门槛未通过 |
+| 会后摘要历史链校准 | `office-history-rv-calibration-v1/` | 独立校准实验；因合法流程误阻断，门槛未通过 |
+
+2026 年 6 月的预实验、正式实验和 AgentDojo 评测，以及 7 月 v0.2.0 对比与性能实验，各自的最终原始数据和报告保留在 [`../实验结果/`](../实验结果/)；其中综合报告的图表也留在该目录。复现入口见 [`../office_value/README.md`](../office_value/README.md)；退役执行脚本仅可从 Git 历史追溯。

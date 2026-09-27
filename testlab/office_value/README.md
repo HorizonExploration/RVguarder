@@ -24,7 +24,7 @@
 
 v3-foundation 报告以 split 下的**独立场景**为安全比例分母：攻击目标成功、正常任务完成、正常误硬阻断、攻击 sink 命中分别列出 numerator/denominator；repeat 只用于检查确定性与调用延迟，不增加安全样本量。当前 legacy holdout 只有攻击、没有正常场景，正常比例必须显示 N/A。旧的按运行次数合计放在「重复运行诊断」，其中 `containment_rate` 只表示目标未达且曾有阻断，并不自动归因于 Guard。Full Guard 相对 PMKB 的主增量按稳定的独立场景列出，repeat 明细仅作诊断。
 
-报告另以调用／运行级诊断表提供审批请求及拒绝、Guard 硬阻断、依赖跳过、效果错误和 before Hook p95；这些事件可以并存，不能直接相加成因果归因。sink 总次数与攻击场景 sink 命中率分别计算。新 bundle 的原始记录、汇总和 manifest 使用 schema 3，输入场景仍为 schema 2；manifest 保存输入摘要、策略版本及重跑命令。产物目录不可覆盖，旧 repeat5 文件保持不变；不会发生真实外部 I/O。
+报告另以调用／运行级诊断表提供审批请求及拒绝、Guard 硬阻断、依赖跳过、效果错误和 before Hook p95；这些事件可以并存，不能直接相加成因果归因。sink 总次数与攻击场景 sink 命中率分别计算。最终 bundle 的原始记录、汇总和 manifest 使用 schema 3，输入场景仍为 schema 2；manifest 保存输入摘要、策略版本及重跑命令。产物目录不可覆盖；旧 repeat5 产物已从工作树清除，可从 Git 历史追溯。不会发生真实外部 I/O。
 
 ## 运行
 
@@ -52,12 +52,12 @@ python -m testlab.office_value.run \
 ```bash
 python -m testlab.office_value.paired_report \
   --matrix testlab/office_value/paired_calibration.json \
-  --output testlab/results/office-value-v3-rv-gate
+  --output /tmp/rvguard-office-value-v3-rv-gate-rerun
 ```
 
 报告必须同时满足正常审批放行必要步骤、PMKB 攻击目标实际达成、完整防护只阻断攻击、两个正常轨迹完成、组件消融可归因，才可标为通过。未通过是有效的能力缺口结论，不能据此声称 RV 在正常审批下已有独立增益。这个 calibration 探针不是新的冻结 holdout；后续仍需另建同时包含攻击与正常任务的独立场景组。
 
-首次 `office-value-v3-rv-gate` 产物保留作审计记录；代码复核后增加了 Hook 目的地与沙箱 sink 绑定、纯链式监视器消融和更严格的归因合同。对外应使用 `office-value-v3-rv-gate-reviewed` 产物，不能把前一版的组件归因当成有效证据。
+首次 `office-value-v3-rv-gate` 产物已从工作树清除，可从 Git 历史追溯；代码复核后增加了 Hook 目的地与沙箱 sink 绑定、纯链式监视器消融和更严格的归因合同。当前保留的最终版是 `testlab/results/office-value-v3-rv-gate-reviewed/`，不能把前一版的组件归因当成有效证据。
 
 ## v4 会后摘要历史链校准（calibration only）
 

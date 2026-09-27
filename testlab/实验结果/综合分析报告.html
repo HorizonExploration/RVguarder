@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenClaw Guard 综合分析报告</title>
+<title>RVguarder 综合分析报告</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{
@@ -96,7 +96,7 @@ hr{border:none;border-top:1px solid #F0F0F0;margin:28px 0}
 </style></head><body>
 <div class="container">
 <div class="section">
-<h1>🛡️ OpenClaw Guard 实验综合分析报告</h1>
+<h1>🛡️ RVguarder 实验综合分析报告</h1>
 <p class="meta"> 实验：3 次 | 用例：459 条 | 攻击类型：11 种 | 规则：47 条</p>
 </div>
 <div class="section">
@@ -493,7 +493,7 @@ Guard 在当前规则覆盖下尚无法胜任金融场景的安全防护。</div
 </table>
 <h3>最终结论</h3>
 <div class="callout callout-info">
-<p><b>OpenClaw Guard</b> 在文件系统操作防护和误报控制方面表现出色，但其基于关键词匹配的检测机制
+<p><b>RVguarder</b> 在文件系统操作防护和误报控制方面表现出色，但其基于关键词匹配的检测机制
 在面对多样化攻击场景时存在明显的覆盖盲区。47 条规则中仅 29.8% 在实验中被触发，
 且所有攻击类型的拦截率趋于一致（43.48%），证明检测完全依赖指令关键词而非攻击语义。</p>
 <p>项目架构清晰、代码质量良好（纯 Python，约 2,500 行），三层设计便于扩展。
@@ -503,6 +503,6 @@ Guard 在当前规则覆盖下尚无法胜任金融场景的安全防护。</div
 </div>
 <div class="section" style="text-align:center;color:#8C8C8C;font-size:13px">
 <p>报告自动生成于 2026-06-02 22:30</p>
-<p>OpenClaw Guard Comprehensive Analysis Report</p>
+<p>RVguarder Comprehensive Analysis Report</p>
 </div>
 </div></body></html>

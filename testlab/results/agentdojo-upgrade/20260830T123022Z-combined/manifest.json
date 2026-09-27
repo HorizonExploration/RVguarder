@@ -34,6 +34,6 @@
   "source_runs": {
     "noguard_legacy": "20260830T121640Z",
     "candidate": "20260830T123022Z",
-    "note": "Candidate 重跑以修正上一轮缺失 OPENCLAW_GUARD_HOOK_TOKEN 导致的 401；两轮均为同一 demo profile。"
+    "note": "Candidate 重跑以修正上一轮缺失 OPENCLAW_GUARD_HOOK_TOKEN 导致的 401；两轮均为同一 demo profile。最终包已完整收录三臂原始 episode，来源运行目录仅可从 Git 历史追溯。"
   }
 }

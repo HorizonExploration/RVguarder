@@ -1,4 +1,4 @@
-# OpenClaw Guard 性能对比分析报告 (v0.2.0)
+# RVguarder 性能对比分析报告 (v0.2.0)
 
 > **版本**: v0.2.0 语义层优化  
 > **实验日期**: 2026-07-14  
@@ -27,7 +27,7 @@ v0.2.0 版本在 v0.1.0 关键词匹配引擎的基础上引入了**语义层优
 
 | 组件 | 配置 |
 |:---|:---|
-| OpenClaw Guard | v0.2.0, Python 3.13 |
+| RVguarder | v0.2.0, Python 3.13 |
 | 监听端口 | 127.0.0.1:8780 |
 | OpenClaw Gateway | 宿主机, 默认端口 18789 |
 | 语义模式 | LLM API (DeepSeek) — 已配置 API key |

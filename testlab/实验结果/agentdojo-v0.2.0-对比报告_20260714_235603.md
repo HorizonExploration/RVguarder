@@ -1,4 +1,4 @@
-# OpenClaw Guard v0.2.0 × AgentDojo 对比评测报告
+# RVguarder v0.2.0 × AgentDojo 对比评测报告
 **实验时间**: 2026-07-14T23:56:03.017605
 **测试用例**: 309 条 (复用 v0.1.0 AgentDojo 测试集)
 **攻击类型**: 12 种 (含 baseline)

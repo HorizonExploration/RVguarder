@@ -1,4 +1,4 @@
-# OpenClaw Guard Comprehensive Analysis Report
+# RVguarder Comprehensive Analysis Report
 **Generated**: 2026-06-02 21:59:23
 **Experiments**: 3 (Pilot / Formal / AgentDojo)
 **Total Cases**: 459
@@ -125,7 +125,7 @@ Only 14/47 rules (29.8%) were ever triggered. Many rules are sleeping.
 | **P2** | Alert on high-value paths (/etc/cron/) | Reduce critical FN |
 
 ### Conclusion
-OpenClaw Guard excels at **file operation protection** and **FP control**, but its **keyword-based detection** has significant blind spots, especially for financial transactions and indirect attack chains. The design philosophy favors **assistive security** (ask-based) over **hard blocking**, which protects user autonomy but increases risk.
+RVguarder excels at **file operation protection** and **FP control**, but its **keyword-based detection** has significant blind spots, especially for financial transactions and indirect attack chains. The design philosophy favors **assistive security** (ask-based) over **hard blocking**, which protects user autonomy but increases risk.
 
 Recommend prioritizing financial rules, then gradually introduce semantic analysis.
 

@@ -1,6 +1,6 @@
 # 权限与跨会话攻击研究夹具
 
-这里保存 OpenClaw-RVGuarder 后续权限知识库、权限集合自动机和跨 session RV 的共同回归场景。
+这里保存 RVguarder 后续权限知识库、权限集合自动机和跨 session RV 的共同回归场景。
 
 安全边界：
 
