@@ -204,7 +204,7 @@ Hook 动作不能通过 Guard 页面拒绝，会返回 `409 hook_approval_owned_
 
 ## POST `/api/hook/before-tool-call`
 
-OpenClaw Guard 本地插件内部使用的同步审批接口。
+RVguarder 本地插件内部使用的同步审批接口。
 
 用途：
 
@@ -218,7 +218,7 @@ OpenClaw Guard 本地插件内部使用的同步审批接口。
 
 ## POST `/api/hook/after-tool-call`
 
-OpenClaw Guard 本地插件内部使用的结果回写接口。
+RVguarder 本地插件内部使用的结果回写接口。
 
 用途：
 

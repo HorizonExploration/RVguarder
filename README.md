@@ -1,4 +1,4 @@
-# Openclaw-RVGuarder / 龙虾卫士
+# RVguarder / 龙虾卫士
 
 > 面向 OpenClaw 的非侵入式运行时安全保护系统
 > 
@@ -15,7 +15,7 @@
 
 ## 项目简介 · Introduction
 
-Openclaw-RVGuarder（龙虾卫士）是一个面向 [OpenClaw](https://openclaw.ai/) 的**非侵入式安全增强插件和本地控制面**。它在**不修改 OpenClaw 一行源码**的前提下，通过官方 Plugin SDK 钩子和本地策略服务，为 AI Agent 增加语义理解、版本化权限知识库（PMKB）、执行前审批、运行时行为验证和全链路审计能力。
+RVguarder（龙虾卫士）是一个面向 [OpenClaw](https://openclaw.ai/) 的**非侵入式安全增强插件和本地控制面**。它在**不修改 OpenClaw 一行源码**的前提下，通过官方 Plugin SDK 钩子和本地策略服务，为 AI Agent 增加语义理解、版本化权限知识库（PMKB）、执行前审批、运行时行为验证和全链路审计能力。
 
 **核心设计原则**：
 
@@ -203,6 +203,8 @@ frontend/
 ```
 
 前端为独立 Preact 工程，构建产物输出到 `runtime/ui/` 由后端静态托管。
+
+研究代码与当前可运行的封闭办公回放位于 [`testlab/office_value/`](testlab/office_value/README.md)；`testlab/results/` 和 `testlab/实验结果/` 保存历史证据。现行文档从 [`docs/README.md`](docs/README.md) 进入，阶段性方案与旧设计集中在 [`docs/archive/`](docs/archive/README.md)。
 
 ---
 

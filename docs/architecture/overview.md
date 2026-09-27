@@ -1,6 +1,6 @@
 # 架构总览
 
-Openclaw Guard 采用分层、非侵入、模块化设计，核心原则是：**不修改 OpenClaw 源码，不替换系统库，通过外部壳、本地插件和行为代理完成安全增强。**
+RVguarder 采用分层、非侵入、模块化设计，核心原则是：**不修改 OpenClaw 源码，不替换系统库，通过外部壳、本地插件和行为代理完成安全增强。**
 
 ## 当前分层结构
 
@@ -61,7 +61,7 @@ before_tool_call
 - `core/audit_service.py`：SQLite + JSON 审计与哈希链
 - `storage/db_store.py`：DBStore 接口族（SQLiteStore / PostgreSQLStore / SQLAlchemyStore，`DB_STORE_MODE=sqlalchemy` 启用 ORM 存储）
 - `manager.py`：向后兼容子类（OpenclawGuardManager 继承 GuardServices，方法委托 `_*_impl`）
-- `integrations/hook_runtime.py`：生成并安装 OpenClaw Guard 本地 Hook 插件（使用官方 `api.on()` API）
+- `integrations/hook_runtime.py`：生成并安装 RVguarder 本地 Hook 插件（使用官方 `api.on()` API）
 - `integrations/tool_hook_bridge.py`：把 `before_tool_call` / `after_tool_call` 转成 Guard 行为事件
 - `integrations/openclaw_adapter.py`：OpenClaw Gateway 状态探测适配层；Hook 审批结果由原生 `onResolution` 回调同步到 Guard
 - `web/` / `ui.py`：本地 Web 工作台 API 与前端资源管理（FastAPI 为唯一入口；`api/` 为共享 HTTP 处理函数边界层）

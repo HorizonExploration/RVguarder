@@ -1,6 +1,6 @@
-# OpenClaw Guard 检测规则集
+# RVguarder 检测规则集
 
-> **说明**: 本文档列出了 OpenClaw Guard 当前集成的全部 47 条内置检测规则（来源于 `detection.py` 的 `builtin_rules()` 函数），按风险类别分类整理。每条规则包含匹配条件、风险等级和决策行为，作为安全评测的前置参考资料。
+> **说明**: 本文档列出了 RVguarder 当前集成的全部 47 条内置检测规则（来源于 `detection.py` 的 `builtin_rules()` 函数），按风险类别分类整理。每条规则包含匹配条件、风险等级和决策行为，作为安全评测的前置参考资料。
 
 **规则总数**: 47 条
 **数据来源**: `openclaw_guard/detection.py`

@@ -51,7 +51,7 @@ def index(manager=Depends(get_manager)):
         return FileResponse(index_path)
     # index.html not built yet — return a simple placeholder
     from fastapi.responses import HTMLResponse
-    return HTMLResponse("<html><body><h1>OpenClaw Guard</h1><p>UI not built.</p></body></html>")
+    return HTMLResponse("<html><body><h1>RVguarder</h1><p>UI not built.</p></body></html>")
 
 
 @router.get("/{full_path:path}")

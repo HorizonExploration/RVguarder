@@ -1,4 +1,4 @@
-"""GuardServices 容器 —— OpenClaw-RVGuarder 的服务编排层。
+"""GuardServices 容器 —— RVguarder 的服务编排层。
 
 替代原 manager.py 的上帝对象模式：
 - 热路径组件（PMKB / semantic / controller / whitelist / audit_store）在构造时急切初始化

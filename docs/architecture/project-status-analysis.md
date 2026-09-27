@@ -1,4 +1,4 @@
-# OpenClaw-RVGuarder 项目现状分析报告
+# RVguarder 项目现状分析报告
 
 > **2026-09-15 实现复核：** 本文下方保留的阶段 A–F 为历史快照。生产运行时已收敛为
 > `allow / ask / block`，移除了 ConstraintEngine、SessionSafetyState、`revise` 与
@@ -15,7 +15,7 @@
 
 ## 一、执行摘要
 
-OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运行时安全保护系统。当前项目已完成
+RVguarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式运行时安全保护系统。当前项目已完成
 v0.3.0 的四阶段架构重构（HTTP 层替换、Pydantic 迁移、Manager 拆分懒加载、Preact 前端迁移），并在此基础上
 完成 RV 层拆分、规约驱动能力和 PMKB 权限模型；其中旧阶段 B/F 的在线实现已按三态方案收敛。
 

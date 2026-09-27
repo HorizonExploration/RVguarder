@@ -1,4 +1,4 @@
-# CLAUDE.md — OpenClaw-RVGuarder（龙虾卫士）
+# CLAUDE.md — RVguarder（龙虾卫士）
 
 > 面向 OpenClaw 的非侵入式运行时安全保护系统 | v0.7.0-dev（PMKB 1.1.0）
 

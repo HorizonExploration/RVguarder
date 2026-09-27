@@ -20,7 +20,7 @@ openclaw-guard run --once --no-browser
 
 ## 3. 为什么危险动作没有直接执行
 
-因为 Openclaw Guard 的设计原则就是“高风险动作先确认，再执行”。
+因为 RVguarder 的设计原则就是“高风险动作先确认，再执行”。
 
 ## 4. 为什么我明明启动了 Guard，工具还是没被拦住
 
@@ -44,7 +44,7 @@ Guard Dashboard 不是第二个审批中心。生产插件只让 `before_tool_ca
 如果 OpenClaw 在启动前报 `plugin path not found: /tmp/.../runtime/openclaw-guard-plugin`，说明旧测试/临时项目路径污染了用户级配置。先让 Guard 使用正式项目目录运行一次以清理配置，再刷新 OpenClaw 的持久化插件索引：
 
 ```bash
-openclaw-guard doctor --project-dir /path/to/OpenClaw-RVGuarder --json
+openclaw-guard doctor --project-dir /path/to/RVguarder --json
 openclaw plugins registry --refresh
 openclaw config validate
 ```

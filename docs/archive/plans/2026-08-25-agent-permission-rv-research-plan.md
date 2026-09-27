@@ -4,7 +4,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Produce an evidence-backed research report and an executable roadmap for strengthening OpenClaw-RVGuarder’s policy knowledge base, permission-risk model, cross-session runtime verification, and attack-validation program.
+**Goal:** Produce an evidence-backed research report and an executable roadmap for strengthening RVguarder’s policy knowledge base, permission-risk model, cross-session runtime verification, and attack-validation program.
 
 **Architecture:** Preserve the current fast deterministic enforcement path and OpenClaw-native approval ownership. Add a canonical permission/policy ontology before the existing `DetectionEngine`/`ConstraintEngine`, evolve `ToolCallIR` into an authorization trace, and extend the current per-session FSM/RV layer with persistent, indexed security state and explicit cross-session invariants. Validate each upgrade with local, non-destructive attack fixtures before changing production enforcement.
 

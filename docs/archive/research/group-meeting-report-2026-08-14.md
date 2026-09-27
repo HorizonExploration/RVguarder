@@ -205,7 +205,7 @@ constraints（time_range/scope/exclusion）/ intent / confidence
 
 | 工具 | 类型 | 核心机制 | 定位 |
 |---|---|---|---|
-| OpenClaw-RVGuarder（本项目） | 运行时验证插件 | Hook 拦截 + 语义理解 + 约束推理 + FSM + 滑动窗口 | OpenClaw 办公场景专用 |
+| RVguarder（本项目） | 运行时验证插件 | Hook 拦截 + 语义理解 + 约束推理 + FSM + 滑动窗口 | OpenClaw 办公场景专用 |
 | AgentSpec（ICSE 2026） | 运行时约束 DSL | trigger → predicate → enforcement 三要素 + ANTLR 解析 | 通用 LLM Agent |
 | GuardAgent（ICML 2025） | 护栏 Agent | LLM 生成护栏代码并执行 + 经验记忆 | 通用 LLM Agent |
 | NeMo Guardrails（NVIDIA） | 对话护栏框架 | Colang DSL + 5 层护栏 | 企业对话应用 |

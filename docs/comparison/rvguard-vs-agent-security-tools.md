@@ -1,4 +1,4 @@
-# OpenClaw-RVGuarder vs 主流 Agent 安全工具对比分析
+# RVguarder vs 主流 Agent 安全工具对比分析
 
 > 版本：v0.2 | 初稿日期：2026-08-05 | 当前复核：2026-09-09 | 状态：调研快照
 > 关联文档：[RV 权限自动机架构](../architecture/rv-permission-automata.md)、[rv-engine-report.md](../architecture/rv-engine-report.md)
@@ -9,7 +9,7 @@
 
 | 工具 | 类型 | 核心机制 | 定位 |
 |---|---|---|---|
-| **OpenClaw-RVGuarder**（本项目） | 运行时验证插件 | Hook 拦截 + 语义理解 + PMKB 规则 + ChainRule DSL + 滑动窗口 | OpenClaw 办公场景专用 |
+| **RVguarder**（本项目） | 运行时验证插件 | Hook 拦截 + 语义理解 + PMKB 规则 + ChainRule DSL + 滑动窗口 | OpenClaw 办公场景专用 |
 | **Guardrails AI** | 输出验证框架 | RAIL DSL 声明约束 + validators | LLM 输出结构化/质量 |
 | **NVIDIA NeMo Guardrails** | 对话护栏框架 | Colang DSL + 5 层护栏（输入/对话/检索/执行/输出） | 企业对话应用 |
 | **Llama Guard** | 内容安全分类器 | 微调分类模型，分类输入/输出是否 unsafe | 内容审核 |

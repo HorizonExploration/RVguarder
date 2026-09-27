@@ -1,8 +1,8 @@
-# OpenClaw-RVGuarder 权限模型知识库与跨会话运行时验证最终方案
+# RVguarder 权限模型知识库与跨会话运行时验证最终方案
 
 **研究日期：** 2026-08-25
 **状态：** 研究方案快照（2026-08-25；当前实现以架构事实源为准）
-**研究对象：** OpenClaw-RVGuarder 当前代码与 OpenClaw 审批交接链
+**研究对象：** RVguarder 当前代码与 OpenClaw 审批交接链
 **来源：** DeepSeek 研究方案与 `agent-permission-rv-research-report-2026-08-25.md` 的对比、批判和融合
 
 > **阅读边界：** 本文是研究与方案记录，不是逐项代码接口合同。当前实现以

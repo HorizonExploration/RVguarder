@@ -12,7 +12,7 @@
 
 ## 1. 评估背景
 
-OpenClaw-RVGuarder 当前 HTTP 服务层使用 Python 标准库 `http.server.ThreadingHTTPServer`，存在以下核心问题：
+RVguarder 当前 HTTP 服务层使用 Python 标准库 `http.server.ThreadingHTTPServer`，存在以下核心问题：
 - 手动路由管理（字典映射，增端点改 3 处文件）
 - 无请求/响应序列化验证（手动 `json.loads` + 手动构建 dict）
 - 无自动 API 文档

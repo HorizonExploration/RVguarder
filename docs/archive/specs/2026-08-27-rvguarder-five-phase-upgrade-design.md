@@ -1,11 +1,11 @@
-# OpenClaw-RVGuarder 五阶段安全升级设计规格
+# RVguarder 五阶段安全升级设计规格
 
 > **归档状态（2026-08-28）：** 已确认并执行的阶段性规格；当前实现状态以 [`architecture/project-memory.md`](../../architecture/project-memory.md) 和 [`research/index.md`](../../research/index.md) 为准。
 
 **状态：** 用户已确认的设计规格，待据此拆分执行计划
 **日期：** 2026-08-27
 **关联研究：** `docs/research/permission-model-kb-and-cross-session-rv-plan.md`
-**关联资料：** `/home/yosoro126/documents/openclaw-rvguarder-literature/`
+**关联资料：** `项目外部的本地文献目录（位于个人 documents 目录）`
 
 ## 1. 目标
 

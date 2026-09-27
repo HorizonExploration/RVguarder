@@ -4,7 +4,7 @@ import { defineUserConfig } from "vuepress";
 
 export default defineUserConfig({
   lang: "zh-CN",
-  title: "Openclaw Guard",
+  title: "RVguarder",
   description: "龙虾卫士文档站，覆盖快速开始、架构说明、部署、安全能力与运维说明。",
   base: "/",
   pagePatterns: ["**/*.md", "!superpowers/**", "!archive/**"],

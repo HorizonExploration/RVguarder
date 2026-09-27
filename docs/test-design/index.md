@@ -4,7 +4,7 @@
 
 ## 当前有效
 
-- [OpenClaw-RVGuarder 测试设计方案](./openclaw-guard-test-design.md)：基于个人办公场景矩阵，覆盖 Hook、审批同步、RV、审计、基线和异常边界。
+- [RVguarder 测试设计方案](./openclaw-guard-test-design.md)：基于个人办公场景矩阵，覆盖 Hook、审批同步、RV、审计、基线和异常边界。
 
 ## 运行方式
 

@@ -1,4 +1,4 @@
-# OpenClaw-RVGuarder 测试设计方案
+# RVguarder 测试设计方案
 
 > 基于个人办公全场景矩阵（63个场景）构造的正式测试设计方案
 > 对应文档: `docs/semantic/office-scenario-matrix.md`
@@ -1173,7 +1173,7 @@ AI 助手将文档生成分享链接或直接外发给他人。核心风险：
 ### 20.1 项目结构
 
 ```text
-OpenClaw-RVGuarder/
+RVguarder/
 ├── tests/
 │   ├── test_detection.py             # 检测引擎 (47条规则)
 │   ├── test_semantic_enhancer.py     # 语义增强 (5场景 + LLM)

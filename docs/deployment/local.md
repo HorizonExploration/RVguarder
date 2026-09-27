@@ -3,7 +3,7 @@
 ## 推荐流程
 
 ```bash
-cd OpenClaw-RVGuarder
+cd RVguarder
 pip install -e .
 openclaw-guard run
 ```
@@ -50,7 +50,7 @@ openclaw-guard doctor
 
 ## 建议目录
 
-- 项目目录：`OpenClaw-RVGuarder/`
+- 项目目录：`RVguarder/`
 - OpenClaw 配置：`~/.openclaw/openclaw.json`
 
 ## 依赖现状

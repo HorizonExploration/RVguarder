@@ -6,7 +6,7 @@
 
 **Architecture:** Keep production Guard paths unchanged. Add optional dependency semantics to the replay runner; make sandbox effects carry object-level provenance and compound-goal evidence; derive split-aware summaries from raw rows. The existing v2 JSON remains a historical artifact, and new output is explicitly labeled v3-foundation.
 
-**Tech Stack:** Python 3, pytest, local JSON fixtures, existing OpenClaw-RVGuarder services and Hook adapters.
+**Tech Stack:** Python 3, pytest, local JSON fixtures, existing RVguarder services and Hook adapters.
 
 **Spec:** `docs/superpowers/specs/2026-09-23-office-value-v3-design.md`. This plan is the first independently testable subproject; the spec's new RV-paired scenarios, 30-case matrix, frozen holdout, and component ablation belong to a second plan after corrected legacy results are known.
 

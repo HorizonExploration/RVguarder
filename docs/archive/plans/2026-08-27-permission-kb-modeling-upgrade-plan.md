@@ -10,7 +10,7 @@
 
 **Tech Stack:** Python 3.13+, Pydantic v2, stdlib JSON/YAML-compatible data files, existing Python `unittest`/pytest suite, current JSON/SQLite-compatible stores, React/Vite documentation and frontend build tooling.
 
-**Spec:** `docs/archive/specs/2026-08-27-openclaw-rvguarder-five-phase-upgrade-design.md`
+**Spec:** `docs/archive/specs/2026-08-27-rvguarder-five-phase-upgrade-design.md`
 
 ## Global Constraints
 

@@ -1,7 +1,7 @@
 const { test, expect } = require("@playwright/test");
 const { getBaseUrl, getHookToken, readServer } = require("./_helpers.cjs");
 
-test.describe("OpenClaw Guard UI", () => {
+test.describe("RVguarder UI", () => {
   test("RV 模式开关可无刷新切换，并控制 Trace 显示", async ({ page }) => {
     const baseUrl = getBaseUrl();
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });

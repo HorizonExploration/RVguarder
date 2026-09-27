@@ -71,7 +71,7 @@ v0.3.0 落地了「NL→Automata RV 升级方案」（阶段 A–F），但审�
 | 管控层 | `openclaw_guard/engine/control.py` | revise 映射 |
 | 前端 | `frontend/src/components/ActionCard.jsx` / `i18n.js` / `styles.css` | revise 交互 + 会话状态 |
 | 测试 | `tests/test_constraints.py` / `tests/test_perf_smoke.py` | 规则双轨一致性 + 性能冒烟基准 |
-| 文档 | `docs/architecture/nl-automata-rv-landing-report.md` / `.trae/specs/nl-automata-rv/checklist.md` | 审计报告 + 核验清单 |
+| 文档 | `docs/archive/architecture/nl-automata-rv-landing-report.md` | 历史审计报告；旧核验清单可从 Git 历史追溯 |
 
 ---
 

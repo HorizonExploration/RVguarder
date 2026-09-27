@@ -1,4 +1,4 @@
-# OpenClaw-RVGuarder：自然语言驱动的自动机生成与运行时验证
+# RVguarder：自然语言驱动的自动机生成与运行时验证
 
 > **归档状态（2026-08-28）：** 历史项目介绍；当前项目定位见 [`README.md`](../../README.md) 和 [`research/index.md`](../../research/index.md)。
 
@@ -164,7 +164,7 @@ intent / confidence
 
 AgentSpec 的规则模型 **trigger（触发事件）→ predicate（谓词条件）→ enforcement（执行方式）** 与我们的 ChainRule FSM **高度同构**：
 
-| 维度 | AgentSpec | OpenClaw-RVGuarder |
+| 维度 | AgentSpec | RVguarder |
 |---|---|---|
 | 规则模型 | `rule @xx trigger X check P enforce E` | `chain_rules: {from, to, when, verdict}` |
 | 谓词表达 | `is_destructive_cmd` 等硬编码谓词 | `all_of/any_of/none_of` + `entity_*`/`step_gap_*`/`state_counter` 受控原语 |
@@ -181,7 +181,7 @@ AgentSpec 的规则模型 **trigger（触发事件）→ predicate（谓词条�
 
 ### 5.2 护栏 Agent 路线：GuardAgent（ICML 2025）
 
-| 维度 | GuardAgent | OpenClaw-RVGuarder |
+| 维度 | GuardAgent | RVguarder |
 |---|---|---|
 | 护栏形态 | 每次生成 Python 防护代码并执行 | 编译 ChainRule → FSM（提前编译好） |
 | LLM 角色 | 任务规划 + 代码生成（每请求调用） | 语义标注 + 离线 NL2Spec 生成 |
@@ -192,7 +192,7 @@ AgentSpec 的规则模型 **trigger（触发事件）→ predicate（谓词条�
 
 ### 5.3 工业级框架：NVIDIA NeMo Guardrails / Guardrails AI
 
-| 维度 | NeMo Guardrails | Guardrails AI | OpenClaw-RVGuarder |
+| 维度 | NeMo Guardrails | Guardrails AI | RVguarder |
 |---|---|---|---|
 | DSL | Colang（对话流建模） | RAIL 声明式 validator | ChainRule JSON（声明式 FSM 规约） |
 | 护栏层次 | 5 层（输入/对话/检索/执行/输出） | 输出验证 | 工具调用执行路径 + 行为链 |
@@ -251,7 +251,7 @@ idle → external_source_read → sensitive_data_extracted → ... → blocked �
 
 ## 七、结论
 
-**OpenClaw-RVGuarder 不是通用 LLM 护栏的替代品，而是专注 OpenClaw 办公场景的深度安全治理层。**
+**RVguarder 不是通用 LLM 护栏的替代品，而是专注 OpenClaw 办公场景的深度安全治理层。**
 
 我们的独特组合拳：
 

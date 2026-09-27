@@ -1,5 +1,5 @@
 """
-Database Abstraction Layer for OpenClaw Guard
+Database Abstraction Layer for RVguarder
 Supports PostgreSQL with SQLite fallback
 
 Usage:

@@ -308,8 +308,8 @@ def _write_plugin_bundle(plugin_dir: Path, *, guard_url: str, auth_token: str) -
     manifest = {
         "activation": {"onStartup": True},
         "id": HOOK_PLUGIN_ID,
-        "name": "Openclaw Guard Hook",
-        "description": "Pre-execution tool approval bridge for OpenClaw Guard.",
+        "name": "RVguarder Hook",
+        "description": "Pre-execution tool approval bridge for RVguarder.",
         "configSchema": {
             "type": "object",
             "additionalProperties": False,
@@ -475,8 +475,8 @@ async function postJson(url, payload, timeoutMs, authToken) {{
 
 export default {{
   id: PLUGIN_ID,
-  name: "Openclaw Guard Hook",
-  description: "Pre-execution approval bridge for Openclaw Guard.",
+  name: "RVguarder Hook",
+  description: "Pre-execution approval bridge for RVguarder.",
   configSchema: {{
     validate(value) {{
       if (value && typeof value === "object" && !Array.isArray(value)) {{

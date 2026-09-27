@@ -78,7 +78,7 @@ OpenClaw before_tool_call
 | --- | ---: | --- |
 | `schema/permissions.schema.json` | 1 | 约束 bundle 必须包含 operations、rules、traces、relations、vectors |
 | `catalog/operation-catalog.json` | 47 operations | OpenClaw 原生工具、业务工具名/别名到 canonical permission family 的映射 |
-| `rules/p0-office.json` | 35 authored rules（其中 22 条 `P1-*`，3 条 `NATIVE-*`） | 单步权限规则、匹配条件、处置效果和来源 |
+| `rules/p0-office.json` | 35 authored rules（22 条 `P1-*`、3 条 `NATIVE-*`，其余为 `P0-*`、`EX-*`、`OC-*`） | 单步权限规则、匹配条件、处置效果和来源 |
 | 运行时兼容规则 | 47 `LEGACY-<old-id>` records | 冻结的历史 action/semantic 元数据，仅用于 PMKB 兼容回放；不再进入独立检测引擎 |
 | `traces/p0-office.json` | 29 traces | 每条规则对应的最小必要权限范围和正反例 |
 | `relations/p0-combinations.json` | 9 relations | `toxic_with`、`conflicts`、`implies` 等权限关系 |

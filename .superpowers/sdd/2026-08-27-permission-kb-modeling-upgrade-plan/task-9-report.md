@@ -18,7 +18,7 @@ Verification:
 - `python -m pytest -q` — 420 passed, 18 skipped
 - `(cd frontend && npm run build)` — passed
 - `(cd docs && npm run docs:build)` — passed; 34 pages rendered
-- `node --check /home/yosoro126/OpenClaw-RVGuarder/runtime/openclaw-guard-plugin/index.js` — passed
+- `node --check /home/yosoro126/RVguarder/runtime/openclaw-guard-plugin/index.js` — passed
 - `git diff --check` — passed
 
 Concern: the worktree does not contain the ignored generated runtime plugin path, so the

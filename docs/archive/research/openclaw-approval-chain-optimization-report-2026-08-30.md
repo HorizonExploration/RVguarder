@@ -37,7 +37,7 @@
 修复前 `plugins.load.paths` 存在不存在的 `/tmp/.../runtime/openclaw-guard-plugin` 路径。当前配置已经清理为一个真实项目插件路径：
 
 ```text
-/home/yosoro126/OpenClaw-RVGuarder/runtime/openclaw-guard-plugin
+/home/yosoro126/RVguarder/runtime/openclaw-guard-plugin
 ```
 
 路径去重和清理逻辑只删除不存在的临时 Guard 路径，保留其他插件和历史实验目录。

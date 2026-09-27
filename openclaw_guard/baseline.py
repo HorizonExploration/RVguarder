@@ -58,7 +58,7 @@ class BaselineScanner:
         html_path.write_text(_render_html(report), encoding="utf-8")
         build_simple_pdf(
             pdf_path,
-            "Openclaw Guard Compliance Report",
+            "RVguarder Compliance Report",
             [f"{item.severity.upper()} {item.title} - {item.recommendation}" for item in report.findings],
         )
         fix_path.parent.mkdir(parents=True, exist_ok=True)
@@ -218,7 +218,7 @@ class BaselineScanner:
                     severity="high",
                     description="检测到当前账户接近系统管理员权限，存在权限越界风险。",
                     evidence={"user": user},
-                    recommendation="建议为 OpenClaw 与 Openclaw Guard 分配专用低权限服务账户。",
+                    recommendation="建议为 OpenClaw 与 RVguarder 分配专用低权限服务账户。",
                 )
             ]
         return [
@@ -398,7 +398,7 @@ class BaselineScanner:
                 severity="high",
                 description="未发现 Guard Hook 插件目录，OpenClaw 工具执行前拦截链无法建立。",
                 evidence={"plugin_dir": str(plugin_dir)},
-                recommendation="重新启动 Openclaw Guard，确保运行时 Hook 插件成功生成。",
+                recommendation="重新启动 RVguarder，确保运行时 Hook 插件成功生成。",
             )
         ]
 
@@ -556,7 +556,7 @@ def _render_html(report: ComplianceReport) -> str:
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <title>Openclaw Guard 合规报告</title>
+  <title>RVguarder 合规报告</title>
   <style>
     body {{ font-family: "PingFang SC", "Segoe UI", sans-serif; margin: 32px; color: #1f2937; background: #f7f8fb; }}
     .card {{ background: white; border-radius: 18px; padding: 24px; margin-bottom: 20px; box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08); }}
@@ -568,7 +568,7 @@ def _render_html(report: ComplianceReport) -> str:
 </head>
 <body>
   <div class="card">
-    <h1>Openclaw Guard（龙虾卫士）基线合规报告</h1>
+    <h1>RVguarder（龙虾卫士）基线合规报告</h1>
     <p>生成时间：{report.generated_at}</p>
     <p>目标根目录：{report.target_root or "未识别"}</p>
     <p>配置路径：{report.config_path or "未识别"}</p>
@@ -604,7 +604,7 @@ def _render_fix_script(report: ComplianceReport) -> str:
     lines = [
         "#!/usr/bin/env bash",
         "set -euo pipefail",
-        "# Openclaw Guard generated remediation helper",
+        "# RVguarder generated remediation helper",
     ]
     for finding in report.findings:
         if finding.finding_id == "BASE-002":

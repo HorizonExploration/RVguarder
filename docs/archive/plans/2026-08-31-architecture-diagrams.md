@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 生成与当前 OpenClaw-RVGuarder 实现一致的四张权限主线架构图，并提供给 OpenClaw 继续优化汇报的整合简报。
+**Goal:** 生成与当前 RVguarder 实现一致的四张权限主线架构图，并提供给 OpenClaw 继续优化汇报的整合简报。
 
 **Architecture:** 使用 Mermaid 源图嵌入现有 VuePress 架构文档。图稿只引用当前模块、PMKB 数据合同、RV 监视器和 OpenClaw 单一审批边界；单独的简报文件作为跨助手交接材料。
 

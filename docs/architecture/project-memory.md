@@ -10,7 +10,7 @@
 
 ## 1. 项目定位
 
-OpenClaw-RVGuarder（龙虾卫士）是面向 OpenClaw 的非侵入式运行时安全控制面。它通过 OpenClaw Plugin SDK 的 Hook，在不修改 OpenClaw 源码的前提下，对工具调用执行：
+RVguarder（龙虾卫士）是面向 OpenClaw 的非侵入式运行时安全控制面。它通过 OpenClaw Plugin SDK 的 Hook，在不修改 OpenClaw 源码的前提下，对工具调用执行：
 
 1. 执行前语义分析与规则检测；
 2. 跨调用运行时验证（RV）；

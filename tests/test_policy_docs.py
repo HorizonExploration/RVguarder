@@ -53,7 +53,7 @@ def test_current_architecture_documents_describe_pmkb_semantic_and_rv_layers():
 
 def test_runtime_hook_docs_match_scoped_resolution_contract():
     runtime_hook = read_doc("docs/features/runtime-hook.md")
-    spec = read_doc("docs/archive/specs/2026-08-27-openclaw-rvguarder-five-phase-upgrade-design.md")
+    spec = read_doc("docs/archive/specs/2026-08-27-rvguarder-five-phase-upgrade-design.md")
     assert "允许一次" in runtime_hook and "拒绝" in runtime_hook
     assert "始终允许" in runtime_hook
     assert "当前生成插件只向 OpenClaw 暴露" in spec

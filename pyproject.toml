@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "openclaw-guard"
 version = "0.7.0.dev0"
-description = "Openclaw Guard (龙虾卫士), a non-intrusive security protection system for OpenClaw."
+description = "RVguarder (龙虾卫士), a non-intrusive security protection system for OpenClaw."
 requires-python = ">=3.13"
 authors = [
   { name = "Codex" }

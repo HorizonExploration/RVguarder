@@ -10,7 +10,7 @@
 
 **Tech Stack:** Markdown, VuePress, TypeScript navigation configuration, Git path moves, pytest documentation checks, npm documentation build.
 
-**Spec:** User request to classify, refresh, and prune `/home/yosoro126/OpenClaw-RVGuarder/docs` while retaining historical experiment artifacts.
+**Spec:** User request to classify, refresh, and prune `/home/yosoro126/RVguarder/docs` while retaining historical experiment artifacts.
 
 ## Global Constraints
 
@@ -44,7 +44,7 @@
 
 - [x] Use Git moves so history remains traceable.
 - [x] Add a historical-status banner to moved documents with a link to the current replacement.
-- [x] Keep the formal OpenClaw guard test design and current PMKB/RV reports in active sections.
+- [x] Keep the formal RVguarder test design and current PMKB/RV reports in active sections.
 
 ### Task 3: Refresh current facts and links
 

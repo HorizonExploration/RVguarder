@@ -1,5 +1,7 @@
 # Office Value v3 RV Independent-Value Gate Implementation Plan
 
+> 历史实施计划：文中的 `office-value-v3-rv-gate/` 是当时的首次产物路径，已由 `office-value-v3-rv-gate-reviewed/` 取代。最终结果见 [`testlab/results/README.md`](../../../testlab/results/README.md)。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Establish, or honestly fail to establish, a normal-approval paired example in which historical Guard state changes a decision that single-step PMKB cannot change.

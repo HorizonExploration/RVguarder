@@ -31,7 +31,7 @@ def _select_launch_web(_args=None):
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="openclaw-guard",
-        description="OpenClaw Guard / 龙虾卫士 - OpenClaw 使用场景安全插件",
+        description="RVguarder / 龙虾卫士 - OpenClaw 使用场景安全插件",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 

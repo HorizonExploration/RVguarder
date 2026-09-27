@@ -27,7 +27,7 @@ def create_app(manager: GuardServices) -> FastAPI:
     路由注册顺序：API 路由先注册，静态 catch-all 最后挂载。
     """
     app = FastAPI(
-        title="OpenClaw Guard",
+        title="RVguarder",
         version=__version__,
         # 避免 SPA catch-all 遮蔽 /docs 等内置路径
         docs_url=None,

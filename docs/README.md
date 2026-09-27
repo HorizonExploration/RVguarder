@@ -1,7 +1,7 @@
 ---
 home: true
-title: OpenClaw-RVGuarder
-heroText: OpenClaw-RVGuarder / 龙虾卫士
+title: RVguarder
+heroText: RVguarder / 龙虾卫士
 tagline: Non-intrusive runtime security protection for OpenClaw
 actions:
   - text: 快速开始
@@ -68,13 +68,13 @@ features:
 
 **中文**
 
-OpenClaw-RVGuarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式安全增强客户端与本地控制面。我们不做替代品，做的是**安全补位**。
+RVguarder（龙虾卫士）是一个面向 OpenClaw 的非侵入式安全增强客户端与本地控制面。我们不做替代品，做的是**安全补位**。
 
 v0.7.0-dev 在 v0.6.0 六阶段架构与 RV 阶段 A–F 的基础上，增加版本化 PMKB 权限模型：Authorization Trace、覆盖感知匹配、最小权限闭包/差分、危险权限组合图、主体能力跨 session RV，以及 OpenClaw 单一审批契约。PMKB 1.1.0 基础规则直接参与运行时决策；新规则使用离线回放与有限事件样本验证，指标用于晋级和回滚而非阻塞基础规则；详见 [路线图](./ops/roadmap.html)。
 
 **English**
 
-OpenClaw-RVGuarder ("Lobster Guard") is a non-invasive security enhancement client and local control plane for OpenClaw. We don't replace OpenClaw — we **backfill the safety gap**.
+RVguarder ("Lobster Guard") is a non-invasive security enhancement client and local control plane for OpenClaw. We don't replace OpenClaw — we **backfill the safety gap**.
 
 v0.7.0-dev builds on the v0.6.0 six-phase refactor and RV phases A–F with a versioned PMKB authorization model: Authorization Traces, coverage-aware matching, least-privilege closure/diff, toxic permission-combination graphs, principal capability RV across sessions, and an OpenClaw single-approval contract. PMKB 1.1.0 baseline rules are enforced immediately; new rules use offline replay and bounded event-sample validation, with evidence used for promotion and rollback rather than blocking the baseline. See the [roadmap](./ops/roadmap.html).
 

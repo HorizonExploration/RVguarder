@@ -1,8 +1,8 @@
-# OpenClaw Guard / 龙虾卫士 技术架构梳理文档
+# RVguarder / 龙虾卫士 技术架构梳理文档
 
 ## 1. 项目概述
 
-**OpenClaw Guard (龙虾卫士)** 是一个为 **OpenClaw** 平台量身定制的非侵入式安全增强系统。它通过拦截、审计和控制 OpenClaw 的运行时行为，为高安全敏感场景提供了强大的防护屏障。
+**RVguarder (龙虾卫士)** 是一个为 **OpenClaw** 平台量身定制的非侵入式安全增强系统。它通过拦截、审计和控制 OpenClaw 的运行时行为，为高安全敏感场景提供了强大的防护屏障。
 
 ### 1.1 核心设计理念
 - **非侵入式 (Non-Intrusive)**: 不修改 OpenClaw 核心源码，通过原生 Hook 机制和 Gateway RPC 通信实现对接。

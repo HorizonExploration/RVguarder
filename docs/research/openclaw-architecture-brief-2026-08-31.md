@@ -7,7 +7,7 @@
 
 ## 使用任务
 
-请结合本简报和四张架构图，优化 OpenClaw-RVGuarder 的组会汇报稿。汇报主线必须是：
+请结合本简报和四张架构图，优化 RVguarder 的组会汇报稿。汇报主线必须是：
 
 > 权限建模是核心主线，PMKB 是权限知识库载体，权限自动机和 RV 是运行时验证机制，OpenClaw 原生审批是唯一决策入口。
 
@@ -41,7 +41,7 @@
 
 ## 可直接复用的结论
 
-OpenClaw-RVGuarder 本阶段的主要进展不是增加了多少条规则，而是建立了从权限语义、知识库证据到运行时验证的闭环：Authorization Trace 描述权限，PMKB 承载权限，Closure/Diff 和 RiskGraph 分析权限，自动机和 RV 验证权限，OpenClaw 负责最终审批。下一步应先完成新的小规模可回放实验设计，再据此评估安全收益、审批负载和可用性。
+RVguarder 本阶段的主要进展不是增加了多少条规则，而是建立了从权限语义、知识库证据到运行时验证的闭环：Authorization Trace 描述权限，PMKB 承载权限，Closure/Diff 和 RiskGraph 分析权限，自动机和 RV 验证权限，OpenClaw 负责最终审批。下一步应先完成新的小规模可回放实验设计，再据此评估安全收益、审批负载和可用性。
 
 ## 图稿入口
 

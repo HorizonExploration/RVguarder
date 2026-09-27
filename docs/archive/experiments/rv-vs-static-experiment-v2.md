@@ -889,7 +889,7 @@ def mock_behavior_event(step: dict) -> Any:
 
 ```bash
 # 运行全部对比实验
-cd /home/yosoro126/OpenClaw-RVGuarder
+cd /home/yosoro126/RVguarder
 python3 -m pytest tests/test_rv_vs_static_experiment.py -v
 
 # 只运行实验 A（核心对比）
