@@ -14,7 +14,7 @@ from collections import deque
 from datetime import datetime, timedelta, timezone
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from openclaw_guard.core.action_service import ActionService
 from openclaw_guard.core.baseline_service import BaselineService
@@ -28,6 +28,7 @@ from openclaw_guard.storage.audit_store import AuditStore
 from openclaw_guard.integrations.hook_runtime import ensure_runtime_hook_plugin
 from openclaw_guard.engine.semantic_enhancer import SemanticEnhancer
 from openclaw_guard.engine.approval import ApprovalTrustStore
+from openclaw_guard.engine.experiment_components import current as _experiment_components
 from openclaw_guard.policy.engine import AuthorizationPolicyEngine
 from openclaw_guard.rv.runtime_verification import RuntimeVerificationEngine
 from openclaw_guard.models import BehaviorEvent, ControlledAction, DetectionDecision
@@ -51,6 +52,24 @@ from openclaw_guard.engine.whitelist import WhitelistEngine, default_police_whit
 from openclaw_guard.events import EventBus
 
 HOOK_ORPHAN_TTL_SECONDS = 30
+
+# ------------------------------------------------------------------
+# 实验期可选的语义增强器工厂钩子（默认 None → 生产行为完全不变）。
+#
+# office-attack-chain 五臂实验需要在**同进程**内把 SemanticEnhancer 的
+# ``llm_transport`` 绑定到冻结回放（``ReplayLLMTransport``）。SemanticEnhancer
+# 唯一的实例化点就在 ``GuardServices.__init__``，因此这里提供一个模块级可选
+# 工厂：为 None 时按原逻辑构造；被实验驱动显式设置时，用它构造增强器。
+# ------------------------------------------------------------------
+semantic_enhancer_factory: Callable[[Path], Any] | None = None
+
+
+def _build_semantic_enhancer(config_path: Path) -> Any:
+    """按可选工厂构造语义增强器；工厂为 ``None`` 时保持原生产行为。"""
+
+    if semantic_enhancer_factory is None:
+        return SemanticEnhancer(config_path=config_path)
+    return semantic_enhancer_factory(config_path)
 
 # ------------------------------------------------------------------
 # 适配器耦合方法的模块级实现
@@ -374,7 +393,9 @@ class GuardServices:
 
         # ── 热路径：急切初始化 ──
         self.collectors = BehaviorCollectorManager()
-        self.semantic_enhancer = SemanticEnhancer(config_path=context.paths.runtime_dir / "guard-config.json")
+        self.semantic_enhancer = _build_semantic_enhancer(
+            context.paths.runtime_dir / "guard-config.json"
+        )
         self.whitelist = WhitelistEngine(default_police_whitelist())
         self.controller = GuardController(self.whitelist, decision_overlay=self.apply_principal_rv)
         self.policy_engine = AuthorizationPolicyEngine()
@@ -454,6 +475,10 @@ class GuardServices:
         decision: DetectionDecision,
     ) -> DetectionDecision:
         """Apply trusted principal/capability RV monotonically before control."""
+        # Experiment ablation: disabling ``authorization`` skips the principal
+        # authorization/trust overlay entirely (no metadata, no overlay).
+        if not _experiment_components().authorization:
+            return decision
         if not event.metadata.get("hook_bridge"):
             return decision
 
@@ -554,6 +579,10 @@ class GuardServices:
 
     def record_executed_principal_action(self, action: ControlledAction) -> str | None:
         """Record a Hook action only after OpenClaw reports successful execution."""
+        # Experiment ablation: disabling ``authorization`` stops the principal
+        # authorization evidence from being recorded into the RV state.
+        if not _experiment_components().authorization:
+            return "none"
         trace_data = action.event.metadata.get("authorization_trace")
         policy_data = action.decision.policy_decision
         try:
@@ -868,8 +897,9 @@ class GuardServices:
 
         由前端「RV 模式」开关控制，关闭后 RV overlay 判定（升权不降权）
         停止生效，与约束引擎/会话升级的独立环境变量开关解耦。
+        实验消融：``cross_step_rv`` 关闭时同样停用 RV 预判与提交。
         """
-        return bool(self.preferences().get("rv_mode", True))
+        return bool(self.preferences().get("rv_mode", True)) and _experiment_components().cross_step_rv
 
     def rv_toggle(self, payload: dict[str, Any]) -> dict[str, Any]:
         enabled = bool(payload.get("enabled", True))

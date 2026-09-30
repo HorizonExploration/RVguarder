@@ -98,6 +98,18 @@ _PRIVATE_KEY_RE = re.compile(
 )
 
 
+# Entities / constraints are display-only metadata: they are rendered into the
+# semantic summary but never become an evaluator predicate.  Keys outside these
+# closed sets are dropped during parsing instead of rejecting an otherwise
+# usable semantic analysis.
+ALLOWED_SEMANTIC_ENTITIES = frozenset(
+    {"tool_name", "destination_kind", "resource_kind", "recipient_zone"}
+)
+ALLOWED_SEMANTIC_CONSTRAINTS = frozenset(
+    {"has_scope_constraint", "requires_human_review", "scope_hint"}
+)
+
+
 class OperationCandidate(GuardBaseModel):
     family: str
     confidence: float = Field(ge=0.0, le=1.0)
@@ -148,11 +160,39 @@ class SemanticMatchIR(GuardBaseModel):
         return self
 
 
+_CODE_FENCE_RE = re.compile(
+    r"^\s*```[a-zA-Z0-9_-]*\s*\n?(?P<body>.*?)\n?\s*```\s*$",
+    re.DOTALL,
+)
+
+
+def strip_json_code_fence(content: str) -> str:
+    """Strip an optional markdown code fence around a JSON body.
+
+    Some chat models wrap structured output in ```json ... ``` blocks; the
+    controlled semantic protocol still expects a bare JSON object, so the fence
+    is removed here instead of rejecting an otherwise valid response.
+    """
+
+    text = (content or "").strip()
+    match = _CODE_FENCE_RE.match(text)
+    if match:
+        return match.group("body").strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].strip().startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+        return "\n".join(lines).strip()
+    return text
+
+
 def parse_semantic_match_response(content: str) -> SemanticMatchIR | None:
     """Parse one LLM response and force all model evidence to suggested trust."""
 
     try:
-        payload = json.loads(content)
+        payload = json.loads(strip_json_code_fence(content))
         if not isinstance(payload, dict):
             return None
         if "operation_candidates" not in payload or "facts" not in payload:
@@ -165,11 +205,26 @@ def parse_semantic_match_response(content: str) -> SemanticMatchIR | None:
                 return None
             raw["source"] = "llm"
             raw["trust"] = "suggested"
+            # A missing confidence must not discard an otherwise valid analysis;
+            # the fact is model-suggested and its confidence is advisory only.
+            raw.setdefault("confidence", 0.0)
         payload["version"] = "v3"
         payload["engine"] = str(payload.get("engine") or "llm")
+        payload["entities"] = _closed_keys(payload.get("entities"), ALLOWED_SEMANTIC_ENTITIES)
+        payload["constraints"] = _closed_keys(
+            payload.get("constraints"), ALLOWED_SEMANTIC_CONSTRAINTS
+        )
         return SemanticMatchIR.model_validate(payload)
     except (json.JSONDecodeError, TypeError, ValueError):
         return None
+
+
+def _closed_keys(value: Any, allowed: frozenset[str]) -> dict[str, Any]:
+    """Keep only whitelisted keys of a display-only metadata mapping."""
+
+    if not isinstance(value, dict):
+        return {}
+    return {key: item for key, item in value.items() if key in allowed}
 
 
 def build_sanitized_llm_input(

@@ -1,7 +1,7 @@
 {
   "version": "1.2.0",
   "operations": [
-    {"family":"message.send","tool_ids":["feishu.im.send","feishu.im.reply","message"],"aliases":["im.send"]},
+    {"family":"message.send","tool_ids":["feishu.im.send","feishu.im.reply","message","office_message_send"],"aliases":["im.send"]},
     {"family":"directory.read","tool_ids":["feishu.directory.search"],"aliases":["directory.lookup"]},
     {"family":"document.read","tool_ids":["feishu.docs.read","feishu.wiki.read","feishu.drive.download"],"aliases":["document.get"]},
     {"family":"document.write","tool_ids":["feishu.docs.write","feishu.wiki.write","feishu.drive.upload"],"aliases":["document.update"]},
@@ -13,7 +13,7 @@
     {"family":"meeting.create","tool_ids":["feishu.meeting.create"],"aliases":[]},
     {"family":"workflow.approve","tool_ids":["feishu.approval.approve"],"aliases":["approval.process"]},
     {"family":"event.subscribe","tool_ids":["feishu.event.subscribe"],"aliases":[]},
-    {"family":"network.egress","tool_ids":["network.request","feishu.http.request","web_search","x_search","web_fetch","mail-send"],"aliases":[]},
+    {"family":"network.egress","tool_ids":["network.request","feishu.http.request","web_search","x_search","web_fetch","mail-send","office_network_post","office_document_share"],"aliases":[]},
     {"family":"browser.interact","tool_ids":["browser"],"aliases":[]},
     {"family":"session.manage","tool_ids":["sessions"],"aliases":[]},
     {"family":"session.send","tool_ids":["sessions_send"],"aliases":[]},

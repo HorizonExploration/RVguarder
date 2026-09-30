@@ -24,6 +24,7 @@ from openclaw_guard.integrations.tool_hook_bridge import (
 )
 from openclaw_guard.engine.command_safety import analyze_command
 from openclaw_guard.engine.approval import build_approval_presentation
+from openclaw_guard.engine.experiment_components import current as _experiment_components
 from openclaw_guard.utils import utc_now_iso
 if TYPE_CHECKING:
     from openclaw_guard.services import GuardServices
@@ -74,6 +75,43 @@ def _resolve_rv_session_key(event: Any) -> str:
     return "_default"
 
 
+def annotate_scope(
+    event: Any,
+    *,
+    workspace_path: str | Path | None,
+    source_root: str | Path | None = None,
+    project_dir: str | Path | None = None,
+) -> str:
+    """标注事件的工作区边界元数据（原地修改 ``event.metadata``）。
+
+    该函数是"事件预处理"的唯一实现，被**在线 Hook 流水线**与**离线语义录制器**
+    共用。语义提示词只包含净化后的字段，其中 ``outside_workspace`` 是唯一的派生
+    事实；只要录制与运行时使用同一份预处理，两者的 ``prompt_sha256`` 才可比，
+    冻结回放才不会因预处理分叉而漂移。
+    """
+    roots: list[tuple[str, Path]] = []
+    if workspace_path:
+        roots.append(("workspace", Path(workspace_path).expanduser()))
+    if source_root:
+        roots.append(("managed_project", Path(source_root).expanduser()))
+    if project_dir:
+        roots.append(("managed_project", Path(project_dir).expanduser()))
+    command_safety = analyze_command(event.command)
+    event.metadata["command_safety"] = command_safety.to_dict()
+    scope_class = _classify_scope(
+        [*event.target_paths, *command_safety.path_hints],
+        roots=roots,
+        working_directory=event.working_directory,
+    )
+    if scope_class == "unknown" and command_safety.safe_read_only:
+        scope_class = "workspace" if workspace_path else "managed_project"
+    event.metadata["scope_class"] = scope_class
+    event.metadata["outside_workspace"] = scope_class in {"outside", "external", "unknown"}
+    if len(event.target_paths) > 1:
+        event.metadata["multi-target"] = True
+    return scope_class
+
+
 def _annotate_event_context(
     services: GuardServices,
     event: Any,
@@ -90,25 +128,12 @@ def _annotate_event_context(
         if isinstance(raw_grants, list):
             event.metadata["current_permissions"] = raw_grants
     workspace = services.context.target.workspace_path
-    roots: list[tuple[str, Path]] = []
-    if workspace:
-        roots.append(("workspace", Path(workspace).expanduser()))
-    if services.context.target.source_root:
-        roots.append(("managed_project", Path(services.context.target.source_root).expanduser()))
-    roots.append(("managed_project", Path(services.context.paths.project_dir).expanduser()))
-    command_safety = analyze_command(event.command)
-    event.metadata["command_safety"] = command_safety.to_dict()
-    scope_class = _classify_scope(
-        [*event.target_paths, *command_safety.path_hints],
-        roots=roots,
-        working_directory=event.working_directory,
+    annotate_scope(
+        event,
+        workspace_path=workspace,
+        source_root=services.context.target.source_root,
+        project_dir=services.context.paths.project_dir,
     )
-    if scope_class == "unknown" and command_safety.safe_read_only:
-        scope_class = "workspace" if workspace else "managed_project"
-    event.metadata["scope_class"] = scope_class
-    event.metadata["outside_workspace"] = event.metadata["scope_class"] in {"outside", "external", "unknown"}
-    if len(event.target_paths) > 1:
-        event.metadata["multi-target"] = True
     semantic_started = time.perf_counter()
     semantic_payload = services.semantic_enhancer.evaluate(
         event,
@@ -380,6 +405,7 @@ def handle_before_tool_call_pipeline(
     if (
         controlled.status == "pending_approval"
         and presentation["allow_always"]["eligible"]
+        and _experiment_components().approval_trust
         and services.approval_trust.contains(presentation["allow_always"]["fingerprint"])
     ):
         controlled.status = "proposed"

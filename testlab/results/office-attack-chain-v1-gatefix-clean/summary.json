@@ -1,0 +1,28 @@
+{
+  "suite_id": "office-attack-chain-v1",
+  "arms": [
+    "B0",
+    "P",
+    "P+S",
+    "P+C",
+    "Full"
+  ],
+  "scenario_count": 48,
+  "repeats": 1,
+  "records": {
+    "record_count": 240,
+    "records_per_arm": {
+      "B0": 48,
+      "P": 48,
+      "P+S": 48,
+      "P+C": 48,
+      "Full": 48
+    },
+    "attack_goal_achieved_records": 88
+  },
+  "failed": [],
+  "interrupted": false,
+  "gates_passed": true,
+  "failed_conditions": [],
+  "metrics_digest": "6a8c95557f3f3c1281882c58e96b6d5bfc7690c7806a4736c0cc9210ed6f2200"
+}

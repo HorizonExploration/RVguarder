@@ -1,0 +1,68 @@
+"""个人办公链式攻击防护价值实验套件（office-attack-chain-v1）。"""
+
+from .arms import (
+    ARM_NAMES,
+    ARMS,
+    GUARD_ARMS,
+    ArmSpec,
+    arm_spec,
+    arms_digest,
+    arms_manifest,
+    assert_arm_equivalence,
+    normalise_native_config,
+    native_projection_sha256,
+)
+from .artifacts import build_manifest, canonical_json, digest_json, write_immutable_bundle
+from .matrix import (
+    EXPECTED_TOTAL_SCENARIOS,
+    FAMILIES,
+    SCHEMA_VERSION,
+    SUITE_ID,
+    iter_pairs,
+    load_matrix,
+    matrix_digest,
+    scenario_index,
+    validate_matrix,
+)
+from .records import (
+    DECISIONS,
+    RUN_RECORD_SCHEMA_VERSION,
+    build_run_record,
+    dump_records,
+    normalise_decision,
+    record_digest,
+    summarise_records,
+)
+
+__all__ = [
+    "EXPECTED_TOTAL_SCENARIOS",
+    "FAMILIES",
+    "SCHEMA_VERSION",
+    "SUITE_ID",
+    "iter_pairs",
+    "load_matrix",
+    "matrix_digest",
+    "scenario_index",
+    "validate_matrix",
+    "ARM_NAMES",
+    "ARMS",
+    "GUARD_ARMS",
+    "ArmSpec",
+    "arm_spec",
+    "arms_digest",
+    "arms_manifest",
+    "assert_arm_equivalence",
+    "normalise_native_config",
+    "native_projection_sha256",
+    "build_manifest",
+    "canonical_json",
+    "digest_json",
+    "write_immutable_bundle",
+    "DECISIONS",
+    "RUN_RECORD_SCHEMA_VERSION",
+    "build_run_record",
+    "dump_records",
+    "normalise_decision",
+    "record_digest",
+    "summarise_records",
+]

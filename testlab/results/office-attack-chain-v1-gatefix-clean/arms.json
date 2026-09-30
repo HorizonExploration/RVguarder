@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "arms": [
+    {
+      "name": "B0",
+      "description": "OpenClaw 原生安全机制（对照组）",
+      "loads_guard": false,
+      "disabled_components": [],
+      "enabled_components": [
+        "semantic_llm",
+        "cross_step_rv",
+        "authorization",
+        "approval_trust"
+      ],
+      "component_config_hash": "c65c5f95c2650977d6e38256629a9ac0c531e56f9acde80014c163bef958203d"
+    },
+    {
+      "name": "P",
+      "description": "仅 PMKB 单步",
+      "loads_guard": true,
+      "disabled_components": [
+        "semantic_llm",
+        "cross_step_rv"
+      ],
+      "enabled_components": [
+        "authorization",
+        "approval_trust"
+      ],
+      "component_config_hash": "f9844ea9758739a6acdc07341c0859e211b4ae0607c22cb17c4490a9b594c26f"
+    },
+    {
+      "name": "P+S",
+      "description": "PMKB + 冻结语义",
+      "loads_guard": true,
+      "disabled_components": [
+        "cross_step_rv"
+      ],
+      "enabled_components": [
+        "semantic_llm",
+        "authorization",
+        "approval_trust"
+      ],
+      "component_config_hash": "8a2138a8a9cd189c0987084a3801add1d7d9dc4fed9d8900ab3c97d68094528b"
+    },
+    {
+      "name": "P+C",
+      "description": "PMKB + 跨步骤 RV",
+      "loads_guard": true,
+      "disabled_components": [
+        "semantic_llm"
+      ],
+      "enabled_components": [
+        "cross_step_rv",
+        "authorization",
+        "approval_trust"
+      ],
+      "component_config_hash": "5ee2c7c3bab73c7a3592c4594d67066f0812c837216f537c36946c3bca5ab5ff"
+    },
+    {
+      "name": "Full",
+      "description": "全部启用（实验组）",
+      "loads_guard": true,
+      "disabled_components": [],
+      "enabled_components": [
+        "semantic_llm",
+        "cross_step_rv",
+        "authorization",
+        "approval_trust"
+      ],
+      "component_config_hash": "c65c5f95c2650977d6e38256629a9ac0c531e56f9acde80014c163bef958203d"
+    }
+  ],
+  "component_matrix": {
+    "B0": {
+      "semantic_llm": true,
+      "cross_step_rv": true,
+      "authorization": true,
+      "approval_trust": true
+    },
+    "P": {
+      "semantic_llm": false,
+      "cross_step_rv": false,
+      "authorization": true,
+      "approval_trust": true
+    },
+    "P+S": {
+      "semantic_llm": true,
+      "cross_step_rv": false,
+      "authorization": true,
+      "approval_trust": true
+    },
+    "P+C": {
+      "semantic_llm": false,
+      "cross_step_rv": true,
+      "authorization": true,
+      "approval_trust": true
+    },
+    "Full": {
+      "semantic_llm": true,
+      "cross_step_rv": true,
+      "authorization": true,
+      "approval_trust": true
+    }
+  }
+}

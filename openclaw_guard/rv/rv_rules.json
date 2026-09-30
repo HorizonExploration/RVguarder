@@ -92,7 +92,7 @@
           "to": null,
           "verdict": "block",
           "when": {
-            "all_of": ["file_delete", "high_value_path"],
+            "all_of": ["file_delete", "path_high_value"],
             "window_any_of": { "labels": ["file_search", "file_read"], "window_size": 5 }
           }
         }
@@ -165,14 +165,14 @@
           "id": "sec_idle_to_high_value_search",
           "from": "idle",
           "to": "high_value_searched",
-          "when": { "all_of": ["high_value_path"], "any_of": ["file_search", "file_read"] }
+          "when": { "all_of": ["path_high_value"], "any_of": ["file_search", "file_read"] }
         },
         {
           "id": "sec_high_value_delete_block",
           "from": "high_value_searched",
           "to": "blocked",
           "verdict": "block",
-          "when": { "all_of": ["file_delete", "high_value_path"] }
+          "when": { "all_of": ["file_delete", "path_high_value"] }
         },
         {
           "id": "sec_idle_to_audit_disabled",
@@ -200,6 +200,20 @@
           "when": { "all_of": ["file_read", "contains_secret"] }
         },
         {
+          "id": "sec_sensitive_access_network_egress_block",
+          "from": "sensitive_content_accessed",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "all_of": ["network_egress"] }
+        },
+        {
+          "id": "sec_sensitive_access_channel_egress_block",
+          "from": "sensitive_content_accessed",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "all_of": ["channel_send"], "any_of": ["external_recipient", "channel_external_send", "cross_org"] }
+        },
+        {
           "id": "sec_sensitive_access_egress_escalate",
           "from": "sensitive_content_accessed",
           "to": "escalated",
@@ -217,7 +231,7 @@
           "from": "credentials_accessed",
           "to": "escalated",
           "verdict": "escalate",
-          "when": { "any_of": ["network_egress", "ssh"] }
+          "when": { "any_of": ["network_egress", "command_ssh"] }
         },
         {
           "id": "sec_batch_delete_escalate",
@@ -387,7 +401,10 @@
           "from": "packaging",
           "to": "blocked",
           "verdict": "block",
-          "when": { "any_of": ["network_egress", "file_upload"] }
+          "when": {
+            "any_of": ["network_egress", "file_upload"],
+            "window_any_of": { "labels": ["contains_secret", "path_high_value"], "window_size": 10 }
+          }
         },
         {
           "id": "batch_window_fallback_egress_block",
@@ -396,6 +413,7 @@
           "verdict": "block",
           "when": {
             "any_of": ["network_egress", "file_upload"],
+            "window_any_of": { "labels": ["contains_secret", "path_high_value"], "window_size": 10 },
             "sequence": {
               "window_size": 10,
               "steps": [
@@ -501,6 +519,38 @@
           "when": {
             "any_of": ["mail_send"],
             "state_counter": { "warm": { "gte": 5 } }
+          }
+        }
+      ]
+    },
+    {
+      "name": "UntrustedSourceMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "untrusted_idle_to_external_content",
+          "from": "idle",
+          "to": "external_content_loaded",
+          "when": {
+            "all_of": ["external_source"],
+            "none_of": ["network_egress", "channel_send"]
+          }
+        },
+        {
+          "id": "untrusted_external_content_network_egress_block",
+          "from": "external_content_loaded",
+          "to": "blocked",
+          "verdict": "block",
+          "when": { "all_of": ["network_egress"] }
+        },
+        {
+          "id": "untrusted_external_content_channel_egress_block",
+          "from": "external_content_loaded",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": ["channel_send"],
+            "any_of": ["external_recipient", "channel_external_send", "cross_org"]
           }
         }
       ]

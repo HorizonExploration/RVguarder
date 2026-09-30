@@ -235,6 +235,13 @@ OPENCLAW_NATIVE_TOOL_PROFILES = {
         "action_type": "config_modify", "tool_group": "automation", "tool_origin": "openclaw_native",
         "permission_family": "automation.modify", "risk_class": "high", "summary": "管理定时任务",
     },
+    # OpenClaw 明确把 automations 定为 cron 的永久别名（RFC 0026，同一调度器工具，
+    # 见 dist 中的 automations-tool-name 模块）。两者必须同档，否则同一工具在
+    # allow/deny、风险分级与 RV 判定上会出现不一致。
+    "automations": {
+        "action_type": "config_modify", "tool_group": "automation", "tool_origin": "openclaw_native",
+        "permission_family": "automation.modify", "risk_class": "high", "summary": "管理定时任务",
+    },
     "gateway": {
         "action_type": "config_modify", "tool_group": "automation", "tool_origin": "openclaw_native",
         "permission_family": "gateway.modify", "risk_class": "critical", "summary": "管理网关",
@@ -266,6 +273,23 @@ OPENCLAW_NATIVE_TOOL_PROFILES = {
     "dashboard": {
         "action_type": "file_read", "tool_group": "ui", "tool_origin": "openclaw_native",
         "permission_family": "dashboard.read", "risk_class": "low", "safe_params_required": True, "summary": "读取控制面板",
+    },
+    # 办公外发适配器（本地 office fixture / 插件）。它们与 office_network_post 同属
+    # 外发 sink：office_message_send 的参数携带收件人，office_document_share 携带共享
+    # 文档与访问级别（external 表示对外共享），二者都载有可离开工作区的数据。
+    # 须显式登记，否则 action_type 退化为 unknown，PMKB 与 RV 都会失去对这些外发动作的
+    # 可见性（既无法命中外发/渠道规则，也无法参与跨步链式判定）。
+    "office_network_post": {
+        "action_type": "network_egress", "tool_group": "office", "tool_origin": "hook_bridged",
+        "permission_family": "network.egress", "risk_class": "high", "summary": "外发办公数据",
+    },
+    "office_message_send": {
+        "action_type": "channel_send", "tool_group": "office", "tool_origin": "hook_bridged",
+        "permission_family": "message.send", "risk_class": "high", "summary": "发送办公消息",
+    },
+    "office_document_share": {
+        "action_type": "network_egress", "tool_group": "office", "tool_origin": "hook_bridged",
+        "permission_family": "network.egress", "risk_class": "high", "summary": "外发办公文档",
     },
 }
 

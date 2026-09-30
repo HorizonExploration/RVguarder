@@ -64,6 +64,62 @@ def test_engine_keeps_sessions_isolated():
     assert result["verdict"] != "block"
 
 
+def test_untrusted_source_monitor_blocks_egress_after_external_content():
+    """外部来源内容载入后再外发必须阻断（办公链 ECHOLEAK / SK-RCE 的通用形态）。"""
+
+    engine = RuntimeVerificationEngine(window_size=10, window_ttl_seconds=None)
+    engine.evaluate([{
+        "step_id": "read-1",
+        "event": "file_read",
+        "props": ["file_read", "external_source"],
+    }])
+    result = engine.evaluate([{
+        "step_id": "send-1",
+        "event": "network_egress",
+        "props": ["network_egress"],
+    }])
+    assert result["verdict"] == "block"
+
+
+def test_untrusted_source_monitor_ignores_internal_source_reads():
+    """配对 benign 读的是内部来源（source_internal），不得被该规则连坐。"""
+
+    engine = RuntimeVerificationEngine(window_size=10, window_ttl_seconds=None)
+    engine.evaluate([{
+        "step_id": "read-1",
+        "event": "file_read",
+        "props": ["file_read", "source_internal"],
+    }])
+    result = engine.evaluate([{
+        "step_id": "send-1",
+        "event": "channel_send",
+        "props": ["channel_send", "external_recipient"],
+    }])
+    assert result["verdict"] != "block"
+
+
+def test_untrusted_source_monitor_does_not_self_trigger_on_egress_step():
+    """进入条件必须排除外发步自身。
+
+    ``office_document_share`` 的参数带 ``access="external"``，其外发步自己就会打出
+    ``external_source``；若不排除外发步，第一个共享动作就会凭空开启阻断状态，随后任何外发
+    都被拦下——那是纯粹的误伤，与"不可信内容进入上下文"无关。
+    """
+
+    engine = RuntimeVerificationEngine(window_size=10, window_ttl_seconds=None)
+    engine.evaluate([{
+        "step_id": "share-1",
+        "event": "network_egress",
+        "props": ["network_egress", "external_source"],
+    }])
+    result = engine.evaluate([{
+        "step_id": "share-2",
+        "event": "network_egress",
+        "props": ["network_egress"],
+    }])
+    assert result["verdict"] != "block"
+
+
 def test_engine_replays_same_session_chain_and_can_release_it():
     engine = RuntimeVerificationEngine(window_size=10, window_ttl_seconds=None)
     engine.evaluate([{

@@ -8,10 +8,11 @@ import re
 import urllib.request
 import urllib.error
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from openclaw_guard.models import BehaviorEvent
 from openclaw_guard.engine.command_safety import analyze_command
+from openclaw_guard.engine.experiment_components import current as _experiment_components
 from openclaw_guard.engine.semantic_models import (
     ALLOWED_OPERATION_FAMILIES,
     ALLOWED_SECURITY_FACTS,
@@ -19,6 +20,7 @@ from openclaw_guard.engine.semantic_models import (
     build_sanitized_llm_input,
     local_semantic_match,
     parse_semantic_match_response,
+    strip_json_code_fence,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,9 +62,15 @@ class SemanticEnhancer:
         model: str = _DEFAULT_LLM_MODEL,
         base_url: str = _DEFAULT_LLM_BASE_URL,
         config_path: str | Path | None = None,
+        llm_transport: Callable[[str], str] | None = None,
     ) -> None:
         self.model = model
         self.base_url = base_url.rstrip("/")
+
+        # Optional transport hook used by the frozen semantic recording/replay
+        # experiment.  When it is ``None`` (the production default) the enhancer
+        # performs the real HTTP call exactly as before.
+        self.llm_transport = llm_transport
 
         # API key 优先级：构造函数参数 > 环境变量 > 配置文件
         # api_key 显式传入空字符串时，表示不启用 LLM，跳过后续加载
@@ -124,23 +132,34 @@ class SemanticEnhancer:
         # A configured request gets exactly one best-effort semantic call,
         # including empty-intent and unknown-tool events.  Authorization never
         # depends on availability of this external enrichment.
-        if self._llm_enabled:
+        # Experiment ablation: when ``semantic_llm`` is disabled we must not
+        # call the provider at all, degrading to the local deterministic path.
+        if self._llm_enabled and _experiment_components().semantic_llm:
             llm_attempted = True
             try:
                 result = self._call_llm(event, source_message, tool_name, haystack, origin)
             except Exception as exc:
                 logger.warning("LLM semantic analysis failed, falling back to local rules: %s", exc)
 
+        # The local deterministic projection is always computed.  A successful
+        # LLM call is *unioned* with it below instead of overwriting it, so the
+        # path/network/channel/office/command props RV needs are never lost just
+        # because the model also produced labels.
+        local_result = self._local_evaluate(event, source_message, tool_name, haystack, origin)
+        unknown_hook = event.metadata.get("hook_bridge") is True and event.action_type == "unknown"
+
         # Unknown Hook tools preserve their fail-closed coverage marker.  The
         # model may suggest a candidate, but cannot turn the tool into a
         # trusted native profile.
         if result is None:
-            if event.metadata.get("hook_bridge") is True and event.action_type == "unknown":
+            if unknown_hook:
                 result = _unknown_hook_result(tool_name=tool_name, origin=origin)
             else:
-                result = self._local_evaluate(event, source_message, tool_name, haystack, origin)
+                result = local_result
+        elif not unknown_hook:
+            _merge_local_semantics(result, local_result)
 
-        if event.metadata.get("hook_bridge") is True and event.action_type == "unknown":
+        if unknown_hook:
             # Keep the LLM candidate as suggested evidence, but do not expose
             # it through the trusted v2 labels used during the migration.
             suggested_match = result.get("semantic_match")
@@ -187,36 +206,50 @@ class SemanticEnhancer:
         origin: str,
     ) -> dict[str, Any] | None:
         prompt = self._build_prompt(event, source_message, tool_name, haystack)
-        payload = {
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": "你是一个安全语义分析引擎。你的职责是分析用户的输入意图和上下文，输出严格的结构化 JSON。不要输出任何额外文字，只输出 JSON。"},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.1,
-            "max_tokens": 4096,
-            "response_format": {"type": "json_object"},
-        }
-        req_data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        req = urllib.request.Request(
-            f"{self.base_url}/chat/completions",
-            data=req_data,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            },
-            method="POST",
-        )
-        try:
-            resp = urllib.request.urlopen(req, timeout=_DEFAULT_TIMEOUT_SEC)
-        except urllib.error.HTTPError as exc:
-            logger.warning("LLM HTTP %s: %s", exc.code, exc.read().decode("utf-8", errors="replace"))
-            return None
-        except urllib.error.URLError as exc:
-            logger.warning("LLM URL error: %s", exc.reason)
-            return None
+        if self.llm_transport is not None:
+            # Frozen-recording / replay path: the transport owns the wire call
+            # (or returns a recorded response) and must yield the raw response
+            # body text so the original parse + schema validation still runs.
+            try:
+                body = self.llm_transport(prompt)
+            except Exception as exc:
+                logger.warning("LLM transport failed: %s", exc)
+                return None
+            if not isinstance(body, str):
+                logger.warning("LLM transport returned a non-string response")
+                return None
+        else:
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": "你是一个安全语义分析引擎。你的职责是分析用户的输入意图和上下文，输出严格的结构化 JSON。不要输出任何额外文字，只输出 JSON。"},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.1,
+                "max_tokens": 4096,
+                "response_format": {"type": "json_object"},
+            }
+            req_data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            req = urllib.request.Request(
+                f"{self.base_url}/chat/completions",
+                data=req_data,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.api_key}",
+                },
+                method="POST",
+            )
+            try:
+                resp = urllib.request.urlopen(req, timeout=_DEFAULT_TIMEOUT_SEC)
+            except urllib.error.HTTPError as exc:
+                logger.warning("LLM HTTP %s: %s", exc.code, exc.read().decode("utf-8", errors="replace"))
+                return None
+            except urllib.error.URLError as exc:
+                logger.warning("LLM URL error: %s", exc.reason)
+                return None
 
-        body = resp.read().decode("utf-8")
+            body = resp.read().decode("utf-8")
+
         try:
             data = json.loads(body)
         except json.JSONDecodeError as exc:
@@ -234,7 +267,7 @@ class SemanticEnhancer:
             return None
 
         try:
-            parsed = json.loads(content)
+            parsed = json.loads(strip_json_code_fence(content))
         except json.JSONDecodeError:
             logger.warning("LLM content is not valid JSON: %.200s", content)
             return None
@@ -255,14 +288,20 @@ class SemanticEnhancer:
         return (
             "分析净化后的工具调用，只输出一个 JSON 对象。不得给出 allow/ask/block 决策。\n"
             "operation_candidates 最多 3 项；family 只能来自 allowed_operations。\n"
-            "facts 的键只能来自 allowed_facts；所有事实使用 source=llm、trust=suggested。\n"
+            "facts 的键只能来自 allowed_facts；每个事实必须给出 value、confidence(0~1)、source=llm、trust=suggested。\n"
+            "entities 的键只能来自 allowed_entities；constraints 的键只能来自 allowed_constraints；不需要时留空对象。\n"
             "不要还原被遮盖的秘密、路径、正文或身份。\n"
             f"allowed_operations={json.dumps(sorted(ALLOWED_OPERATION_FAMILIES), ensure_ascii=False)}\n"
             f"allowed_facts={json.dumps(sorted(ALLOWED_SECURITY_FACTS), ensure_ascii=False)}\n"
+            "allowed_entities=[\"tool_name\",\"destination_kind\",\"resource_kind\",\"recipient_zone\"]\n"
+            "allowed_constraints=[\"has_scope_constraint\",\"requires_human_review\",\"scope_hint\"]\n"
             "output_schema={\"version\":\"v3\",\"engine\":\"llm\","
             "\"operation_candidates\":[{\"family\":\"process.execute\",\"confidence\":0.0,"
-            "\"evidence\":\"short reason\"}],\"facts\":{},\"entities\":{},"
-            "\"constraints\":{},\"uncertainties\":[]}\n"
+            "\"evidence\":\"short reason\"}],"
+            "\"facts\":{\"network.upload\":{\"value\":true,\"confidence\":0.0,\"source\":\"llm\",\"trust\":\"suggested\"}},"
+            "\"entities\":{\"tool_name\":\"read\"},"
+            "\"constraints\":{\"requires_human_review\":true},"
+            "\"uncertainties\":[]}\n"
             f"sanitized_input={json.dumps(sanitized, ensure_ascii=False, sort_keys=True)}"
         )
 
@@ -677,6 +716,33 @@ def _looks_like_mail_send(event: BehaviorEvent, haystack: str) -> bool:
     return any(token in haystack for token in mail_tokens) and (
         any(token in haystack for token in send_tokens) or event.action_type in {"network_egress", "channel_send"}
     )
+
+
+def _merge_local_semantics(llm_result: dict[str, Any], local_result: dict[str, Any]) -> None:
+    """Union the local deterministic projection into a successful LLM result.
+
+    The LLM result keeps its controlled ``semantic_match`` IR untouched; only
+    the RV-facing props and the v2 ``labels`` gain the local derived tags so a
+    semantic success can no longer blind the runtime verifier.
+    """
+    local_semantic = local_result.get("semantic")
+    local_labels = {
+        str(item) for item in (local_semantic or {}).get("labels", [])
+    }
+    local_props: set[str] = set()
+    for step in local_result.get("rv_trace", []) or []:
+        if isinstance(step, dict):
+            local_props.update(str(item) for item in step.get("props", []))
+
+    rv_trace = llm_result.get("rv_trace")
+    if isinstance(rv_trace, list) and rv_trace and isinstance(rv_trace[0], dict):
+        props = {str(item) for item in rv_trace[0].get("props", [])}
+        rv_trace[0]["props"] = sorted(props | local_props)
+
+    semantic = llm_result.get("semantic")
+    if isinstance(semantic, dict):
+        labels = {str(item) for item in semantic.get("labels", [])}
+        semantic["labels"] = sorted(labels | local_labels)
 
 
 def _unknown_hook_result(*, tool_name: str, origin: str) -> dict[str, Any]:

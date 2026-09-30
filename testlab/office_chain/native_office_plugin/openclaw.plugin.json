@@ -1,0 +1,20 @@
+{
+  "id": "rvguard-office-chain-simulator",
+  "name": "RVguarder Office Chain Simulator",
+  "description": "Local synthetic office receipts for the isolated office-attack-chain experiment.",
+  "categories": ["other"],
+  "activation": { "onStartup": true },
+  "contracts": {
+    "tools": ["office_message_send", "office_network_post", "office_document_share"]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["workspaceRoot", "receiptPath"],
+    "properties": {
+      "workspaceRoot": { "type": "string" },
+      "receiptPath": { "type": "string" },
+      "internalDomains": { "type": "array", "items": { "type": "string" } }
+    }
+  }
+}
