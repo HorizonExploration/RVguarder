@@ -120,6 +120,7 @@ class _GuardLatencyRecorder:
         self.samples: list[float] = []
         self.by_call: dict[tuple[str, str], float] = {}
         self.decisions: dict[tuple[str, str], str] = {}
+        self.evidence: dict[tuple[str, str], dict[str, Any]] = {}
 
     def wrap(self, manager: Any) -> Any:
         """包装 ``manager.handle_before_tool_call``，返回原方法以便恢复。"""
@@ -142,6 +143,14 @@ class _GuardLatencyRecorder:
                 self.by_call[key] = elapsed_ms
                 if isinstance(result, dict):
                     self.decisions[key] = str(result.get("action") or "")
+                    record = result.get("action_record") or {}
+                    metadata = (record.get("event") or {}).get("metadata") or {}
+                    self.evidence[key] = {
+                        "action": self.decisions[key], "rv_result": metadata.get("rv_result"),
+                        "rv_trace": metadata.get("rv_trace"),
+                        "semantic_audit": metadata.get("semantic_audit"),
+                        "policy_decision": (record.get("decision") or {}).get("policy_decision"),
+                    }
 
         manager.handle_before_tool_call = timed  # type: ignore[method-assign]
         return original
@@ -289,6 +298,7 @@ def run_scenario_guard(
     timeout: float = 300.0,
     approval_policy: str = "allow-once",
     restart_gateway: bool = True,
+    recording: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """在真实 guard 臂上执行一个 office-chain 场景，返回**原始观测** dict。
 
@@ -345,7 +355,7 @@ def run_scenario_guard(
     if created_files:
         notes.append(f"工作区播种 {len(created_files)} 个合成文件。")
 
-    recording = load_recording()
+    recording = recording or load_recording()
 
     def _enhancer_factory(config_path: Path) -> SemanticEnhancer:
         enhancer = SemanticEnhancer(config_path=config_path)
@@ -486,13 +496,18 @@ def run_scenario_guard(
             receipts = _json_rows(receipt_path)[len(before_receipts):]
             approvals = [row for run in agent_runs for row in run.get("approvals", [])]
             successful_tools = _successful_tool_names(agent_runs)
-            events = _build_events(hooks, receipts, approvals, successful_tools)
+            executions = _json_rows(Path(f"{receipt_path}.executions.jsonl"))
+            events = _build_events(hooks, receipts, approvals, successful_tools, execution_observations=executions)
 
             for event, hook in zip(events, hooks):
                 key = (
                     str(hook.get("sessionKey") or ""),
                     str(hook.get("toolCallId") or ""),
                 )
+                event["guard_evidence"] = recorder.evidence.get(key, {})
+                guard_action = recorder.decisions.get(key)
+                if guard_action:
+                    event["decision"] = guard_action
                 latency = recorder.by_call.get(key)
                 if latency is not None:
                     event["before_hook_latency_ms"] = round(latency, 3)
@@ -609,6 +624,8 @@ def run_scenario_guard(
         "admitted": bool(admission_checks) and all(admission_checks.values()),
         "admission_checks": admission_checks,
         "events": events,
+        "approvals": approvals,
+        "execution_observations": locals().get("executions", []),
         "receipts": receipts,
         "external_effect_count": len(external_receipts),
         "attack_goal_achieved": attack_goal_achieved,

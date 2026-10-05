@@ -1,0 +1,10 @@
+{
+  "scope": "read-only capture before any production application",
+  "sha256": {
+    "openclaw_guard/rv/runtime_verification.py": "43ac064c11a3686903eb83b7f2c818db7b41d5c06483baa20fdff573ec8d20f9",
+    "tests/test_rv_tool_call_model.py": "38ea7860b8142e0353ff7cd36395120317c981dd4836a209a10d50a4bf33bebb",
+    "docs/architecture/rv-tool-call-migration-2026-10-04.md": "c2f6a019f0bdd5cc94f87efa6a728297cf2e1a4f2c701b930f8edebb1d1c6937",
+    "docs/features/runtime-hook.md": "e51882308247913fc94dfe4e9963d4753ce5afdb38da84e3853a2ce6fcb0e662"
+  },
+  "production_gate_occurrences": 2
+}

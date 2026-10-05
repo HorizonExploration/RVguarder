@@ -83,8 +83,8 @@ hooks.gateway_stop();
 
 
 @pytest.mark.parametrize("status", [401, 500])
-def test_http_errors_are_not_transport_silence(tmp_path: Path, status: int) -> None:
-    """An HTTP response must retain the old high-impact error safety path."""
+def test_http_errors_fail_open_for_all_tools(tmp_path: Path, status: int) -> None:
+    """A Guard-side HTTP error must never block the agent, and is not transport silence."""
     _run_generated_plugin(tmp_path, f'''
 const plugin = (await import(process.argv[1])).default;
 let decisionPosts = 0;
@@ -95,18 +95,17 @@ globalThis.fetch = async (url) => {{
 }};
 const hooks = {{}};
 plugin.register({{
-  pluginConfig: {{guardUrl: "http://guard.test", failClosed: false}},
+  pluginConfig: {{guardUrl: "http://guard.test", failClosed: true}},
   on(name, handler) {{ hooks[name] = handler; }},
   registerGatewayMethod() {{}},
   logger: {{info() {{}}, warn() {{}}}},
 }});
 hooks.gateway_start();
 await new Promise(resolve => setImmediate(resolve));
-for (let i = 0; i < 2; i++) {{
-  const result = await hooks.before_tool_call({{toolName: "shell_exec", params: {{}}}}, {{}});
-  if (result?.block !== true) throw new Error("HTTP error silently allowed shell");
+for (const toolName of ["read", "shell_exec", "message"]) {{
+  if ((await hooks.before_tool_call({{toolName, params: {{}}}}, {{}})) !== undefined) throw new Error(`HTTP error blocked ${{toolName}}`);
 }}
-if (decisionPosts !== 2) throw new Error("HTTP error was mistaken for transport silence");
+if (decisionPosts !== 3) throw new Error("HTTP error was mistaken for transport silence");
 hooks.gateway_stop();
 ''')
 
@@ -220,7 +219,11 @@ hooks.gateway_stop();
 
 
 def test_health_http_error_is_responsive_not_silent(tmp_path: Path) -> None:
-    """A reachable but unhealthy server must not appear transport-offline."""
+    """A reachable but unhealthy server must not appear transport-offline.
+
+    The response error stays visible in status, yet no tool call is ever blocked
+    on a Guard-side failure.
+    """
     _run_generated_plugin(tmp_path, r'''
 const plugin = (await import(process.argv[1])).default;
 globalThis.fetch = async (url) => url.endsWith("/api/health")
@@ -238,7 +241,7 @@ await hooks.gateway_start();
 let state;
 await statusHandler({respond(_ok, value) { state = value; }});
 if (state.state !== "active" || state.backendResponseError !== true) throw new Error("response error labeled offline or healthy");
-if ((await hooks.before_tool_call({toolName: "shell_exec", params: {}}, {}))?.block !== true) throw new Error("response error allowed shell");
+if ((await hooks.before_tool_call({toolName: "shell_exec", params: {}}, {})) !== undefined) throw new Error("response error blocked shell");
 hooks.gateway_stop();
 ''')
 
@@ -321,7 +324,11 @@ hooks.gateway_stop();
 
 
 def test_http_error_with_unreadable_body_stays_responsive(tmp_path: Path) -> None:
-    """A received 500 must not be reclassified as a transport outage."""
+    """A received 500 must not be reclassified as a transport outage.
+
+    The Guard keeps answering per call (so the outage is visible), but a
+    Guard-side failure never blocks the agent.
+    """
     _run_generated_plugin(tmp_path, r'''
 const plugin = (await import(process.argv[1])).default;
 let decisionPosts = 0;
@@ -339,7 +346,7 @@ plugin.register({
 });
 await hooks.gateway_start();
 for (let i = 0; i < 2; i++) {
-  if ((await hooks.before_tool_call({toolName: "shell_exec", params: {}}, {}))?.block !== true) throw new Error("received HTTP 500 silently allowed");
+  if ((await hooks.before_tool_call({toolName: "shell_exec", params: {}}, {})) !== undefined) throw new Error("received HTTP 500 blocked the tool");
 }
 if (decisionPosts !== 2) throw new Error("HTTP 500 was mislabeled offline");
 hooks.gateway_stop();
@@ -347,7 +354,11 @@ hooks.gateway_stop();
 
 
 def test_local_payload_serialization_error_does_not_silence_guard(tmp_path: Path) -> None:
-    """A bad local payload must not be reported as a dead backend."""
+    """A bad local payload must not be reported as a dead backend.
+
+    The failed call itself passes through, and Guard is still queried - and still
+    honoured - on the next call.
+    """
     _run_generated_plugin(tmp_path, r'''
 const plugin = (await import(process.argv[1])).default;
 let decisionPosts = 0;
@@ -365,8 +376,8 @@ plugin.register({
 });
 await hooks.gateway_start();
 const params = {}; params.self = params;
-if ((await hooks.before_tool_call({toolName: "shell_exec", params}, {}))?.block !== true) throw new Error("bad local payload opened Guard");
-if ((await hooks.before_tool_call({toolName: "shell_exec", params: {}}, {}))?.block !== true) throw new Error("Guard stayed silent after local serialization error");
+if ((await hooks.before_tool_call({toolName: "shell_exec", params}, {})) !== undefined) throw new Error("bad local payload blocked the tool");
+if ((await hooks.before_tool_call({toolName: "shell_exec", params: {}}, {}))?.block !== true) throw new Error("Guard block lost after local serialization error");
 if (decisionPosts !== 1) throw new Error("healthy Guard was not queried after local error");
 hooks.gateway_stop();
 ''')
@@ -392,5 +403,36 @@ plugin.register({
 await hooks.gateway_start();
 if (await hooks.before_tool_call({toolName: "shell_exec", params: {}}, {}) !== undefined) throw new Error("unrelated service blocked exec");
 if (decisionPosts !== 0) throw new Error("unrelated service caused decision POST");
+hooks.gateway_stop();
+''')
+
+
+def test_registration_probe_can_activate_block_without_gateway_start(tmp_path: Path) -> None:
+    """显式注册探活覆盖缺少gateway_start的SDK注册路径。"""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+globalThis.fetch = async (url) => ({ok: true, text: async () => JSON.stringify(
+  url.endsWith("/api/health") ? {ok: true, product: "openclaw-guard"} : {action: "block", reason: "fixture"})});
+const hooks = {};
+plugin.register({pluginConfig: {startupHealthCheck: true},
+  on(name, handler) {hooks[name] = handler;}, registerGatewayMethod() {}, logger: {info() {}, warn() {}}});
+await new Promise(resolve => setImmediate(resolve));
+const result = await hooks.before_tool_call({toolName: "read", params: {}}, {});
+if (result?.block !== true) throw new Error("healthy registered plugin failed to block");
+hooks.gateway_stop();
+''')
+
+
+def test_registration_probe_offline_does_not_gate_tools(tmp_path: Path) -> None:
+    """异步探活失联不阻塞工具，退出时清理定时器。"""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+globalThis.fetch = async () => {throw new Error("offline");};
+const hooks = {};
+plugin.register({pluginConfig: {startupHealthCheck: true},
+  on(name, handler) {hooks[name] = handler;}, registerGatewayMethod() {}, logger: {info() {}, warn() {}}});
+for (const toolName of ["read", "write", "exec"]) {
+  if (await hooks.before_tool_call({toolName, params: {}}, {}) !== undefined) throw new Error("offline probe blocked");
+}
 hooks.gateway_stop();
 ''')

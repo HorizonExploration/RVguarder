@@ -184,7 +184,8 @@ def _generate_from_templates(
     if not monitors:
         return None
 
-    return Ruleset(
+    from openclaw_guard.rv.tool_events import migrate_rules_document
+    return Ruleset.model_validate(migrate_rules_document(Ruleset(
         monitors=monitors,
         source_nl=nl_policy,
-    )
+    ).model_dump(by_alias=True)))

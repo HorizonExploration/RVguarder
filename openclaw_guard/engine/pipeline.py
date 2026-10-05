@@ -160,6 +160,13 @@ def _annotate_event_context(
     if policy_engine is not None:
         authorization_trace = policy_engine.compile_trace(event, source_message=source_message)
         event.metadata["authorization_trace"] = authorization_trace.model_dump()
+    from openclaw_guard.rv.tool_events import build_tool_call_step
+    event.metadata["semantic_rv_trace"] = event.metadata["rv_trace"]
+    event.metadata["rv_trace"] = (
+        [] if event.action_type == "chat_message" and not event.metadata.get("hook_bridge")
+        else [build_tool_call_step(event, event.metadata.get("authorization_trace"))]
+    )
+
 
 
 def _classify_scope(
@@ -592,6 +599,12 @@ def _public_hook_action_record(action: Any, presentation: dict[str, Any]) -> dic
 def _scrub_public_trace(value: Any) -> None:
     """Remove path/URL/resource collections from a public Hook record."""
     if isinstance(value, dict):
+        if "arguments" in value:
+            value["arguments"] = {}
+        if value.get("kind") in {"paths", "urls", "recipients"} and "values" in value:
+            value["values"] = ["[REDACTED]"] if value["values"] else []
+        if "type" in value and "ids" in value:
+            value["ids"] = ["[REDACTED]"] if value["ids"] else []
         for key in ("paths", "urls", "target_paths", "network_targets", "resource_ids", "path_hints"):
             if key in value:
                 value[key] = ["[REDACTED]"] if value[key] else []
@@ -705,6 +718,8 @@ def handle_after_tool_call_pipeline(
         action.event.metadata["principal_rv_commit_effect"] = services.record_executed_principal_action(action) or "none"
         rv_trace = action.event.metadata.get("rv_trace", [])
         if isinstance(rv_trace, list) and rv_trace and services.rv_enabled():
+            rv_trace = [{**step, "execution_state": "succeeded"} for step in rv_trace]
+            action.event.metadata["rv_trace"] = rv_trace
             rv_result = services.rv_engine.evaluate(
                 rv_trace,
                 session_key=_resolve_rv_session_key(action.event),

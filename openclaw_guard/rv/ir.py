@@ -1,18 +1,12 @@
-"""
-IR 结构化中间表示 —— 阶段 A 数据模型。
+"""工具调用中间表示：真实调用的有限效果、上下文和语义补充事实。
 
-定义 ToolCallIR / Entity / Constraint 三个 Pydantic 模型，
-用于语义层到 RV 引擎的结构化数据传递。
-
-设计原则：
-- 字段类型受 Pydantic 约束，避免运行时类型错误
-- entities / constraints / confidence 均为可选，向后兼容不含这些字段的旧 rv_trace
-- props 保留原样，下游所有基于 props 的监视器零修改
+生产 RV 使用 tool-call-v1，一次调用对应一个步骤。旧语义步骤保留可读兼容，
+不能作为实际调用次数或可信违规证据。
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -38,14 +32,13 @@ class Constraint(BaseModel):
 
 
 class ToolCallIR(BaseModel):
-    """单条 rv_trace 步骤的结构化中间表示。
-
-    对应语义层产出的一条 RV trace 步骤，在原有 step_id/event/props
-    基础上新增 entities/constraints/confidence 结构化字段。
-
-    阶段 A1 语义模型字段（tool_name/arguments/permission_level/side_effect/
-    sensitivity/irreversibility/intent）均为可选，确保与旧 rv_trace 完全向后兼容。
-    """
+    """承载真实工具调用；legacy 默认值仅兼容旧语义模型输出。"""
+    event_model: Literal["legacy", "tool-call-v1"] = "legacy"
+    operation_family: str | None = None
+    effects: list[Literal["read", "write", "delete", "execute", "egress", "configure",
+                          "grant", "schedule", "spawn", "interact", "transform", "query", "unknown"]] = Field(default_factory=list)
+    execution_state: Literal["proposed", "succeeded", "legacy_replay"] = "proposed"
+    context: dict[str, Any] = Field(default_factory=dict)
     step_id: str
     event: str
     props: list[str] = Field(default_factory=list)

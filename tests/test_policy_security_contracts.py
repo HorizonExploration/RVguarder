@@ -93,7 +93,7 @@ def test_generated_openclaw_approval_description_is_bounded():
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="需要 Node.js 验证生成插件运行时行为")
-def test_generated_plugin_uses_tiered_safety_for_http_errors(tmp_path):
+def test_generated_plugin_fails_open_for_all_tools_on_http_errors(tmp_path):
     plugin_path = tmp_path / "openclaw-guard-plugin.mjs"
     plugin_path.write_text(_plugin_source(guard_url="http://guard.test", auth_token="token"), encoding="utf-8")
     script = r'''
@@ -103,7 +103,7 @@ globalThis.fetch = async (url) => url.endsWith("/api/health")
   : { ok: false, status: 500, text: async () => JSON.stringify({ detail: "guard responded with error" }) };
 const callbacks = {};
 const api = {
-  pluginConfig: { guardUrl: "http://guard.test", authToken: "token", failClosed: false },
+  pluginConfig: { guardUrl: "http://guard.test", authToken: "token", failClosed: true },
   on(name, handler) { callbacks[name] = handler; },
   registerGatewayMethod() {},
   logger: { info() {}, warn() {} },
@@ -120,7 +120,7 @@ const writeResult = await callbacks.before_tool_call(
   { toolName: "shell_exec", params: { command: "echo safe" }, runId: "r2", toolCallId: "c2" },
   {},
 );
-if (!writeResult || writeResult.block !== true) process.exit(2);
+if (writeResult !== undefined) process.exit(2);
 callbacks.gateway_stop();
 '''
     completed = subprocess.run(
@@ -166,23 +166,15 @@ if (result.requireApproval.description.length > 512) process.exit(2);
 if (!result.requireApproval.description.endsWith("…")) process.exit(3);
 globalThis.fetch = async (url) => url.endsWith("/api/health")
   ? { ok: true, text: async () => JSON.stringify({ ok: true, product: "openclaw-guard" }) }
-  : { ok: false, status: 500, text: async () => JSON.stringify({ detail: "E".repeat(1000) }) };
-const failedCallbacks = {};
-plugin.register({
-  pluginConfig: { guardUrl: "http://guard.test", authToken: "token", failClosed: true },
-  on(name, handler) { failedCallbacks[name] = handler; },
-  registerGatewayMethod() {},
-  logger: { info() {}, warn() {} },
-});
-failedCallbacks.gateway_start();
-await new Promise(resolve => setImmediate(resolve));
-const blocked = await failedCallbacks.before_tool_call(
+  : { ok: true, text: async () => JSON.stringify({ action: "block", blockReason: "E".repeat(1000) }) };
+const blocked = await callbacks.before_tool_call(
   { toolName: "shell_exec", params: {}, runId: "run-2", toolCallId: "call-2" },
   {},
 );
-if (blocked.blockReason.length > 512) process.exit(4);
+if (!blocked || blocked.block !== true) process.exit(4);
+if (blocked.blockReason.length > 512) process.exit(5);
+if (!blocked.blockReason.endsWith("…")) process.exit(6);
 callbacks.gateway_stop();
-failedCallbacks.gateway_stop();
 '''
     completed = subprocess.run(
         ["node", "--input-type=module", "-e", script, str(plugin_path)],

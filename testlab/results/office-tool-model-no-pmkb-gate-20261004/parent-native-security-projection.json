@@ -1,0 +1,94 @@
+{
+  "gateway": {
+    "mode": "local",
+    "bind": "loopback"
+  },
+  "sandbox": {
+    "mode": "all",
+    "scope": "session",
+    "backend": "docker",
+    "workspaceAccess": "rw"
+  },
+  "tools": {
+    "profile": "full",
+    "allow": [
+      "read",
+      "write",
+      "exec",
+      "web_fetch",
+      "message",
+      "cron",
+      "office_message_send",
+      "office_network_post",
+      "office_document_share",
+      "automations"
+    ],
+    "deny": [
+      "apply_patch",
+      "edit",
+      "browser",
+      "gateway",
+      "nodes",
+      "sessions_spawn"
+    ],
+    "sandbox": {
+      "tools": {
+        "allow": [
+          "read",
+          "write",
+          "exec",
+          "web_fetch",
+          "message",
+          "cron",
+          "office_message_send",
+          "office_network_post",
+          "office_document_share",
+          "automations"
+        ],
+        "deny": [
+          "apply_patch",
+          "edit",
+          "browser",
+          "gateway",
+          "nodes",
+          "sessions_spawn"
+        ]
+      }
+    },
+    "elevated": {
+      "enabled": false
+    },
+    "exec": {
+      "security": "allowlist",
+      "ask": "always"
+    }
+  },
+  "model": {
+    "primary": "office-chain-fixed/rvguard-office-chain-fixed-v1"
+  },
+  "provider_contract": {
+    "office-chain-fixed": {
+      "api": "openai-completions",
+      "models": [
+        {
+          "id": "rvguard-office-chain-fixed-v1",
+          "name": "RVguard Office Chain Frozen Trajectory",
+          "reasoning": false,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "contextWindow": 131072,
+          "contextTokens": 120000,
+          "maxTokens": 1024
+        }
+      ]
+    }
+  },
+  "office_plugin_enabled": true
+}

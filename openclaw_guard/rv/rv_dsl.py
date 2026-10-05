@@ -57,7 +57,15 @@ class PolicyGuard(BaseModel):
     min_risk_score: int | None = Field(default=None, ge=0, le=100)
 
 
+class ToolGuard(BaseModel):
+    """约束真实调用的模型版本、操作族与有限效果。"""
+    event_model: Literal["tool-call-v1"] = "tool-call-v1"
+    operation_families: list[str] = Field(default_factory=list)
+    effects_any_of: list[str] = Field(default_factory=list)
+
+
 class StepRequirement(BaseModel):
+    tool: ToolGuard | None = None
     event: str | None = None
     all_of: list[str] = Field(default_factory=list)
     any_of: list[str] = Field(default_factory=list)
@@ -99,6 +107,7 @@ class MonitorSpec(BaseModel):
 
 
 class Ruleset(BaseModel):
+    event_model: Literal["legacy", "tool-call-v1"] = "legacy"
     version: int = 1
     monitors: list[MonitorSpec] = Field(default_factory=list)
     # ── 阶段 E：来源标记 ──
@@ -119,7 +128,8 @@ def _default_rules_path() -> Path:
 def load_ruleset(path: str | Path | None = None) -> Ruleset:
     p = Path(path) if path is not None else _default_rules_path()
     raw = json.loads(p.read_text(encoding="utf-8"))
-    return Ruleset.model_validate(raw)
+    from openclaw_guard.rv.tool_events import migrate_rules_document
+    return Ruleset.model_validate(migrate_rules_document(raw))
 
 
 def _severity(verdict: Verdict) -> int:
@@ -157,6 +167,14 @@ def _matches_requirement(
     current_step: dict[str, Any] | None = None,
     state_counts: dict[str, int] | None = None,
 ) -> bool:
+    if req.tool:
+        step = current_step or {}
+        if step.get("event_model") != req.tool.event_model:
+            return False
+        if req.tool.operation_families and step.get("operation_family") not in req.tool.operation_families:
+            return False
+        if req.tool.effects_any_of and not set(req.tool.effects_any_of).intersection(step.get("effects", [])):
+            return False
     if req.event:
         if not (event == req.event or req.event in props):
             return False

@@ -1,0 +1,92 @@
+--- a/openclaw_guard/rv/runtime_verification.py
++++ b/openclaw_guard/rv/runtime_verification.py
+@@ -565,19 +565,13 @@
+             )
+ 
+         proposed_verdict = final
+-        if final == "block" and any(
+-            step.get("event_model") == "tool-call-v1"
+-            and (step.get("provenance") or {}).get("source") != "legacy_replay"
+-            for step in rv_trace
+-        ) and self._model_data(policy_decision).get("effect") != "block":
+-            final = "ask"
+-            reason = f"{triggered_by}: ask（缺少可信违规证据，转原生审批）"
+         return {
+             "verdict": final,
+             "proposed_verdict": proposed_verdict,
+             "hard_block_evidence": (
+                 "pmkb_confirmed" if final == "block"
+-                and self._model_data(policy_decision).get("effect") == "block" else "none"
++                and self._model_data(policy_decision).get("effect") == "block"
++                else "rv_rule_match" if final == "block" else "none"
+             ),
+             "downgrade_reason": "unverified_violation_evidence" if final != proposed_verdict else None,
+             "triggered_by": triggered_by,
+@@ -728,19 +722,13 @@
+                 )
+ 
+         proposed_verdict = final
+-        if final == "block" and any(
+-            step.get("event_model") == "tool-call-v1"
+-            and (step.get("provenance") or {}).get("source") != "legacy_replay"
+-            for step in rv_trace
+-        ) and self._model_data(policy_decision).get("effect") != "block":
+-            final = "ask"
+-            reason = f"{triggered_by}: ask（缺少可信违规证据，转原生审批）"
+         return {
+             "verdict": final,
+             "proposed_verdict": proposed_verdict,
+             "hard_block_evidence": (
+                 "pmkb_confirmed" if final == "block"
+-                and self._model_data(policy_decision).get("effect") == "block" else "none"
++                and self._model_data(policy_decision).get("effect") == "block"
++                else "rv_rule_match" if final == "block" else "none"
+             ),
+             "downgrade_reason": "unverified_violation_evidence" if final != proposed_verdict else None,
+             "triggered_by": triggered_by,
+--- a/tests/test_rv_tool_call_model.py
++++ b/tests/test_rv_tool_call_model.py
+@@ -53,9 +53,10 @@
+     send = project(tool, params, labels=["external_recipient"], call_id="send")
+     assert "egress" in send["effects"]
+     result = engine.preview([send], session_key="task")
+-    assert result["verdict"] == "ask"
++    assert result["verdict"] == "block"
+     assert result["proposed_verdict"] == "block"
+-    assert result["hard_block_evidence"] == "none"
++    assert result["hard_block_evidence"] == "rv_rule_match"
++    assert result["downgrade_reason"] is None
+     assert read["step_id"] in result["matched_history_step_ids"]
+ 
+ 
+@@ -161,22 +162,23 @@
+     assert set(project(tool, params)["effects"]) == effects
+ 
+ 
+-def test_untrusted_content_loaded_by_fetch_then_send_requests_approval():
++def test_untrusted_content_loaded_by_fetch_then_send_blocks_independently():
+     engine = RuntimeVerificationEngine(window_ttl_seconds=None)
+     engine.evaluate([project("web_fetch", {"url": "https://outside.example"}, labels=["external_source"])])
+     result = engine.preview([project("message", {"target": "outside@example.com"},
+                                     labels=["external_recipient"], call_id="send")])
+-    assert result["verdict"] == "ask"
++    assert result["verdict"] == "block"
+     assert result["proposed_verdict"] == "block"
+-
+-
+-def test_explicitly_public_send_after_sensitive_read_is_not_hard_blocked():
++    assert result["hard_block_evidence"] == "rv_rule_match"
++
++
++def test_public_send_after_sensitive_read_exposes_existing_rule_false_positive():
+     engine = RuntimeVerificationEngine(window_ttl_seconds=None)
+     engine.evaluate([project("read", {"path": "/workspace/secret.txt"}, labels=["contains_secret"])])
+     result = engine.preview([project("message", {"target": "outside@example.com", "message": "public summary"},
+                                     labels=["external_recipient"], call_id="send")])
+-    assert result["verdict"] == "ask"
+-    assert result["hard_block_evidence"] == "none"
++    assert result["verdict"] == "block"
++    assert result["hard_block_evidence"] == "rv_rule_match"
+ 
+ 
+ 

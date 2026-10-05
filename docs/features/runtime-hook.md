@@ -117,12 +117,12 @@ Guard 会同时返回 `user_summary`、`approval`、`allowed_decisions`、`polic
 
 ### 后端静默透传与恢复（Circuit Breaker）
 
-Guard 后端可能因维护、故障或网络隔离而不可达。此时插件以 OpenClaw 可用性为先：所有 Agent 的工具调用都由 OpenClaw 自身规则继续处理，Guard 不提供保护。
+Guard 后端可能因维护、故障或网络隔离而不可达。**插件未启动或后端不可达时，绝不对 Agent 做任何阻拦**：所有 Agent 的工具调用都由 OpenClaw 自身规则继续处理，Guard 不提供保护，也不施加任何额外阻断。
 
 1. **健康状态**：正常请求由 Guard 返回 `allow`、`requireApproval` 或 `block`。
 2. **传输故障**：连接拒绝或超时时，当前与后续 `before_tool_call` 对所有工具返回 `undefined`；`after_tool_call` 和既有审批的 Guard 同步不再等待后端。写入与执行也不例外。
 3. **恢复**：后台健康检查不仅要求 HTTP 成功，还要验证返回的 Guard 产品标识。启动时一次有效健康检查即可启用；失联后需连续两次成功。其他进程占用配置端口并返回 HTTP 200 不会被误认作 Guard。静默期间错过的阻断和审计不会重放。
-4. **有响应的错误**：后端明确返回 HTTP 401/4xx/5xx 不等同于传输失联，仍按分级错误策略处理；遗留 `failClosed: true` 只在此类错误时可全量阻断。
+4. **有响应的错误**：后端明确返回 HTTP 401/4xx/5xx，或返回 2xx 但响应体不可解析时，插件同样**放行所有工具**，绝不凭错误码自行构造阻断；错误只体现在 `hook_status` 的 `backendResponseError` 上。只有 Guard 明确返回 `action: "block"` 时才会阻断。遗留 `failClosed` 已不再阻断任何调用。
 
 行为总结：
 
@@ -130,21 +130,22 @@ Guard 后端可能因维护、故障或网络隔离而不可达。此时插件�
 |----------|-----------|------|------|
 | 启动尚未确认健康 | silent | 所有工具透传 | Guard 防护暂停 |
 | 传输不可达 | silent | 所有工具透传，无同步回调 | Guard 防护暂停 |
-| HTTP 错误有响应 | active + backendResponseError | 低影响透传，高影响阻断；遗留 `failClosed=true` 可全量阻断 | 后端异常，不是静默 |
+| HTTP 错误有响应 | active + backendResponseError | 所有工具透传 | 后端异常，不是静默；Guard 已放弃本次判定 |
+| 明确 `action: "block"` | active | 该工具阻断 | Guard 有判定结果 |
 | 恢复（≥ 2 次连续健康检查成功） | active | 返回 requireApproval / block / allow | 恢复正常审批 |
 
 通过 `pluginConfig` 可配置：
 
 ```javascript
 pluginConfig = {
-  failClosed: false,                   // 旧兼容项：仅对有响应的 HTTP 错误生效，传输故障一律透传
+  failClosed: false,                   // 遗留项：不再阻断任何工具调用，仅保留解析兼容
   failThreshold: 3,                    // 已弃用：传输故障立即透传
   recoveryThreshold: 2,                // 恢复成功次数阈值
   failClosedGracePeriodMs: 30000,      // 已弃用：无传输故障阻断优雅期
 }
 ```
 
-> **系统默认**：首次写入 `openclaw.json` 时仍为兼容保留 `failClosed: false`。传输故障时即使旧配置为 `true`，所有工具也静默透传。后端从可用状态突然断开时，首个失败调用可能等待一次决策超时（默认 2 秒），后续调用不再同步请求。生产环境应监控 `hook_status` 的 `state`、`backendResponseError` 和 `circuitOpen`；只有 `state=active` 且无响应错误时才可认为 Guard 防护正常。
+> **系统默认**：首次写入 `openclaw.json` 时仍为兼容保留 `failClosed: false`。无论 `failClosed` 取何值，传输故障与后端错误（HTTP 4xx/5xx 或响应体不可解析）时所有工具一律透传，插件不构造任何阻断。后端从可用状态突然断开时，首个失败调用可能等待一次决策超时（默认 2 秒），后续调用不再同步请求。生产环境应监控 `hook_status` 的 `state`、`backendResponseError` 和 `circuitOpen`；只有 `state=active` 且无响应错误时才可认为 Guard 防护正常。
 
 ## 审批结果同步机制
 
@@ -269,21 +270,28 @@ openclaw config validate
 
 RV（Runtime Verification，运行时验证）模式是龙虾卫士的一项可选高级安全能力。开启后，系统会在常规规则引擎之外，运行由 **ChainRule DSL 编译生成的办公场景监视器**，通过滑动窗口分析工具调用的行为序列，识别链式风险。
 
+### 统一工具事件模型
+
+从 `tool-call-v1` 起，一次实际工具调用对应一个 RV 步骤。操作效果由 Hook、PMKB 操作目录和已登记的原生子动作投影；语义模型提供敏感度、外部来源等补充事实。聊天意图和模型列出的计划动作不会增加调用次数。
+
+DSL 使用 `when.tool` 匹配操作族和效果，计数及窗口条件使用 `effect:read`、`effect:egress` 等统一标签。成功的 `after_tool_call` 才提交历史；失败、拒绝和审批中的调用不提交。旧规约加载时自动迁移，旧历史标记为 `legacy_replay`，不冒充可信 Hook 证据。
+
+RV 链式规约命中 block 时独立硬阻断，不再要求 PMKB 同时确认 block；规约返回 ask 时请求原生审批。规则命中仍可能误判合法任务，需单独测量正常完成、误硬阻断和实际审批次数。审批请求本身不能算攻击防护成功。详见[迁移与验收记录](../architecture/rv-tool-call-migration-2026-10-04.md)。
+
 ### RV 模式能做什么
 
 | 场景 | 检测内容 | 判定 |
 |------|---------|------|
-| 邮件外发 + 敏感内容 | 外部收件人 + 含敏感信息 | block |
-| 邮件群发 / AI 草稿 | 群发或 AI 内容未审阅 | ask |
-| 日报外发 + 内部来源 | 内部日报发到外部 | block |
-| 搜索文件 → 删除 | 先搜索高价值路径后删除 | block |
-| 关闭审计 → 改配置 | 先关审计后改配置 | block |
-| 下载附件 → 外传 | 下载后外发或发邮件 | ask / block |
-| 读取凭据 → 网络连接 | 读敏感凭据后外联 | ask / block |
-| 批量删除累积 | 10 次以上 ask / 50 次以上 block | ask / block |
-| 数据库查询后导出 | 查敏感表后导出 | ask / block |
-| 批量上传到外部 | 大批量文件发往外网 | ask / block |
+| 邮件、消息、网络外发 + 敏感读取历史 | 统一外发效果与历史敏感事实 | block（符合规约时） |
+| 群发 / AI 草稿 | 群发或 AI 内容未审阅 | ask |
+| 搜索文件 → 删除 | 高价值读取后删除 | block（符合规约时） |
+| 关闭审计 → 改配置 | 审计关闭后配置修改 | block（符合规约时） |
+| 外部内容读取 → 外发 | 来源不可信的上下文后续外发 | block（符合规约时；存在误阻风险） |
+| 读取凭据 → 网络连接 | 敏感凭据访问后外联 | block（符合规约时） |
+| 批量删除累积 | 窗口内删除调用计数；高阈值需足够大的窗口 | ask |
+| 数据库查询后导出 | 敏感查询后写入或导出 | block（符合规约时） |
 | 共享链接权限变更 | 改为公开或移除密码 | ask |
+| 已知工具的未知子动作 | 效果无法验证 | ask |
 
 ### 开启/关闭 RV 模式
 

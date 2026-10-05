@@ -55,7 +55,7 @@
 - **全链路审计** — SHA-256 哈希链防篡改，SQLite + JSONL 双写
 - **基线安全扫描** — 配置/端口/用户/依赖全量扫描，输出 JSON/HTML/PDF
 
-核心设计原则：**非侵入、先决策后执行、可取证、分级故障降级**（低风险只读可审计放行，高影响工具保持阻断；`failClosed=true` 可全量阻断）。
+核心设计原则：**非侵入、先决策后执行、可取证、后端不可达即完全透传**（插件未启动或后端不可达/返回错误时，绝不对 Agent 做任何阻拦；只有 Guard 明确返回 `block` 才阻断）。
 
 ## 技术栈
 
@@ -220,7 +220,7 @@ cd e2e && npm install && npm run install:browsers && npm test
 
 - **非侵入式**：不修改 OpenClaw 源码，通过生成的 JS 插件 + HTTP 桥接通信
 - **单 HTTP 层**：`web/` FastAPI 是唯一启动入口；旧版 stdlib HTTP 实现已移出生产包，源文件仅在归档/Git 历史中保留
-- **分级故障策略**：JS 插件内置，低风险只读在后端不可达时审计放行，高影响工具保持阻断；恢复后回到正常策略
+- **故障透传策略**：JS 插件内置，插件未启动、后端传输不可达或后端返回错误（HTTP 4xx/5xx / 响应体不可解析）时，所有 Agent 工具调用一律透传，插件不构造任何阻断；恢复后回到正常策略
 - **审批同步**：OpenClaw 原生审批卡片是唯一决策入口，Guard Dashboard 通过 SSE/增量查询只读同步
 - **审计哈希链**：每条记录含 `previous_hash` + `record_hash = SHA-256(prev_hash + payload)`
 - **数据库抽象**：`DBStoreInterface` ABC → PostgreSQLStore（生产，含 Redis 缓存）/ SQLiteStore（开发）自动切换

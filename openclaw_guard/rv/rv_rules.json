@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "monitors": [
     {
       "name": "MailMonitor",
@@ -9,82 +9,182 @@
           "id": "mail_idle_to_external",
           "from": "idle",
           "to": "external_source_read",
-          "when": { "any_of": ["attachment_open", "channel_external", "external_source"] }
+          "when": {
+            "any_of": [
+              "attachment_open",
+              "channel_external",
+              "external_source"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "mail_external_to_sensitive",
           "from": "external_source_read",
           "to": "sensitive_data_extracted",
-          "when": { "any_of": ["contains_secret", "path_high_value", "hidden_content"] }
+          "when": {
+            "any_of": [
+              "contains_secret",
+              "path_high_value",
+              "hidden_content"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "mail_idle_to_sensitive",
           "from": "idle",
           "to": "sensitive_data_extracted",
-          "when": { "any_of": ["contains_secret", "path_high_value", "hidden_content"] }
+          "when": {
+            "any_of": [
+              "contains_secret",
+              "path_high_value",
+              "hidden_content"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "mail_sensitive_external_block",
           "from": "sensitive_data_extracted",
           "to": "blocked",
           "verdict": "block",
-          "when": { "event": "mail_send", "all_of": ["external_recipient"] }
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "mail_external_send_ask",
           "from": "external_source_read",
           "to": null,
           "verdict": "ask",
-          "when": { "event": "mail_send", "all_of": ["external_recipient"] }
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "mail_bulk_external_escalate",
           "from": "idle",
-          "to": "escalated",
-          "verdict": "escalate",
-          "when": { "event": "mail_send", "all_of": ["bulk_send", "external_recipient"] }
+          "to": "ask_approval",
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "bulk_send",
+              "external_recipient",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "mail_bulk_ask",
           "from": "idle",
           "to": "ask_approval",
           "verdict": "ask",
-          "when": { "event": "mail_send", "all_of": ["bulk_send"] }
+          "when": {
+            "all_of": [
+              "bulk_send",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "mail_ai_unreviewed_ask",
           "from": "idle",
           "to": "ask_approval",
           "verdict": "ask",
-          "when": { "event": "mail_send", "all_of": ["ai_generated_content"], "none_of": ["requires_human_review"] }
+          "when": {
+            "all_of": [
+              "ai_generated_content",
+              "effect:egress"
+            ],
+            "none_of": [
+              "requires_human_review"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "mail_external_recipient_ask",
           "from": "idle",
           "to": "ask_approval",
           "verdict": "ask",
-          "when": { "event": "mail_send", "all_of": ["external_recipient"] }
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "mail_terminal_block_repeat",
           "from": "blocked",
           "to": "blocked",
           "verdict": "block",
-          "when": { "event": "mail_send" }
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "mail_terminal_escalate_repeat",
           "from": "escalated",
           "to": "escalated",
           "verdict": "escalate",
-          "when": { "event": "mail_send" }
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "mail_terminal_ask_repeat",
           "from": "ask_approval",
           "to": "ask_approval",
           "verdict": "ask",
-          "when": { "event": "mail_send" }
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "mail_file_delete_chain_block",
@@ -92,8 +192,19 @@
           "to": null,
           "verdict": "block",
           "when": {
-            "all_of": ["file_delete", "path_high_value"],
-            "window_any_of": { "labels": ["file_search", "file_read"], "window_size": 5 }
+            "all_of": [
+              "effect:delete",
+              "path_high_value"
+            ],
+            "window_any_of": {
+              "labels": [
+                "effect:read"
+              ],
+              "window_size": 5
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
           }
         }
       ]
@@ -106,54 +217,119 @@
           "id": "report_idle_to_aggregating",
           "from": "idle",
           "to": "source_aggregating",
-          "when": { "all_of": ["internal_source"] }
+          "when": {
+            "all_of": [
+              "internal_source"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "report_to_ready_from_idle",
           "from": "idle",
           "to": "report_ready",
-          "when": { "any_of": ["report_generate", "report_ready"] }
+          "when": {
+            "any_of": [
+              "effect:transform",
+              "report_ready"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "report_to_ready_from_agg",
           "from": "source_aggregating",
           "to": "report_ready",
-          "when": { "any_of": ["report_generate", "report_ready"] }
+          "when": {
+            "any_of": [
+              "effect:transform",
+              "report_ready"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "report_missing_scope_ask",
           "from": "*",
           "to": "asking",
           "verdict": "ask",
-          "when": { "all_of": ["report_generate", "missing_scope_constraint"] }
+          "when": {
+            "all_of": [
+              "effect:transform",
+              "missing_scope_constraint"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "report_blockable_send_any_state",
           "from": "*",
           "to": "blocked",
           "verdict": "block",
-          "when": { "event": "report_send", "all_of": ["external_recipient", "internal_source"] }
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "internal_source",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "report_ready_external_escalate",
           "from": "report_ready",
           "to": "escalated",
           "verdict": "escalate",
-          "when": { "event": "report_send", "all_of": ["external_recipient"] }
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "report_ready_send_ask",
           "from": "report_ready",
           "to": "asking",
           "verdict": "ask",
-          "when": { "event": "report_send", "none_of": ["external_recipient"] }
+          "when": {
+            "none_of": [
+              "external_recipient"
+            ],
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "report_block_repeat",
           "from": "blocked",
           "to": "blocked",
           "verdict": "block",
-          "when": { "event": "report_send" }
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         }
       ]
     },
@@ -165,73 +341,161 @@
           "id": "sec_idle_to_high_value_search",
           "from": "idle",
           "to": "high_value_searched",
-          "when": { "all_of": ["path_high_value"], "any_of": ["file_search", "file_read"] }
+          "when": {
+            "all_of": [
+              "path_high_value"
+            ],
+            "any_of": [
+              "effect:read"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "sec_high_value_delete_block",
           "from": "high_value_searched",
           "to": "blocked",
           "verdict": "block",
-          "when": { "all_of": ["file_delete", "path_high_value"] }
+          "when": {
+            "all_of": [
+              "effect:delete",
+              "path_high_value"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "sec_idle_to_audit_disabled",
           "from": "idle",
           "to": "audit_disabled",
-          "when": { "all_of": ["config_audit_disable"] }
+          "when": {
+            "all_of": [
+              "config_audit_disable"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "sec_audit_modify_block",
           "from": "audit_disabled",
           "to": "blocked",
           "verdict": "block",
-          "when": { "all_of": ["config_modify"] }
+          "when": {
+            "all_of": [
+              "effect:configure"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "sec_idle_to_sensitive_access_attachment",
           "from": "idle",
           "to": "sensitive_content_accessed",
-          "when": { "all_of": ["attachment_download"] }
+          "when": {
+            "all_of": [
+              "attachment_download"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "sec_idle_to_sensitive_access_secret_read",
           "from": "idle",
           "to": "sensitive_content_accessed",
-          "when": { "all_of": ["file_read", "contains_secret"] }
+          "when": {
+            "all_of": [
+              "effect:read",
+              "contains_secret"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "sec_sensitive_access_network_egress_block",
           "from": "sensitive_content_accessed",
           "to": "blocked",
           "verdict": "block",
-          "when": { "all_of": ["network_egress"] }
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "sec_sensitive_access_channel_egress_block",
           "from": "sensitive_content_accessed",
           "to": "blocked",
           "verdict": "block",
-          "when": { "all_of": ["channel_send"], "any_of": ["external_recipient", "channel_external_send", "cross_org"] }
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "external_recipient",
+              "channel_external_send",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "sec_sensitive_access_egress_escalate",
           "from": "sensitive_content_accessed",
           "to": "escalated",
           "verdict": "escalate",
-          "when": { "any_of": ["network_egress", "mail_send"] }
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "sec_idle_to_creds_access",
           "from": "idle",
           "to": "credentials_accessed",
-          "when": { "any_of": ["path_sensitive_creds", "command_read_secret"] }
+          "when": {
+            "any_of": [
+              "path_sensitive_creds",
+              "command_read_secret"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "sec_creds_egress_escalate",
           "from": "credentials_accessed",
           "to": "escalated",
           "verdict": "escalate",
-          "when": { "any_of": ["network_egress", "command_ssh"] }
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "sec_batch_delete_escalate",
@@ -239,8 +503,81 @@
           "to": "escalated",
           "verdict": "escalate",
           "when": {
-            "all_of": ["file_delete"],
-            "count_gte": { "label": "file_delete", "threshold": 5, "window_size": 10 }
+            "all_of": [
+              "effect:delete"
+            ],
+            "count_gte": {
+              "label": "effect:delete",
+              "threshold": 5,
+              "window_size": 10
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "tool_unmodeled_effect_ask",
+          "from": "*",
+          "to": null,
+          "verdict": "ask",
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1",
+              "operation_families": [
+                "agent.spawn",
+                "agents.read",
+                "audit.modify",
+                "automation.modify",
+                "browser.interact",
+                "calendar.modify",
+                "computer.control",
+                "config.modify",
+                "conversation.message",
+                "conversation.read",
+                "conversation.send",
+                "credential.read",
+                "dashboard.read",
+                "data.export",
+                "data.query",
+                "directory.read",
+                "document.read",
+                "document.write",
+                "event.subscribe",
+                "file.bulk_transfer",
+                "file.delete",
+                "file.read",
+                "file.write",
+                "gateway.modify",
+                "goal.read",
+                "goal.write",
+                "identity.auth.modify",
+                "identity.permission.grant",
+                "meeting.create",
+                "memory.read",
+                "message.send",
+                "network.egress",
+                "node.control",
+                "plan.write",
+                "process.execute",
+                "progress.write",
+                "screen.read",
+                "secret.read",
+                "session.control",
+                "session.manage",
+                "session.read",
+                "session.send",
+                "session.token.read",
+                "skill.execute",
+                "table.read",
+                "ui.modify",
+                "user.interaction",
+                "workflow.approve"
+              ],
+              "effects_any_of": [
+                "unknown"
+              ]
+            }
           }
         }
       ]
@@ -255,8 +592,18 @@
           "to": "blocked",
           "verdict": "block",
           "when": {
-            "all_of": ["channel_send", "bulk_send", "external_recipient"],
-            "any_of": ["contains_secret", "cross_org"]
+            "all_of": [
+              "effect:egress",
+              "bulk_send",
+              "external_recipient"
+            ],
+            "any_of": [
+              "contains_secret",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
           }
         },
         {
@@ -265,8 +612,18 @@
           "to": "blocked",
           "verdict": "block",
           "when": {
-            "all_of": ["channel_send", "bulk_send", "external_recipient"],
-            "any_of": ["contains_secret", "cross_org"]
+            "all_of": [
+              "effect:egress",
+              "bulk_send",
+              "external_recipient"
+            ],
+            "any_of": [
+              "contains_secret",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
           }
         },
         {
@@ -274,34 +631,77 @@
           "from": "idle",
           "to": "broadcasting",
           "verdict": "ask",
-          "when": { "all_of": ["channel_send", "bulk_send"] }
+          "when": {
+            "all_of": [
+              "effect:egress",
+              "bulk_send"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "broadcast_idle_to_single",
           "from": "idle",
           "to": "single_chat",
-          "when": { "all_of": ["channel_send"], "none_of": ["bulk_send"] }
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "none_of": [
+              "bulk_send"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "broadcasting_external_block",
           "from": "broadcasting",
           "to": "blocked",
           "verdict": "block",
-          "when": { "all_of": ["channel_send"], "any_of": ["cross_org", "contains_secret"] }
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "cross_org",
+              "contains_secret"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "broadcasting_default_ask",
           "from": "broadcasting",
           "to": "broadcasting",
           "verdict": "ask",
-          "when": { "all_of": ["channel_send"] }
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "broadcast_block_repeat",
           "from": "blocked",
           "to": "blocked",
           "verdict": "block",
-          "when": { "all_of": ["channel_send"] }
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         }
       ]
     },
@@ -314,14 +714,30 @@
           "from": "idle",
           "to": "blocked",
           "verdict": "block",
-          "when": { "any_of": ["batch_export", "large_export"] }
+          "when": {
+            "any_of": [
+              "batch_export",
+              "large_export"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "export_batch_block_sensitive",
           "from": "query_sensitive",
           "to": "blocked",
           "verdict": "block",
-          "when": { "any_of": ["batch_export", "large_export"] }
+          "when": {
+            "any_of": [
+              "batch_export",
+              "large_export"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "export_idle_to_sensitive_query",
@@ -329,8 +745,20 @@
           "to": "query_sensitive",
           "verdict": "ask",
           "when": {
-            "all_of": ["database_query"],
-            "any_of": ["user_table", "payment_data", "credential", "customer_pii", "user", "payment"]
+            "all_of": [
+              "effect:query"
+            ],
+            "any_of": [
+              "user_table",
+              "payment_data",
+              "credential",
+              "customer_pii",
+              "user",
+              "payment"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
           }
         },
         {
@@ -339,8 +767,17 @@
           "to": "idle",
           "verdict": "ask",
           "when": {
-            "all_of": ["database_query"],
-            "count_gte": { "label": "database_query", "threshold": 3, "window_size": 20 }
+            "all_of": [
+              "effect:query"
+            ],
+            "count_gte": {
+              "label": "effect:query",
+              "threshold": 3,
+              "window_size": 20
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
           }
         },
         {
@@ -349,9 +786,22 @@
           "to": "escalated",
           "verdict": "escalate",
           "when": {
-            "all_of": ["file_write"],
-            "any_of": ["export_format", "csv_export"],
-            "window_any_of": { "labels": ["database_query"], "window_size": 5 }
+            "all_of": [
+              "effect:write"
+            ],
+            "any_of": [
+              "export_format",
+              "csv_export"
+            ],
+            "window_any_of": {
+              "labels": [
+                "effect:query"
+              ],
+              "window_size": 5
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
           }
         },
         {
@@ -359,21 +809,40 @@
           "from": "query_sensitive",
           "to": "escalated",
           "verdict": "escalate",
-          "when": { "all_of": ["file_write"], "any_of": ["export_format", "csv_export"] }
+          "when": {
+            "all_of": [
+              "effect:write"
+            ],
+            "any_of": [
+              "export_format",
+              "csv_export"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "export_block_sticky",
           "from": "blocked",
           "to": "blocked",
           "verdict": "block",
-          "when": {}
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "export_escalate_sticky",
           "from": "escalated",
           "to": "escalated",
           "verdict": "escalate",
-          "when": {}
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         }
       ]
     },
@@ -386,15 +855,30 @@
           "from": "idle",
           "to": "searching",
           "when": {
-            "any_of": ["file_search", "file_read"],
-            "none_of": ["file_compress", "file_package", "network_egress", "file_upload"]
+            "any_of": [
+              "effect:read"
+            ],
+            "none_of": [
+              "effect:transform",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
           }
         },
         {
           "id": "batch_searching_to_packaging",
           "from": "searching",
           "to": "packaging",
-          "when": { "any_of": ["file_compress", "file_package"] }
+          "when": {
+            "any_of": [
+              "effect:transform"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "batch_packaging_egress_block",
@@ -402,8 +886,19 @@
           "to": "blocked",
           "verdict": "block",
           "when": {
-            "any_of": ["network_egress", "file_upload"],
-            "window_any_of": { "labels": ["contains_secret", "path_high_value"], "window_size": 10 }
+            "any_of": [
+              "effect:egress"
+            ],
+            "window_any_of": {
+              "labels": [
+                "contains_secret",
+                "path_high_value"
+              ],
+              "window_size": 10
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
           }
         },
         {
@@ -412,14 +907,39 @@
           "to": "blocked",
           "verdict": "block",
           "when": {
-            "any_of": ["network_egress", "file_upload"],
-            "window_any_of": { "labels": ["contains_secret", "path_high_value"], "window_size": 10 },
+            "any_of": [
+              "effect:egress"
+            ],
+            "window_any_of": {
+              "labels": [
+                "contains_secret",
+                "path_high_value"
+              ],
+              "window_size": 10
+            },
             "sequence": {
               "window_size": 10,
               "steps": [
-                { "any_of": ["file_search", "file_read"] },
-                { "any_of": ["file_compress", "file_package"] }
+                {
+                  "any_of": [
+                    "effect:read"
+                  ],
+                  "tool": {
+                    "event_model": "tool-call-v1"
+                  }
+                },
+                {
+                  "any_of": [
+                    "effect:transform"
+                  ],
+                  "tool": {
+                    "event_model": "tool-call-v1"
+                  }
+                }
               ]
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
             }
           }
         },
@@ -428,56 +948,124 @@
           "from": "*",
           "to": null,
           "verdict": "block",
-          "when": { "all_of": ["file_delete"], "count_gte": { "label": "file_delete", "threshold": 50 } }
+          "when": {
+            "all_of": [
+              "effect:delete"
+            ],
+            "count_gte": {
+              "label": "effect:delete",
+              "threshold": 50
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "batch_delete_ask",
           "from": "*",
           "to": null,
           "verdict": "ask",
-          "when": { "all_of": ["file_delete"], "count_gte": { "label": "file_delete", "threshold": 10 } }
+          "when": {
+            "all_of": [
+              "effect:delete"
+            ],
+            "count_gte": {
+              "label": "effect:delete",
+              "threshold": 10
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "batch_upload_external_escalate",
           "from": "*",
-          "to": "escalated",
-          "verdict": "escalate",
-          "when": { "any_of": ["file_upload", "batch_upload"], "all_of": ["bulk_send", "external_target"] }
+          "to": "asking",
+          "verdict": "ask",
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "all_of": [
+              "bulk_send",
+              "external_target"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "batch_share_modify_ask",
           "from": "*",
           "to": "asking",
           "verdict": "ask",
-          "when": { "all_of": ["share_link_update"], "any_of": ["public_access", "password_removed"] }
+          "when": {
+            "all_of": [
+              "effect:configure"
+            ],
+            "any_of": [
+              "public_access",
+              "password_removed"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "batch_cloud_cleanup_escalate",
           "from": "*",
           "to": null,
           "verdict": "escalate",
-          "when": { "all_of": ["cloud_cleanup"], "count_gte": { "label": "file_delete", "threshold": 100, "window_size": 30 } }
+          "when": {
+            "all_of": [
+              "effect:delete"
+            ],
+            "count_gte": {
+              "label": "effect:delete",
+              "threshold": 100,
+              "window_size": 30
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "batch_block_sticky",
           "from": "blocked",
           "to": "blocked",
           "verdict": "block",
-          "when": {}
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "batch_escalate_sticky",
           "from": "escalated",
           "to": "escalated",
           "verdict": "escalate",
-          "when": {}
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "batch_ask_sticky",
           "from": "asking",
           "to": "asking",
           "verdict": "ask",
-          "when": {}
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         }
       ]
     },
@@ -485,7 +1073,9 @@
       "name": "PerRecipientMailMonitor",
       "initial": "idle",
       "quantifier": "forall",
-      "bind_vars": ["recipients"],
+      "bind_vars": [
+        "recipients"
+      ],
       "rules": [
         {
           "id": "precip_read_to_send_warn",
@@ -493,9 +1083,23 @@
           "to": "idle",
           "verdict": "ask",
           "when": {
-            "event": "mail_send",
             "entity_any_of": [
-              { "kind": "recipients", "match_type": "domain_not_in", "values": ["internal.com"] }
+              {
+                "kind": "recipients",
+                "match_type": "domain_not_in",
+                "values": [
+                  "internal.com"
+                ]
+              }
+            ],
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            },
+            "none_of": [
+              "internal_recipient"
             ]
           }
         }
@@ -509,7 +1113,14 @@
           "id": "demo_warm_to_hot",
           "from": "idle",
           "to": "warm",
-          "when": { "any_of": ["mail_send"] }
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "demo_warm_threshold_ask",
@@ -517,8 +1128,17 @@
           "to": "warm",
           "verdict": "ask",
           "when": {
-            "any_of": ["mail_send"],
-            "state_counter": { "warm": { "gte": 5 } }
+            "any_of": [
+              "effect:egress"
+            ],
+            "state_counter": {
+              "warm": {
+                "gte": 5
+              }
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
           }
         }
       ]
@@ -532,8 +1152,15 @@
           "from": "idle",
           "to": "external_content_loaded",
           "when": {
-            "all_of": ["external_source"],
-            "none_of": ["network_egress", "channel_send"]
+            "all_of": [
+              "external_source"
+            ],
+            "none_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
           }
         },
         {
@@ -541,7 +1168,14 @@
           "from": "external_content_loaded",
           "to": "blocked",
           "verdict": "block",
-          "when": { "all_of": ["network_egress"] }
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
         },
         {
           "id": "untrusted_external_content_channel_egress_block",
@@ -549,11 +1183,21 @@
           "to": "blocked",
           "verdict": "block",
           "when": {
-            "all_of": ["channel_send"],
-            "any_of": ["external_recipient", "channel_external_send", "cross_org"]
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "external_recipient",
+              "channel_external_send",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
           }
         }
       ]
     }
-  ]
+  ],
+  "event_model": "tool-call-v1"
 }

@@ -180,3 +180,32 @@ def test_arms_manifest_records_component_sets() -> None:
     assert arms_digest() == arms_digest()
     full = next(entry for entry in manifest["arms"] if entry["name"] == "Full")
     assert full["disabled_components"] == []
+
+
+def test_frozen_provider_ports_do_not_change_native_projection() -> None:
+    """受控本地轨迹端口不影响策略哈希，归一化不能改写原配置。"""
+    left = _base_config()
+    left["models"] = {"providers": {"office-chain-fixed": {"baseUrl": "http://127.0.0.1:23001/v1"}}}
+    right = copy.deepcopy(left)
+    right["models"]["providers"]["office-chain-fixed"]["baseUrl"] = "http://127.0.0.1:23002/v1"
+    assert native_projection_sha256(left) == native_projection_sha256(right)
+    assert left["models"]["providers"]["office-chain-fixed"]["baseUrl"] == "http://127.0.0.1:23001/v1"
+
+
+@pytest.mark.parametrize("changed_url", ["https://remote.example/v1", "http://127.0.0.2:23001/v1", "http://127.0.0.1:23001/other"])
+def test_frozen_provider_endpoint_changes_remain_detectable(changed_url: str) -> None:
+    """只豁免本地随机端口，真实 provider 地址或协议变化必须保留。"""
+    left = _base_config()
+    left["models"] = {"providers": {"office-chain-fixed": {"baseUrl": "http://127.0.0.1:23001/v1"}}}
+    right = copy.deepcopy(left)
+    right["models"]["providers"]["office-chain-fixed"]["baseUrl"] = changed_url
+    assert native_projection_sha256(left) != native_projection_sha256(right)
+
+
+def test_other_provider_ports_remain_detectable() -> None:
+    """真实模型 provider 的端口不属于本实验随机绑定豁免。"""
+    left = _base_config()
+    left["models"] = {"providers": {"other-provider": {"baseUrl": "http://127.0.0.1:23001/v1"}}}
+    right = copy.deepcopy(left)
+    right["models"]["providers"]["other-provider"]["baseUrl"] = "http://127.0.0.1:23002/v1"
+    assert native_projection_sha256(left) != native_projection_sha256(right)

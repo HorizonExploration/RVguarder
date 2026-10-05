@@ -85,7 +85,8 @@ class WebCliTests(unittest.TestCase):
             config_path = project / "openclaw.json"
             config_path.write_text(json.dumps({"models": {"providers": {}}}), encoding="utf-8")
             argv = ["run", "--project-dir", str(project), "--config-path", str(config_path), "--once", "--no-browser"]
-            with patch("sys.stdout.write") as write_mock:
+            # 真实 load_dotenv 会把仓库 .env 的密钥写进同进程 os.environ，污染后续测试。
+            with patch("openclaw_guard.main.load_dotenv"), patch("sys.stdout.write") as write_mock:
                 exit_code = main(argv)
             self.assertEqual(exit_code, 0)
             self.assertTrue(write_mock.called)
@@ -97,7 +98,7 @@ class WebCliTests(unittest.TestCase):
             config_path = project / "openclaw.json"
             config_path.write_text(json.dumps({"models": {"providers": {}}}), encoding="utf-8")
             argv = ["run", "--project-dir", str(project), "--config-path", str(config_path), "--once", "--no-browser"]
-            with patch("sys.stdout.write") as write_mock:
+            with patch("openclaw_guard.main.load_dotenv"), patch("sys.stdout.write") as write_mock:
                 exit_code = main(argv)
             self.assertEqual(exit_code, 0)
             output = "".join(call.args[0] for call in write_mock.call_args_list)

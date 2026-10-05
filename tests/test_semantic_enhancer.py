@@ -60,7 +60,8 @@ class SemanticEnhancerTests(unittest.TestCase):
             self.assertEqual(metadata["semantic"]["scenario"], "report_send")
             self.assertEqual(metadata["semantic_match"]["version"], "v3")
             self.assertEqual(metadata["semantic_audit"]["llm_status"], "disabled")
-            self.assertEqual(metadata["rv_trace"][0]["event"], "report_send")
+            self.assertEqual(metadata["rv_trace"][0]["event"], "tool_call")
+            self.assertEqual(metadata["semantic_rv_trace"][0]["event"], "report_send")
             self.assertIn("external_recipient", metadata["rv_trace"][0]["props"])
             self.assertEqual(payload["status"], "pending_approval")
 
@@ -108,16 +109,12 @@ class SemanticEnhancerTests(unittest.TestCase):
             self.assertEqual(result["action"], "block")
             metadata = result["action_record"]["event"]["metadata"]
             self.assertEqual(metadata["semantic"]["scenario"], "mail_send")
-            self.assertEqual(metadata["rv_trace"][0]["event"], "mail_send")
+            self.assertEqual(metadata["rv_trace"][0]["event"], "tool_call")
+            self.assertEqual(metadata["semantic_rv_trace"][0]["event"], "mail_send")
             self.assertIn("external_recipient", metadata["rv_trace"][0]["props"])
 
-    def test_create_chat_action_uses_semantic_decision_for_report_send(self) -> None:
-        """report_send + external_recipient + internal_source → block。
-
-        "不要带内部 bug 细节" 明确提及内部源内容，语义增强器检测到
-        internal_source 标签。检测引擎的单步判定返回 block（三要素同时满足）。
-        ReportMonitor 顶部 is_blockable_send() 检查同样会触发 block。
-        """
+    def test_chat_intent_does_not_create_a_tool_execution(self) -> None:
+        """聊天里的发送意图不能当作已经发生或即将执行的工具调用。"""
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp) / "OpenclawGuard"
             project.mkdir()
@@ -127,9 +124,10 @@ class SemanticEnhancerTests(unittest.TestCase):
 
             payload = manager.create_chat_action("把今天的日报发给 alice@example.com，不要带内部 bug 细节")
 
-            self.assertEqual(payload["decision"]["action"], "block")
+            self.assertEqual(payload["decision"]["action"], "allow")
             self.assertEqual(payload["event"]["metadata"]["semantic"]["scenario"], "report_send")
-            self.assertIn("internal_source", payload["event"]["metadata"]["rv_trace"][0]["props"])
+            self.assertEqual(payload["event"]["metadata"]["rv_trace"], [])
+            self.assertIn("internal_source", payload["event"]["metadata"]["semantic_rv_trace"][0]["props"])
 
     def test_llm_success_path_uses_llm_engine_tag(self) -> None:
         """配置 API key 且 LLM 返回有效 JSON 时，使用 LLM 结果。"""

@@ -35,18 +35,18 @@ class TraceCompiler:
                  for item in (rv_trace or []) if isinstance(item, Mapping) or hasattr(item, "model_dump")]
         tool_id = str(event.metadata.get("tool_name") or event.api_name or _ACTION_TO_TOOL.get(event.action_type, event.action_type))
         params = dict(event.raw_payload.get("params", {})) if isinstance(event.raw_payload.get("params", {}), dict) else {}
-        params.setdefault("action_type", event.action_type)
-        command_safety = event.metadata.get("command_safety")
-        if not isinstance(command_safety, dict) and event.command:
-            command_safety = analyze_command(event.command).to_dict()
+        params["action_type"] = event.action_type
+        # 派生安全证据不能由工具参数或调用者提供的标签覆盖。
+        command_safety = analyze_command(event.command).to_dict() if event.command else None
+        params.pop("command_safety", None)
         if isinstance(command_safety, dict):
-            params.setdefault("command_safety", str(command_safety.get("classification") or "unknown"))
+            params["command_safety"] = command_safety["classification"]
         if event.command:
-            params.setdefault("command", event.command)
+            params["command"] = event.command
             try:
-                params.setdefault("argv", shlex.split(event.command))
+                params["argv"] = shlex.split(event.command)
             except ValueError:
-                params.setdefault("argv", [])
+                params["argv"] = []
         operation = self.bundle.operation_for_tool(tool_id, params)
         if operation.family == "unknown_tool" and event.action_type in _ACTION_TO_TOOL:
             operation = self.bundle.operation_for_tool(_ACTION_TO_TOOL[event.action_type], params)

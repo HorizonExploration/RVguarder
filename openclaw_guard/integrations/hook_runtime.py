@@ -318,10 +318,11 @@ def _write_plugin_bundle(plugin_dir: Path, *, guard_url: str, auth_token: str) -
                 "authToken": {"type": "string"},
                 "decisionTimeoutMs": {"type": "integer"},
                 "callbackTimeoutMs": {"type": "integer"},
-                "failClosed": {"type": "boolean", "description": "Legacy setting: transport outages always pass through; responsive HTTP errors may block all tools when true."},
+                "failClosed": {"type": "boolean", "description": "Legacy setting: transport outages and Guard-side errors always pass through; this flag no longer blocks any tool call."},
                 "failClosedGracePeriodMs": {"type": "integer", "description": "Deprecated; transport outages immediately pass through."},
                 "failThreshold": {"type": "integer", "description": "Deprecated; transport outages immediately pass through."},
                 "recoveryThreshold": {"type": "integer"},
+                "startupHealthCheck": {"type": "boolean", "description": "Start asynchronous health checks during registration for runtimes that do not emit gateway_start. Tools never wait for these probes."},
             },
         },
     }
@@ -365,12 +366,6 @@ const DEFAULT_AUTH_TOKEN = "__AUTH_TOKEN__";
 const DEFAULT_DECISION_TIMEOUT_MS = __DECISION_TIMEOUT_MS__;
 const MAX_APPROVAL_DESCRIPTION_CHARS = 512;
 const MAX_APPROVAL_TITLE_CHARS = 80;
-const HIGH_IMPACT_TOOLS = new Set([
-  "write", "edit", "apply_patch", "file_write", "file_delete",
-  "exec", "shell", "shell_exec", "process", "terminal", "code_execution",
-  "network.request", "web_search", "web_fetch", "browser",
-  "message", "sessions_send", "sessions_spawn", "gateway", "nodes", "computer",
-]);
 
 function trimTrailingSlash(value) {{
   return String(value || "").replace(/\\/+$/, "");
@@ -394,20 +389,6 @@ function boundedApprovalText(value, fallback, maxChars) {{
     return text;
   }}
   return text.slice(0, Math.max(1, maxChars - 1)).trimEnd() + "…";
-}}
-
-function isHighImpactTool(event) {{
-  const toolName = String(event?.toolName || "").trim().toLowerCase();
-  if (HIGH_IMPACT_TOOLS.has(toolName) || /(^|[._-])(write|edit|delete|exec|shell|process|terminal|browser|message|send|upload|download)([._-]|$)/.test(toolName)) {{
-    return true;
-  }}
-  let serialized = "";
-  try {{
-    serialized = JSON.stringify(event?.params || {{}}).toLowerCase();
-  }} catch (_error) {{
-    serialized = "";
-  }}
-  return /(^|[^a-z])(rm|sudo|chmod|chown|curl|wget|invoke-webrequest)([^a-z]|$)/.test(serialized);
 }}
 
 async function postJson(url, payload, timeoutMs, authToken) {{
@@ -490,7 +471,7 @@ export default {{
     const guardUrl = trimTrailingSlash(pluginConfig.guardUrl || DEFAULT_GUARD_URL);
     const authToken = String(pluginConfig.authToken || DEFAULT_AUTH_TOKEN || "");
     const failClosed = pluginConfig.failClosed === true;
-    if (failClosed) api.logger.warn(`[${{PLUGIN_ID}}] failClosed is deprecated for transport outages; agent tools pass through while Guard is unreachable`);
+    if (failClosed) api.logger.warn(`[${{PLUGIN_ID}}] failClosed is deprecated; agent tools pass through whenever Guard is unreachable or returns no explicit decision`);
     const decisionTimeoutMs = Number(pluginConfig.decisionTimeoutMs || DEFAULT_DECISION_TIMEOUT_MS);
     const callbackTimeoutMs = Number(pluginConfig.callbackTimeoutMs || 15000);
 
@@ -520,6 +501,14 @@ export default {{
     let consecutiveSuccesses = 0;
     const RECOVERY_THRESHOLD = Number(pluginConfig.recoveryThreshold || 2);
     let healthCheckTimer = null;
+
+    function startHealthChecks() {{
+      if (!healthCheckTimer) {{
+        healthCheckTimer = setInterval(doHealthCheck, 30000);
+        healthCheckTimer.unref?.();
+      }}
+      return doHealthCheck();
+    }}
 
     async function doHealthCheck() {{
       const controller = new AbortController();
@@ -643,29 +632,28 @@ export default {{
             }};
           }}
 
-          return {{
-            block: true,
-            blockReason: boundedApprovalText(result.blockReason || result.message, "龙虾卫士已阻止该操作，请查看风险说明。", MAX_APPROVAL_DESCRIPTION_CHARS),
-          }};
+          if (result.action === "block") {{
+            return {{
+              block: true,
+              blockReason: boundedApprovalText(result.blockReason || result.message, "龙虾卫士已阻止该操作，请查看风险说明。", MAX_APPROVAL_DESCRIPTION_CHARS),
+            }};
+          }}
+
+          // Guard answered without an explicit decision (unknown or missing action):
+          // never invent a block. Fail open and keep the anomaly visible in status.
+          backendResponseError = true;
+          api.logger.warn(`[${{PLUGIN_ID}}] Guard returned no explicit decision — tool call passes through`);
+          return undefined;
         }} catch (error) {{
           if (error?.kind === "transport") {{
             enterSilent("decision_transport");
             return undefined;
           }}
+          // Guard answered with an error (HTTP status or unreadable body). A Guard-side
+          // failure must never block the agent: fail open, keep the error visible.
           backendResponseError = true;
-          api.logger.warn(`[${{PLUGIN_ID}}] before_tool_call response error (${{error?.kind || "unknown"}})`);
-          if (!failClosed && !isHighImpactTool(event)) {{
-            return undefined;
-          }}
-          api.logger.warn(`[${{PLUGIN_ID}}] Guard responded with an error — blocking high-impact tool call`);
-          return {{
-            block: true,
-            blockReason: boundedApprovalText(
-              "龙虾卫士服务返回错误，已按安全策略暂停该操作。",
-              "龙虾卫士服务返回错误，已按安全策略暂停该操作。",
-              MAX_APPROVAL_DESCRIPTION_CHARS,
-            ),
-          }};
+          api.logger.warn(`[${{PLUGIN_ID}}] before_tool_call response error (${{error?.kind || "unknown"}}) — tool call passes through`);
+          return undefined;
         }}
       }},
       {{ registrationId: "openclaw_guard_before_tool_call" }},
@@ -711,9 +699,7 @@ export default {{
       () => {{
         api.logger.info(`[${{PLUGIN_ID}}] Gateway started — initializing health check (30s interval)`);
         // Immediate first check
-        const initialCheck = doHealthCheck();
-        healthCheckTimer = setInterval(doHealthCheck, 30000);
-        return initialCheck;
+        return startHealthChecks();
       }},
       {{ registrationId: "openclaw_guard_gateway_start" }},
     );
@@ -730,6 +716,10 @@ export default {{
       }},
       {{ registrationId: "openclaw_guard_gateway_stop" }},
     );
+
+    if (pluginConfig.startupHealthCheck === true) {{
+      void startHealthChecks();
+    }}
 
     api.logger.info(`[${{PLUGIN_ID}}] registered all hooks (5) via api.on()`);
   },

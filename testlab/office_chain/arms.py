@@ -20,6 +20,7 @@ arm     含义                                        disabled 组件
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Any, Mapping
 
 from openclaw_guard.engine.experiment_components import (
@@ -93,6 +94,15 @@ def normalise_native_config(config: Mapping[str, Any]) -> dict[str, Any]:
     import copy
 
     normalised = copy.deepcopy(dict(config))
+
+    # 冻结轨迹 provider 只更换受控 loopback 端口；远程地址仍是配置差异。
+    models = normalised.get("models")
+    providers = models.get("providers") if isinstance(models, dict) else None
+    provider = providers.get("office-chain-fixed") if isinstance(providers, dict) else None
+    if isinstance(provider, dict):
+        base_url = provider.get("baseUrl")
+        if isinstance(base_url, str) and re.fullmatch(r"http://127\.0\.0\.1:[0-9]+/v1", base_url):
+            provider["baseUrl"] = "http://127.0.0.1:<runtime-port>/v1"
 
     gateway = normalised.get("gateway")
     if isinstance(gateway, dict):

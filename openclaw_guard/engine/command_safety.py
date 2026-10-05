@@ -62,7 +62,9 @@ def analyze_command(command: str | None) -> CommandSafety:
     raw = str(command or "").strip()
     if not raw:
         return CommandSafety("unknown", False, reason_codes=("empty_command",))
-    if "$(" in raw or "`" in raw:
+    if "\n" in raw or "\r" in raw:
+        return CommandSafety("unknown", False, reason_codes=("multiline_shell",))
+    if "$" in raw or "`" in raw:
         return CommandSafety("unknown", False, reason_codes=("command_substitution",))
     try:
         lexer = shlex.shlex(raw, posix=True, punctuation_chars=";&|><()")
@@ -86,6 +88,8 @@ def analyze_command(command: str | None) -> CommandSafety:
                 segments.append([])
                 continue
             return CommandSafety("unknown", False, path_hints=_path_hints(tokens), reason_codes=("shell_operator",))
+        if token and all(char in ";&|><()" for char in token):
+            return CommandSafety("unknown", False, reason_codes=("unsupported_shell_operator",))
         segments[-1].append(token)
     if any(not segment for segment in segments):
         return CommandSafety("unknown", False, path_hints=_path_hints(tokens), reason_codes=("empty_segment",))
@@ -97,6 +101,9 @@ def analyze_command(command: str | None) -> CommandSafety:
         if not command_name:
             return CommandSafety("unknown", False, path_hints=_path_hints(tokens), reason_codes=("missing_command",))
         commands.append(command_name)
+        effect_gap = _unverified_effect(segment, command_name)
+        if effect_gap:
+            return CommandSafety("unknown", False, tuple(commands), _path_hints(tokens), (effect_gap,))
         if command_name in _PRIVILEGED_COMMANDS:
             reasons.append("privileged_command")
             return CommandSafety("privileged", False, tuple(commands), _path_hints(tokens), tuple(dict.fromkeys(reasons)))
@@ -131,10 +138,60 @@ def analyze_command(command: str | None) -> CommandSafety:
 
 
 def _command_name(segment: list[str]) -> str:
-    for token in segment:
-        if token and not token.startswith("-") and "=" not in token:
-            return token.rsplit("/", 1)[-1].lower()
-    return ""
+    # 不跳过环境赋值，不把工作区中的同名程序当作系统只读工具。
+    token = segment[0] if segment else ""
+    if not token or "=" in token or token.startswith("-"):
+        return ""
+    if "/" in token and token.rsplit("/", 1)[0] not in {"/bin", "/usr/bin"}:
+        return ""
+    return token.rsplit("/", 1)[-1]
+
+
+def _unverified_effect(segment: list[str], command_name: str) -> str | None:
+    """识别工具内部的写入或子进程能力，未知脚本交给原生审批。"""
+    args = segment[1:]
+    if command_name == "sed":
+        # sed 是脚本解释器；只自动放行可完整验证的行号打印表达式。
+        remaining = [arg for arg in args if arg not in {"-n", "--quiet", "--silent"}]
+        if not remaining or not re.fullmatch(r"(?:[0-9]+|\$)(?:,(?:[0-9]+|\$))?p", remaining[0]):
+            return "unverified_sed_program"
+        if any(arg.startswith("-") for arg in remaining[1:]):
+            return "unverified_sed_options"
+    if command_name == "find" and any(arg in {
+        "-exec", "-execdir", "-ok", "-okdir", "-delete", "-fprint", "-fprint0", "-fprintf", "-fls",
+    } for arg in args):
+        return "find_side_effect"
+    if command_name == "rg" and any(arg.split("=", 1)[0] in {
+        "--pre", "--hostname-bin",
+    } for arg in args):
+        return "search_external_program"
+    if command_name in {"sort", "tree"} and any(
+        arg.startswith("-o") or arg.split("=", 1)[0] in {
+            "--output", "--compress-program", "--exec",
+        } for arg in args
+    ):
+        return "output_or_external_program"
+    if command_name == "uniq":
+        # uniq 的第二个位置参数是输出文件；不解析不熟悉的选项参数。
+        if any(arg.startswith("-") and arg not in {"-c", "-d", "-u", "-i"} for arg in args) or len([
+            arg for arg in args if not arg.startswith("-")
+        ]) > 1:
+            return "uniq_output_or_unknown_options"
+    if command_name == "file" and any(arg == "--compile" or (
+        arg.startswith("-") and not arg.startswith("--") and "C" in arg
+    ) for arg in args):
+        return "magic_database_write"
+    if command_name == "git":
+        # 全局选项可能设置 pager、外部 diff 或仓库配置，不能跳过后猜测子命令。
+        if not args or args[0] not in _SAFE_GIT_SUBCOMMANDS:
+            return "unverified_git_invocation"
+        if any(arg.split("=", 1)[0] in {
+            "--ext-diff", "--textconv", "--output", "--open-files-in-pager",
+        } or arg.startswith("-O") for arg in args[1:]):
+            return "git_external_program_or_output"
+        if args[0] == "branch" and args[1:] not in ([], ["--list"], ["-l"], ["--show-current"]):
+            return "git_branch_mutation_or_unknown"
+    return None
 
 
 def _path_hints(tokens: list[str]) -> tuple[str, ...]:

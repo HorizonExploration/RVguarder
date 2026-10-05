@@ -473,6 +473,10 @@ class RuntimeVerificationEngine:
         PMKB remains the single-step authorization authority; its generated
         monitors are therefore deliberately not run in this preview path.
         """
+        self._lazy_init_spec_monitors()
+        if self._spec_ruleset.event_model == "tool-call-v1":
+            from openclaw_guard.rv.tool_events import adapt_legacy_step
+            rv_trace = [adapt_legacy_step(step) for step in rv_trace]
         permission_step = self._permission_step(authorization_trace, policy_decision)
         existing_window = (
             self.window if session_key == "_default" else self._session_windows.get(session_key)
@@ -560,8 +564,16 @@ class RuntimeVerificationEngine:
                 (_time.perf_counter() - started) * 1000.0, 4
             )
 
+        proposed_verdict = final
         return {
             "verdict": final,
+            "proposed_verdict": proposed_verdict,
+            "hard_block_evidence": (
+                "pmkb_confirmed" if final == "block"
+                and self._model_data(policy_decision).get("effect") == "block"
+                else "rv_rule_match" if final == "block" else "none"
+            ),
+            "downgrade_reason": "unverified_violation_evidence" if final != proposed_verdict else None,
             "triggered_by": triggered_by,
             "triggered_rule_id": triggered_rule_id,
             "trigger_step_id": trigger_step_id,
@@ -608,6 +620,10 @@ class RuntimeVerificationEngine:
                 "session_key": str,
             }
         """
+        self._lazy_init_spec_monitors()
+        if self._spec_ruleset.event_model == "tool-call-v1":
+            from openclaw_guard.rv.tool_events import adapt_legacy_step
+            rv_trace = [adapt_legacy_step(step) for step in rv_trace]
         permission_step = self._permission_step(authorization_trace, policy_decision)
 
         # Commit first, then reconstruct behavior monitors from the effective
@@ -705,8 +721,16 @@ class RuntimeVerificationEngine:
                     (_time.perf_counter() - m_start) * 1000.0, 4
                 )
 
+        proposed_verdict = final
         return {
             "verdict": final,
+            "proposed_verdict": proposed_verdict,
+            "hard_block_evidence": (
+                "pmkb_confirmed" if final == "block"
+                and self._model_data(policy_decision).get("effect") == "block"
+                else "rv_rule_match" if final == "block" else "none"
+            ),
+            "downgrade_reason": "unverified_violation_evidence" if final != proposed_verdict else None,
             "triggered_by": triggered_by,
             "triggered_rule_id": triggered_rule_id,
             "trigger_step_id": trigger_step_id,
@@ -917,6 +941,14 @@ class RuntimeVerificationEngine:
             for k, data in state["session_windows"].items():
                 if isinstance(data, dict):
                     self._session_windows[k] = WindowManager.from_dict(data)
+        self._lazy_init_spec_monitors()
+        if self._spec_ruleset.event_model == "tool-call-v1":
+            from openclaw_guard.rv.tool_events import adapt_legacy_step
+            for window in [self.window, *self._session_windows.values()]:
+                steps = [adapt_legacy_step(step) for step in window.snapshot()]
+                window.clear()
+                for step in steps:
+                    window.push(step, preserve_timestamp=True)
         raw_principal_states = state.get("principal_states", [])
         if isinstance(raw_principal_states, list):
             from openclaw_guard.spec.session_state import PrincipalSecurityState

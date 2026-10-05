@@ -36,7 +36,9 @@
 | 不可达／传输超时 | 透传 | 透传 | 透传 | 不等待 Guard | 暂停 |
 | 后端恢复且健康确认 | 正常 Guard 决策 | 正常 Guard 决策 | 正常 Guard 决策 | 正常回传 | 启用 |
 | 后端明确返回 `block` / `require_approval` | 按结果 | 按结果 | 按结果 | 按现有生命周期 | 启用 |
-| 后端可响应但返回 401／4xx／5xx | 不误判为静默；走固定错误策略 | 同左 | 同左 | 不覆盖工具既成结果 | 异常，非静默 |
+| 后端可响应但返回 401／4xx／5xx | 不误判为静默；放行 | 同左 | 同左 | 不覆盖工具既成结果 | 异常，非静默 |
+
+> 2026-09-30 修订：有响应的错误不再走“分级错误策略”。插件升级为严格 fail-open——后端明确返回 401/4xx/5xx，或返回 2xx 但响应体不可解析时，`before_tool_call` 一律返回 `undefined`，不为任何工具（含写入与执行）构造阻断；错误只体现为 `backend_response_error` 诊断标志。只有 Guard 明确返回 `action: "block"` 才阻断；遗留 `failClosed` 不再阻断任何调用。本文件上文“高影响工具阻断”“沿用当前分级错误策略”等表述已过期，现行契约见 [Hook 运行时](../features/runtime-hook.md)。
 
 测试需覆盖所有 Agent 标识、`failClosed=true` 遗留配置、启动前首个工具调用、一次故障后的连续多次调用、恢复、`before`/`after`/审批同步三条路径、有效 Guard block 不被透传、HTTP 错误不被伪装成停机，以及无真实副作用。尤其要证明生成插件在后端不可达时对写入、执行返回 `undefined`，而不是 `{block: true}` 或新的 `requireApproval`。
 

@@ -173,6 +173,18 @@ export default {
       }
     });
 
+    api.on("after_tool_call", (event, ctx) => {
+      try {
+        writeJsonl(`${context.receiptPath}.executions.jsonl`, {
+          toolName: String(event?.toolName ?? ""),
+          toolCallId: String(event?.toolCallId ?? ctx?.toolCallId ?? ""),
+          sessionKey: String(ctx?.sessionKey ?? ""),
+          success: !event?.error && event?.result?.isError !== true,
+          ts: new Date().toISOString(),
+        });
+      } catch { /* observation must not change execution */ }
+    });
+
     api.registerTool({
       name: "office_message_send",
       description:

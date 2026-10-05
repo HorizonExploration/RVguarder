@@ -1,0 +1,23 @@
+{
+  "status": "applied_to_repository_source",
+  "user_authorization": "应用取消原门",
+  "authorization_context": "用户获知公开摘要误硬阻断与持久化审查拒绝原因后明确授权应用。",
+  "applied_at": "2026-10-04T13:49:29.433935+00:00",
+  "files": {
+    "openclaw_guard/rv/runtime_verification.py": "7c9f53e9cd75bd3cd7fdd5269f50be9976fb1774ff7364566e004057d8e8310d",
+    "tests/test_rv_tool_call_model.py": "f24a42402746150f73fd3206743d764ddc1744da6982b950eda0d8af280c27b4",
+    "docs/architecture/rv-tool-call-migration-2026-10-04.md": "55a8cec82bdf0d97f4fef63a771457438001aafe69d7847fdcabf5d4631a582a",
+    "docs/features/runtime-hook.md": "60b17a85131c7e1aed252d8e634197cc19f6906130a1c3efcc279098f382dab3"
+  },
+  "production_gate_occurrences": 0,
+  "matches_isolated_verified_source": true,
+  "post_application_tests": {
+    "passed": 79,
+    "elapsed_seconds": 4.95,
+    "command": "PYTHONPATH=. python -m pytest tests/test_rv_tool_call_model.py tests/test_runtime_verification.py tests/test_rv_dsl.py tests/test_principal_rv_hook_integration.py -q"
+  },
+  "daily_gateway_restarted": false,
+  "dsl_rules_modified": false,
+  "known_regression": "NEAR-UNKNOWN-TOOLCHAIN-B1：合法公开摘要共享被现有规则误硬阻断。",
+  "prior_review_history": "application-history.jsonl"
+}

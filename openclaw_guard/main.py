@@ -65,6 +65,9 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_parser.add_argument("--profile")
     doctor_parser.add_argument("--json", action="store_true", help="以 JSON 格式输出")
 
+    package_parser = subparsers.add_parser("build-plugin", help="生成不含凭据的OpenClaw插件测试候选包")
+    package_parser.add_argument("--output", type=Path, required=True, help="新建输出目录，拒绝覆盖")
+
     return parser
 
 
@@ -77,6 +80,11 @@ def main(argv: list[str] | None = None) -> int:
     
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == "build-plugin":
+        from openclaw_guard.integrations.plugin_package import build_plugin_package
+        print(json.dumps(build_plugin_package(args.output), ensure_ascii=False, indent=2))
+        return 0
+
     manager = build_manager(
         args.project_dir,
         openclaw_root=getattr(args, "openclaw_root", None),
