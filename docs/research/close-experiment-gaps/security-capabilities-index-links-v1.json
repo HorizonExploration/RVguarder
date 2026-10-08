@@ -1,0 +1,10 @@
+{
+  "checked_files": 3,
+  "checked_local_links": 26,
+  "missing": [],
+  "passed": true,
+  "limits": [
+    "Local path existence; URL availability and fragment anchors excluded"
+  ],
+  "method": "Inline link check; repository scripts/check_doc_links.py unavailable at execution time"
+}

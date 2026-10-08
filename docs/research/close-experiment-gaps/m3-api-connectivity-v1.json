@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "http_status": 200,
+  "requested_model": "deepseek-v4-flash",
+  "reported_model": "deepseek-flash",
+  "usage": {
+    "prompt_tokens": 34,
+    "completion_tokens": 15,
+    "total_tokens": 49,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 13
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 34
+  },
+  "scope": "API connectivity only; no safety denominator"
+}

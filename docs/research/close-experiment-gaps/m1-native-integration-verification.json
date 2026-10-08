@@ -1,0 +1,27 @@
+{
+  "recorded_at": "2026-10-06T15:00:32.051185+00:00",
+  "source_hashes": {
+    "testlab/office_chain/native_office_plugin/index.js": "07454575eb421da252b43bf16989f64576cd80dc8af429358f37f929cd41ec6d",
+    "testlab/office_chain/native_office_plugin/index.test.mjs": "9ef0e78f99c8533afdedebf2bf734b5db97b590d3782572cb1c2a30b44470aa9",
+    "testlab/office_chain/office_driver.py": "4df1e195f72fccc13cf90c982c1d476366ba478b445255339ec4f1971d7889ae",
+    "scripts/check_native_snapshot_contract.py": "4d04dc6d26794cfaa8d5a747e197df5d54bdccc8bedd68cff66fd809b97e0dd3",
+    "tests/test_native_content_receipts.py": "d9f8c72bfead214a27b77346494fba02534bf0aa2cd294dee4af1e47b99aa308",
+    "tests/test_office_driver_cleanup.py": "9a5c0522b03c0b9a8c042e05f0db38bc61dca23f1aca3890c2007ec2ec66dc95"
+  },
+  "verification": {
+    "python_related_passed": 98,
+    "node_passed": 11,
+    "m0_ledger_passed": true,
+    "diff_check_passed": true
+  },
+  "native_scope": "saved real snapshot-v1 checks 4/4; signing and authorization not enabled; final configuration conflict fix only locally verified",
+  "native_report": "m1-native-snapshot-contract.json",
+  "cleanup_recovery": "m1-native-cleanup-recovery.json",
+  "m1_passed": false,
+  "release_qualified": false,
+  "limits": [
+    "Production authorization checker remains None",
+    "Native signing, revocation and synchronous preparation budget pending",
+    "No new Q5 security sample or changed historical rule/effect result"
+  ]
+}

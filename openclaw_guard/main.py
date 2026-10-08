@@ -68,6 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
     package_parser = subparsers.add_parser("build-plugin", help="生成不含凭据的OpenClaw插件测试候选包")
     package_parser.add_argument("--output", type=Path, required=True, help="新建输出目录，拒绝覆盖")
 
+    from openclaw_guard.spec.authorization_cli import add_authorization_parser
+    add_authorization_parser(subparsers)
     return parser
 
 
@@ -85,6 +87,11 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(build_plugin_package(args.output), ensure_ascii=False, indent=2))
         return 0
 
+    if args.command == "authorization":
+        from openclaw_guard.spec.authorization_cli import execute_authorization_command
+        print(json.dumps(execute_authorization_command(args), ensure_ascii=False, indent=2))
+        return 0
+
     manager = build_manager(
         args.project_dir,
         openclaw_root=getattr(args, "openclaw_root", None),
@@ -95,10 +102,16 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     if args.command == "run":
+        if args.host_authorization_config:
+            from openclaw_guard.integrations.host_authorization_bridge import HostAuthorizationBridge
+            manager.host_authorization_bridge = HostAuthorizationBridge.from_config(args.host_authorization_config)
+            manager.content_evidence_ledger = manager.host_authorization_bridge.content_evidence_ledger
         # 启动即补一次基线，开箱即用
         manager.ensure_baseline()
         if args.once:
             print(json.dumps(manager.summary(), ensure_ascii=False, indent=2))
+            if getattr(manager, "host_authorization_bridge", None) is not None:
+                manager.host_authorization_bridge.close()
             return 0
         server, thread, url = _select_launch_web(args)(manager, args.host, args.port, no_browser=args.no_browser)
         print(json.dumps({"url": url, "project_dir": str(args.project_dir)}, ensure_ascii=False))
@@ -107,6 +120,8 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             server.shutdown()
             server.server_close()
+            if getattr(manager, "host_authorization_bridge", None) is not None:
+                manager.host_authorization_bridge.close()
         return 0
 
     if args.command == "install-hook":
@@ -150,6 +165,7 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--port", type=int, default=8780)
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--once", action="store_true")
+    parser.add_argument("--host-authorization-config", type=Path, help="受控宿主私有授权配置，仅补充资源引用证据")
     # Kept as a no-op compatibility flag for existing launch scripts.  The
     # selector is always FastAPI; there is no legacy fallback or alternate
     # production server behind this flag anymore.

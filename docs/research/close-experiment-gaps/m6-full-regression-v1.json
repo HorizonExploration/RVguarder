@@ -1,0 +1,17 @@
+{
+  "full_suite": {
+    "passed": 1049,
+    "skipped": 18,
+    "warnings": 1,
+    "subtests_passed": 4,
+    "elapsed_seconds": 279.11
+  },
+  "additional_autonomous_regressions": {
+    "passed": 2
+  },
+  "log_sha256": "6579dd56529e813c1660dfcd9b4daf6b5dd996556edfff5320f2e6bb5d81ee04",
+  "release_qualified": false,
+  "limits": [
+    "Full suite ran on frozen product code; two new autonomous recording tests separately passed. Native installation and frozen holdout gates evaluated separately."
+  ]
+}

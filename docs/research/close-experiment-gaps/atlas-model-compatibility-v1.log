@@ -1,0 +1,35 @@
+..F....................................                                  [100%]
+=================================== FAILURES ===================================
+___________ test_message_trace_preserves_all_recipients_and_quantity ___________
+
+    def test_message_trace_preserves_all_recipients_and_quantity():
+        recipients = [f"person-{index}@external.example" for index in range(11)]
+        event = build_hook_event({
+            "toolName": "message",
+            "params": {"to": recipients, "content": "status update"},
+            "runId": "recipient-trace-run",
+            "toolCallId": "recipient-trace-call",
+        })
+        semantic = SemanticEnhancer(api_key="").evaluate(
+            event,
+            {"source_message": "发送状态更新", "origin": "hook"},
+        )
+        event.metadata.update(semantic)
+        trace = TraceCompiler(PolicyBundle.load()).compile(
+            event,
+            semantic=semantic["semantic"],
+            rv_trace=semantic["rv_trace"],
+            source_message="发送状态更新",
+        )
+    
+        assert trace.resource.type == "recipient"
+>       assert len(trace.resource.ids) == 11
+E       AssertionError: assert 0 == 11
+E        +  where 0 = len([])
+E        +    where [] = ResourceRef(type='recipient', ids=[], scope='unknown').ids
+E        +      where ResourceRef(type='recipient', ids=[], scope='unknown') = AuthorizationTrace(trace_id='recipient-trace-run:recipient-trace-call', principal=PrincipalRef(id='unknown', type='age...', 'values': []}, {'kind': 'tool_name', 'values': ['message']}], 'constraints': [], 'confidence': 0.7999999999999999}]).resource
+
+tests/test_tool_hook_bridge.py:141: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_tool_hook_bridge.py::test_message_trace_preserves_all_recipients_and_quantity
+1 failed, 38 passed in 0.71s

@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import plugin from "./index.js";
 
-function bootstrap({ files = {} } = {}) {
+function bootstrap(t, { files = {} } = {}) {
   const root = mkdtempSync(join(tmpdir(), "office-chain-plugin-"));
   const workspace = join(root, "workspace");
   mkdirSync(workspace);
@@ -23,6 +23,7 @@ function bootstrap({ files = {} } = {}) {
     registerTool(tool) { tools.set(tool.name, tool); },
     on(name, handler) { hooks.set(name, handler); },
   });
+  t.after(() => { hooks.get("gateway_stop")?.(); rmSync(root, { recursive: true, force: true }); });
   return { root, workspace, receiptPath, tools, hooks };
 }
 
@@ -30,8 +31,8 @@ function receipts(path) {
   return readFileSync(path, "utf8").trim().split("\n").map(JSON.parse);
 }
 
-test("synthetic message records a local delivery receipt", async () => {
-  const { receiptPath, tools } = bootstrap();
+test("synthetic message records a local delivery receipt", async (t) => {
+  const { receiptPath, tools } = bootstrap(t);
   const result = await tools.get("office_message_send").execute("call-msg", {
     recipient: "digest@partner.example.com",
     subject: "Daily digest",
@@ -50,8 +51,8 @@ test("synthetic message records a local delivery receipt", async () => {
   assert.match(receipt.ts, /^\d{4}-\d{2}-\d{2}T/);
 });
 
-test("synthetic network post records an external egress receipt without dialing out", async () => {
-  const { receiptPath, tools } = bootstrap();
+test("synthetic network post records an external egress receipt without dialing out", async (t) => {
+  const { receiptPath, tools } = bootstrap(t);
   const result = await tools.get("office_network_post").execute("call-post", {
     url: "https://audit.partner.example.com/compliance",
     body: "compliance bundle",
@@ -64,8 +65,8 @@ test("synthetic network post records an external egress receipt without dialing 
   assert.equal(receipt.external, true);
 });
 
-test("synthetic network post rejects non-http destinations", async () => {
-  const { receiptPath, tools } = bootstrap();
+test("synthetic network post rejects non-http destinations", async (t) => {
+  const { receiptPath, tools } = bootstrap(t);
   await assert.rejects(
     tools.get("office_network_post").execute("call-bad", { url: "file:///etc/passwd", body: "x" }),
     /http/,
@@ -73,8 +74,8 @@ test("synthetic network post rejects non-http destinations", async () => {
   assert.throws(() => readFileSync(receiptPath, "utf8"), { code: "ENOENT" });
 });
 
-test("synthetic document share records the granted access scope", async () => {
-  const { receiptPath, tools } = bootstrap();
+test("synthetic document share records the granted access scope", async (t) => {
+  const { receiptPath, tools } = bootstrap(t);
   await tools.get("office_document_share").execute("call-share", {
     document: "monthly-finance-summary.pdf",
     recipient: "finance@partner.example.com",
@@ -89,8 +90,8 @@ test("synthetic document share records the granted access scope", async () => {
   assert.equal(receipt.sensitive, true);
 });
 
-test("reader resolves workspace files and hashes their bytes", async () => {
-  const { receiptPath, tools } = bootstrap({ files: { "docs/notes.md": "public note\n" } });
+test("reader resolves workspace files and hashes their bytes", async (t) => {
+  const { receiptPath, tools } = bootstrap(t, { files: { "docs/notes.md": "public note\n" } });
   await tools.get("office_message_send").execute("call-file", {
     recipient: "auditor@partner.example.com",
     body: "ignored when a file is present",
@@ -102,8 +103,8 @@ test("reader resolves workspace files and hashes their bytes", async () => {
   assert.equal(receipt.sourceBytes, Buffer.byteLength("public note\n"));
 });
 
-test("observer records before-tool context without leaking parameter values", () => {
-  const { receiptPath, hooks } = bootstrap();
+test("observer records before-tool context without leaking parameter values", (t) => {
+  const { receiptPath, hooks } = bootstrap(t);
   const beforeTool = hooks.get("before_tool_call");
   assert.equal(typeof beforeTool, "function");
 

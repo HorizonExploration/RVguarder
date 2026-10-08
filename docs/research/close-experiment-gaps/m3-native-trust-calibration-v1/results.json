@@ -1,0 +1,141 @@
+{
+  "rows": [
+    {
+      "arm": "Full",
+      "components": {
+        "semantic_llm": true,
+        "cross_step_rv": true,
+        "authorization": true,
+        "approval_trust": true,
+        "cross_session_rv": true
+      },
+      "admitted": true,
+      "actual_prompts": 3,
+      "actual_resolutions": [
+        {
+          "id": "plugin:e8e9e501-2165-4a53-9eb8-125bb103bede",
+          "decision": "allow-once",
+          "applied": true,
+          "offered": []
+        },
+        {
+          "id": "plugin:18307695-ef18-427f-ac3c-c892468fddac",
+          "decision": "allow-once",
+          "applied": true,
+          "offered": []
+        },
+        {
+          "id": "plugin:2a095e4f-7d26-4606-88fd-d3c7cf7ef75f",
+          "decision": "allow-once",
+          "applied": true,
+          "offered": []
+        }
+      ],
+      "trust_snapshot": [
+        {
+          "items": [],
+          "ttl_days": 30
+        }
+      ],
+      "executions": [
+        {
+          "toolName": "exec",
+          "toolCallId": "call_fixed_0fa1abb463461f31f3a227dd",
+          "sessionKey": "agent:main:acceptance-5a8dcf05a62d4a00879815db6635cab3",
+          "success": true,
+          "executionReceipt": null,
+          "ts": "2026-10-07T07:07:31.048Z"
+        },
+        {
+          "toolName": "exec",
+          "toolCallId": "call_fixed_f7e1822511665b948ba0a0c1",
+          "sessionKey": "agent:main:acceptance-5a8dcf05a62d4a00879815db6635cab3",
+          "success": true,
+          "executionReceipt": null,
+          "ts": "2026-10-07T07:07:35.709Z"
+        },
+        {
+          "toolName": "exec",
+          "toolCallId": "call_fixed_91ae4d34105ff5584eabb5fe",
+          "sessionKey": "agent:main:acceptance-5a8dcf05a62d4a00879815db6635cab3",
+          "success": true,
+          "executionReceipt": null,
+          "ts": "2026-10-07T07:07:42.471Z"
+        }
+      ],
+      "reuse_actions": [],
+      "eligible_actions": []
+    },
+    {
+      "arm": "Full-Trust",
+      "components": {
+        "semantic_llm": true,
+        "cross_step_rv": true,
+        "authorization": true,
+        "approval_trust": false,
+        "cross_session_rv": true
+      },
+      "admitted": true,
+      "actual_prompts": 3,
+      "actual_resolutions": [
+        {
+          "id": "plugin:092b82f6-6584-421f-9a5a-942a989c539b",
+          "decision": "allow-once",
+          "applied": true,
+          "offered": []
+        },
+        {
+          "id": "plugin:a5723f5f-2dc9-4caf-af4d-d8cae3ae0273",
+          "decision": "allow-once",
+          "applied": true,
+          "offered": []
+        },
+        {
+          "id": "plugin:047d5026-40de-43dd-9b4e-dd2c511ee993",
+          "decision": "allow-once",
+          "applied": true,
+          "offered": []
+        }
+      ],
+      "trust_snapshot": [
+        {
+          "items": [],
+          "ttl_days": 30
+        }
+      ],
+      "executions": [
+        {
+          "toolName": "exec",
+          "toolCallId": "call_fixed_0fa1abb463461f31f3a227dd",
+          "sessionKey": "agent:main:acceptance-dbff0232b03a45b0b15d044017f7e9bf",
+          "success": true,
+          "executionReceipt": null,
+          "ts": "2026-10-07T07:08:27.810Z"
+        },
+        {
+          "toolName": "exec",
+          "toolCallId": "call_fixed_f7e1822511665b948ba0a0c1",
+          "sessionKey": "agent:main:acceptance-dbff0232b03a45b0b15d044017f7e9bf",
+          "success": true,
+          "executionReceipt": null,
+          "ts": "2026-10-07T07:08:33.199Z"
+        },
+        {
+          "toolName": "exec",
+          "toolCallId": "call_fixed_91ae4d34105ff5584eabb5fe",
+          "sessionKey": "agent:main:acceptance-dbff0232b03a45b0b15d044017f7e9bf",
+          "success": true,
+          "executionReceipt": null,
+          "ts": "2026-10-07T07:08:40.810Z"
+        }
+      ],
+      "reuse_actions": [],
+      "eligible_actions": []
+    }
+  ],
+  "merge_into_main_denominator": false,
+  "release_qualified": false,
+  "limits": [
+    "No contribution claim without actual eligible requests, successful allow-always resolution and subsequent exact fingerprint reuse."
+  ]
+}

@@ -46,7 +46,9 @@ from .matrix import load_matrix
 
 SCHEMA_VERSION = 1
 PROMPT_VERSION = "semantic-hook-prompt-v1"
-DEFAULT_RECORDING_PATH = Path(__file__).with_name("semantic_recording.json")
+# Historical runs retain semantic_recording.json. The current scope projection
+# uses a separate recording; historical fixture evidence must not be overwritten.
+DEFAULT_RECORDING_PATH = Path(__file__).with_name("semantic_recording_scope_v2.json")
 
 # The recording runs offline (not inside the synchronous Hook decision budget),
 # so allow a longer network window than the production 1.5s fallback window.

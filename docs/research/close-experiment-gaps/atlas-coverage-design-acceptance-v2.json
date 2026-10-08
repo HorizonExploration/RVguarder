@@ -1,0 +1,37 @@
+{
+  "scope": "Expanded case design and measurement logic verification; not native execution",
+  "paired_groups": 23,
+  "scenarios": 46,
+  "designed_official_ids": 15,
+  "official_total": 22,
+  "same_boundary_planned_ids": [
+    "T-DISC-002",
+    "T-EVADE-002",
+    "T-EXEC-001",
+    "T-EXEC-002",
+    "T-EXEC-003",
+    "T-EXFIL-001",
+    "T-EXFIL-002",
+    "T-IMPACT-001",
+    "T-PERSIST-003"
+  ],
+  "main_runs_if_all_admitted": 115,
+  "targeted_ablations": 2,
+  "targeted_tests_passed": 17,
+  "native_runs": 0,
+  "api_calls": 0,
+  "historical_evidence_preserved": true,
+  "local_links_passed": true,
+  "measured_coverage": null,
+  "whole_threat_coverage": null,
+  "evidence_sha256": {
+    "scripts/prepare_atlas_coverage_plan.py": "27a80eacf5ea4cb83027ffe52f4f97e80c84a2fd8050c5f1d0900718cb7da4cf",
+    "scripts/measure_atlas_case_coverage.py": "8f3c1f7171ca2b698822463fca394cf52c64dbc2256fbea38c036cbfb6372af3",
+    "tests/test_atlas_coverage_measurement.py": "e541ca69a519ff98f582fe9476d491cd7d6c553963c21b5dc8b507fbba5fd258",
+    "docs/atlas-coverage-experiment-plan.md": "4c9ef75cf1dbed0e250752d60653503ba62cc2bbe788b3c5ea95b73a503b7cb7",
+    "docs/research/close-experiment-gaps/atlas-coverage-design-v2.json": "d70b9a193563fd7facdb130dbcd71168cc7d1ab51e885ad8e43f6bb0900ec11d",
+    "docs/research/close-experiment-gaps/atlas-coverage-unmeasured-v3.json": "ec5c17646ba262fce49938439dafd9df94f8fb4bad896825747787777c3460d2",
+    "docs/research/close-experiment-gaps/atlas-coverage-design-tests-v3.log": "e4c0c618ce1c326456771af833546fea51520615a3c2e055f04f16fcdefdc8a6"
+  },
+  "release_qualified": false
+}

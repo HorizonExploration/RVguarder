@@ -29,6 +29,7 @@ class PrincipalSecurityState:
         capability_lineage: tuple[str, ...],
         *,
         ttl_seconds: int | None = _DEFAULT_TTL_SECONDS,
+        policy_bundle: PolicyBundle | None = None,
     ) -> None:
         self.principal_id = principal_id
         self.agent_id = agent_id
@@ -40,7 +41,9 @@ class PrincipalSecurityState:
         self.sequence = 0
         self._grant_observed_at: dict[PermissionRef, float] = {}
         self._last_seen_at = _time.monotonic()
-        self._risk_graph = RiskGraph.from_bundle(PolicyBundle.load(default_policy_root()))
+        self._risk_graph = RiskGraph.from_bundle(
+            policy_bundle if policy_bundle is not None else PolicyBundle.load(default_policy_root())
+        )
 
     @property
     def last_seen_at(self) -> float:
@@ -140,7 +143,9 @@ class PrincipalSecurityState:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> PrincipalSecurityState:
+    def from_dict(
+        cls, data: dict[str, Any], *, policy_bundle: PolicyBundle | None = None,
+    ) -> PrincipalSecurityState:
         """Restore a principal-state snapshot, tolerating old or partial data."""
         lineage = data.get("capability_lineage", [])
         state = cls(
@@ -148,6 +153,7 @@ class PrincipalSecurityState:
             str(data.get("agent_id", "")),
             tuple(item for item in lineage if isinstance(item, str)) if isinstance(lineage, list) else (),
             ttl_seconds=data.get("ttl_seconds", cls._DEFAULT_TTL_SECONDS),
+            policy_bundle=policy_bundle,
         )
         state.sequence = int(data.get("sequence", 0) or 0)
         state.revocations = {item for item in data.get("revocations", []) if isinstance(item, str)}

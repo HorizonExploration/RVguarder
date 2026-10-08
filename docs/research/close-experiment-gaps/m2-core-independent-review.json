@@ -1,0 +1,29 @@
+{
+  "reviewer": "/root/stage1_review",
+  "role": "independent_read_only_review_required_by_adopted_spec",
+  "status": "passed_with_scope_limits",
+  "tests": "24 targeted tests passed",
+  "code_sha256": {
+    "openclaw_guard/spec/task_history.py": "fc19210b2819ab0d3ff56a497d53021a43199304ce9a0146edb14328d75cdfdf",
+    "openclaw_guard/spec/cross_history.py": "6b401620b2a159597b4ed7e2cd871c8153db25c28ecf848db73abb8ef42edd3f",
+    "openclaw_guard/rv/rv_dsl.py": "d44b7fc0157fde00eecc2a09f09f7d7344f640272dd04f55919afd4081689683",
+    "openclaw_guard/engine/experiment_components.py": "27f0a84c8d14f2b6fd27ec819274b4d1f102ffff06ab3ed85171d447b0ef5b6e",
+    "openclaw_guard/spec/authorization_preparation.py": "f5f7b5f83b8d19366152df0bad0894cbd375fb89c352ae9d911089ce540ebef0",
+    "openclaw_guard/services.py": "6a0e9821d4c281ea393e75a650a1f8109862f37283144373a060ba86f0ea2b50"
+  },
+  "closed_findings": [
+    "Cached lease consumption race at final rule verdict",
+    "Synchronous SQLite transaction cleanup in Hook",
+    "Late persistent write across component retirement",
+    "Revoked link resurrection through re-registration",
+    "Historical read classified retroactively",
+    "Active capacity consumed by revoked records"
+  ],
+  "limits": [
+    "Native M2 acceptance still pending",
+    "An already linearized block response can arrive after revocation completes",
+    "Revocation can wait approximately one second for an active decision lease",
+    "One short lived worker thread per prepared history lease",
+    "Host component switching can wait for an in-flight persistent write; no disk lock on hot snapshot reads"
+  ]
+}

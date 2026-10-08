@@ -1,0 +1,33 @@
+{
+  "scope": "Model improvement, targeted regression and concrete experiment preparation; native execution not performed",
+  "targeted_tests_passed": 154,
+  "case_preparation_tests_passed": 2,
+  "scenarios": 20,
+  "attack_scenarios": 10,
+  "normal_scenarios": 10,
+  "main_runs_planned": 50,
+  "targeted_ablations_planned": 2,
+  "priority_runs_planned": 20,
+  "executed_native_runs": 0,
+  "api_calls": 0,
+  "default_source_sha256": "496daa04a0bd532d9f99eaaa6293e1f52505dc5f9b098cc94f0af40bb5c255a7",
+  "candidate_sha256": "a2fe7ffee02dfaaa231d7796c156b39e9cd0e7f89acb5ccb3cdaaba48bb3f7fc",
+  "candidate_rules": 122,
+  "historical_artifacts_preserved": true,
+  "local_links_passed": true,
+  "source_and_evidence_sha256": {
+    "openclaw_guard/engine/python_effects.py": "5114d3b0f317b9cf46514c0bb470fff5bef6cecf67e1db566a8309e2bac761f8",
+    "tests/test_atlas_tool_boundaries.py": "59133e177da174f189122f2ded18f81c49c96032476e249b9a1d7f6c2707d411",
+    "tests/test_capability_scope_cases.py": "60724f25118397b7ebf30fb1a4efea66723842494933b2b28c6fc71dcf4cced5",
+    "scripts/prepare_capability_scope_cases.py": "59612d3cad241a6222ab104efc8cb98da82b35089070252ab84a0183b1bdf746",
+    "docs/capability-scope-optimization-and-experiment-plan.md": "baab637a60a8b3671054c17943896b41ea47a6a6336c1de3ffd0586180d0f2c2",
+    "docs/research/close-experiment-gaps/capability-scope-prepared-v1/inputs.json": "0ca51fa51a97184a90e43673a61f9372667ff5ba42fd9f00e1f6ebc2d66326d3",
+    "docs/research/close-experiment-gaps/capability-scope-prepared-v1/run-plan.json": "12e8a38997b48c59b4a481f744683758c2c83d618e273469423fdc2175bc93ab",
+    "docs/research/close-experiment-gaps/capability-scope-model-regression-v1.log": "17a419c469e957fc723040e940bd6cd67061487f0eb350b30539959fbe047c1b"
+  },
+  "remaining_before_native_execution": [
+    "Run-plan-based dispatch and analysis adapter",
+    "Actual native admission and runtime freeze"
+  ],
+  "release_qualified": false
+}

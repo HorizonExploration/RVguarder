@@ -1,0 +1,95 @@
+{
+  "scope": "Current model revision and evidence integrity, local link verification; implementation self-check",
+  "official_threat_count": 22,
+  "historical_integrity_verification": "atlas-model-package-acceptance-v1.json",
+  "default_source_sha256": "496daa04a0bd532d9f99eaaa6293e1f52505dc5f9b098cc94f0af40bb5c255a7",
+  "current_effective_default_rules": 72,
+  "optional_candidate_rules": 122,
+  "release_qualified": false,
+  "source_archive": "docs/research/close-experiment-gaps/atlas-model-final-source-v1.tar.gz",
+  "evidence_sha256": {
+    "docs/research/close-experiment-gaps/atlas-threat-coverage-v1.json": "deaf82a111dd1bf88bf3e5e4010069adb61602b5f5f391d9d716616485bf75e0",
+    "docs/research/close-experiment-gaps/atlas-threat-coverage-v1.md": "c26e8208ee0b527d13a159356afa76c293cc5bbf39ec472e2d7d72ba374f7450",
+    "docs/research/close-experiment-gaps/atlas-model-upgrade-v1.md": "e6c0a38013498f32c5005b5cc6754ae7cc3d24882c22c1e83b90ae965d92be67",
+    "docs/research/close-experiment-gaps/atlas-model-package-acceptance-v1.json": "1a613b484a8f14f56b9b33f99113a41082a346a3e6ca3ad83bbbec2f2cc53006",
+    "docs/research/close-experiment-gaps/atlas-model-full-regression-v2.log": "c48a9e7a48c372b124ec48f830ae7729257db90169c0b5115bcadc76ec7e22e1",
+    "docs/research/close-experiment-gaps/atlas-model-native-analysis-v1.json": "db7daf17050e6cd740d07ab9a4aca440f093d0ecee397ea80ef4dc83e234877d",
+    "docs/research/close-experiment-gaps/atlas-model-native-probe-v1/results.json": "d2da01921892dcd55fd299f010cc6937676ed29f6ee8004e2d634f3c2226d87e",
+    "docs/research/close-experiment-gaps/atlas-model-native-probe-v1/freeze.json": "d90cae81adf96f608bac78fffb05a58c701fb8c814da197968e5aaf1ed272223",
+    "docs/research/close-experiment-gaps/atlas-model-evaluated-source-v1.tar.gz": "aaf2d7a512584478de50b4852db5a4825cc15b95f29dbe7cc013d78a057a6dbc",
+    "docs/research/close-experiment-gaps/atlas-model-final-source-manifest-v1.json": "0d7acb797883d738f0aa2041927532518b0f542419cc06880762761d315e2cab",
+    "docs/research/close-experiment-gaps/atlas-model-final-source-v1.tar.gz": "c5f1e3c6e3f5a8de7aed51c1c27ab44f011ba31a0762358c8ee4d4ad25899b42",
+    "openclaw_guard/rv/profiles/atlas-tool-policy-v2.json": "a2fe7ffee02dfaaa231d7796c156b39e9cd0e7f89acb5ccb3cdaaba48bb3f7fc",
+    "AGENTS.md": "221cae11026ef5a24901dc4fdea836803953dd506fe00a6cb3785991061f95ae"
+  },
+  "report_local_links_checked": [
+    {
+      "source": "docs/research/close-experiment-gaps/atlas-threat-coverage-v1.md",
+      "target": "atlas-threat-coverage-v1.json"
+    },
+    {
+      "source": "docs/research/close-experiment-gaps/atlas-threat-coverage-v1.md",
+      "target": "atlas-model-upgrade-v1.md"
+    },
+    {
+      "source": "docs/research/close-experiment-gaps/atlas-model-upgrade-v1.md",
+      "target": "atlas-threat-coverage-v1.md"
+    },
+    {
+      "source": "docs/research/close-experiment-gaps/atlas-model-upgrade-v1.md",
+      "target": "atlas-threat-coverage-v1.json"
+    },
+    {
+      "source": "docs/research/close-experiment-gaps/atlas-model-upgrade-v1.md",
+      "target": "../../../openclaw_guard/rv/profiles/atlas-tool-policy-v2.json"
+    },
+    {
+      "source": "docs/research/close-experiment-gaps/atlas-model-upgrade-v1.md",
+      "target": "atlas-tool-policy-draft-v1.json"
+    },
+    {
+      "source": "docs/research/close-experiment-gaps/atlas-model-upgrade-v1.md",
+      "target": "atlas-model-targeted-v1.log"
+    },
+    {
+      "source": "docs/research/close-experiment-gaps/atlas-model-upgrade-v1.md",
+      "target": "atlas-model-full-regression-v1.log"
+    },
+    {
+      "source": "docs/research/close-experiment-gaps/atlas-model-upgrade-v1.md",
+      "target": "atlas-model-compatibility-v2.log"
+    },
+    {
+      "source": "docs/research/close-experiment-gaps/atlas-model-upgrade-v1.md",
+      "target": "atlas-model-full-regression-v2.log"
+    },
+    {
+      "source": "docs/research/close-experiment-gaps/atlas-model-upgrade-v1.md",
+      "target": "atlas-model-native-analysis-v1.json"
+    },
+    {
+      "source": "docs/research/close-experiment-gaps/atlas-model-upgrade-v1.md",
+      "target": "atlas-model-evaluated-source-v1.tar.gz"
+    },
+    {
+      "source": "docs/research/close-experiment-gaps/atlas-model-upgrade-v1.md",
+      "target": "atlas-model-package-acceptance-v1.json"
+    },
+    {
+      "source": "docs/ops/plugin-candidate.md",
+      "target": "../research/close-experiment-gaps/atlas-model-package-acceptance-v1.json"
+    },
+    {
+      "source": "docs/ops/plugin-candidate.md",
+      "target": "../research/close-experiment-gaps/atlas-model-upgrade-v1.md"
+    },
+    {
+      "source": "docs/ops/plugin-candidate.md",
+      "target": "../research/close-experiment-gaps/README.md"
+    },
+    {
+      "source": "docs/ops/plugin-candidate.md",
+      "target": "../research/close-experiment-gaps/m3-m4-defect-followup.md"
+    }
+  ]
+}

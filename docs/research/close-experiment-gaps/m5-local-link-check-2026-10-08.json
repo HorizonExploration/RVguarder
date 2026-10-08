@@ -1,0 +1,46 @@
+{
+  "checked_files": 10,
+  "checked_links": 92,
+  "missing": [],
+  "VuePress_generated_paths": [
+    {
+      "source": "docs/README.md",
+      "target": "./architecture/permission-kb-runtime-architecture.html",
+      "source_document": "docs/architecture/permission-kb-runtime-architecture.md"
+    },
+    {
+      "source": "docs/README.md",
+      "target": "./architecture/rv-permission-automata.html",
+      "source_document": "docs/architecture/rv-permission-automata.md"
+    },
+    {
+      "source": "docs/README.md",
+      "target": "./semantic/pmkb-network-case-baseline.html",
+      "source_document": "docs/semantic/pmkb-network-case-baseline.md"
+    },
+    {
+      "source": "docs/README.md",
+      "target": "./research/pmkb-network-baseline-implementation-report-2026-08-28.html",
+      "source_document": "docs/research/pmkb-network-baseline-implementation-report-2026-08-28.md"
+    },
+    {
+      "source": "docs/README.md",
+      "target": "./ops/roadmap.html",
+      "source_document": "docs/ops/roadmap.md"
+    },
+    {
+      "source": "docs/README.md",
+      "target": "./ops/roadmap.html",
+      "source_document": "docs/ops/roadmap.md"
+    },
+    {
+      "source": "docs/README.md",
+      "target": "./ops/roadmap.html",
+      "source_document": "docs/ops/roadmap.md"
+    }
+  ],
+  "passed": true,
+  "limits": [
+    "Path existence only; excludes URL availability and fragment anchors."
+  ]
+}

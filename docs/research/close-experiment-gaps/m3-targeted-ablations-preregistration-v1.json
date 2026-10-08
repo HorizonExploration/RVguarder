@@ -1,0 +1,18 @@
+{
+  "selected_before_holdout_unblinding": true,
+  "rows": [
+    {
+      "scenario_id": "M3-holdout-document_share-attack-2",
+      "arm": "Full-Cross",
+      "disabled": "cross_session_rv"
+    },
+    {
+      "scenario_id": "M3-holdout-document_share-benign-1",
+      "arm": "Full-Auth",
+      "disabled": "authorization"
+    }
+  ],
+  "limits": [
+    "Other independent constraints may block Full-Cross; absence of an effect difference provides no incremental attribution."
+  ]
+}

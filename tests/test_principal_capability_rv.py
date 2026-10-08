@@ -118,3 +118,32 @@ def test_snapshot_ttl_survives_a_monotonic_clock_restart(monkeypatch):
     restored = PrincipalSecurityState.from_dict(snapshot)
 
     assert restored.record(external_egress_trace(session_id="s2"), approval_policy()) == "block"
+
+
+def test_injected_relation_bundle_survives_principal_state_restart():
+    from dataclasses import replace
+    from openclaw_guard.policy.catalog import PolicyBundle, default_policy_root
+    bundle = replace(PolicyBundle.load(default_policy_root()), relations=())
+    engine = RuntimeVerificationEngine(permission_bundle=bundle)
+    state = engine.state_for_principal("u1", "agent1", ("grant1",))
+    state.record(secret_read_trace(session_id="s1"), allow_policy())
+    assert state.evaluate(external_egress_trace(session_id="s2"), approval_policy()) is None
+    restored = RuntimeVerificationEngine(permission_bundle=bundle)
+    restored.deserialize_state(engine.serialize_state())
+    assert restored.state_for_principal("u1", "agent1", ("grant1",)).evaluate(
+        external_egress_trace(session_id="s3"), approval_policy()
+    ) is None
+
+
+def test_reconfigure_permission_bundle_discards_previous_authority():
+    from dataclasses import replace
+    from openclaw_guard.policy.catalog import PolicyBundle, default_policy_root
+    bundle = PolicyBundle.load(default_policy_root())
+    engine = RuntimeVerificationEngine(permission_bundle=bundle)
+    old = engine.state_for_principal("u1", "agent1", ("grant1",))
+    old.record(secret_read_trace(session_id="s1"), allow_policy())
+    assert old.effective_grants
+    engine.configure_permission_monitors(replace(bundle, relations=()))
+    current = engine.state_for_principal("u1", "agent1", ("grant1",))
+    assert current is not old
+    assert not current.effective_grants

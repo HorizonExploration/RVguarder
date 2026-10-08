@@ -1,0 +1,2917 @@
+{
+  "version": 3,
+  "monitors": [
+    {
+      "name": "MailMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "mail_idle_to_external",
+          "from": "idle",
+          "to": "external_source_read",
+          "when": {
+            "any_of": [
+              "attachment_open",
+              "channel_external",
+              "external_source"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "mail_external_to_sensitive",
+          "from": "external_source_read",
+          "to": "sensitive_data_extracted",
+          "when": {
+            "any_of": [
+              "contains_secret",
+              "path_high_value",
+              "hidden_content"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "mail_idle_to_sensitive",
+          "from": "idle",
+          "to": "sensitive_data_extracted",
+          "when": {
+            "any_of": [
+              "contains_secret",
+              "path_high_value",
+              "hidden_content"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "mail_sensitive_external_block",
+          "from": "sensitive_data_extracted",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "excluded_names": [
+                "office_message_send",
+                "office_network_post",
+                "office_document_share"
+              ]
+            }
+          }
+        },
+        {
+          "id": "mail_sensitive_external_block__office_message_send",
+          "from": "sensitive_data_extracted",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_message_send"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          }
+        },
+        {
+          "id": "mail_sensitive_external_block__office_network_post",
+          "from": "sensitive_data_extracted",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_network_post"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "mail_sensitive_external_block__office_document_share",
+          "from": "sensitive_data_extracted",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_document_share"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "mail_external_send_ask",
+          "from": "external_source_read",
+          "to": null,
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "mail_bulk_external_escalate",
+          "from": "idle",
+          "to": "ask_approval",
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "bulk_send",
+              "external_recipient",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "mail_bulk_ask",
+          "from": "idle",
+          "to": "ask_approval",
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "bulk_send",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "mail_ai_unreviewed_ask",
+          "from": "idle",
+          "to": "ask_approval",
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "ai_generated_content",
+              "effect:egress"
+            ],
+            "none_of": [
+              "requires_human_review"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "mail_external_recipient_ask",
+          "from": "idle",
+          "to": "ask_approval",
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "mail_terminal_block_repeat",
+          "from": "blocked",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "mail_terminal_escalate_repeat",
+          "from": "escalated",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "mail_terminal_ask_repeat",
+          "from": "ask_approval",
+          "to": "ask_approval",
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "mail_file_delete_chain_block",
+          "from": "*",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:delete",
+              "path_high_value"
+            ],
+            "window_any_of": {
+              "labels": [
+                "effect:read"
+              ],
+              "window_size": 5
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "ReportMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "report_idle_to_aggregating",
+          "from": "idle",
+          "to": "source_aggregating",
+          "when": {
+            "all_of": [
+              "internal_source"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "report_to_ready_from_idle",
+          "from": "idle",
+          "to": "report_ready",
+          "when": {
+            "any_of": [
+              "effect:transform",
+              "report_ready"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "report_to_ready_from_agg",
+          "from": "source_aggregating",
+          "to": "report_ready",
+          "when": {
+            "any_of": [
+              "effect:transform",
+              "report_ready"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "report_missing_scope_ask",
+          "from": "*",
+          "to": "asking",
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "effect:transform",
+              "missing_scope_constraint"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "report_blockable_send_any_state",
+          "from": "*",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "internal_source",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "excluded_names": [
+                "office_message_send",
+                "office_network_post",
+                "office_document_share"
+              ]
+            }
+          }
+        },
+        {
+          "id": "report_blockable_send_any_state__office_message_send",
+          "from": "*",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "internal_source",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_message_send"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          }
+        },
+        {
+          "id": "report_blockable_send_any_state__office_network_post",
+          "from": "*",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "internal_source",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_network_post"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "report_blockable_send_any_state__office_document_share",
+          "from": "*",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "internal_source",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_document_share"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "report_ready_external_escalate",
+          "from": "report_ready",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": {
+            "all_of": [
+              "external_recipient",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "report_ready_send_ask",
+          "from": "report_ready",
+          "to": "asking",
+          "verdict": "ask",
+          "when": {
+            "none_of": [
+              "external_recipient"
+            ],
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "report_block_repeat",
+          "from": "blocked",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "SecurityChainMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "sec_idle_to_high_value_search",
+          "from": "idle",
+          "to": "high_value_searched",
+          "when": {
+            "all_of": [
+              "path_high_value"
+            ],
+            "any_of": [
+              "effect:read"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "sec_high_value_delete_block",
+          "from": "high_value_searched",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:delete",
+              "path_high_value"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "sec_idle_to_audit_disabled",
+          "from": "idle",
+          "to": "audit_disabled",
+          "when": {
+            "all_of": [
+              "config_audit_disable"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "sec_audit_modify_block",
+          "from": "audit_disabled",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:configure"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "sec_idle_to_sensitive_access_attachment",
+          "from": "idle",
+          "to": "sensitive_content_accessed",
+          "when": {
+            "all_of": [
+              "attachment_download"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "effects_any_of": [
+                "read"
+              ]
+            }
+          }
+        },
+        {
+          "id": "sec_idle_to_sensitive_access_secret_read",
+          "from": "idle",
+          "to": "sensitive_content_accessed",
+          "when": {
+            "all_of": [
+              "effect:read",
+              "contains_secret"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "sec_sensitive_access_network_egress_block",
+          "from": "sensitive_content_accessed",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "excluded_names": [
+                "office_message_send",
+                "office_network_post",
+                "office_document_share"
+              ]
+            }
+          }
+        },
+        {
+          "id": "sec_sensitive_access_network_egress_block__office_message_send",
+          "from": "sensitive_content_accessed",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_message_send"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          }
+        },
+        {
+          "id": "sec_sensitive_access_network_egress_block__office_network_post",
+          "from": "sensitive_content_accessed",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_network_post"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "sec_sensitive_access_network_egress_block__office_document_share",
+          "from": "sensitive_content_accessed",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_document_share"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "sec_sensitive_access_channel_egress_block",
+          "from": "sensitive_content_accessed",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "external_recipient",
+              "channel_external_send",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "excluded_names": [
+                "office_message_send",
+                "office_network_post",
+                "office_document_share"
+              ]
+            }
+          }
+        },
+        {
+          "id": "sec_sensitive_access_channel_egress_block__office_message_send",
+          "from": "sensitive_content_accessed",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "external_recipient",
+              "channel_external_send",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_message_send"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          }
+        },
+        {
+          "id": "sec_sensitive_access_channel_egress_block__office_network_post",
+          "from": "sensitive_content_accessed",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "external_recipient",
+              "channel_external_send",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_network_post"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "sec_sensitive_access_channel_egress_block__office_document_share",
+          "from": "sensitive_content_accessed",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "external_recipient",
+              "channel_external_send",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_document_share"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "sec_sensitive_access_egress_escalate",
+          "from": "sensitive_content_accessed",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "sec_idle_to_creds_access",
+          "from": "idle",
+          "to": "credentials_accessed",
+          "when": {
+            "any_of": [
+              "path_sensitive_creds",
+              "command_read_secret"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "sec_creds_egress_escalate",
+          "from": "credentials_accessed",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "sec_batch_delete_escalate",
+          "from": "*",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": {
+            "all_of": [
+              "effect:delete"
+            ],
+            "count_gte": {
+              "label": "effect:delete",
+              "threshold": 5,
+              "window_size": 10
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "tool_unmodeled_effect_ask",
+          "from": "*",
+          "to": null,
+          "verdict": "ask",
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1",
+              "operation_families": [
+                "agent.spawn",
+                "agents.read",
+                "audit.modify",
+                "automation.modify",
+                "browser.interact",
+                "calendar.modify",
+                "computer.control",
+                "config.modify",
+                "conversation.message",
+                "conversation.read",
+                "conversation.send",
+                "credential.read",
+                "dashboard.read",
+                "data.export",
+                "data.query",
+                "directory.read",
+                "document.read",
+                "document.write",
+                "event.subscribe",
+                "file.bulk_transfer",
+                "file.delete",
+                "file.read",
+                "file.write",
+                "gateway.modify",
+                "goal.read",
+                "goal.write",
+                "identity.auth.modify",
+                "identity.permission.grant",
+                "meeting.create",
+                "memory.read",
+                "message.send",
+                "network.egress",
+                "node.control",
+                "plan.write",
+                "process.execute",
+                "progress.write",
+                "screen.read",
+                "secret.read",
+                "session.control",
+                "session.manage",
+                "session.read",
+                "session.send",
+                "session.token.read",
+                "skill.execute",
+                "table.read",
+                "ui.modify",
+                "user.interaction",
+                "workflow.approve"
+              ],
+              "effects_any_of": [
+                "unknown"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "BroadcastMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "broadcast_immediate_block_idle",
+          "from": "idle",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress",
+              "bulk_send",
+              "external_recipient"
+            ],
+            "any_of": [
+              "contains_secret",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "excluded_names": [
+                "office_message_send",
+                "office_network_post",
+                "office_document_share"
+              ]
+            }
+          }
+        },
+        {
+          "id": "broadcast_immediate_block_idle__office_message_send",
+          "from": "idle",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress",
+              "bulk_send",
+              "external_recipient"
+            ],
+            "any_of": [
+              "contains_secret",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_message_send"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          }
+        },
+        {
+          "id": "broadcast_immediate_block_idle__office_network_post",
+          "from": "idle",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress",
+              "bulk_send",
+              "external_recipient"
+            ],
+            "any_of": [
+              "contains_secret",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_network_post"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "broadcast_immediate_block_idle__office_document_share",
+          "from": "idle",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress",
+              "bulk_send",
+              "external_recipient"
+            ],
+            "any_of": [
+              "contains_secret",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_document_share"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "broadcast_immediate_block_broadcasting",
+          "from": "broadcasting",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress",
+              "bulk_send",
+              "external_recipient"
+            ],
+            "any_of": [
+              "contains_secret",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "excluded_names": [
+                "office_message_send",
+                "office_network_post",
+                "office_document_share"
+              ]
+            }
+          }
+        },
+        {
+          "id": "broadcast_immediate_block_broadcasting__office_message_send",
+          "from": "broadcasting",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress",
+              "bulk_send",
+              "external_recipient"
+            ],
+            "any_of": [
+              "contains_secret",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_message_send"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          }
+        },
+        {
+          "id": "broadcast_immediate_block_broadcasting__office_network_post",
+          "from": "broadcasting",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress",
+              "bulk_send",
+              "external_recipient"
+            ],
+            "any_of": [
+              "contains_secret",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_network_post"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "broadcast_immediate_block_broadcasting__office_document_share",
+          "from": "broadcasting",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress",
+              "bulk_send",
+              "external_recipient"
+            ],
+            "any_of": [
+              "contains_secret",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_document_share"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "broadcast_idle_to_broadcast",
+          "from": "idle",
+          "to": "broadcasting",
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "effect:egress",
+              "bulk_send"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "broadcast_idle_to_single",
+          "from": "idle",
+          "to": "single_chat",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "none_of": [
+              "bulk_send"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "broadcasting_external_block",
+          "from": "broadcasting",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "cross_org",
+              "contains_secret"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "excluded_names": [
+                "office_message_send",
+                "office_network_post",
+                "office_document_share"
+              ]
+            }
+          }
+        },
+        {
+          "id": "broadcasting_external_block__office_message_send",
+          "from": "broadcasting",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "cross_org",
+              "contains_secret"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_message_send"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          }
+        },
+        {
+          "id": "broadcasting_external_block__office_network_post",
+          "from": "broadcasting",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "cross_org",
+              "contains_secret"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_network_post"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "broadcasting_external_block__office_document_share",
+          "from": "broadcasting",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "cross_org",
+              "contains_secret"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_document_share"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "broadcasting_default_ask",
+          "from": "broadcasting",
+          "to": "broadcasting",
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "broadcast_block_repeat",
+          "from": "blocked",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "DataExportMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "export_batch_block_idle",
+          "from": "idle",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "any_of": [
+              "batch_export",
+              "large_export"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "export_batch_block_sensitive",
+          "from": "query_sensitive",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "any_of": [
+              "batch_export",
+              "large_export"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "export_idle_to_sensitive_query",
+          "from": "idle",
+          "to": "query_sensitive",
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "effect:query"
+            ],
+            "any_of": [
+              "user_table",
+              "payment_data",
+              "credential",
+              "customer_pii",
+              "user",
+              "payment"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "export_dense_query_ask",
+          "from": "idle",
+          "to": "idle",
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "effect:query"
+            ],
+            "count_gte": {
+              "label": "effect:query",
+              "threshold": 3,
+              "window_size": 20
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "export_any_query_then_export_escalate",
+          "from": "*",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": {
+            "all_of": [
+              "effect:write"
+            ],
+            "any_of": [
+              "export_format",
+              "csv_export"
+            ],
+            "window_any_of": {
+              "labels": [
+                "effect:query"
+              ],
+              "window_size": 5
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "export_sensitive_then_export_escalate",
+          "from": "query_sensitive",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": {
+            "all_of": [
+              "effect:write"
+            ],
+            "any_of": [
+              "export_format",
+              "csv_export"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "export_block_sticky",
+          "from": "blocked",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "export_escalate_sticky",
+          "from": "escalated",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "BatchFileMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "batch_idle_to_searching",
+          "from": "idle",
+          "to": "searching",
+          "when": {
+            "any_of": [
+              "effect:read"
+            ],
+            "none_of": [
+              "effect:transform",
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "batch_searching_to_packaging",
+          "from": "searching",
+          "to": "packaging",
+          "when": {
+            "any_of": [
+              "effect:transform"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "batch_packaging_egress_block",
+          "from": "packaging",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "window_any_of": {
+              "labels": [
+                "contains_secret",
+                "path_high_value"
+              ],
+              "window_size": 10
+            },
+            "tool": {
+              "event_model": "tool-call-v1",
+              "excluded_names": [
+                "office_message_send",
+                "office_network_post",
+                "office_document_share"
+              ]
+            }
+          }
+        },
+        {
+          "id": "batch_packaging_egress_block__office_message_send",
+          "from": "packaging",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "window_any_of": {
+              "labels": [
+                "contains_secret",
+                "path_high_value"
+              ],
+              "window_size": 10
+            },
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_message_send"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          }
+        },
+        {
+          "id": "batch_packaging_egress_block__office_network_post",
+          "from": "packaging",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "window_any_of": {
+              "labels": [
+                "contains_secret",
+                "path_high_value"
+              ],
+              "window_size": 10
+            },
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_network_post"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "batch_packaging_egress_block__office_document_share",
+          "from": "packaging",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "window_any_of": {
+              "labels": [
+                "contains_secret",
+                "path_high_value"
+              ],
+              "window_size": 10
+            },
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_document_share"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "batch_window_fallback_egress_block",
+          "from": "*",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "window_any_of": {
+              "labels": [
+                "contains_secret",
+                "path_high_value"
+              ],
+              "window_size": 10
+            },
+            "sequence": {
+              "window_size": 10,
+              "steps": [
+                {
+                  "any_of": [
+                    "effect:read"
+                  ],
+                  "tool": {
+                    "event_model": "tool-call-v1"
+                  }
+                },
+                {
+                  "any_of": [
+                    "effect:transform"
+                  ],
+                  "tool": {
+                    "event_model": "tool-call-v1"
+                  }
+                }
+              ]
+            },
+            "tool": {
+              "event_model": "tool-call-v1",
+              "excluded_names": [
+                "office_message_send",
+                "office_network_post",
+                "office_document_share"
+              ]
+            }
+          }
+        },
+        {
+          "id": "batch_window_fallback_egress_block__office_message_send",
+          "from": "*",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "window_any_of": {
+              "labels": [
+                "contains_secret",
+                "path_high_value"
+              ],
+              "window_size": 10
+            },
+            "sequence": {
+              "window_size": 10,
+              "steps": [
+                {
+                  "any_of": [
+                    "effect:read"
+                  ],
+                  "tool": {
+                    "event_model": "tool-call-v1"
+                  }
+                },
+                {
+                  "any_of": [
+                    "effect:transform"
+                  ],
+                  "tool": {
+                    "event_model": "tool-call-v1"
+                  }
+                }
+              ]
+            },
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_message_send"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          }
+        },
+        {
+          "id": "batch_window_fallback_egress_block__office_network_post",
+          "from": "*",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "window_any_of": {
+              "labels": [
+                "contains_secret",
+                "path_high_value"
+              ],
+              "window_size": 10
+            },
+            "sequence": {
+              "window_size": 10,
+              "steps": [
+                {
+                  "any_of": [
+                    "effect:read"
+                  ],
+                  "tool": {
+                    "event_model": "tool-call-v1"
+                  }
+                },
+                {
+                  "any_of": [
+                    "effect:transform"
+                  ],
+                  "tool": {
+                    "event_model": "tool-call-v1"
+                  }
+                }
+              ]
+            },
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_network_post"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "batch_window_fallback_egress_block__office_document_share",
+          "from": "*",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "window_any_of": {
+              "labels": [
+                "contains_secret",
+                "path_high_value"
+              ],
+              "window_size": 10
+            },
+            "sequence": {
+              "window_size": 10,
+              "steps": [
+                {
+                  "any_of": [
+                    "effect:read"
+                  ],
+                  "tool": {
+                    "event_model": "tool-call-v1"
+                  }
+                },
+                {
+                  "any_of": [
+                    "effect:transform"
+                  ],
+                  "tool": {
+                    "event_model": "tool-call-v1"
+                  }
+                }
+              ]
+            },
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_document_share"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "batch_delete_block",
+          "from": "*",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:delete"
+            ],
+            "count_gte": {
+              "label": "effect:delete",
+              "threshold": 50
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "batch_delete_ask",
+          "from": "*",
+          "to": null,
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "effect:delete"
+            ],
+            "count_gte": {
+              "label": "effect:delete",
+              "threshold": 10
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "batch_upload_external_escalate",
+          "from": "*",
+          "to": "asking",
+          "verdict": "ask",
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "all_of": [
+              "bulk_send",
+              "external_target"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "batch_share_modify_ask",
+          "from": "*",
+          "to": "asking",
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "effect:configure"
+            ],
+            "any_of": [
+              "public_access",
+              "password_removed"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "batch_cloud_cleanup_escalate",
+          "from": "*",
+          "to": null,
+          "verdict": "escalate",
+          "when": {
+            "all_of": [
+              "effect:delete"
+            ],
+            "count_gte": {
+              "label": "effect:delete",
+              "threshold": 100,
+              "window_size": 30
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "batch_block_sticky",
+          "from": "blocked",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "batch_escalate_sticky",
+          "from": "escalated",
+          "to": "escalated",
+          "verdict": "escalate",
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "batch_ask_sticky",
+          "from": "asking",
+          "to": "asking",
+          "verdict": "ask",
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PerRecipientMailMonitor",
+      "initial": "idle",
+      "quantifier": "forall",
+      "bind_vars": [
+        "recipients"
+      ],
+      "rules": [
+        {
+          "id": "precip_read_to_send_warn",
+          "from": "idle",
+          "to": "idle",
+          "verdict": "ask",
+          "when": {
+            "entity_any_of": [
+              {
+                "kind": "recipients",
+                "match_type": "domain_not_in",
+                "values": [
+                  "internal.com"
+                ]
+              }
+            ],
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            },
+            "none_of": [
+              "internal_recipient"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "StateCounterDemoMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "demo_warm_to_hot",
+          "from": "idle",
+          "to": "warm",
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        },
+        {
+          "id": "demo_warm_threshold_ask",
+          "from": "warm",
+          "to": "warm",
+          "verdict": "ask",
+          "when": {
+            "any_of": [
+              "effect:egress"
+            ],
+            "state_counter": {
+              "warm": {
+                "gte": 5
+              }
+            },
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "UntrustedSourceMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "untrusted_idle_to_external_content",
+          "from": "idle",
+          "to": "external_content_loaded",
+          "when": {
+            "all_of": [
+              "external_source"
+            ],
+            "none_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "effects_any_of": [
+                "read"
+              ]
+            }
+          }
+        },
+        {
+          "id": "untrusted_external_content_network_egress_block",
+          "from": "external_content_loaded",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "excluded_names": [
+                "office_message_send",
+                "office_network_post",
+                "office_document_share"
+              ]
+            }
+          }
+        },
+        {
+          "id": "untrusted_external_content_network_egress_block__office_message_send",
+          "from": "external_content_loaded",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_message_send"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          }
+        },
+        {
+          "id": "untrusted_external_content_network_egress_block__office_network_post",
+          "from": "external_content_loaded",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_network_post"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "untrusted_external_content_network_egress_block__office_document_share",
+          "from": "external_content_loaded",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_document_share"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "untrusted_external_content_channel_egress_block",
+          "from": "external_content_loaded",
+          "to": "blocked",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "external_recipient",
+              "channel_external_send",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "excluded_names": [
+                "office_message_send",
+                "office_network_post",
+                "office_document_share"
+              ]
+            }
+          }
+        },
+        {
+          "id": "untrusted_external_content_channel_egress_block__office_message_send",
+          "from": "external_content_loaded",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "external_recipient",
+              "channel_external_send",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_message_send"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          }
+        },
+        {
+          "id": "untrusted_external_content_channel_egress_block__office_network_post",
+          "from": "external_content_loaded",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "external_recipient",
+              "channel_external_send",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_network_post"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "untrusted_external_content_channel_egress_block__office_document_share",
+          "from": "external_content_loaded",
+          "to": null,
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "effect:egress"
+            ],
+            "any_of": [
+              "external_recipient",
+              "channel_external_send",
+              "cross_org"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1",
+              "names": [
+                "office_document_share"
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          }
+        }
+      ]
+    },
+    {
+      "name": "UntrustedScriptExecutionMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "untrusted_script_source_read",
+          "from": "idle",
+          "to": "source_observed",
+          "when": {
+            "tool": {
+              "effects_any_of": [
+                "read"
+              ]
+            },
+            "any_of": [
+              "external_source",
+              "attachment_open",
+              "attachment_download"
+            ]
+          }
+        },
+        {
+          "id": "untrusted_source_script_written",
+          "from": "source_observed",
+          "to": "script_introduced",
+          "when": {
+            "tool": {
+              "effects_any_of": [
+                "write"
+              ],
+              "operation_families": [
+                "file.write",
+                "document.write"
+              ]
+            },
+            "all_of": [
+              "path_script"
+            ]
+          }
+        },
+        {
+          "id": "untrusted_introduced_script_execution_block",
+          "from": "script_introduced",
+          "verdict": "block",
+          "when": {
+            "tool": {
+              "operation_families": [
+                "process.execute"
+              ],
+              "effects_any_of": [
+                "unknown",
+                "delete",
+                "egress"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TrustedCrossSessionContentMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "same_task_sensitive_content_cross_session_egress_block__office_message_send",
+          "from": "idle",
+          "verdict": "block",
+          "verified_history": "same_task_sensitive_bytes",
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          },
+          "when": {
+            "tool": {
+              "names": [
+                "office_message_send"
+              ],
+              "operation_families": [
+                "message.send"
+              ],
+              "effects_any_of": [
+                "egress"
+              ]
+            }
+          }
+        },
+        {
+          "id": "same_task_sensitive_content_cross_session_egress_block__office_network_post",
+          "from": "idle",
+          "verdict": "block",
+          "verified_history": "same_task_sensitive_bytes",
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          },
+          "when": {
+            "tool": {
+              "names": [
+                "office_network_post"
+              ],
+              "operation_families": [
+                "network.egress"
+              ],
+              "effects_any_of": [
+                "egress"
+              ]
+            }
+          }
+        },
+        {
+          "id": "same_task_sensitive_content_cross_session_egress_block__office_document_share",
+          "from": "idle",
+          "verdict": "block",
+          "verified_history": "same_task_sensitive_bytes",
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          },
+          "when": {
+            "tool": {
+              "names": [
+                "office_document_share"
+              ],
+              "operation_families": [
+                "network.egress"
+              ],
+              "effects_any_of": [
+                "egress"
+              ]
+            }
+          }
+        },
+        {
+          "id": "sensitive_task_access_cross_session_egress_block__office_message_send",
+          "from": "idle",
+          "verdict": "block",
+          "verified_history": "same_task_sensitive_access",
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          },
+          "when": {
+            "tool": {
+              "names": [
+                "office_message_send"
+              ],
+              "operation_families": [
+                "message.send"
+              ],
+              "effects_any_of": [
+                "egress"
+              ]
+            }
+          }
+        },
+        {
+          "id": "sensitive_task_access_cross_session_egress_block__office_network_post",
+          "from": "idle",
+          "verdict": "block",
+          "verified_history": "same_task_sensitive_access",
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          },
+          "when": {
+            "tool": {
+              "names": [
+                "office_network_post"
+              ],
+              "operation_families": [
+                "network.egress"
+              ],
+              "effects_any_of": [
+                "egress"
+              ]
+            }
+          }
+        },
+        {
+          "id": "sensitive_task_access_cross_session_egress_block__office_document_share",
+          "from": "idle",
+          "verdict": "block",
+          "verified_history": "same_task_sensitive_access",
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          },
+          "when": {
+            "tool": {
+              "names": [
+                "office_document_share"
+              ],
+              "operation_families": [
+                "network.egress"
+              ],
+              "effects_any_of": [
+                "egress"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AtlasToolBoundaryMonitor",
+      "initial": "idle",
+      "rules": [
+        {
+          "id": "atlas_untrusted_potential_delete",
+          "from": "*",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "contract:potential_delete"
+            ],
+            "tool": {
+              "effects_any_of": [
+                "execute"
+              ]
+            },
+            "sequence": {
+              "steps": [
+                {
+                  "tool": {
+                    "effects_any_of": [
+                      "read"
+                    ],
+                    "execution_states": [
+                      "succeeded"
+                    ]
+                  },
+                  "any_of": [
+                    "external_source",
+                    "attachment_open",
+                    "attachment_download",
+                    "contract:untrusted_input"
+                  ]
+                },
+                {
+                  "all_of": [
+                    "contract:potential_delete"
+                  ],
+                  "tool": {
+                    "effects_any_of": [
+                      "execute"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "atlas_untrusted_control_plane_change",
+          "from": "*",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "contract:control_plane_change"
+            ],
+            "sequence": {
+              "steps": [
+                {
+                  "tool": {
+                    "effects_any_of": [
+                      "read"
+                    ],
+                    "execution_states": [
+                      "succeeded"
+                    ]
+                  },
+                  "any_of": [
+                    "external_source",
+                    "attachment_open",
+                    "attachment_download",
+                    "contract:untrusted_input"
+                  ]
+                },
+                {
+                  "all_of": [
+                    "contract:control_plane_change"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "atlas_untrusted_permission_grant",
+          "from": "*",
+          "verdict": "block",
+          "when": {
+            "all_of": [
+              "contract:permission_grant"
+            ],
+            "sequence": {
+              "steps": [
+                {
+                  "tool": {
+                    "effects_any_of": [
+                      "read"
+                    ],
+                    "execution_states": [
+                      "succeeded"
+                    ]
+                  },
+                  "any_of": [
+                    "external_source",
+                    "attachment_open",
+                    "attachment_download",
+                    "contract:untrusted_input"
+                  ]
+                },
+                {
+                  "all_of": [
+                    "contract:permission_grant"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "atlas_untrusted_delayed_authority",
+          "from": "*",
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "contract:delayed_authority"
+            ],
+            "sequence": {
+              "steps": [
+                {
+                  "tool": {
+                    "effects_any_of": [
+                      "read"
+                    ],
+                    "execution_states": [
+                      "succeeded"
+                    ]
+                  },
+                  "any_of": [
+                    "external_source",
+                    "attachment_open",
+                    "attachment_download",
+                    "contract:untrusted_input"
+                  ]
+                },
+                {
+                  "all_of": [
+                    "contract:delayed_authority"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "atlas_sensitive_read_egress",
+          "from": "*",
+          "verdict": "block",
+          "when": {
+            "tool": {
+              "effects_any_of": [
+                "egress"
+              ],
+              "excluded_names": [
+                "office_message_send",
+                "office_network_post",
+                "office_document_share"
+              ]
+            },
+            "sequence": {
+              "steps": [
+                {
+                  "tool": {
+                    "effects_any_of": [
+                      "read"
+                    ],
+                    "execution_states": [
+                      "succeeded"
+                    ]
+                  },
+                  "all_of": [
+                    "contract:sensitive_read"
+                  ]
+                },
+                {
+                  "tool": {
+                    "effects_any_of": [
+                      "egress"
+                    ],
+                    "excluded_names": [
+                      "office_message_send",
+                      "office_network_post",
+                      "office_document_share"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "atlas_sensitive_read_egress__office_message_send",
+          "from": "*",
+          "verdict": "block",
+          "when": {
+            "tool": {
+              "effects_any_of": [
+                "egress"
+              ],
+              "names": [
+                "office_message_send"
+              ]
+            },
+            "sequence": {
+              "steps": [
+                {
+                  "tool": {
+                    "effects_any_of": [
+                      "read"
+                    ],
+                    "execution_states": [
+                      "succeeded"
+                    ]
+                  },
+                  "all_of": [
+                    "contract:sensitive_read"
+                  ]
+                },
+                {
+                  "tool": {
+                    "effects_any_of": [
+                      "egress"
+                    ],
+                    "names": [
+                      "office_message_send"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          }
+        },
+        {
+          "id": "atlas_sensitive_read_egress__office_network_post",
+          "from": "*",
+          "verdict": "block",
+          "when": {
+            "tool": {
+              "effects_any_of": [
+                "egress"
+              ],
+              "names": [
+                "office_network_post"
+              ]
+            },
+            "sequence": {
+              "steps": [
+                {
+                  "tool": {
+                    "effects_any_of": [
+                      "read"
+                    ],
+                    "execution_states": [
+                      "succeeded"
+                    ]
+                  },
+                  "all_of": [
+                    "contract:sensitive_read"
+                  ]
+                },
+                {
+                  "tool": {
+                    "effects_any_of": [
+                      "egress"
+                    ],
+                    "names": [
+                      "office_network_post"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "atlas_sensitive_read_egress__office_document_share",
+          "from": "*",
+          "verdict": "block",
+          "when": {
+            "tool": {
+              "effects_any_of": [
+                "egress"
+              ],
+              "names": [
+                "office_document_share"
+              ]
+            },
+            "sequence": {
+              "steps": [
+                {
+                  "tool": {
+                    "effects_any_of": [
+                      "read"
+                    ],
+                    "execution_states": [
+                      "succeeded"
+                    ]
+                  },
+                  "all_of": [
+                    "contract:sensitive_read"
+                  ]
+                },
+                {
+                  "tool": {
+                    "effects_any_of": [
+                      "egress"
+                    ],
+                    "names": [
+                      "office_document_share"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          }
+        }
+      ]
+    },
+    {
+      "name": "NativeRequestBoundaryMonitor",
+      "initial": "idle",
+      "source": "handwritten",
+      "source_ids": [
+        "native-read-and-egress-contract-v1"
+      ],
+      "rules": [
+        {
+          "id": "native_remote_content_egress_block",
+          "from": "*",
+          "verdict": "block",
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1",
+              "effects_any_of": [
+                "egress"
+              ],
+              "excluded_names": [
+                "office_message_send",
+                "office_network_post",
+                "office_document_share",
+                "web_fetch",
+                "web_search",
+                "x_search"
+              ]
+            },
+            "sequence": {
+              "steps": [
+                {
+                  "all_of": [
+                    "contract:untrusted_input"
+                  ],
+                  "tool": {
+                    "event_model": "tool-call-v1",
+                    "effects_any_of": [
+                      "read"
+                    ],
+                    "execution_states": [
+                      "succeeded"
+                    ]
+                  }
+                },
+                {
+                  "tool": {
+                    "event_model": "tool-call-v1",
+                    "effects_any_of": [
+                      "egress"
+                    ],
+                    "excluded_names": [
+                      "office_message_send",
+                      "office_network_post",
+                      "office_document_share",
+                      "web_fetch",
+                      "web_search",
+                      "x_search"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "native_remote_content_egress_block__office_message_send",
+          "from": "*",
+          "verdict": "block",
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1",
+              "effects_any_of": [
+                "egress"
+              ],
+              "names": [
+                "office_message_send"
+              ]
+            },
+            "sequence": {
+              "steps": [
+                {
+                  "all_of": [
+                    "contract:untrusted_input"
+                  ],
+                  "tool": {
+                    "event_model": "tool-call-v1",
+                    "effects_any_of": [
+                      "read"
+                    ],
+                    "execution_states": [
+                      "succeeded"
+                    ]
+                  }
+                },
+                {
+                  "tool": {
+                    "event_model": "tool-call-v1",
+                    "effects_any_of": [
+                      "egress"
+                    ],
+                    "names": [
+                      "office_message_send"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_message_send",
+            "operation_family": "message.send"
+          }
+        },
+        {
+          "id": "native_remote_content_egress_block__office_network_post",
+          "from": "*",
+          "verdict": "block",
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1",
+              "effects_any_of": [
+                "egress"
+              ],
+              "names": [
+                "office_network_post"
+              ]
+            },
+            "sequence": {
+              "steps": [
+                {
+                  "all_of": [
+                    "contract:untrusted_input"
+                  ],
+                  "tool": {
+                    "event_model": "tool-call-v1",
+                    "effects_any_of": [
+                      "read"
+                    ],
+                    "execution_states": [
+                      "succeeded"
+                    ]
+                  }
+                },
+                {
+                  "tool": {
+                    "event_model": "tool-call-v1",
+                    "effects_any_of": [
+                      "egress"
+                    ],
+                    "names": [
+                      "office_network_post"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_network_post",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "native_remote_content_egress_block__office_document_share",
+          "from": "*",
+          "verdict": "block",
+          "when": {
+            "tool": {
+              "event_model": "tool-call-v1",
+              "effects_any_of": [
+                "egress"
+              ],
+              "names": [
+                "office_document_share"
+              ]
+            },
+            "sequence": {
+              "steps": [
+                {
+                  "all_of": [
+                    "contract:untrusted_input"
+                  ],
+                  "tool": {
+                    "event_model": "tool-call-v1",
+                    "effects_any_of": [
+                      "read"
+                    ],
+                    "execution_states": [
+                      "succeeded"
+                    ]
+                  }
+                },
+                {
+                  "tool": {
+                    "event_model": "tool-call-v1",
+                    "effects_any_of": [
+                      "egress"
+                    ],
+                    "names": [
+                      "office_document_share"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "unless_authorized": {
+            "tool_name": "office_document_share",
+            "operation_family": "network.egress"
+          }
+        },
+        {
+          "id": "native_remote_request_review",
+          "from": "*",
+          "verdict": "ask",
+          "when": {
+            "all_of": [
+              "contract:remote_request"
+            ],
+            "tool": {
+              "event_model": "tool-call-v1"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "event_model": "tool-call-v1"
+}

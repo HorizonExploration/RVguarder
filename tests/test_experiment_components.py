@@ -49,6 +49,7 @@ def test_default_is_all_enabled_and_import_has_no_side_effects() -> None:
         "cross_step_rv",
         "authorization",
         "approval_trust",
+        "cross_session_rv",
     )
     components = ec.current()
     assert components == ExperimentComponents.all_enabled()

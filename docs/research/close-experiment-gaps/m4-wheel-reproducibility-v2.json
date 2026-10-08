@@ -1,0 +1,19 @@
+{
+  "first_wheel": "dist/rvguard-m4-candidate-v1/backend/openclaw_guard-0.7.0.dev0-py3-none-any.whl",
+  "second_wheel": "/tmp/rv-m4-wheel-repro-v2/openclaw_guard-0.7.0.dev0-py3-none-any.whl",
+  "first_sha256": "2f0da634075ad87da935aa4767b31b75dc44d289123c070e2d4d257eb91e4309",
+  "second_sha256": "2f0da634075ad87da935aa4767b31b75dc44d289123c070e2d4d257eb91e4309",
+  "byte_equal": true,
+  "build_logs": [
+    {
+      "path": "docs/research/close-experiment-gaps/m4-wheel-build-v2.log",
+      "sha256": "b370e02471f6a0bbb3a4e600749072b18fa0db51531964826268ab81ff5589f4"
+    },
+    {
+      "path": "docs/research/close-experiment-gaps/m4-wheel-repro-v2.log",
+      "sha256": "2586ecfcd0cc5bab0bd6ed6800f2261ccab5add8e1e373cf207286b0638fc0c3"
+    }
+  ],
+  "command": "SOURCE_DATE_EPOCH=0 python -m pip wheel . --no-deps --no-build-isolation --wheel-dir <separate-directory>",
+  "release_qualified": false
+}

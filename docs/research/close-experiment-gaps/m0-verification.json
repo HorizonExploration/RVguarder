@@ -1,0 +1,46 @@
+{
+  "milestone": "M0",
+  "status": "passed",
+  "validation": {
+    "issues": 25,
+    "evidence_locators": 36,
+    "measures": 25,
+    "baseline_prevented": 17,
+    "errors": [],
+    "passed": true
+  },
+  "issue_status_counts": {
+    "open": 20,
+    "closed": 5
+  },
+  "independent_review": {
+    "agent": "/root/stage1_review",
+    "role": "只读独立复核者",
+    "conclusion": "25条问题对应25条措施，36证据定位有效；17例基线选择与源SHA一致；R2四例效果4/4、R3零新增正常失败，产品门与原Q5独立；无剩余必须修改项",
+    "corrections": [
+      "明确v2/67旧揭盲矩阵复跑与新盲测区别",
+      "逐正常场景正增量审批相加，不抵消",
+      "矩阵输入证据与已验证台账逐条一致"
+    ]
+  },
+  "implementation_fix": {
+    "issue": "ENG-001",
+    "change": "源码策略补齐office_message_send、office_network_post、office_document_share；保留已评估随包映射，未修改规则版本",
+    "test_command": "python -m pytest tests/test_policy_catalog.py -q",
+    "result": "24 passed in 1.35s"
+  },
+  "frozen_revision": "m0-r1",
+  "frozen_files_sha256": {
+    "acceptance.json": "ad51aa038d853398d77db1a7b6a5194726883b98ca64f1ef3b588251151d2f8a",
+    "baseline-prevented.json": "bb2dc2a7df6f64b08bd35eb132aba9a27bed65e1227783a77dd00cf81808bdf5",
+    "issues.json": "2a9990f70119e75384fb0f0380b4a6a8eb8e898e2abbf53527117da473d180e8",
+    "measures.json": "e74a8bceea3fdd9c8171fa53a8f2569427adf97c13b1e292f4b4b822cd908255",
+    "coverage-boundaries.md": "d39f3291907b8ea1b0d68d1c4cdbc88594a4319633fa4edc2b73b530bc70f9da",
+    "policy-observations.json": "f49b0fb25a3ee0e531c0df99f9404d7569c5a6078ec568896e01954479c129d3",
+    "gate-observations.json": "e0cf73713042cfeab21f1e24ed011fce1aa928218b360a0d85ac10b4ba40b24c",
+    "document-observations.json": "f2b7df7020ed5c32a500fb19a3c60b01c88fec82be7bf54b84f9ed8b865fbd38"
+  },
+  "history_policy": "未改历史结果与gates.json；baseline来源SHA已校验；现有AGENTS.md未修改",
+  "future_milestones": "M1–M6未完成，未新跑实验、未安装插件、未发布",
+  "api_calls": 0
+}

@@ -1,0 +1,33 @@
+{
+  "scope": "M4 engineering candidate; main safety/latency qualification separate",
+  "checks": {
+    "project_API_key_absent": true,
+    "no_embedded_runtime_hook_token": true
+  },
+  "evidence_sha256": {
+    "m4-native-install-v6/acceptance.json": "3266335a1bd75f7910d7dad799270b3f4fd4277134ae709da7b3588f5cd867e8",
+    "m4-native-install-v6/post-uninstall-independent-oracle-v1.json": "a75efe3a92d0f52d4ebdcd3b5a4548642c32f468e25dd383b2be70ce487b8fc9",
+    "m4-native-recovery-v1/acceptance.json": "8c4441449ba192f209f8f1bd661360a9b2ee114f2e1bb60b8302347290448058",
+    "m4-native-fault-http500-v1/acceptance.json": "e34d483342a68f9356794a877e9e8887ade47d750166b33b3d760acadc59a913",
+    "m4-native-fault-http403-v1/acceptance.json": "9abdd4b9c756aaab284b6aae18ebe1f5841b7741d5195b1d10dfebbdb537bc55",
+    "m4-native-fault-malformed-v1/acceptance.json": "d19ca7a23ad1a9eaad2c0cb821361b59a2925dca2dc906e7c861bdd810ec57fb",
+    "m4-native-fault-timeout-v1/acceptance.json": "124b9262ceb03dc7ca9b9fb31d4a18ddbdc088aa2b57265acdeb3cae2bf177df",
+    "m4-native-fault-offline-v1/acceptance.json": "e59117dc1fc47340b092bb678da8b9509134f4c4008faa34a0e52824a127b380"
+  },
+  "native_install": {
+    "SDK_archive_installed": true,
+    "real_allow_ask_block": true,
+    "attack_actual_effect_absent": true,
+    "SDK_uninstall_inactive": true,
+    "post_uninstall_native_tools_complete": false
+  },
+  "post_uninstall_verified": true,
+  "continuous_recovery": true,
+  "all_five_fault_modes_pass_through": true,
+  "release_qualified": false,
+  "limits": [
+    "v6 raw runner rejected missing execution.runId; independent Oracle uses actual SDK toolCallId/sessionKey.",
+    "Default bundled 67 rules not newly evaluated; r4 candidate109 selected explicitly in smoke.",
+    "Read succeeded; no claim that its unsaved returned text equals fixture bytes."
+  ]
+}

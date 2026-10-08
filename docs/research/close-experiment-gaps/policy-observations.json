@@ -1,0 +1,58 @@
+{
+  "status": "before_sync",
+  "files": [
+    {
+      "path": "policies/permissions/catalog/operation-catalog.json",
+      "sha256": "11cdabe363e0d2db6811437195ddf262dbcf308b18ec1e73b63d834e6d128aee",
+      "operations": [
+        {
+          "family": "message.send",
+          "tool_ids": [
+            "feishu.im.send",
+            "feishu.im.reply",
+            "message"
+          ]
+        },
+        {
+          "family": "network.egress",
+          "tool_ids": [
+            "network.request",
+            "feishu.http.request",
+            "web_search",
+            "x_search",
+            "web_fetch",
+            "mail-send"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "openclaw_guard/policy/data/permissions/catalog/operation-catalog.json",
+      "sha256": "206b4f0dc2d9fdc2b0872829de7003dcc053ffabd85cf2f94f9db8b7c667e2fa",
+      "operations": [
+        {
+          "family": "message.send",
+          "tool_ids": [
+            "feishu.im.send",
+            "feishu.im.reply",
+            "message",
+            "office_message_send"
+          ]
+        },
+        {
+          "family": "network.egress",
+          "tool_ids": [
+            "network.request",
+            "feishu.http.request",
+            "web_search",
+            "x_search",
+            "web_fetch",
+            "mail-send",
+            "office_network_post",
+            "office_document_share"
+          ]
+        }
+      ]
+    }
+  ]
+}

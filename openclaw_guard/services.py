@@ -399,6 +399,9 @@ class GuardServices:
         self.whitelist = WhitelistEngine(default_police_whitelist())
         self.controller = GuardController(self.whitelist, decision_overlay=self.apply_principal_rv)
         self.policy_engine = AuthorizationPolicyEngine()
+        # 宿主显式配置才启用引用证据；默认不访问授权存储。
+        self.host_authorization_bridge = None
+        self.content_evidence_ledger = None
 
         # AuditStore —— SQLite 连接（~50ms）
         db_url = settings.get_database_url()
@@ -457,7 +460,12 @@ class GuardServices:
     def handle_before_tool_call(self, payload: dict[str, Any], *, wait_timeout_ms: int | None = None) -> dict[str, Any]:
         from openclaw_guard.engine.pipeline import handle_before_tool_call_pipeline
 
-        return handle_before_tool_call_pipeline(self, payload, wait_timeout_ms=wait_timeout_ms)
+        try:
+            return handle_before_tool_call_pipeline(self, payload, wait_timeout_ms=wait_timeout_ms)
+        finally:
+            preparation = getattr(self.host_authorization_bridge, "history_preparation", None)
+            if preparation is not None:
+                preparation.release_for_step(f"{payload.get('runId')}:{payload.get('toolCallId')}")
 
     def handle_after_tool_call(self, payload: dict[str, Any]) -> dict[str, Any]:
         from openclaw_guard.engine.pipeline import handle_after_tool_call_pipeline
@@ -622,10 +630,14 @@ class GuardServices:
 
     def _build_runtime_verification_engine(self) -> RuntimeVerificationEngine:
         """Build RV and restore durable state before processing a new event."""
+        preparation = getattr(self.host_authorization_bridge, "decision_preparation", None)
+        history_preparation = getattr(self.host_authorization_bridge, "history_preparation", None)
         engine = RuntimeVerificationEngine(
             window_size=10,
             rule_mode=str(self.preferences().get("rv_rule_mode") or "") or None,
             permission_bundle=self.policy_engine.bundle,
+            authorization_checker=preparation.authorization_for_step if preparation is not None else None,
+            history_checker=history_preparation.authorization_for_step if history_preparation is not None else None,
         )
         with self._rv_state_lock:
             snapshot = read_json(self.rv_state_path)

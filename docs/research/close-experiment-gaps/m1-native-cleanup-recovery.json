@@ -1,0 +1,12 @@
+{
+  "scope": "recovery of two identified temporary public-fixture runs; no other containers touched",
+  "containers_removed": [
+    "openclaw-sbx-workspace-028d02aa431f9da7406b46dff651d5c9",
+    "openclaw-sbx-workspace-1ecdbc28e84e6d1d36a210f86dad57c4"
+  ],
+  "temporary_roots_removed": [
+    "/tmp/rv-native-snapshot-i8p3xjga",
+    "/tmp/rv-native-snapshot-7lxkko6z"
+  ],
+  "passed": true
+}

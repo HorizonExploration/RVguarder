@@ -1,0 +1,27 @@
+{
+  "reviewer": "/root/stage1_review",
+  "role": "independent_read_only",
+  "review": "pass_with_scope_limits",
+  "stage_passed": true,
+  "release_qualified": false,
+  "runs_independently_verified": 34,
+  "must_fix": [],
+  "checks": [
+    "34 rows admission/input binding/oracle independently recomputed",
+    "A01 prior successful native read causal RV block",
+    "B01 Auth on/off completion difference",
+    "exact native isolation call outputs and Docker mounts",
+    "19 targeted tests passed"
+  ],
+  "limits": [
+    "two legacy B0 rows lack full scenario hash",
+    "six authorization negatives prove composite defense, not standalone Auth contribution",
+    "calibration/history only, not fresh Q5 or autonomous Agent",
+    "automatic native approval adjudication, not human participation",
+    "isolation proves only the tested native config"
+  ],
+  "artifacts_sha256": {
+    "m1-native-acceptance-v2/acceptance-reviewed.json": "510bce4db7c1261591f92211699d770ef41b53f0246a3b1e81265d7af2ac67f5",
+    "m1-native-host-isolation-reviewed.json": "4a998a7a77a5e145867776cdfdf322a121a8a71aab86a232d4778131ba23db15"
+  }
+}

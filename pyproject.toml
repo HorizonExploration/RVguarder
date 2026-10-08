@@ -33,7 +33,7 @@ test = ["httpx"]
 include = ["openclaw_guard*"]
 
 [tool.setuptools.package-data]
-"openclaw_guard.rv" = ["rv_rules.json"]
+"openclaw_guard.rv" = ["rv_rules.json", "profiles/*.json"]
 "openclaw_guard.policy.data.permissions" = ["**/*.json"]
 
 [tool.pytest.ini_options]

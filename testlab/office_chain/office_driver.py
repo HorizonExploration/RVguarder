@@ -550,6 +550,8 @@ def _run_agent_with_approvals(
     *, profile: str, session_key: str, message: str, timeout: float,
     approval_policy: str, toolchain: dict[str, Any], env: dict[str, str],
     message_channel: str | None = MESSAGE_CHANNEL,
+    session_id: str | None = None,
+    approval_callback: Any | None = None,
 ) -> dict[str, Any]:
     """运行一次真实 Agent turn，并在运行期解决原生审批。
 
@@ -564,6 +566,8 @@ def _run_agent_with_approvals(
     ]
     if message_channel:
         command += ["--channel", str(message_channel)]
+    if session_id is not None:
+        command += ["--session-id", session_id]
     approvals: list[dict[str, Any]] = []
     seen: set[str] = set()
     started = time.monotonic()
@@ -591,6 +595,8 @@ def _run_agent_with_approvals(
                     if approval_id in seen:
                         continue
                     decision = "allow-once" if approval_policy == "allow-once" else "deny"
+                    if approval_callback is not None:
+                        approval_callback(dict(pending))
                     outcome = _resolve_approval(profile, approval_id, decision, env=env, cli=cli)
                     approvals.append({
                         "id": approval_id,
@@ -749,8 +755,9 @@ def _list_automations(profile: str, *, env: dict[str, str], cli: str) -> tuple[b
 def _cleanup_sandboxes(before_ids: set[str], *, profile: str, toolchain: dict[str, Any]) -> list[str]:
     """尽力清理本次运行新建且与本 profile 关联的 Docker 沙箱容器。"""
     docker = toolchain.get("docker")
-    if not docker:
+    if not docker or not profile:
         return []
+    profile_root = str(Path.home() / f".openclaw-{profile}")
     try:
         result = _run([docker, "ps", "-aq"], env=dict(os.environ), timeout=30)
     except (OSError, subprocess.SubprocessError):
@@ -761,16 +768,27 @@ def _cleanup_sandboxes(before_ids: set[str], *, profile: str, toolchain: dict[st
             continue
         try:
             inspected = _run(
-                [docker, "inspect", "--format", "{{.Name}} {{.Config.Image}}", container],
+                [docker, "inspect", "--format", "{{json .Mounts}}", container],
                 env=dict(os.environ), timeout=30,
             )
         except (OSError, subprocess.SubprocessError):
             continue
-        descriptor = (inspected.stdout or "").strip()
-        if profile and profile in descriptor:
+        try:
+            mounts = json.loads(inspected.stdout or "[]")
+        except (ValueError, TypeError):
+            continue
+        # 当前SDK按workspace hash命名容器；以隔离profile的真实宿主mount归属
+        # 判断，不能匹配邻近profile前缀，也不能清理运行前已有容器。
+        owned = isinstance(mounts, list) and any(
+            isinstance(mount, dict) and isinstance(mount.get("Source"), str)
+            and (mount["Source"] == profile_root or mount["Source"].startswith(profile_root + os.sep))
+            for mount in mounts
+        )
+        if inspected.returncode == 0 and owned:
             try:
-                _run([docker, "rm", "-f", container], env=dict(os.environ), timeout=30)
-                removed.append(container)
+                removal = _run([docker, "rm", "-f", container], env=dict(os.environ), timeout=30)
+                if removal.returncode == 0:
+                    removed.append(container)
             except (OSError, subprocess.SubprocessError):
                 pass
     return removed
@@ -802,6 +820,9 @@ def run_scenario_b0(
     timeout: float = 300.0,
     approval_policy: str = "allow-once",
     restart_gateway: bool = True,
+    snapshot_execution: bool = False,
+    execution_evidence: dict[str, Any] | None = None,
+    session_id: str | None = None,
 ) -> dict[str, Any]:
     """在真实 OpenClaw 原生基线上执行一个 office-chain 场景。
 
@@ -819,6 +840,12 @@ def run_scenario_b0(
         raise ValueError("scenario 必须是含非空 events 的字典")
     if approval_policy not in {"allow-once", "deny"}:
         raise ValueError(f"不支持的 approval_policy：{approval_policy!r}")
+    if not isinstance(snapshot_execution, bool):
+        raise ValueError("snapshot_execution must be boolean")
+    if execution_evidence is not None and (not isinstance(execution_evidence, dict) or not snapshot_execution):
+        raise ValueError("execution_evidence requires snapshot_execution and controlled config")
+    if session_id is not None and (not isinstance(session_id, str) or not session_id or len(session_id) > 256):
+        raise ValueError("session_id must be a concrete host identifier")
 
     toolchain = toolchain or resolve_toolchain()
     workspace = Path(workspace).resolve()
@@ -843,6 +870,8 @@ def run_scenario_b0(
     docker_before = _docker_ps_ids(toolchain)
 
     segments = _segments(scenario)
+    if session_id is not None and len(segments) != 1:
+        raise ValueError("explicit session_id requires a single-session contract check")
     if provider_port is not None:
         notes.append(f"使用调用方提供的冻结 provider 端口 {provider_port}，单会话运行整条链。")
         segments = [list(scenario["events"])]
@@ -873,6 +902,10 @@ def run_scenario_b0(
             config = resolve_b0_config(
                 workspace, plugin_dir=plugin_dir, profile_home=profile_home, provider_port=port,
             )
+            if snapshot_execution:
+                config["plugins"]["entries"]["rvguard-office-chain-simulator"]["config"]["snapshotExecution"] = True
+            if execution_evidence is not None:
+                config["plugins"]["entries"]["rvguard-office-chain-simulator"]["config"]["executionEvidence"] = execution_evidence
             if gateway is None:
                 gateway = _Gateway(toolchain=toolchain, env=env)
             if index > 0 and restart_gateway:
@@ -884,6 +917,7 @@ def run_scenario_b0(
             run = _run_agent_with_approvals(
                 profile=gateway.profile, session_key=session_key, message=message,
                 timeout=timeout, approval_policy=approval_policy, toolchain=toolchain, env=env,
+                session_id=session_id,
             )
             run["segment"] = index
             agent_runs.append(run)
@@ -962,6 +996,7 @@ def run_scenario_b0(
 
     result: dict[str, Any] = {
         "arm": "B0",
+        "execution_contract": "snapshot-v1" if snapshot_execution else "legacy",
         "scenario_id": scenario.get("scenario_id"),
         "split": scenario.get("split"),
         "variant": scenario.get("variant"),
@@ -970,6 +1005,7 @@ def run_scenario_b0(
         "events": events,
         "approvals": approvals,
         "execution_observations": executions,
+        "hook_observations": hooks,
         "receipts": receipts,
         "external_effect_count": len(external_receipts),
         "attack_goal_achieved": bool(attack_goal_achieved),

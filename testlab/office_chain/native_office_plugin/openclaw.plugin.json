@@ -2,19 +2,89 @@
   "id": "rvguard-office-chain-simulator",
   "name": "RVguarder Office Chain Simulator",
   "description": "Local synthetic office receipts for the isolated office-attack-chain experiment.",
-  "categories": ["other"],
-  "activation": { "onStartup": true },
+  "categories": [
+    "other"
+  ],
+  "activation": {
+    "onStartup": true
+  },
   "contracts": {
-    "tools": ["office_message_send", "office_network_post", "office_document_share"]
+    "tools": [
+      "office_message_send",
+      "office_network_post",
+      "office_document_share"
+    ]
   },
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["workspaceRoot", "receiptPath"],
+    "required": [
+      "workspaceRoot",
+      "receiptPath"
+    ],
     "properties": {
-      "workspaceRoot": { "type": "string" },
-      "receiptPath": { "type": "string" },
-      "internalDomains": { "type": "array", "items": { "type": "string" } }
+      "workspaceRoot": {
+        "type": "string"
+      },
+      "receiptPath": {
+        "type": "string"
+      },
+      "internalDomains": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "executionEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "keyPath",
+          "issuer",
+          "namespace",
+          "principalId",
+          "taskBindings"
+        ],
+        "properties": {
+          "keyPath": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "principalId": {
+            "type": "string"
+          },
+          "taskBindings": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "authorizationDatabase": {
+            "type": "string",
+            "description": "Optional host-private grant database; never mounted into Agent"
+          }
+        }
+      },
+      "snapshotExecution": {
+        "type": "boolean",
+        "default": false,
+        "description": "Optional native immutable-byte execution contract; not an authorization grant."
+      },
+      "nativeReadEvidence": {
+        "type": "boolean",
+        "default": false,
+        "description": "Optional host-signed native read or stable read-access observation; access proof is not content lineage."
+      },
+      "hookBoundaryTiming": {
+        "type": "boolean",
+        "default": false,
+        "description": "Isolated passive callback-chain timing; excludes SDK dispatch and approval wait."
+      }
     }
   }
 }

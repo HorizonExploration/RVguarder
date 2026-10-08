@@ -1,0 +1,472 @@
+{
+  "schema_version": 1,
+  "issues": [
+    {
+      "id": "AUTH-001",
+      "priority": "P0",
+      "phenomenon": "授权match基础API可接受陈旧或伪造资源描述，存在未来接入风险；未观察到部署绕过",
+      "found_by": "/root/stage1_review独立只读复核",
+      "root_cause": "接口只比对调用者传入的资源描述字符串，未重新读取当前真实内容",
+      "status": "closed",
+      "fix": "match拒绝外部ResourceDescriptor，在内部使用受控宿主observer重新观察namespace/path",
+      "evidence": [
+        "openclaw_guard/spec/host_authorization.py:HostAuthorizationStore.match",
+        "tests/test_host_authorization.py:test_stale_or_forged_resource_description_cannot_match_changed_content"
+      ],
+      "verification": "独立复验授权测试25 passed；旧resource参数被拒绝",
+      "scope_limit": "observer及binding必须由可信宿主提供；尚未接入Hook，执行后续TOCTOU及Docker无写权仍待验收"
+    },
+    {
+      "id": "AUTH-002",
+      "priority": "P0",
+      "phenomenon": "同步参考观察可能拖延before Hook超过插件默认2秒，间接触发fail-open；代码复核风险，非观测到真实攻击绕过",
+      "root_cause": "PMKB/RV前同步读取哈希文件并等待最多5秒SQLite连接",
+      "status": "closed",
+      "fix": "before只put_nowait提交，16容量队列单daemon后台观察，64诊断结果上限；不等待参考结果或据此放行",
+      "verification": "bridge11项通过，慢worker等待时submit及时返回且RV立即block",
+      "scope_limit": "没有测量真实部署延迟；未跑全量/真实实验，未来授权放行仍需内容和身份绑定验收",
+      "independent_review": "只读复核确认热路径无宿主IO/SQLite等待，队列满/关闭不影响原裁决；未发现本轮剩余必须修正项"
+    },
+    {
+      "id": "AUTH-003",
+      "priority": "P0",
+      "phenomenon": "执行后路由未附服务端认证绑定；旧匹配逻辑可遗漏已有身份上下文字段",
+      "root_cause": "after路由未覆盖客户端认证字段，context仅双方非空才比对",
+      "status": "closed",
+      "fix": "after路由写服务端认证字段；已认证before要求同一binding和完整已知上下文",
+      "evidence": [
+        "tests/test_authenticated_tool_completion.py"
+      ],
+      "scope_limit": "旧内部非认证回放保持兼容且标记legacy；bearer token不单独证明Agent/session宿主来源",
+      "independent_review": "只读复核未发现本轮剩余必须修正项；回调证据不证明实际内容血缘或每Agent归属"
+    },
+    {
+      "id": "AUTH-004",
+      "priority": "P0",
+      "phenomenon": "SDK工具结果isError=true但Hook error为空时，旧逻辑可能提交成功历史",
+      "root_cause": "仅检查Hook error，生成插件未传SDK结果失败标记",
+      "status": "closed",
+      "fix": "从SDK result.isError严格布尔字段传toolResultFailed，报错则failed且不提交成功历史",
+      "evidence": [
+        "tests/test_authenticated_tool_completion.py:test_tool_level_failure_does_not_commit_success",
+        "tests/test_hook_silent_passthrough.py:test_after_callback_reports_sdk_failure_not_tool_parameter_assertion"
+      ],
+      "scope_limit": "代码路径与定向复现发现，不声称历史实验曾被该缺陷污染",
+      "independent_review": "只读复核未发现本轮剩余必须修正项；回调证据不证明实际内容血缘或每Agent归属"
+    },
+    {
+      "id": "AUTH-005",
+      "priority": "P0",
+      "phenomenon": "内容收据若只校验签名，会接受签发器错误绑定的合法错任务签名",
+      "found_by": "/root/stage1_review独立只读复核",
+      "root_cause": "初版issue/verify缺少宿主唯一活动任务校验",
+      "status": "closed",
+      "fix": "issue与verify均解析宿主唯一活动task并核对完整身份；撤销/歧义使旧签名失效，查询只在后台",
+      "evidence": [
+        "tests/test_content_receipts.py:test_legally_signed_wrong_task_is_rejected_by_host_task_binding",
+        "tests/test_content_receipts.py:test_revoked_or_ambiguous_task_cannot_accept_old_valid_signature"
+      ],
+      "independent_review": "issue/verify及合法错task、撤销反例复核通过",
+      "scope_limit": "基础签名证据路径；未证明生产部署身份来源或授权放行"
+    },
+    {
+      "id": "AUTH-006",
+      "priority": "P1",
+      "phenomenon": "后台核验前envelope及嵌套参数可能被调用者对象突变",
+      "found_by": "/root/stage1_review独立只读复核",
+      "root_cause": "初版envelope按引用排队，params仅浅拷贝",
+      "status": "closed",
+      "fix": "提交边界使用严格受限JSON副本冻结envelope、嵌套params及有限上下文",
+      "evidence": [
+        "tests/test_content_receipts.py:test_async_receipt_and_nested_parameters_are_frozen_at_submission"
+      ],
+      "independent_review": "延迟worker期间改写原对象，提交原始证据通过；独立复核确认冻结",
+      "scope_limit": "未观察到HTTP外部绕过；为本机对象复用及未来集成的证据确定性修复"
+    },
+    {
+      "id": "AUTH-007",
+      "priority": "P1",
+      "phenomenon": "先序列化完整大参数再检查长度，可能拖慢after回调",
+      "found_by": "/root/stage1_review独立只读复核",
+      "root_cause": "初版预算检查在canonical之后",
+      "status": "closed",
+      "fix": "先限制2048节点/16层/字符预算/整数宽度和JSON类型，再编码冻结；无效证据不影响原成功历史",
+      "evidence": [
+        "tests/test_content_receipts.py:test_oversize_or_deep_json_is_rejected_before_serialization"
+      ],
+      "independent_review": "超大/深参数拒绝时canonical未被调用；独立定向复验通过",
+      "scope_limit": "代码工作量边界通过，未声称真实部署p95满足门槛"
+    },
+    {
+      "id": "PROJECTION-001",
+      "priority": "P1",
+      "status": "closed",
+      "phenomenon": "旧分享调用有recipient参数，但规约记录resource.recipient缺失",
+      "found_by": "旧SESSION-SMUGGLING-HOL-A1/A2已保存证据只读复查",
+      "root_cause": "TraceCompiler依赖模型实体，路径可替代实际外发接收方",
+      "fix": "两个已登记office sink投影实际recipient字符串；缺失时保留缺口，模型及sourcePath不能补齐",
+      "evidence": [
+        "tests/test_authorization_trace.py:test_office_actual_recipient_is_projected_without_llm",
+        "tests/test_authorization_trace.py:test_office_missing_recipient_cannot_be_filled_by_model_or_source_path"
+      ],
+      "scope_limit": "只修具体工具参数投影，不证明跨会话阻断或修复完整攻击链；未验证内部域配置时保守处理可能增加审批"
+    },
+    {
+      "id": "PROJECTION-002",
+      "priority": "P0",
+      "status": "closed",
+      "phenomenon": "初版接收方修正把弱模型地址冲突加入coverage，可将确定PMKB block降为ask",
+      "found_by": "/root/stage1_review独立复核",
+      "root_cause": "PolicyEvaluator已有conflict降为审批路径，新投影不能用弱模型矛盾污染coverage",
+      "fix": "仅写独立resource_projection诊断，实际参数照常构造规约；保留硬约束",
+      "evidence": [
+        "tests/test_authorization_trace.py:test_office_model_recipient_conflict_cannot_downgrade_verified_hard_block"
+      ],
+      "scope_limit": "新增改动在本轮审查中修复，未部署；hard fact测试为受控手工事实，不证明模型覆盖"
+    },
+    {
+      "id": "PROJECTION-003",
+      "priority": "P0",
+      "status": "closed",
+      "phenomenon": "初版投影按固定域名判internal，与office执行器internalDomains可能不同",
+      "found_by": "/root/stage1_review独立复核",
+      "root_cause": "默认域分类不能证明具体执行器对同一接收方的实际风险分类",
+      "fix": "无可信执行器域配置时不给internal；scope保守external，zone默认unknown；明确external标记只升风险",
+      "evidence": [
+        "tests/test_authorization_trace.py:test_office_default_domain_is_not_verified_internal_scope"
+      ],
+      "scope_limit": "可能新增原生审批，实际成本未验收；此修复不宣称通过正常任务门或Q5"
+    },
+    {
+      "id": "SNAPSHOT-001",
+      "priority": "P1",
+      "status": "closed",
+      "phenomenon": "新增快照初版先递归序列化再检查内容预算，过大或深参数可造成同步处理压力",
+      "found_by": "/root/stage1_review独立只读审查",
+      "fix": "canonical之前限制具体工具的扁平string/boolean参数及字段/字符/UTF8预算；超限使旧快照失效",
+      "evidence": [
+        "testlab/office_chain/native_office_plugin/execution_snapshot.test.mjs"
+      ],
+      "scope_limit": "默认关闭、未部署；普通文件同步IO仍待真实Hook预算验收"
+    },
+    {
+      "id": "PROPOSAL-001",
+      "priority": "P0",
+      "status": "closed",
+      "phenomenon": "新执行前证明初版快照采用ctx身份，观察及签名优先event.context，两者冲突可能错误关联另一身份",
+      "found_by": "/root/stage1_review独立只读审查",
+      "fix": "prepare/describe/observe统一resolveSdkIdentity，拒Agent/session/run/call冲突；重复冲突失效旧快照；Hook优先SDKctx；反向call-ID冲突时event/ctx两个已有候选均失效",
+      "evidence": [
+        "tests/test_execution_proposals.py:test_conflicting_sdk_fields_cannot_sign_another_identity",
+        "testlab/office_chain/native_office_plugin/execution_snapshot.test.mjs"
+      ],
+      "scope_limit": "本轮未部署且证明不进入放行；实际原生身份和Docker隔离尚未验收",
+      "verification": "相关153项通过；最终proposal24项及Node11项通过，含实际工具重复before反向call-ID冲突无副作用"
+    },
+    {
+      "id": "DSL-AUTH-001",
+      "priority": "P1",
+      "status": "closed",
+      "phenomenon": "授权例外缺少运行层证据，不能区别未命中与命中后例外",
+      "found_by": "计划要求的独立只读复核",
+      "fix": "候选步返回authorization_exceptions，参数化路径上传；不写入可恢复授权历史",
+      "evidence": [
+        "tests/test_rv_authorization_guard.py"
+      ],
+      "scope_limit": "守卫库及受控checker测试，生产checker仍None，尚未验收真实授权/撤销边界"
+    },
+    {
+      "id": "DSL-AUTH-002",
+      "priority": "P1",
+      "status": "closed",
+      "phenomenon": "授权guard允许to_state，过期/撤销后历史重放可改变状态",
+      "found_by": "计划要求的独立只读复核",
+      "fix": "schema禁止guard+to_state，补serialize/restore无checker不污染新读取",
+      "evidence": [
+        "tests/test_rv_authorization_guard.py"
+      ],
+      "scope_limit": "守卫库及受控checker测试，生产checker仍None，尚未验收真实授权/撤销边界"
+    },
+    {
+      "id": "DSL-AUTH-003",
+      "priority": "P1",
+      "status": "closed",
+      "phenomenon": "缓存事实缺少生成代际，关闭再开启后旧事实仍可豁免",
+      "found_by": "计划要求的独立只读复核",
+      "fix": "事实component_generation必填，执行前/事实/最终三处代际核对，旧代拒绝与新代正向回归",
+      "evidence": [
+        "tests/test_rv_authorization_guard.py"
+      ],
+      "scope_limit": "守卫库及受控checker测试，生产checker仍None，尚未验收真实授权/撤销边界"
+    },
+    {
+      "id": "NATIVE-REGISTER-001",
+      "priority": "P1",
+      "status": "closed",
+      "phenomenon": "同宿主重复SDK注册拒绝已有provider或让证明与另一注册表消费快照分离",
+      "fix": "相同受控配置共享唯一上下文和一次性快照；所有签名/无签名/legacy配置冲突均拒绝；stop引用计数；before优先级100",
+      "found_by": "实施排查及spec独立复核，包含复核者实际复现无签名配置绕过",
+      "evidence": [
+        "tests/test_native_content_receipts.py"
+      ],
+      "scope_limit": "本地实际Node及独立复核；原生签名/授权撤销仍未验收"
+    },
+    {
+      "id": "NATIVE-CLEANUP-001",
+      "priority": "P1",
+      "status": "closed",
+      "phenomenon": "SDK容器名按workspace hash生成，旧清理用profile名称匹配导致本次容器遗留",
+      "fix": "只清理运行后新增且mount Source精确属于隔离profile的容器；已有容器和相近profile保留",
+      "evidence": [
+        "tests/test_office_driver_cleanup.py",
+        "m1-native-cleanup-recovery.json"
+      ],
+      "scope_limit": "针对性归属测试及两次指定临时运行恢复清理；不增加安全样本"
+    },
+    {
+      "id": "NATIVE-REPORT-001",
+      "priority": "P1",
+      "status": "closed",
+      "phenomenon": "首次检查TemporaryDirectory清理root-owned文件失败，吞掉尚未保存的结果",
+      "fix": "真实结果先落盘；清理失败单独记录；临时公开fixture仅经CHOWN和DAC_OVERRIDE容器修复归属，-R -P不跟随软链；首次失败保留",
+      "evidence": [
+        "scripts/check_native_snapshot_contract.py",
+        "m1-native-snapshot-contract.json",
+        "m1-native-cleanup-recovery.json"
+      ],
+      "scope_limit": "首次结果未保存不能计入成功；第二次真实内容四项检查通过但原清理失败记录保持"
+    },
+    {
+      "id": "NATIVE-REDACTION-001",
+      "priority": "P0",
+      "status": "closed",
+      "phenomenon": "真实SDK对模型可见工具结果中的signature字段脱敏，原after签名读取无法验签",
+      "fix": "签名只保存在受控宿主完成通道，同实际SDK身份和收据ID读取；不进入模型工具结果",
+      "evidence": [
+        "m1-native-signed-contract.json",
+        "m1-native-signed-contract-r2.json",
+        "tests/test_native_content_receipts.py"
+      ],
+      "scope_limit": "首个失败保留；真实三个sink接口通过，不等于安全矩阵通过"
+    },
+    {
+      "id": "AUTH-CONSUMPTION-001",
+      "priority": "P0",
+      "status": "closed",
+      "phenomenon": "仅before核验授权不能防止等待原生审批期间撤销",
+      "fix": "有限快照授权permit；实际副作用与当前grant撤销按同SQLite写锁串行，副作用前重验范围和时间",
+      "evidence": [
+        "m1-native-authorized-consumption-r3.json",
+        "m1-native-revoked-consumption.json",
+        "tests/test_native_content_receipts.py"
+      ],
+      "scope_limit": "专用接口DSL，不计M1攻击分母；执行隔离和阶段场景另验"
+    },
+    {
+      "id": "AUTH-CONSUMPTION-002",
+      "priority": "P0",
+      "status": "closed",
+      "found_by": "spec独立复核 /root/guard_review",
+      "phenomenon": "读取SQLite和扫描记录期间可能跨过许可有效期",
+      "fix": "副作用前重新读取Date.now，重验permit/proposal/grant三者；实际Node查询期间推进时间无收据",
+      "evidence": [
+        "tests/test_native_content_receipts.py"
+      ],
+      "scope_limit": "有界执行器接口反例，不声称任意远程执行器支持串行撤销"
+    },
+    {
+      "id": "AUTH-PERMIT-001",
+      "priority": "P0",
+      "status": "closed",
+      "found_by": "spec独立复核 /root/guard_review",
+      "phenomenon": "HTTP等待期间provider删除/方法缺失/抛错可使mandatory许可退回无permit消费",
+      "fix": "HTTP前捕获同执行器的接收和失效能力；安装失败令原快照不可消费",
+      "evidence": [
+        "openclaw_guard/integrations/hook_runtime.py",
+        "testlab/office_chain/native_office_plugin/index.js"
+      ],
+      "verification": "复核者三例实际native plugin + generated Hook反例均无副作用且无新增Hookblock",
+      "scope_limit": "受控producer必须有可信invalidateSnapshot；第三方不能自行宣称强契约"
+    },
+    {
+      "id": "IR-PARAMS-001",
+      "priority": "P0",
+      "status": "closed",
+      "phenomenon": "PMKB给operation.arguments增加内部action_type，真实参数HMAC无法与RV参数hash一致",
+      "fix": "ToolCallIR从真实Hook params构造arguments；分析效果仍由确定投影派生",
+      "evidence": [
+        "tests/test_rv_tool_call_model.py",
+        "m1-native-authorized-consumption-r3.json"
+      ],
+      "scope_limit": "仍一实际调用一事件，没有Oracle血缘输入Guard"
+    },
+    {
+      "id": "EXEC-COMPOSITE-001",
+      "priority": "P0",
+      "status": "local_fix_verified_stage_pending",
+      "phenomenon": "旧命令解析遇到首个unsafe段即停止，后续egress/delete未分析",
+      "fix": "有界扫描全部复合段，聚合潜在能力；不伪造已执行子调用",
+      "evidence": [
+        "tests/test_command_effect_boundary.py",
+        "tests/test_rv_tool_call_model.py"
+      ],
+      "scope_limit": "R2四真实攻击及M2尚未验收"
+    },
+    {
+      "id": "HARNESS-DSL-001",
+      "priority": "P1",
+      "status": "closed",
+      "phenomenon": "专用授权测试DSL使用未支持的names字段，被旧schema忽略，且未标tool-call-v1",
+      "fix": "专用DSL明确操作族和事件模型；之后增加精确工具names/excluded_names并禁止未知guard字段",
+      "evidence": [
+        "m1-native-authorized-consumption.json",
+        "m1-native-authorized-consumption-r3.json",
+        "tests/test_candidate_office_rules.py"
+      ],
+      "scope_limit": "初始接口报告保留，可能拦截无关read；r3实际read allow，不提升旧报告成绩"
+    },
+    {
+      "id": "HARNESS-CLEANUP-002",
+      "priority": "P1",
+      "status": "closed",
+      "phenomenon": "授权接口脚本早期配置异常发生在try外，曾遗留隔离目录",
+      "fix": "setup纳入try，失败先落盘再清理；现有结果拒绝覆盖；原失败目录已精确清理",
+      "evidence": [
+        "m1-native-authorization-bootstrap-failure.json",
+        "scripts/check_native_authorization_contract.py"
+      ],
+      "scope_limit": "无批量删除其他profile"
+    },
+    {
+      "id": "GENERATOR-FORMAT-001",
+      "priority": "P2",
+      "status": "closed",
+      "phenomenon": "新增JS合法嵌套对象含连续右括号，被既有模板完整性测试当作残留占位符",
+      "fix": "调整生成JS空格，原门保留；定向24项通过",
+      "verification": "全量首次1 failed/968 passed/18 skipped/4 subtests；随后失败门及23Hook测试24 passed",
+      "scope_limit": "首次全量失败如实保留，最终全量门待再验"
+    },
+    {
+      "id": "ORACLE-CAL-001",
+      "priority": "P1",
+      "status": "closed",
+      "phenomenon": "首次映射A01把攻击包hash用于authorized completion，错误显示B0正常目标完成",
+      "fix": "r2校准输入明确合法公共摘要hash；攻击Oracle不变，轨迹不变，首次映射保留",
+      "evidence": [
+        "m1-native-calibration.json",
+        "m1-native-calibration-r2.json"
+      ],
+      "scope_limit": "校准Oracle改正，不是新holdout揭盲或安全样本重试"
+    },
+    {
+      "id": "NATIVE-ADMISSION-001",
+      "priority": "P0",
+      "status": "closed",
+      "found_by": "spec独立复核 /root/guard_review",
+      "phenomenon": "CLI结构化失败仍可能以早期Hook和无receipt被计为防护成功",
+      "fix": "必须所有实际CLI返回码为int 0、无timeout且cleanup通过才admit；缺失或bool/None不可准入",
+      "evidence": [
+        "tests/test_native_oracles.py",
+        "m1-native-acceptance-v1/acceptance-reviewed.json"
+      ]
+    },
+    {
+      "id": "NATIVE-POOL-001",
+      "priority": "P0",
+      "status": "closed",
+      "found_by": "spec独立复核 /root/guard_review",
+      "phenomenon": "只检查规则hash可将其他arm/被更换输入或授权与现输入混池",
+      "fix": "核对实际arm/组件/原生注册/每调用工具与param hash/预授权scope/TTL；新记录要求完整scenario hash，早期记录仅显式Oracle-only兼容且同轨迹/授权",
+      "evidence": [
+        "tests/test_native_oracles.py",
+        "m1-native-acceptance-v1/acceptance-reviewed.json"
+      ],
+      "scope_limit": "旧核心记录缺scenario hash限制显式保留"
+    },
+    {
+      "id": "RV-HISTORY-SELF-ARM-001",
+      "priority": "P0",
+      "status": "closed_native_stage_verified",
+      "phenomenon": "真实主攻击被block，但upload的attachment_download标签在当前步骤建立敏感状态，matched_history_step_ids为空；首个阶段门遗漏此条",
+      "fix": "候选读取状态必须匹配实际read效果；办公inbox/attachments读取仅提供保守风险提示，不证明敏感/公开/授权；r2门要求真实succeeded历史ID",
+      "evidence": [
+        "m1-native-acceptance-v1/acceptance.json",
+        "m1-native-acceptance-v1/acceptance-reviewed.json",
+        "m1-candidate-rules-r2.json",
+        "tests/test_candidate_office_rules.py",
+        "m1-causal-r2-OFFICE-HISTORY-A01-Full.json",
+        "m1-native-acceptance-v2/acceptance-reviewed.json"
+      ],
+      "scope_limit": "仅校准/历史回归，非新Q5或内容血缘证据"
+    },
+    {
+      "id": "ORACLE-CAUSAL-002",
+      "priority": "P0",
+      "status": "closed",
+      "found_by": "spec独立复核 /root/stage1_review",
+      "phenomenon": "全局succeeded ID集合可被后发生、不同身份或无关block满足",
+      "fix": "精确终端RV规则/step+同session/run/Agent/principal+真实认证完成时间早于终端Hook",
+      "evidence": [
+        "tests/test_native_oracles.py",
+        "m1-native-acceptance-v2/acceptance-reviewed.json"
+      ]
+    },
+    {
+      "id": "ORACLE-ABLATION-001",
+      "priority": "P1",
+      "status": "closed",
+      "found_by": "spec独立复核 /root/stage1_review",
+      "phenomenon": "Auth targeted行存在但完成差异未进入gate",
+      "fix": "独立检查Full完成无hardblock与同输入Full-Auth不完成且hardblock",
+      "evidence": [
+        "m1-native-acceptance-v2/acceptance-reviewed.json"
+      ]
+    },
+    {
+      "id": "ISOLATION-OBSERVATION-001",
+      "priority": "P1",
+      "status": "closed",
+      "phenomenon": "探针没有保存工具结果，SDK容器按workspace hash命名导致漏取mount",
+      "fix": "provider保存逐调用实际tool response，按隔离profile/workspace真实mount归属过滤，冻结拒绝理由",
+      "evidence": [
+        "m1-native-host-isolation-v1.json",
+        "m1-native-host-isolation-v2.json",
+        "m1-native-host-isolation-reviewed.json"
+      ]
+    }
+  ],
+  "remaining_integration_checks": [
+    {
+      "id": "ABLATION-PENDING-WORK",
+      "status": "local_fix_verified_native_ablation_pending",
+      "priority": "P1",
+      "finding": "运行中切换实验组件时，已开始后台核验的任务需证明不跨臂提交；当前检查主要针对提交/开始处理时的Auth门",
+      "next_action": "正式消融采用独立实例及存储，核对全生命周期关闭证据",
+      "scope_limit": "当前默认未配置，未运行新消融；不宣称关闭组件的全生命周期已正式验收",
+      "fix": "单调组件代际；最终内存提交门控；直接提交和查询同门；清理旧臂容量以支持同call新臂重放",
+      "verification": "Python相关75项通过，含在途关闭/重启/close、旧事实不可见及同键新臂重放；正式独立实例消融仍待验收"
+    },
+    {
+      "id": "SNAPSHOT-NATIVE-BOUNDARY",
+      "status": "partially_verified",
+      "priority": "P1",
+      "finding": "普通文件同步读取不能由O_NONBLOCK保证延迟；execute只有call ID，实际SDK完整执行归属尚未验证",
+      "next_action": "继续原生签名身份、授权撤销、同步准备预算和宿主exec边界验收",
+      "scope_limit": "当前快照尚不用于授权放行，不计入新安全样本",
+      "verification": "真实OpenClaw/Docker三个办公sink收据与公开fixture完整内容hash一致；未启用签名或授权checker"
+    },
+    {
+      "id": "DOCKER-20261006",
+      "priority": "P0",
+      "status": "closed",
+      "finding": "Docker Desktop已启动且Windows daemon29.8.0恢复；Ubuntu-24.04集成配置开启，但Linux docker.sock缺失、共享API socket权限拒绝",
+      "next_action": "继续M1可信授权与撤销边界验收",
+      "scope_limit": "没有改用普通沙盒或mock结果替代真实安全实验",
+      "fix": "WSL原生Docker API已恢复29.8.0；真实OpenClaw2026.9.5/Node24.19.0调用准入通过",
+      "evidence": [
+        "m1-native-snapshot-contract.json",
+        "m1-native-cleanup-recovery.json"
+      ]
+    }
+  ]
+}

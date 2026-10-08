@@ -109,7 +109,7 @@ def test_message_recipients_are_not_misclassified_as_paths():
     recipients = [f"person-{index}@external.example" for index in range(11)]
     event = build_hook_event({
         "toolName": "message",
-        "params": {"to": recipients, "content": "status update"},
+        "params": {"action": "broadcast", "targets": recipients, "message": "status update"},
         "runId": "recipient-run",
         "toolCallId": "recipient-call",
     })
@@ -121,7 +121,7 @@ def test_message_trace_preserves_all_recipients_and_quantity():
     recipients = [f"person-{index}@external.example" for index in range(11)]
     event = build_hook_event({
         "toolName": "message",
-        "params": {"to": recipients, "content": "status update"},
+        "params": {"action": "broadcast", "targets": recipients, "message": "status update"},
         "runId": "recipient-trace-run",
         "toolCallId": "recipient-trace-call",
     })

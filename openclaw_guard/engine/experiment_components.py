@@ -1,6 +1,6 @@
 """实验期组件消融门（ablation gates）。
 
-本模块提供四个可独立开关的安全组件门，供 office-attack-chain 实验在
+本模块提供五个可独立开关的安全组件门，供 office-attack-chain 实验在
 不改动默认生产行为的前提下，按臂启用/禁用组件以做增量归因：
 
 - ``semantic_llm``   —— 大模型语义标签（``SemanticEnhancer`` 的 LLM 调用）。
@@ -14,10 +14,9 @@
   接入点：``openclaw_guard/services.py::GuardServices.apply_principal_rv`` 与
   ``GuardServices.record_executed_principal_action``（主体授权/能力 RV 覆盖与
   执行后主体证据记录）。
-  注意：本工作树中**不存在** ``trusted_authorization`` 受信授权存储（该存储
-  属于更早的 Q5 实验桩，已被回滚）。因此本门只能映射到现存的主体授权证据
-  路径；规格中"受信授权事实/信任范围"这一独立维度在当前工作树**不可独立
-  开关**，其取值仍记录在 ``config_hash`` 中，但不臆造新的授权点位。
+  新增宿主授权引用证据接入 ``engine.pipeline::_annotate_event_context``，
+  同样受此门控制：关闭后不查询授权或读取宿主资源。该证据只描述参数引用，
+  尚未证明工具内容血缘，不能用于自动放行或降低 PMKB/RV 裁决。
 - ``approval_trust`` —— 精确审批信任（allow-always 指纹复用）。
   接入点：``openclaw_guard/engine/pipeline.py::handle_before_tool_call_pipeline``
   的精确命令信任复用分支。关闭后禁用指纹复用，每次仍需重新审批。
@@ -32,6 +31,7 @@ from __future__ import annotations
 import hashlib
 import json
 import threading
+from typing import Callable, TypeVar
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Iterator
@@ -51,6 +51,7 @@ COMPONENT_NAMES: tuple[str, ...] = (
     "cross_step_rv",
     "authorization",
     "approval_trust",
+    "cross_session_rv",
 )
 
 # 允许的别名 → 规范组件名。既接受规范全名，也接受实验规格里的短名。
@@ -64,17 +65,20 @@ _ALIASES: dict[str, str] = {
     "auth": "authorization",
     "approval_trust": "approval_trust",
     "approval": "approval_trust",
+    "cross_session_rv": "cross_session_rv",
+    "cross_session": "cross_session_rv",
 }
 
 
 @dataclass(frozen=True)
 class ExperimentComponents:
-    """四个组件门的启用/禁用快照（不可变）。"""
+    """五个组件门的启用/禁用快照（不可变）。"""
 
     semantic_llm: bool = True
     cross_step_rv: bool = True
     authorization: bool = True
     approval_trust: bool = True
+    cross_session_rv: bool = True
 
     def enabled(self) -> tuple[str, ...]:
         """返回启用的组件名（按 ``COMPONENT_NAMES`` 顺序）。"""
@@ -119,7 +123,37 @@ class ExperimentComponents:
 
 
 _lock = threading.Lock()
+_persistence_fence = threading.RLock()
 _current: ExperimentComponents = ExperimentComponents.all_enabled()
+_generation = 0
+_T = TypeVar("_T")
+
+
+def snapshot() -> tuple[ExperimentComponents, int]:
+    """原子取得组件与代际，防止后台结果从旧实验臂流入新臂。"""
+    with _lock:
+        return _current, _generation
+
+
+def commit_if_current(generation: int, component: str, callback: Callable[[], _T]) -> tuple[bool, _T | None]:
+    """同一代际且组件开启才提交；回调只能作短内存提交，不可进行IO。"""
+    if component not in COMPONENT_NAMES:
+        raise ValueError("unknown experiment component")
+    with _lock:
+        if generation != _generation or not getattr(_current, component):
+            return False, None
+        return True, callback()
+
+
+@contextmanager
+def persistent_component_commit(generation: int, component: str) -> Iterator[bool]:
+    """后台持久提交与宿主切臂串行；不持有热路径内存锁等待磁盘。"""
+    if component not in COMPONENT_NAMES:
+        raise ValueError("unknown experiment component")
+    with _persistence_fence:
+        with _lock:
+            accepted = generation == _generation and getattr(_current, component)
+        yield accepted
 
 
 def current() -> ExperimentComponents:
@@ -132,9 +166,11 @@ def configure(components: ExperimentComponents) -> None:
     """设置当前生效的组件配置（线程安全）。"""
     if not isinstance(components, ExperimentComponents):
         raise TypeError("configure() expects an ExperimentComponents instance")
-    global _current
-    with _lock:
-        _current = components
+    global _current, _generation
+    with _persistence_fence:
+        with _lock:
+            _current = components
+            _generation += 1
 
 
 def reset() -> None:
@@ -145,12 +181,16 @@ def reset() -> None:
 @contextmanager
 def using(components: ExperimentComponents) -> Iterator[ExperimentComponents]:
     """临时切换组件配置，退出（含异常）时恢复先前配置。"""
-    global _current
-    with _lock:
-        previous = _current
-        _current = components
+    global _current, _generation
+    with _persistence_fence:
+        with _lock:
+            previous = _current
+            _current = components
+            _generation += 1
     try:
         yield components
     finally:
-        with _lock:
-            _current = previous
+        with _persistence_fence:
+            with _lock:
+                _current = previous
+                _generation += 1

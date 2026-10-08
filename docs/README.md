@@ -51,6 +51,8 @@ features:
 
 ## 本次升级结果 · Current Upgrade Result
 
+插件当前能防护的攻击、实际案例、已知漏防及部署边界，统一说明于[安全能力与边界总报告](./rvguarder-security-capabilities-and-boundaries.md)。该文可独立阅读，区分原生验证、候选规则、审批保护与无保护保证。
+
 本次升级的现行事实以[权限知识库与 RV 运行时架构结果](./architecture/permission-kb-runtime-architecture.html)为准：
 
 - PMKB `1.2.0` 已接入 `before_tool_call` 主链，当前基线包含 48 个操作、79 条 native 规则、47 条迁移归属、76 条最小权限 Trace、9 条权限关系和 123 个回归向量。

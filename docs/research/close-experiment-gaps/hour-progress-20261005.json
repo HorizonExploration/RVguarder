@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "started_at": "2026-10-05T09:30:05+00:00",
+  "recorded_at": "2026-10-05T10:29:48.504147+00:00",
+  "elapsed_minutes": 59.73,
+  "status": "hour_work_completed; M1 remains in progress",
+  "completed": [
+    "宿主签名内容收据与任务/身份/参数/效果绑定，后台有界冻结核验",
+    "实际Node办公消费字节签名互通及可选执行前版本核验",
+    "已验证调用的内容来源图，可组合未命名复制/变换路径，不判公开分类",
+    "具体office接收方按执行契约投影；弱模型冲突不降低PMKB硬约束；未验证内部域不autoallow",
+    "修正文档错误故障策略，并核验当前数字与相对Markdown路径"
+  ],
+  "verification": [
+    {
+      "scope": "related pre-recipient-change regression (19 modules)",
+      "result": "294 passed in 18.56s; one dependency deprecation warning"
+    },
+    {
+      "scope": "final recipient/finite-model/policy/principal regression",
+      "result": "75 passed in 5.02s"
+    },
+    {
+      "scope": "existing actual Node office tools",
+      "result": "6 passed"
+    },
+    {
+      "scope": "independent reviewer",
+      "result": "content foundation and final recipient fix reviewed; no remaining must-fix in reviewed changes"
+    },
+    {
+      "scope": "actual installed SDK dispatcher, mocked HTTP",
+      "artifact": "m1-local-sdk-contract.json",
+      "passed": true
+    },
+    {
+      "scope": "Docker public-fixture mount probes",
+      "artifact": "m1-docker-key-isolation.json",
+      "passed": true,
+      "probes": 7
+    },
+    {
+      "scope": "active Markdown relative paths incl VuePress source routes",
+      "artifact": "m5-document-verification.json",
+      "passed": true,
+      "path_links": 59,
+      "anchor_or_html_href_check": false
+    }
+  ],
+  "new_closed_defects": [
+    "AUTH-005",
+    "AUTH-006",
+    "AUTH-007",
+    "PROJECTION-001",
+    "PROJECTION-002",
+    "PROJECTION-003"
+  ],
+  "preservation": {
+    "frozen_hash_errors": [],
+    "rv_rules_sha256": "496daa04a0bd532d9f99eaaa6293e1f52505dc5f9b098cc94f0af40bb5c255a7",
+    "historical_results_modified": false,
+    "AGENTS_modified": false,
+    "daily_gateway_modified": false,
+    "finite_tool_call_model_or_effect_catalog_changed": false,
+    "RV_downgrade_gate_added": false
+  },
+  "code_revision": "e83c40774b5e6b9e656d70282dc31be26506e9f9",
+  "working_tree_changes_committed": false,
+  "current_code_sha256": {
+    "openclaw_guard/spec/content_receipts.py": "bd95e804ace57fb63824ec7944d0e9ff11ba85e0e4776ac5d6b46e3874444083",
+    "openclaw_guard/spec/content_flow.py": "a8126a1da3e50bed09526a6222b880b4db23c0d288a040aaac3b52a91b9835dc",
+    "openclaw_guard/policy/trace.py": "a047eec217204ddbc30c2e94c6b5c01853863e6a0f3fc5e7136f9a21781e1ce6",
+    "openclaw_guard/engine/pipeline.py": "f53fd9998c567cb27ccc862caa26e5ac0db28a01b7dadc8906b016673eb07e22",
+    "openclaw_guard/integrations/hook_runtime.py": "2a76f70b393011e0cd4c3d14bd7635ef5fc43751344a1ca0324347d622bc0a19",
+    "testlab/office_chain/native_office_plugin/index.js": "c16a2837ed23dab66cc6289a4bf6ffd699b36ec546bcac557d362f202c307ea4",
+    "testlab/office_chain/native_office_plugin/openclaw.plugin.json": "c42a7379ed8a414fa2805d7d6560b396779e7c6f3b5602b77075fba05d062133"
+  },
+  "full_suite_rerun": false,
+  "security_experiment_rerun": false,
+  "security_sample_count_added": 0,
+  "model_api_calls_in_this_work": 0,
+  "release_qualified": false,
+  "remaining": [
+    "可信实际OpenClaw执行器隔离、原生read/write内容证据及强制版本契约",
+    "授权撤销/时效及DSL类型化守卫接入",
+    "公开摘要/v4 N03/17例保留集合的一次Docker阶段验收",
+    "后台任务不得跨实验臂提交的生命周期验收；消融采用独立实例/存储",
+    "正常审批成本与完整Hook延迟测量，M2-M6门槛尚未完成"
+  ]
+}

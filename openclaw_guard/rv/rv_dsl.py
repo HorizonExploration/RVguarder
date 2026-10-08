@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import time
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 Verdict = Literal["ok", "ask", "escalate", "block"]
@@ -59,9 +59,13 @@ class PolicyGuard(BaseModel):
 
 class ToolGuard(BaseModel):
     """约束真实调用的模型版本、操作族与有限效果。"""
+    model_config = ConfigDict(extra="forbid")
     event_model: Literal["tool-call-v1"] = "tool-call-v1"
+    names: list[str] = Field(default_factory=list)
+    excluded_names: list[str] = Field(default_factory=list)
     operation_families: list[str] = Field(default_factory=list)
     effects_any_of: list[str] = Field(default_factory=list)
+    execution_states: list[Literal["proposed", "succeeded", "legacy_replay"]] = Field(default_factory=list)
 
 
 class StepRequirement(BaseModel):
@@ -92,6 +96,35 @@ class ChainRule(BaseModel):
     # ── 阶段 E：来源标记 ──
     origin: str | None = None       # "nl2spec" | "handwritten"
     source_nl: str | None = None    # 原始自然语言描述
+    unless_authorized: "ExactAuthorizationGuard | None" = None
+    verified_history: Literal["same_task_sensitive_bytes", "same_task_sensitive_access"] | None = None
+
+    @model_validator(mode="after")
+    def validate_authorization_exception(self) -> "ChainRule":
+        """授权例外仅限定明确的终端egress block，不修改状态迁移或其他规则。"""
+        if self.unless_authorized is not None and self.verdict != "block":
+            raise ValueError("authorization exceptions require a block verdict rule")
+        if self.unless_authorized is not None and self.to_state is not None:
+            raise ValueError("authorization exceptions cannot rewrite monitor state")
+        if self.verified_history is not None and (self.verdict != "block" or self.to_state is not None):
+            raise ValueError("verified history guards require terminal block rules")
+        return self
+
+
+class ExactAuthorizationGuard(BaseModel):
+    """限定逐规则授权例外的具体工具与操作族，不能以通配规则关闭RV。"""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    tool_name: Literal["office_message_send", "office_network_post", "office_document_share"]
+    operation_family: Literal["message.send", "network.egress"]
+
+    @model_validator(mode="after")
+    def validate_registered_contract(self) -> "ExactAuthorizationGuard":
+        """具体工具必须符合已登记的有限操作族。"""
+        from openclaw_guard.spec.execution_proposals import OFFICE_OPERATIONS
+        if OFFICE_OPERATIONS[self.tool_name] != self.operation_family:
+            raise ValueError("authorization guard operation mismatch")
+        return self
 
 
 class MonitorSpec(BaseModel):
@@ -128,6 +161,9 @@ def _default_rules_path() -> Path:
 def load_ruleset(path: str | Path | None = None) -> Ruleset:
     p = Path(path) if path is not None else _default_rules_path()
     raw = json.loads(p.read_text(encoding="utf-8"))
+    if path is None:
+        from openclaw_guard.rv.native_contract_rules import native_request_monitor
+        raw['monitors'].append(native_request_monitor())
     from openclaw_guard.rv.tool_events import migrate_rules_document
     return Ruleset.model_validate(migrate_rules_document(raw))
 
@@ -171,9 +207,15 @@ def _matches_requirement(
         step = current_step or {}
         if step.get("event_model") != req.tool.event_model:
             return False
+        if req.tool.names and step.get("tool_name") not in req.tool.names:
+            return False
+        if step.get("tool_name") in req.tool.excluded_names:
+            return False
         if req.tool.operation_families and step.get("operation_family") not in req.tool.operation_families:
             return False
         if req.tool.effects_any_of and not set(req.tool.effects_any_of).intersection(step.get("effects", [])):
+            return False
+        if req.tool.execution_states and step.get("execution_state") not in req.tool.execution_states:
             return False
     if req.event:
         if not (event == req.event or req.event in props):
@@ -405,14 +447,18 @@ def _merge_step_ids(*groups: list[str]) -> list[str]:
 
 
 class _SpecDrivenMonitor:
-    def __init__(self, spec: MonitorSpec) -> None:
+    def __init__(self, spec: MonitorSpec, authorization_checker: Callable | None = None, history_checker: Callable | None = None) -> None:
         self._spec = spec
+        self._authorization_checker = authorization_checker
+        self._history_checker = history_checker
         self._state = spec.initial
         self._props_snapshot: set[str] = set()
         self._state_counts: dict[str, int] = {}
         self._prev_step: dict[str, Any] | None = None
         self._state_step_ids: dict[str, list[str]] = {spec.initial: []}
         self.last_match: dict[str, Any] | None = None
+        self.last_authorized_rules: list[str] = []
+        self.last_authorized_matches: list[dict[str, str]] = []
 
     @property
     def current_state(self) -> str:
@@ -425,6 +471,8 @@ class _SpecDrivenMonitor:
         self._prev_step = None
         self._state_step_ids = {self._spec.initial: []}
         self.last_match = None
+        self.last_authorized_rules = []
+        self.last_authorized_matches = []
 
     def state_summary(self) -> dict[str, Any]:
         return {
@@ -439,6 +487,8 @@ class _SpecDrivenMonitor:
 
     def feed(self, step: dict[str, Any], window: Any) -> str | None:
         self.last_match = None
+        self.last_authorized_rules = []
+        self.last_authorized_matches = []
         self._props_snapshot = set(step.get("props", []))
         event = str(step.get("event", "") or "")
         current_step_id = str(step.get("step_id") or "")
@@ -475,16 +525,23 @@ class _SpecDrivenMonitor:
                 continue
             if not self._state_matches(rule.from_state):
                 continue
+            host_history = self._verified_history(rule, step)
+            if rule.verified_history is not None and host_history is None:
+                continue
             if _matches_requirement(
                 rule.when, props=self._props_snapshot, event=event, window=window,
                 current_state=self._state, prev_step=self._prev_step,
                 current_step=step, state_counts=self._state_counts,
             ):
+                if self._is_exactly_authorized(rule, step):
+                    self.last_authorized_rules.append(rule.id)
+                    continue
                 state_ids = self._state_step_ids.get(self._state, [])
                 requirement_ids = _requirement_history_step_ids(
                     rule.when, window=window, previous_step=self._prev_step,
                 )
-                history_ids = [step_id for step_id in _merge_step_ids(state_ids, requirement_ids)
+                history_ids = [step_id for step_id in _merge_step_ids(state_ids, requirement_ids,
+                               list(host_history.history_step_ids) if host_history else [])
                                if step_id != current_step_id]
                 if rule.to_state is not None:
                     self._state = rule.to_state
@@ -494,28 +551,130 @@ class _SpecDrivenMonitor:
                     if rule.to_state not in ("blocked", "escalated"):
                         self._state_counts[rule.to_state] = self._state_counts.get(rule.to_state, 0) + 1
                 if best is None or _severity(rule.verdict) > _severity(best):
-                    best = rule.verdict
-                    best_match = {
+                    candidate = {
                         "rule_id": rule.id,
                         "trigger_step_id": current_step_id or None,
                         "matched_history_step_ids": history_ids,
+                        **({"verified_cross_session_receipt_ids": list(host_history.receipt_ids),
+                            "verified_cross_session_link_ids": list(host_history.link_ids)} if host_history else {}),
                     }
+                    if host_history is not None:
+                        from openclaw_guard.engine.experiment_components import commit_if_current
+                        accepted, committed = host_history.lease.commit_if_active(lambda: commit_if_current(
+                            host_history.component_generation, "cross_session_rv", lambda: (rule.verdict, candidate)))
+                        if not accepted or not committed[0]:
+                            continue
+                        best, best_match = committed[1]
+                    else:
+                        best, best_match = rule.verdict, candidate
 
         self._prev_step = step
         self.last_match = best_match
         return best
 
+    def _verified_history(self, rule: ChainRule, step: dict[str, Any]) -> Any:
+        """纯内存类型核验；缺证据只跳过此条规则，其他RV规则照常生效。"""
+        if rule.verified_history is None or self._history_checker is None:
+            return None
+        from openclaw_guard.spec.history_facts import VerifiedCrossSessionHistory
+        from openclaw_guard.spec.task_history import HostHistoryLease
+        from openclaw_guard.engine.experiment_components import snapshot, commit_if_current
+        import hashlib
+        import time
+        from openclaw_guard.spec.content_receipts import _canonical
+        components, generation = snapshot()
+        if not components.cross_session_rv:
+            return None
+        try:
+            fact = self._history_checker(step, rule.id)
+            if not isinstance(fact, VerifiedCrossSessionHistory) or fact.component_generation != generation or fact.expires_at_ms <= int(time.time() * 1000):
+                return None
+            if not isinstance(fact.lease, HostHistoryLease) or not fact.lease.is_active():
+                return None
+            if rule.verified_history == "same_task_sensitive_bytes" and fact.relationship != "exact_consumed_byte_identity":
+                return None
+            context, provenance = step.get("context") or {}, step.get("provenance") or {}
+            expected = {"step_id": step.get("step_id"), "tool_name": step.get("tool_name"),
+                        "operation_family": step.get("operation_family"), "principal_id": (context.get("principal") or {}).get("id"),
+                        "agent_id": context.get("agent_id"), "session_id": context.get("session_id"), "run_id": provenance.get("run_id")}
+            if not fact.history_step_ids or fact.step_id in fact.history_step_ids or any(getattr(fact, key) != value for key, value in expected.items()):
+                return None
+            if step.get("event_model") != "tool-call-v1" or step.get("effects") != ["egress"] or hashlib.sha256(_canonical(step.get("arguments") or {})).hexdigest() != fact.arguments_sha256:
+                return None
+            accepted, result = commit_if_current(generation, "cross_session_rv", lambda: fact)
+            return result if accepted else None
+        except Exception:
+            return None
 
-def compile_monitors(ruleset: Ruleset) -> list[Any]:
+    def _is_exactly_authorized(self, rule: ChainRule, step: dict[str, Any]) -> bool:
+        """无可信checker或范围不完整时保持原block，不读模型/参数中的授权声明。"""
+        guard = rule.unless_authorized
+        if guard is None or self._authorization_checker is None:
+            return False
+        from openclaw_guard.engine.experiment_components import snapshot, commit_if_current
+        from openclaw_guard.spec.authorization_facts import VerifiedCallAuthorization
+        from openclaw_guard.spec.content_receipts import _canonical, _freeze_bounded_json
+        import hashlib
+        components, generation = snapshot()
+        if not components.authorization:
+            return False
+        if (step.get("event_model") != "tool-call-v1" or step.get("execution_state") not in {"proposed", "succeeded"}
+                or step.get("effects") != ["egress"]
+                or step.get("tool_name") != guard.tool_name or step.get("operation_family") != guard.operation_family):
+            return False
+        try:
+            # checker只读有界副本，不能改写实际步骤影响其他监视器。
+            captured = _freeze_bounded_json(step, 65536)
+            fact = self._authorization_checker(captured, rule.id)
+            if not isinstance(fact, VerifiedCallAuthorization) or fact.decision_eligible is not True:
+                return False
+            if fact.component_generation != generation:
+                return False
+            context, provenance = step.get("context") or {}, step.get("provenance") or {}
+            expected = {"step_id": step.get("step_id"), "agent_id": context.get("agent_id"),
+                "session_id": context.get("session_id") or "", "run_id": provenance.get("run_id"),
+                "tool_call_id": provenance.get("tool_call_id"), "tool_name": step.get("tool_name"),
+                "operation_family": step.get("operation_family"),
+                "principal_id": (context.get("principal") or {}).get("id")}
+            if any(getattr(fact, key) != value for key, value in expected.items()):
+                return False
+            now = int(time.time() * 1000)
+            if (not fact.source.full_resource or not fact.valid_from_ms <= now < fact.expires_at_ms
+                    or not 0 < fact.expires_at_ms - fact.valid_from_ms <= 300000):
+                return False
+            arguments = _freeze_bounded_json(step.get("arguments"), 65536)
+            if not isinstance(arguments, dict):
+                return False
+            destination = arguments.get("url" if guard.tool_name == "office_network_post" else "recipient")
+            if not isinstance(destination, str) or fact.recipient != destination.strip():
+                return False
+            reference = arguments.get("sourcePath")
+            if reference is None and guard.tool_name == "office_document_share":
+                reference = arguments.get("document")
+            # 非规范引用不会扩大授权；实际规范化需由受控执行器提供。
+            if reference is not None and fact.source.resource_id != f"{fact.source.namespace}:{reference}":
+                return False
+            matches = hashlib.sha256(_canonical(arguments)).hexdigest() == fact.arguments_sha256
+            accepted, _ = commit_if_current(generation, "authorization", lambda: None)
+            if matches and accepted:
+                self.last_authorized_matches.append({"rule_id": rule.id, "step_id": fact.step_id,
+                    "grant_id": fact.grant_id, "snapshot_id": fact.snapshot_id, "task_id": fact.task_id})
+                return True
+            return False
+        except Exception:
+            return False
+
+
+def compile_monitors(ruleset: Ruleset, *, authorization_checker: Callable | None = None, history_checker: Callable | None = None) -> list[Any]:
     monitors: list[Any] = []
     for spec in ruleset.monitors:
         if spec.bind_vars and spec.quantifier:
             # 参数化监视器：按 bind_vars 动态切片
             cls = type(spec.name, (_ParameterizedMonitor,), {})
-            monitors.append(cls(spec))
+            monitors.append(cls(spec, authorization_checker=authorization_checker, history_checker=history_checker))
         else:
             cls = type(spec.name, (_SpecDrivenMonitor,), {})
-            monitors.append(cls(spec))
+            monitors.append(cls(spec, authorization_checker=authorization_checker, history_checker=history_checker))
     return monitors
 
 
@@ -530,12 +689,15 @@ class _ParameterizedMonitor:
     - "exists": 所有子监视器至少一个触发 → 整体才触发
     """
 
-    def __init__(self, spec: MonitorSpec) -> None:
+    def __init__(self, spec: MonitorSpec, authorization_checker: Callable | None = None, history_checker: Callable | None = None) -> None:
         self._spec = spec
+        self._authorization_checker = authorization_checker
+        self._history_checker = history_checker
         self._children: dict[tuple, _SpecDrivenMonitor] = {}
         self._initialized = False
         self._child_class = type(f"{spec.name}Child", (_SpecDrivenMonitor,), {})
         self.last_match: dict[str, Any] | None = None
+        self.last_authorized_matches: list[dict[str, str]] = []
 
     @property
     def current_state(self) -> str:
@@ -547,6 +709,7 @@ class _ParameterizedMonitor:
         for child in self._children.values():
             child.reset()
         self.last_match = None
+        self.last_authorized_matches = []
 
     def state_summary(self) -> dict[str, Any]:
         return {
@@ -559,6 +722,7 @@ class _ParameterizedMonitor:
 
     def feed(self, step: dict[str, Any], window: Any) -> str | None:
         self.last_match = None
+        self.last_authorized_matches = []
         if not self._spec.bind_vars:
             return None
 
@@ -570,7 +734,7 @@ class _ParameterizedMonitor:
         # 首次遇到新绑定 → 创建子监视器
         bind_key = tuple(bind_values)
         if bind_key not in self._children:
-            self._children[bind_key] = self._child_class(self._spec)
+            self._children[bind_key] = self._child_class(self._spec, authorization_checker=self._authorization_checker, history_checker=self._history_checker)
             self._initialized = True
 
         child = self._children[bind_key]
@@ -580,6 +744,7 @@ class _ParameterizedMonitor:
         ]
         child_window = _WindowPrefixView(binding_history)
         child_verdict = child.feed(step, child_window)
+        self.last_authorized_matches = list(child.last_authorized_matches)
         if child_verdict:
             self.last_match = child.last_match
 

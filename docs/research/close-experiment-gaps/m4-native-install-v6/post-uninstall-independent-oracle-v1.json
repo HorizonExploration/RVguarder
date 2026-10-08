@@ -1,0 +1,32 @@
+{
+  "source": "docs/research/close-experiment-gaps/m4-native-install-v6/acceptance.json",
+  "source_sha256": "3266335a1bd75f7910d7dad799270b3f4fd4277134ae709da7b3588f5cd867e8",
+  "post_uninstall_native_tools_verified": true,
+  "executions": [
+    {
+      "toolName": "write",
+      "toolCallId": "call_fixed_24bad49c49c52319c2de519a",
+      "sessionKey": "agent:main:post-uninstall-b29743635aaa49e09ea78f711998f11c",
+      "success": true,
+      "executionReceipt": null,
+      "ts": "2026-10-07T06:54:00.683Z"
+    },
+    {
+      "toolName": "read",
+      "toolCallId": "call_fixed_6ba83cd99fef42895a6fcb06",
+      "sessionKey": "agent:main:post-uninstall-b29743635aaa49e09ea78f711998f11c",
+      "success": true,
+      "executionReceipt": null,
+      "ts": "2026-10-07T06:54:01.718Z"
+    }
+  ],
+  "raw_runner_checks": {
+    "SDK_archive_installed": true,
+    "real_allow_ask_block": true,
+    "attack_actual_effect_absent": true,
+    "SDK_uninstall_inactive": true,
+    "post_uninstall_native_tools_complete": false
+  },
+  "correction": "Execution receipts expose toolCallId/sessionKey, not runId; independent verifier uses actual SDK identities.",
+  "release_qualified": false
+}

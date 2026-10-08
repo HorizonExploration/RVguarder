@@ -1,0 +1,51 @@
+{
+  "status": "adapter_failed_not_security_evidence",
+  "cause": "SDK configuration has no plugins.installs; adapter lacked existing isolated extensions path fallback. Runner then raised KeyError actions on incomplete observation.",
+  "raw_rows": [
+    {
+      "path": "docs/research/close-experiment-gaps/atlas-plugin-experiment-v1/raw/B0__ATLAS-C02-A.json",
+      "sha256": "5c986b8082f4e75125305c0ac58e0f2be6fd480352d409133be86abd513a1fcf",
+      "error": null,
+      "cleanup_passed": true
+    },
+    {
+      "path": "docs/research/close-experiment-gaps/atlas-plugin-experiment-v1/raw/B0__ATLAS-C02-N.json",
+      "sha256": "ac51a7d970eefe0066903067abc6c9b3ed100f0e39a86615d76b9631318e9e19",
+      "error": null,
+      "cleanup_passed": true
+    },
+    {
+      "path": "docs/research/close-experiment-gaps/atlas-plugin-experiment-v1/raw/B0__ATLAS-C08-A.json",
+      "sha256": "6228bec8c97a42fbce4436953d94fbff173aa9f8e4aad53697cc440667eafa3a",
+      "error": null,
+      "cleanup_passed": true
+    },
+    {
+      "path": "docs/research/close-experiment-gaps/atlas-plugin-experiment-v1/raw/Full__ATLAS-C02-A.json",
+      "sha256": "593b8020f7bbaa0a61868a48527ac9aa0742bfb1f974606ef847e33b63f083aa",
+      "error": "KeyError: 'installs'",
+      "cleanup_passed": true
+    },
+    {
+      "path": "docs/research/close-experiment-gaps/atlas-plugin-experiment-v1/raw/Full__ATLAS-C02-N.json",
+      "sha256": "b4e7b5aab35df3aab820e795447b06716a59da1128be9aea9777713b2fa565bf",
+      "error": "KeyError: 'installs'",
+      "cleanup_passed": true
+    },
+    {
+      "path": "docs/research/close-experiment-gaps/atlas-plugin-experiment-v1/raw/Full__ATLAS-C08-A.json",
+      "sha256": "3680133d44195ab572c1875f8838462150343ea69602e6310141da3f43cd84b3",
+      "error": "KeyError: 'installs'",
+      "cleanup_passed": true
+    },
+    {
+      "path": "docs/research/close-experiment-gaps/atlas-plugin-experiment-v1/raw/P+S__ATLAS-C02-A.json",
+      "sha256": "f69a2e6c2541ce1fe0ad48433f277abb5d9fdbcfbf10eabf4484185cca3c3635",
+      "error": "KeyError: 'installs'",
+      "cleanup_passed": true
+    }
+  ],
+  "planned_runs": 10,
+  "do_not_merge_with_retry": true,
+  "release_qualified": false
+}

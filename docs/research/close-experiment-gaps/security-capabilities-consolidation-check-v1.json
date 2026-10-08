@@ -1,0 +1,31 @@
+{
+  "scope": "Self-contained consolidated document acceptance; no security experiment rerun",
+  "document": "docs/rvguarder-security-capabilities-and-boundaries.md",
+  "document_sha256": "77f567fbfbbb32b593a22bac8c3602130d8e94acd290253d69b30e3ba6e5cca2",
+  "official_threat_count": 22,
+  "verified_attack_sections": [
+    "A01",
+    "A02",
+    "A03",
+    "A04",
+    "A05",
+    "A06",
+    "A07",
+    "A08",
+    "A09"
+  ],
+  "conditional_sections": [
+    "B01",
+    "B02",
+    "B03",
+    "B04"
+  ],
+  "internal_document_links": 0,
+  "rule_ids_exist": true,
+  "holdout_8_effects_prevented_verified": true,
+  "six_native_authorization_negatives_verified": true,
+  "historical_evidence_unchanged": true,
+  "new_api_calls": 0,
+  "new_native_runs": 0,
+  "passed": true
+}

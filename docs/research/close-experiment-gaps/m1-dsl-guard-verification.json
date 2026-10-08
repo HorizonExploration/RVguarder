@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-06T14:30:48.683397+00:00",
+  "stage": "M1-typed-DSL-foundation",
+  "stage_passed": false,
+  "test_results": {
+    "related": {
+      "passed": 120
+    },
+    "final_guard_module": {
+      "passed": 27
+    },
+    "full_suite": {
+      "passed": 920,
+      "skipped": 20,
+      "subtests_passed": 4,
+      "warnings": 1,
+      "duration_seconds": 121.16
+    }
+  },
+  "independent_review": {
+    "passed": true,
+    "test_count": 86,
+    "limits": "controlled host checker fixture; no deployed trusted checker"
+  },
+  "code_sha256": {
+    "openclaw_guard/spec/authorization_facts.py": "75806615d0a0090364165828bc38c93f26deeb09032fe45e400efc2266f90769",
+    "openclaw_guard/rv/rv_dsl.py": "cb943da9bf5b9dc6a340cd7124665323199b2feeb39c5f65add0ba51f3f4869a",
+    "openclaw_guard/rv/runtime_verification.py": "d45e42ad9d6de3417621d57723dcd61a87d6e01b43d5d2715986a0bb3e4bd36a",
+    "tests/test_rv_authorization_guard.py": "58f4d4602f2a9daee956eed2a50741dc6364faccdc40f4dc9a8f4ca1ee5963d4"
+  },
+  "default_rule_sha256": "496daa04a0bd532d9f99eaaa6293e1f52505dc5f9b098cc94f0af40bb5c255a7",
+  "native_experiment_runs": 0,
+  "model_api_calls": 0,
+  "docker": {
+    "windows_daemon_version": "29.8.0",
+    "wsl_native_api_ready": false,
+    "failure": "docker.sock absent; shared API socket permission denied"
+  },
+  "remaining": "real checker, executor/identity isolation, revocation/approval execution boundary, M1 receipts and M2-M6 acceptance"
+}

@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "source_url": "https://docs.openclaw.ai/zh-CN/security/THREAT-MODEL-ATLAS",
+  "source_checked_on": "2026-10-08",
+  "scope": "官方编号对应本项目工程推导；不表示完整威胁已防住，也不表示官方背书",
+  "event_model": "tool-call-v1",
+  "one_call_one_event": true,
+  "full_attack_prevention_claim": false,
+  "threats": [
+    {
+      "id": "T-RECON-001",
+      "boundary": "outside_hook",
+      "tool_projection": "无工具事件",
+      "conditions_and_limits": "部署暴露扫描/审计仅提供发现；入站端口扫描无法由before-tool Hook阻断",
+      "current_status": "无直接运行时防护"
+    },
+    {
+      "id": "T-RECON-002",
+      "boundary": "outside_hook",
+      "tool_projection": "入站渠道消息",
+      "conditions_and_limits": "渠道身份与频率控制需Gateway入口；后续越权工具后果另由RV约束",
+      "current_status": "无直接运行时防护"
+    },
+    {
+      "id": "T-ACCESS-001",
+      "boundary": "outside_hook",
+      "tool_projection": "配对入口",
+      "conditions_and_limits": "配对凭据的发放与截获在当前Hook之前",
+      "current_status": "需原生配对边界"
+    },
+    {
+      "id": "T-ACCESS-002",
+      "boundary": "outside_hook",
+      "tool_projection": "渠道身份认证",
+      "conditions_and_limits": "SDK身份字段只供已认证调用关联，不能证明入站发送者真实身份",
+      "current_status": "需渠道加密身份"
+    },
+    {
+      "id": "T-ACCESS-003",
+      "boundary": "conditional",
+      "tool_projection": "credential.read/secret.read→egress",
+      "conditions_and_limits": "已有显式敏感操作后的外发约束；普通文件分类、宿主恶意软件和备份读取需额外执行器证据",
+      "current_status": "条件防护；不阻断设备直接读取"
+    },
+    {
+      "id": "T-EXEC-001",
+      "boundary": "tool_consequence",
+      "tool_projection": "任意调用→权限/副作用边界",
+      "conditions_and_limits": "参数、权限和后果约束不依赖是否识别注入；直接模型文本没有Hook事件",
+      "current_status": "可约束工具后果"
+    },
+    {
+      "id": "T-EXEC-002",
+      "boundary": "tool_consequence",
+      "tool_projection": "成功低信任read→execute/egress",
+      "conditions_and_limits": "远程获取角色由工具契约确定；附件分类仍有语义建议局限；已测试办公外发与脚本段",
+      "current_status": "指定路径有原生证据"
+    },
+    {
+      "id": "T-EXEC-003",
+      "boundary": "tool_consequence",
+      "tool_projection": "真实参数→资源/接收方/版本",
+      "conditions_and_limits": "原生message绑定target/to/channelId或targets；办公三工具可核验版本与精确授权；其他API仍需契约",
+      "current_status": "参数绑定已增强"
+    },
+    {
+      "id": "T-EXEC-004",
+      "boundary": "conditional",
+      "tool_projection": "exec→潜在能力集合",
+      "conditions_and_limits": "支持有界shell段和内联Python AST；动态求值、包装器和未解析语法保留unknown/审批",
+      "current_status": "指定内联删除路径已补测"
+    },
+    {
+      "id": "T-PERSIST-001",
+      "boundary": "conditional",
+      "tool_projection": "安装后执行/写入/外发",
+      "conditions_and_limits": "运行时工具后果可约束；市场审核、安装前代码和插件进程内直连不在当前Hook保证内",
+      "current_status": "恶意技能外发段已有证据"
+    },
+    {
+      "id": "T-PERSIST-002",
+      "boundary": "conditional",
+      "tool_projection": "更新后同一执行后果",
+      "conditions_and_limits": "同等工具后果可沿用规约；更新签名、发布者身份和锁定版本未实现",
+      "current_status": "后果防护条件同技能执行"
+    },
+    {
+      "id": "T-PERSIST-003",
+      "boundary": "conditional",
+      "tool_projection": "gateway配置动作/写配置/延迟作业",
+      "conditions_and_limits": "低信任成功输入后的原生gateway更改在候选中block；写文件分类与持久化许可未完整贯通",
+      "current_status": "候选配置规则；未来任务仍ask"
+    },
+    {
+      "id": "T-EVADE-001",
+      "boundary": "conditional",
+      "tool_projection": "规避后仍调用受控工具",
+      "conditions_and_limits": "能力与资源约束不使用已知注入措辞；新混淆若降为unknown只请求审批",
+      "current_status": "不保证检测审核逃逸本身"
+    },
+    {
+      "id": "T-EVADE-002",
+      "boundary": "conditional",
+      "tool_projection": "来源角色保持低信任→工具后果",
+      "conditions_and_limits": "contract命名空间不能由模型伪造；不能证明所有包装逃逸均被模型识别",
+      "current_status": "结构来源与效果防护"
+    },
+    {
+      "id": "T-DISC-001",
+      "boundary": "outside_hook",
+      "tool_projection": "模型直接输出注册工具信息",
+      "conditions_and_limits": "工具可见性应由原生策略管理；SDK已公开的工具信息无需攻击后果规则",
+      "current_status": "无完整防护；工具查询可单独管控"
+    },
+    {
+      "id": "T-DISC-002",
+      "boundary": "conditional",
+      "tool_projection": "session.read/memory.read→外发",
+      "conditions_and_limits": "工具式跨主体读取需要真实session资源绑定与受控许可；已经在上下文中的直接回复不经过工具",
+      "current_status": "跨会话敏感外发已有部分证据"
+    },
+    {
+      "id": "T-EXFIL-001",
+      "boundary": "tool_consequence",
+      "tool_projection": "web_fetch/search请求→URL/查询外发",
+      "conditions_and_limits": "单次请求同时read+egress；候选中显式敏感读取后的请求block，普通请求ask；不是DNS/重定向SSRF保证",
+      "current_status": "结构与DSL回归；原生web_fetch新段未实测"
+    },
+    {
+      "id": "T-EXFIL-002",
+      "boundary": "tool_consequence",
+      "tool_projection": "message/network/share→真实接收方",
+      "conditions_and_limits": "原生接收方不采纳模型替换；办公三sink使用精确宿主授权与字节快照",
+      "current_status": "办公消息/HTTP/分享有原生证据"
+    },
+    {
+      "id": "T-EXFIL-003",
+      "boundary": "conditional",
+      "tool_projection": "敏感读取/技能内部读取→egress",
+      "conditions_and_limits": "凭据操作角色可约束后续发送；子进程内部读取无法仅靠工具列表完整观察",
+      "current_status": "C08仅证明外发被阻止"
+    },
+    {
+      "id": "T-IMPACT-001",
+      "boundary": "tool_consequence",
+      "tool_projection": "exec潜在delete/write/egress",
+      "conditions_and_limits": "真实单调用保留全部有界能力；候选低信任历史后潜在delete独立block，普通合法摘要不硬阻断",
+      "current_status": "B01已知缺口原生补测通过"
+    },
+    {
+      "id": "T-IMPACT-002",
+      "boundary": "conditional",
+      "tool_projection": "受控execute/spawn/工具重复",
+      "conditions_and_limits": "理论可加任务预算和并发配额；现有窗口不能代替入口限流与模型费用核算",
+      "current_status": "本轮未增加未经校准硬阈值"
+    },
+    {
+      "id": "T-IMPACT-003",
+      "boundary": "conditional",
+      "tool_projection": "工具式message正文/附件",
+      "conditions_and_limits": "精确授权可以绑定获批内容版本；内容语义过滤与模型直接回复尚无完整保证",
+      "current_status": "非通用有害文本过滤器"
+    }
+  ],
+  "default_source_rule_count": 67,
+  "effective_default_rule_count": 72,
+  "optional_candidate_rule_count": 122,
+  "release_qualified": false
+}

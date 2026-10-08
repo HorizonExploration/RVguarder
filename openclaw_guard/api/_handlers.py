@@ -13,6 +13,7 @@ from typing import Any, Callable
 
 from openclaw_guard.services import GuardServices
 from openclaw_guard.engine.approval import build_approval_presentation
+from openclaw_guard.engine import experiment_components
 from openclaw_guard.utils import json_dumps
 from openclaw_guard.utils import sha256_text, utc_now_iso
 
@@ -117,6 +118,8 @@ def hook_after_tool_call(manager: GuardServices, payload: dict[str, Any]) -> Jso
 
 
 def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> JsonResponse:
+    _, trust_generation = experiment_components.snapshot()
+    trust_persisted = False
     action_id = str(payload.get("actionId") or payload.get("action_id") or "")
     decision = str(payload.get("decision") or "")
     if not action_id or not decision:
@@ -201,11 +204,14 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
             if allowed:
                 manager.action_service.approve(action_id, None)
                 if normalized_decision == "allow-always":
-                    manager.approval_trust.add(
-                        presentation["allow_always"]["fingerprint"],
-                        action_id=action_id,
-                        scope=presentation["allow_always"]["scope"],
-                    )
+                    with experiment_components.persistent_component_commit(trust_generation, "approval_trust") as enabled:
+                        if enabled:
+                            manager.approval_trust.add(
+                                presentation["allow_always"]["fingerprint"],
+                                action_id=action_id,
+                                scope=presentation["allow_always"]["scope"],
+                            )
+                            trust_persisted = True
             else:
                 manager.action_service.reject(action_id)
         action_model = manager._find_action(action_id)
@@ -219,7 +225,7 @@ def resolve_hook_approval(manager: GuardServices, payload: dict[str, Any]) -> Js
             "received_at": received_at,
             "decision_state": desired_state,
             "latency_ms": _approval_latency_ms(action),
-            "persistent": normalized_decision == "allow-always",
+            "persistent": trust_persisted,
         }
         # Persist the terminal decision before notifying SSE subscribers.  A
         # frontend fetch triggered by action.resolved must never observe the

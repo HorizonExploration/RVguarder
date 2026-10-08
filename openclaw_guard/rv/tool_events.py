@@ -42,7 +42,8 @@ TOOL_ACTION_EFFECTS = {
         "search": ("read",), "edit": ("write",), "delete": ("delete",), "react": ("write",),
     },
     "cron": {
-        "list": ("read",), "status": ("read",), "runs": ("read",),
+        "list": ("read",), "get": ("read",), "status": ("read",), "runs": ("read",),
+        "next_check": ("read",),
         "add": ("configure", "schedule"), "update": ("configure", "schedule"),
         "remove": ("configure",), "run": ("execute", "schedule"),
     },
@@ -52,6 +53,9 @@ TOOL_ACTION_EFFECTS = {
         "restart": ("configure", "execute"), "update.run": ("configure", "execute"),
     },
 }
+
+# OpenClaw 2026.9.5 uses automations; cron remains its documented legacy alias.
+TOOL_ACTION_EFFECTS["automations"] = TOOL_ACTION_EFFECTS["cron"]
 
 # 仅用于迁移旧 DSL 的动作词，不用于推断真实工具的效果。
 LEGACY_EFFECTS = {
@@ -97,6 +101,26 @@ def build_tool_call_step(event: Any, authorization_trace: Any) -> dict[str, Any]
             if set(safety.commands).intersection({"rm", "rmdir"}):
                 effects.append("delete")
     effects = list(dict.fromkeys(effects))
+    structural = set()
+    if family != "unknown_tool":
+        if tool_name in {"web_fetch", "web_search", "x_search"}:
+            # GET的URL、查询词也会离开本机；读结果与发送请求是同一次调用。
+            effects = list(dict.fromkeys([*effects, "egress"]))
+            structural.update({"contract:remote_request", "contract:untrusted_input"})
+        if family == "process.execute":
+            safety = analyze_command(event.command)
+            effects = list(dict.fromkeys([*effects, *safety.potential_effects]))
+            structural.update(f"contract:potential_{effect}" for effect in safety.potential_effects)
+            if "unknown" in safety.potential_effects:
+                structural.add("contract:opaque_execution")
+        if family in {"secret.read", "credential.read", "session.token.read"}:
+            structural.add("contract:sensitive_read")
+        if tool_name == "gateway" and str(metadata.get("tool_action")) in {"config.patch", "config.apply", "update.run"}:
+            structural.add("contract:control_plane_change")
+        if "grant" in effects:
+            structural.add("contract:permission_grant")
+        if "schedule" in effects:
+            structural.add("contract:delayed_authority")
     semantic = metadata.get("semantic") or {}
     semantic_steps = metadata.get("semantic_rv_trace", metadata.get("rv_trace", []))
     labels = {str(value) for value in semantic.get("labels", [])}
@@ -104,7 +128,8 @@ def build_tool_call_step(event: Any, authorization_trace: Any) -> dict[str, Any]
         if isinstance(step, dict):
             labels.update(str(value) for value in step.get("props", []))
     # 删除所有动作声明以及调用者伪造的效果命名空间。
-    labels = {label for label in labels if label not in LEGACY_EFFECTS and not label.startswith("effect:")}
+    labels = {label for label in labels if label not in LEGACY_EFFECTS and not label.startswith(("effect:", "contract:"))}
+    labels.update(structural)
     labels.update(f"effect:{effect}" for effect in effects)
     resource = trace.get("resource") or {}
     data = trace.get("data") or {}
@@ -120,18 +145,24 @@ def build_tool_call_step(event: Any, authorization_trace: Any) -> dict[str, Any]
             entities.append({"kind": kind, "values": list(values)})
     run_id, call_id = metadata.get("run_id"), metadata.get("tool_call_id")
     identity = f"{run_id}:{call_id}" if run_id and call_id else str(event.event_id)
+    # ToolCallIR绑定真正传给工具的参数。PMKB的action_type/argv等派生字段
+    # 留在授权Trace，不得污染执行器签名所覆盖的参数哈希。
+    native_arguments = event.raw_payload.get("params") if isinstance(event.raw_payload, dict) else None
+    call_arguments = dict(native_arguments) if isinstance(native_arguments, dict) else dict(operation.get("arguments") or {})
     return ToolCallIR(
         step_id=identity, event="tool_call", event_model="tool-call-v1",
         tool_name=tool_name,
         operation_family=family, effects=effects,
-        arguments=dict(operation.get("arguments") or {}), props=sorted(labels), entities=entities,
+        arguments=call_arguments, props=sorted(labels), entities=entities,
         sensitivity=data.get("classification"), quantity=int(data.get("quantity") or 0),
         context={"scope": resource.get("scope"), "recipient_zone": zone,
                  "session_id": metadata.get("session_id"), "agent_id": metadata.get("agent_id"),
                  "principal": trace.get("principal"), "coverage": trace.get("coverage"),
                  "authorization_trace_id": trace.get("trace_id")},
         provenance={"source": "hook_projection" if metadata.get("hook_bridge") else "behavior_projection", "effect_source": "pmkb_operation_catalog_and_native_contract",
-                    "semantic_facts_trust": "suggested", "run_id": run_id, "tool_call_id": call_id},
+                    "semantic_facts_trust": "suggested", "contract_facts_trust": "deterministic_native_projection",
+                    "command_effects_semantics": "potential_capabilities_not_execution_receipts",
+                    "run_id": run_id, "tool_call_id": call_id},
     ).model_dump(mode="json")
 
 

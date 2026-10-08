@@ -1,0 +1,22 @@
+F..                                                                      [100%]
+=================================== FAILURES ===================================
+__________ test_relative_cwd_uses_trusted_workspace_not_host_process ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-yosoro126/pytest-98/test_relative_cwd_uses_trusted0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x795c65e36d70>
+
+    def test_relative_cwd_uses_trusted_workspace_not_host_process(tmp_path, monkeypatch):
+        workspace, host = tmp_path / 'workspace', tmp_path / 'host'
+        workspace.mkdir()
+        host.mkdir()
+        monkeypatch.chdir(host)
+>       assert _classify_scope(['notes/public.txt'], roots=[('workspace', workspace)], working_directory='.') == 'workspace'
+E       AssertionError: assert 'outside' == 'workspace'
+E         
+E         - workspace
+E         + outside
+
+/home/yosoro126/RVguarder/tests/test_relative_working_directory_scope.py:10: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_relative_working_directory_scope.py::test_relative_cwd_uses_trusted_workspace_not_host_process
+1 failed, 2 passed in 0.71s

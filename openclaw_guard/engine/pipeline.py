@@ -167,6 +167,24 @@ def _annotate_event_context(
         else [build_tool_call_step(event, event.metadata.get("authorization_trace"))]
     )
 
+    # 一个真实工具调用仍仅有一个ToolCallIR；引用证据不新增工具事件、
+    # 不改变效果或标签，也不作为自动放行证明。
+    event.metadata.pop("host_authorization", None)
+    bridge = getattr(services, "host_authorization_bridge", None)
+    if bridge is not None and _experiment_components().authorization and event.metadata["rv_trace"]:
+        step = event.metadata["rv_trace"][0]
+        evidence = bridge.submit(event, step)
+        event.metadata["host_authorization"] = evidence
+        step["context"]["host_authorization"] = evidence
+        preparation = getattr(bridge, "decision_preparation", None)
+        if preparation is not None:
+            event.metadata["call_authorization_preparation"] = preparation.prepare(event, step)
+    if bridge is not None and _experiment_components().cross_session_rv and event.metadata["rv_trace"]:
+        history_preparation = getattr(bridge, "history_preparation", None)
+        if history_preparation is not None:
+            event.metadata["cross_session_history_preparation"] = history_preparation.prepare(event, event.metadata["rv_trace"][0])
+
+
 
 
 def _classify_scope(
@@ -179,6 +197,8 @@ def _classify_scope(
     if not roots:
         return "unknown"
     default_base = Path(working_directory).expanduser() if working_directory else roots[0][1]
+    if working_directory and not default_base.is_absolute():
+        default_base = roots[0][1] / default_base
     if not paths and not working_directory:
         return "unknown"
     candidates = list(paths) or [str(default_base)]
@@ -455,7 +475,9 @@ def handle_before_tool_call_pipeline(
         "status": controlled.status,
     })
     controlled.last_event_seq = event_record["seq"]
-    services._save_all(services._replace_action(controlled))
+    # _replace_action already durably saves the updated action list. Preserve
+    # that synchronous commit before audit/response without a second full write.
+    services._replace_action(controlled)
     services.audit_store.append("hook_before_tool_call", controlled.to_dict())
     services._log(
         "hook_before_tool_call",
@@ -483,10 +505,10 @@ def handle_before_tool_call_pipeline(
     if controlled.status == "proposed":
         controlled.status = "executing"
         controlled.execution_result["approved_at"] = utc_now_iso()
-        items = services._replace_action(controlled)
-        services._save_all(items)
+        services._replace_action(controlled)
         return {
             "action": "allow",
+            **_execution_permit_response(services, event),
             "params": payload.get("params") if isinstance(payload.get("params"), dict) else {},
             "action_record": _public_hook_action_record(controlled, presentation),
         }
@@ -496,6 +518,7 @@ def handle_before_tool_call_pipeline(
         policy = controlled.decision.policy_decision or {}
         return {
             "action": "require_approval",
+            **_execution_permit_response(services, event),
             "title": title,
             "message": message,
             "technical_reason": controlled.decision.reason,
@@ -513,9 +536,23 @@ def handle_before_tool_call_pipeline(
 
     return {
         "action": "allow",
+        **_execution_permit_response(services, event),
         "params": payload.get("params") if isinstance(payload.get("params"), dict) else {},
         "action_record": _public_hook_action_record(controlled, presentation),
     }
+
+
+def _execution_permit_response(services: GuardServices, event: Any) -> dict:
+    """只向实际发生授权例外的单次调用返回宿主执行许可，block不走此分支。"""
+    preparation = getattr(getattr(services, "host_authorization_bridge", None), "decision_preparation", None)
+    exceptions = (event.metadata.get("rv_result") or {}).get("authorization_exceptions") or []
+    steps = event.metadata.get("rv_trace") or []
+    if preparation is None or not exceptions or len(steps) != 1:
+        return {}
+    permit = preparation.permit_for_exceptions(steps[0].get("step_id"), exceptions)
+    # 例外与响应之间若事实失效，执行器仍必须核验许可；缺失许可不能
+    # 静默回到未检查撤销的默认执行分支。
+    return {"executionPermitRequired": True, "executionPermit": permit}
 
 
 def _user_summary(event: Any, decision: Any) -> dict[str, str]:
@@ -653,6 +690,13 @@ def handle_after_tool_call_pipeline(
     if action is None:
         return {"ok": False, "error": "action_not_found", "hook_key": hook_key}
     expected = action.event.metadata
+    authenticated_before = expected.get("hook_auth_verified") is True
+    if authenticated_before and (
+        payload.get("_hook_auth_verified") is not True
+        or not expected.get("hook_auth_binding")
+        or payload.get("_hook_auth_binding") != expected.get("hook_auth_binding")
+    ):
+        return {"ok": False, "error": "hook_auth_binding_mismatch", "hook_key": hook_key}
     context_pairs = (
         ("tool_name", payload.get("toolName")),
         ("run_id", payload.get("runId")),
@@ -664,8 +708,8 @@ def handle_after_tool_call_pipeline(
     mismatches = [
         key for key, actual in context_pairs
         if str(expected.get(key) or "").strip()
-        and str(actual or "").strip()
-        and str(expected.get(key)).strip() != str(actual).strip()
+        and (authenticated_before or str(actual or "").strip())
+        and str(expected.get(key)).strip() != str(actual or "").strip()
     ]
     if mismatches:
         return {
@@ -682,6 +726,8 @@ def handle_after_tool_call_pipeline(
             "action": action.to_dict(),
         }
     error = str(payload.get("error") or "").strip()
+    if not error and payload.get("toolResultFailed") is True:
+        error = "tool_result_reported_failure"
     result_summary = str(payload.get("resultSummary") or "").strip()
     action.execution_result.update(
         {
@@ -715,10 +761,19 @@ def handle_after_tool_call_pipeline(
         action.status = "executed"
         action.execution_state = "executed"
         action.execution_result.update({"status": "completed"})
+        completion_evidence = {
+            "source": "authenticated_after_tool_call" if authenticated_before else "legacy_internal_callback",
+            "hook_auth_binding": expected.get("hook_auth_binding") if authenticated_before else None,
+            "content_lineage_verified": False,
+            "content_evidence": "not_provided",
+        }
+        action.event.metadata["rv_execution_evidence"] = completion_evidence
         action.event.metadata["principal_rv_commit_effect"] = services.record_executed_principal_action(action) or "none"
         rv_trace = action.event.metadata.get("rv_trace", [])
         if isinstance(rv_trace, list) and rv_trace and services.rv_enabled():
-            rv_trace = [{**step, "execution_state": "succeeded"} for step in rv_trace]
+            rv_trace = [{**step, "execution_state": "succeeded",
+                         "provenance": {**step.get("provenance", {}), "completion_evidence": completion_evidence}}
+                        for step in rv_trace]
             action.event.metadata["rv_trace"] = rv_trace
             rv_result = services.rv_engine.evaluate(
                 rv_trace,
@@ -728,6 +783,30 @@ def handle_after_tool_call_pipeline(
             )
             action.event.metadata["rv_commit_result"] = rv_result
             services.persist_rv_state()
+
+    # 内容证据仅在既有成功历史提交后补充，不解析结果摘要、不修改裁决。
+    # 非阻塞提交，宿主任务查询/核验在后台；缺失/无效证据不阻碍原有RV历史。
+    if action.execution_state == "executed" and _experiment_components().authorization:
+        ledger = getattr(services, "content_evidence_ledger", None)
+        envelope = payload.get("executionReceipt")
+        trace = action.event.metadata.get("rv_trace", [])
+        if ledger is not None and envelope is not None and isinstance(trace, list) and len(trace) == 1:
+            try:
+                evidence = ledger.submit(envelope, event=action.event, step={**trace[0], "execution_state": "succeeded"})
+            except Exception:
+                evidence = {"status": "unverified", "content_lineage_verified": False}
+            action.event.metadata["executed_content_evidence"] = evidence
+
+    if action.execution_state == "executed" and _experiment_components().cross_session_rv:
+        recorder = getattr(getattr(services, "host_authorization_bridge", None), "history_recorder", None)
+        envelope = payload.get("executionReceipt")
+        trace = action.event.metadata.get("rv_trace", [])
+        if recorder is not None and envelope is not None and isinstance(trace, list) and len(trace) == 1:
+            try:
+                action.event.metadata["cross_session_history_submission"] = recorder.submit(
+                    envelope, event=action.event, step={**trace[0], "execution_state": "succeeded"})
+            except Exception:
+                action.event.metadata["cross_session_history_submission"] = {"status": "unverified"}
 
     # 如果动作已经被拦截或拒绝，但仍然收到了 after_tool_call
     if action.status in {"blocked", "rejected"} and not error:

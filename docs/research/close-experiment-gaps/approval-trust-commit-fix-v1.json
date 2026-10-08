@@ -1,0 +1,18 @@
+{
+  "path": "openclaw_guard/api/_handlers.py",
+  "before_sha256": "c3b341bc7a7478c79d01281b7ab63cfd9dd22cbc5a5f1b2d2de6ef6fbaff9d15",
+  "after_sha256": "5112b2e98090187a22b8ac198454e7ce05e7c63a754fa368a6c31e458136083b",
+  "completed_batches": [
+    "m3-native-holdout-v1/results.json",
+    "m3-autonomous-native-v1/results.json",
+    "m3-native-targeted-ablations-v1/results.json",
+    "m3-native-trust-calibration-v1/results.json"
+  ],
+  "scope_repair": {
+    "path": "openclaw_guard/engine/pipeline.py",
+    "before_sha256": "c1cee120808c4ca4aafa546eacbddf82716db41a66cc1644e8713e1fac090b6a",
+    "after_sha256": "57a63f52255dbad12fda876bbfcb35a9ed4e0b86250bd9f86a40d658ff2bf801"
+  },
+  "scope": "Only approval_trust persistence; single-call approval and independent RV blocks preserved.",
+  "release_qualified": false
+}

@@ -1,0 +1,82 @@
+.FF                                                                      [100%]
+=================================== FAILURES ===================================
+_ test_resolution_approves_this_call_without_disabled_persistent_trust[disabled-0] _
+
+tmp_path = PosixPath('/tmp/pytest-of-yosoro126/pytest-97/test_resolution_approves_this_1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7dd70e2ca2c0>
+mode = 'disabled', expected_items = 0
+
+    @pytest.mark.parametrize('mode,expected_items', [('enabled', 1), ('disabled', 0), ('changed_generation', 0)])
+    def test_resolution_approves_this_call_without_disabled_persistent_trust(tmp_path, monkeypatch, mode, expected_items):
+        config = tmp_path / 'openclaw.json'
+        config.write_text(json.dumps({'models': {'providers': {}}}))
+        services = build_services(tmp_path, config_path=config)
+        request = services.handle_before_tool_call({'toolName': 'shell_exec',
+            'params': {'command': 'rm -f /tmp/guard-sync-owned-fixture'}, 'runId': 'fixture-run',
+            'toolCallId': 'fixture-call', 'sessionId': 'fixture-session'})
+        assert request['action'] == 'require_approval'
+        # Isolate resolution of an already offered eligible native approval; command
+        # eligibility itself is covered by the real readonly native probe and its tests.
+        import openclaw_guard.api._handlers as handlers
+        monkeypatch.setattr(handlers, 'build_approval_presentation', lambda *_: {
+            'allow_always': {'eligible': True, 'fingerprint': 'fixture-fingerprint', 'scope': 'workspace'}})
+        if mode == 'disabled':
+            ec.configure(ec.ExperimentComponents(approval_trust=False))
+        if mode == 'changed_generation':
+            approve = services.action_service.approve
+            def switch_during_resolution(*args, **kwargs):
+                result = approve(*args, **kwargs)
+                ec.configure(ec.ExperimentComponents(approval_trust=False))
+                ec.configure(ec.ExperimentComponents())
+                return result
+            monkeypatch.setattr(services.action_service, 'approve', switch_during_resolution)
+        result, status = api.resolve_hook_approval(services, {'actionId': request['action_record']['action_id'], 'decision': 'allow-always'})
+        assert status == 200
+        assert result['decision_state'] == 'allowed'
+>       assert len(services.approval_trust_summary()['items']) == expected_items
+E       AssertionError: assert 1 == 0
+E        +  where 1 = len([{'fingerprint': 'fixture-fingerprint', 'action_id': '58e37402a6874443', 'scope': 'workspace', 'created_at': '2026-10-07T07:10:25.518907+00:00', ...}])
+
+tests/test_approval_trust_commit_gate.py:45: AssertionError
+_ test_resolution_approves_this_call_without_disabled_persistent_trust[changed_generation-0] _
+
+tmp_path = PosixPath('/tmp/pytest-of-yosoro126/pytest-97/test_resolution_approves_this_2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7dd70e2de330>
+mode = 'changed_generation', expected_items = 0
+
+    @pytest.mark.parametrize('mode,expected_items', [('enabled', 1), ('disabled', 0), ('changed_generation', 0)])
+    def test_resolution_approves_this_call_without_disabled_persistent_trust(tmp_path, monkeypatch, mode, expected_items):
+        config = tmp_path / 'openclaw.json'
+        config.write_text(json.dumps({'models': {'providers': {}}}))
+        services = build_services(tmp_path, config_path=config)
+        request = services.handle_before_tool_call({'toolName': 'shell_exec',
+            'params': {'command': 'rm -f /tmp/guard-sync-owned-fixture'}, 'runId': 'fixture-run',
+            'toolCallId': 'fixture-call', 'sessionId': 'fixture-session'})
+        assert request['action'] == 'require_approval'
+        # Isolate resolution of an already offered eligible native approval; command
+        # eligibility itself is covered by the real readonly native probe and its tests.
+        import openclaw_guard.api._handlers as handlers
+        monkeypatch.setattr(handlers, 'build_approval_presentation', lambda *_: {
+            'allow_always': {'eligible': True, 'fingerprint': 'fixture-fingerprint', 'scope': 'workspace'}})
+        if mode == 'disabled':
+            ec.configure(ec.ExperimentComponents(approval_trust=False))
+        if mode == 'changed_generation':
+            approve = services.action_service.approve
+            def switch_during_resolution(*args, **kwargs):
+                result = approve(*args, **kwargs)
+                ec.configure(ec.ExperimentComponents(approval_trust=False))
+                ec.configure(ec.ExperimentComponents())
+                return result
+            monkeypatch.setattr(services.action_service, 'approve', switch_during_resolution)
+        result, status = api.resolve_hook_approval(services, {'actionId': request['action_record']['action_id'], 'decision': 'allow-always'})
+        assert status == 200
+        assert result['decision_state'] == 'allowed'
+>       assert len(services.approval_trust_summary()['items']) == expected_items
+E       AssertionError: assert 1 == 0
+E        +  where 1 = len([{'fingerprint': 'fixture-fingerprint', 'action_id': 'eeb027b641974ff6', 'scope': 'workspace', 'created_at': '2026-10-07T07:10:25.948194+00:00', ...}])
+
+tests/test_approval_trust_commit_gate.py:45: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_approval_trust_commit_gate.py::test_resolution_approves_this_call_without_disabled_persistent_trust[disabled-0]
+FAILED tests/test_approval_trust_commit_gate.py::test_resolution_approves_this_call_without_disabled_persistent_trust[changed_generation-0]
+2 failed, 1 passed in 2.06s

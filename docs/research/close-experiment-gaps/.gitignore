@@ -1,0 +1,13 @@
+# 提交分层：逐次运行的原始载荷不入库，仅保留结论文档与验收结果。
+# 2026-10-08：raw 载荷（raw/、*-raw.json、progress.json、api-calls.json、recording.json 等）已从工作树删除以精简提交，
+# 需重跑相应脚本再生。以下规则保留以防再生后误入库，如需入库请显式 `git add -f`。
+# 例外：m1-causal-r2-*.json 因被 m1-native-decision-progress.md 链接而保留在工作树，但仍按约定不入库。
+raw/
+raw.json
+*-raw.json
+api-calls.json
+recording.json
+progress.json
+m1-causal-r2-*.json
+m1-calibration-native-*.json
+m2-native-cross-session-probe-v1.json

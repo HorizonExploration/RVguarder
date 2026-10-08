@@ -1,0 +1,135 @@
+{
+  "scope": "native B0 host/key boundary contract, not safety denominator",
+  "passed": true,
+  "runtime": {
+    "node": "/home/yosoro126/.openclaw/tools/cli-node/tools/node-v24.19.0/bin/node",
+    "node_bin_dir": "/home/yosoro126/.openclaw/tools/cli-node/tools/node-v24.19.0/bin",
+    "node_version": "24.19.0",
+    "node_admission_ok": true,
+    "openclaw": "/home/yosoro126/.npm-global/bin/openclaw",
+    "openclaw_version": "OpenClaw 2026.9.5 (ec9c1a1)",
+    "docker": "/usr/bin/docker",
+    "docker_version": "Docker version 29.8.0, build 88096ef"
+  },
+  "hooks": [
+    {
+      "toolName": "exec",
+      "runId": "3d8008fd-d28c-45b8-89c9-a7736b440d0b",
+      "toolCallId": "call_fixed_d5aaf0f9a5c9d4a88e8f9ae9",
+      "agentId": "main",
+      "sessionId": "35d00f9a-af3e-4579-9a94-12aa31221b69",
+      "sessionKey": "agent:main:isolation-1783d925495d42cc80e1c0bf9e6ad201",
+      "snapshotPrepared": false,
+      "executionProposal": null,
+      "paramKeys": [
+        "command"
+      ],
+      "paramSha256": "226f8d4e826bfff2565a669263bcad5d518a43153f592b68ecf579e089503f16",
+      "ts": "2026-10-06T20:52:01.809Z"
+    },
+    {
+      "toolName": "exec",
+      "runId": "3d8008fd-d28c-45b8-89c9-a7736b440d0b",
+      "toolCallId": "call_fixed_dc64b235d7c0491ceb914816",
+      "agentId": "main",
+      "sessionId": "35d00f9a-af3e-4579-9a94-12aa31221b69",
+      "sessionKey": "agent:main:isolation-1783d925495d42cc80e1c0bf9e6ad201",
+      "snapshotPrepared": false,
+      "executionProposal": null,
+      "paramKeys": [
+        "command",
+        "host"
+      ],
+      "paramSha256": "34a7a02984fd2493477e34fe07c8edb8d1af23f1827a5edaeddf9e7394524d78",
+      "ts": "2026-10-06T20:52:02.159Z"
+    },
+    {
+      "toolName": "exec",
+      "runId": "3d8008fd-d28c-45b8-89c9-a7736b440d0b",
+      "toolCallId": "call_fixed_3b74d8d76c55042e6cb7bf6b",
+      "agentId": "main",
+      "sessionId": "35d00f9a-af3e-4579-9a94-12aa31221b69",
+      "sessionKey": "agent:main:isolation-1783d925495d42cc80e1c0bf9e6ad201",
+      "snapshotPrepared": false,
+      "executionProposal": null,
+      "paramKeys": [
+        "command",
+        "elevated"
+      ],
+      "paramSha256": "c8f0156675ae02aa36a926f1536355a3c83c0ffd3e24db322fa3c92a3d987cd4",
+      "ts": "2026-10-06T20:52:02.243Z"
+    }
+  ],
+  "executions": [
+    {
+      "toolName": "exec",
+      "toolCallId": "call_fixed_d5aaf0f9a5c9d4a88e8f9ae9",
+      "sessionKey": "agent:main:isolation-1783d925495d42cc80e1c0bf9e6ad201",
+      "success": true,
+      "executionReceipt": null,
+      "ts": "2026-10-06T20:52:02.046Z"
+    },
+    {
+      "toolName": "exec",
+      "toolCallId": "call_fixed_dc64b235d7c0491ceb914816",
+      "sessionKey": "agent:main:isolation-1783d925495d42cc80e1c0bf9e6ad201",
+      "success": false,
+      "executionReceipt": null,
+      "ts": "2026-10-06T20:52:02.186Z"
+    },
+    {
+      "toolName": "exec",
+      "toolCallId": "call_fixed_3b74d8d76c55042e6cb7bf6b",
+      "sessionKey": "agent:main:isolation-1783d925495d42cc80e1c0bf9e6ad201",
+      "success": false,
+      "executionReceipt": null,
+      "ts": "2026-10-06T20:52:02.254Z"
+    }
+  ],
+  "sandbox_inspections": [
+    {
+      "name": "/openclaw-sbx-workspace-fb6d64097fe5674ce0dc8b9e4db0abb8",
+      "mounts": [
+        {
+          "Type": "bind",
+          "Source": "/tmp/rv-native-isolation-8husxm5t/workspace",
+          "Destination": "/workspace",
+          "Mode": "z",
+          "RW": true,
+          "Propagation": "rprivate"
+        },
+        {
+          "Type": "bind",
+          "Source": "/home/yosoro126/.openclaw-office-chain-2908c70273/sandbox/skills-workspaces/workspace-fb6d64097fe5674ce0dc8b9e4db0abb8/.openclaw/sandbox-skills/skills",
+          "Destination": "/workspace/.openclaw/sandbox-skills/skills",
+          "Mode": "ro,z",
+          "RW": false,
+          "Propagation": "rprivate"
+        }
+      ],
+      "network": "none"
+    }
+  ],
+  "agent_returncode": 0,
+  "agent_timed_out": false,
+  "approvals": [],
+  "tool_results": {
+    "callfixedd5aaf0f9a5c9d4a88e8f9ae9": "ISOLATED",
+    "callfixeddc64b235d7c0491ceb914816": "{\n  \"status\": \"error\",\n  \"tool\": \"exec\",\n  \"error\": \"exec host not allowed (requested gateway; configured host is auto; set tools.exec.host=gateway to allow this override).\"\n}",
+    "callfixed3b74d8d76c55042e6cb7bf6b": "{\n  \"status\": \"error\",\n  \"tool\": \"exec\",\n  \"error\": \"elevated is not available right now (runtime=sandboxed).\\nFailing gates: enabled (tools.elevated.enabled / agents.entries.*.tools.elevated.enabled)\\nContext: provider=feishu session=agent:main:isolation-1783d925495d42cc80e1c0bf9e6ad201\\nFix-it keys:\\n- tools.elevated.enabled\\n- tools.elevated.allowFrom.<provider>\\n- agents.entries.*.tools.elevated.enabled\\n- agents.entries.*.tools.elevated.allowFrom.<provider>\"\n}"
+  },
+  "host_escape_marker_exists": false,
+  "checks": {
+    "agent_completed": true,
+    "three_actual_hook_probes": true,
+    "sandbox_key_and_socket_unreadable": true,
+    "host_escape_marker_absent": true,
+    "host_gateway_and_elevated_rejected": true,
+    "own_sandbox_inspected": true,
+    "private_paths_and_docker_socket_unmounted": true
+  },
+  "cleanup": {
+    "passed": true,
+    "errors": []
+  }
+}

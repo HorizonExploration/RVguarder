@@ -1,0 +1,9 @@
+{
+  "archive": "docs/research/close-experiment-gaps/m3-evaluated-source-snapshot-v1.tar.gz",
+  "archive_sha256": "ed5a38530ac0b68c96228316177c8e384d3b4bdea495dc7bbd17ce0a5b55436d",
+  "files": 145,
+  "all_match_freeze": true,
+  "freeze": "docs/research/close-experiment-gaps/m3-native-holdout-v1/freeze.json",
+  "freeze_sha256": "a7299a7f52dbaa5d1965a5e0dcc52260de22929cd4166cf1154445e9327683da",
+  "scope": "evaluated exact source/input/semantic snapshot before post-batch defect repairs; no dotenv/runtime credentials included"
+}

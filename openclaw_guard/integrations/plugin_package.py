@@ -38,9 +38,15 @@ plugin requires reloading the isolated Gateway.
 
 ## Release status
 
-Test candidate only. Resource attribution and trusted authorization precision
-are not release-qualified: the known public-summary control can be hard blocked
-(defect RV-PRECISION-001, see the baseline bundle `defects.md`). There is no claim
+Test candidate only. The bundled version-2 source rules (67 rules) retain the
+historical public-summary precision regression (RV-PRECISION-001) and have not
+passed a new frozen evaluation. The current backend additionally compiles five
+native request boundary rules (72 effective default rules). An optional 122-rule
+ATLAS profile is included in the backend wheel; select it explicitly using
+OPENCLAW_RV_RULES_PATH. These additions have no new holdout qualification.
+Separately selected experimental candidate rules
+passed the M1/M2 targeted authorization and history checks; those results do not
+qualify the bundled default or prove all-tool trusted provenance. There is no claim
 of comprehensive unknown-attack coverage, and Plugin API compatibility is verified
 only against OpenClaw 2026.9.5 — other versions are untested. Release requires the
 new frozen evaluation and real Docker installation tests in the optimization plan.
@@ -72,6 +78,8 @@ def build_plugin_package(output: str | Path) -> dict[str, Any]:
         "outage_behavior": "pass-through", "independent_rv_block": True,
         "known_precision_regression": "public-summary-after-untrusted-read",
         "known_precision_regression_id": "RV-PRECISION-001",
+        "bundled_rules_evaluation": "v2 source / 67 rules unchanged; effective default / 72 including 5 native request rules; not frozen-evaluated",
+        "experimental_rules_scope": "optional atlas-tool-policy-v2 / 122 rules in backend wheel; targeted calibration only; no new holdout qualification",
         "known_precision_regression_evidence": (
             "testlab/results/office-tool-model-no-pmkb-gate-20261004/defects.md"
             "#RV-PRECISION-001 (NEAR-UNKNOWN-TOOLCHAIN-B1, P+C/Full)"

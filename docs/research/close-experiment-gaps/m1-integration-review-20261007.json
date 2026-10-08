@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-07",
+  "stage": "M1 integration progress; not stage acceptance",
+  "independent_review": {
+    "agent": "/root/guard_review",
+    "role": "spec independent read-only reviewer",
+    "conclusion": "No remaining must-fix in controlled authorization interface; TTL and mandatory protocol defects fixed",
+    "python_passed": 274,
+    "node_passed": 11,
+    "actual_security_matrix_executed": false
+  },
+  "local_tests": {
+    "related_core": "173 passed",
+    "post_race_ttl": "43 passed",
+    "candidate": "3 passed",
+    "generated_hook": "23 passed",
+    "full_first": {
+      "passed": 968,
+      "failed": 1,
+      "skipped": 18,
+      "subtests": 4
+    },
+    "failed_gate_fix": "24 passed"
+  },
+  "native_reports": {
+    "m1-native-authorized-consumption-r3.json": {
+      "passed": true,
+      "cleanup_passed": true,
+      "scope": "native authorization interface contract, dedicated fixture rules; not Q5 or M1 attack denominator"
+    },
+    "m1-native-revoked-consumption.json": {
+      "passed": true,
+      "cleanup_passed": true,
+      "scope": "native authorization interface contract, dedicated fixture rules; not Q5 or M1 attack denominator"
+    },
+    "m1-native-signed-contract-r2.json": {
+      "passed": true,
+      "cleanup_passed": null,
+      "scope": "real OpenClaw/Docker execution contract; not authorization, attack efficacy or Q5 denominator"
+    },
+    "m1-calibration-native-N03-Full.json": {
+      "passed": true,
+      "cleanup_passed": true,
+      "scope": null
+    }
+  },
+  "source_sha256": {
+    "openclaw_guard/rv/rv_rules.json": "496daa04a0bd532d9f99eaaa6293e1f52505dc5f9b098cc94f0af40bb5c255a7",
+    "openclaw_guard/spec/call_authorizer.py": "7133f147b1bd032224a6207133201cabbf0cabb98ebcec4ca75b9f939299babd",
+    "openclaw_guard/spec/authorization_preparation.py": "df041d06ad7b6517fe39070847d565250aa998e952e36ffae42ea7375a6378f4",
+    "openclaw_guard/integrations/hook_runtime.py": "c3e49a06d9a7b167e777bd956575ea090f4fa22a3da55b2f98ddbe378a087e59",
+    "testlab/office_chain/native_office_plugin/execution_authorization.js": "461d746c0a7b6ee70e7e70c255179c20e86f22a72ae22bed09dc96996180a7af",
+    "docs/research/close-experiment-gaps/m1-candidate-rules.json": "012acc373e517ee5c40f22e3603e6e66584a9ef3e91d3e07008974ac485d330f"
+  },
+  "stage_passed": false,
+  "release_qualified": false,
+  "api_calls_this_progress": 0
+}

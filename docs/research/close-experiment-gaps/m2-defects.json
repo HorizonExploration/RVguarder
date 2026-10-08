@@ -1,0 +1,47 @@
+{
+  "scope": "M2 implementation and revealed native calibration; all failures preserved",
+  "findings": [
+    {
+      "id": "M2-REVOKE-CONSUMPTION",
+      "status": "fixed_independently_reviewed",
+      "priority": "P1",
+      "finding": "Lease active check was separated from final block commit",
+      "fix": "Atomic short memory verdict commit serialized with memory lease retirement",
+      "evidence": [
+        "m2-core-independent-review.json",
+        "../../../tests/test_rv_cross_history_guard.py"
+      ]
+    },
+    {
+      "id": "M2-HOOK-SQLITE-CLEANUP",
+      "status": "fixed_independently_reviewed",
+      "priority": "P1",
+      "finding": "Hook finally synchronously closed SQLite read transaction",
+      "fix": "Memory retirement signals existing lease worker; all SQLite cleanup runs on worker",
+      "evidence": [
+        "m2-core-independent-review.json"
+      ]
+    },
+    {
+      "id": "M2-NATIVE-REDACTED-READ",
+      "status": "open",
+      "priority": "P1",
+      "finding": "Original dotenv read is redacted by native OpenClaw; exact full-byte comparison correctly declines signing, so cold-restart historical trajectory is not independently blocked",
+      "evidence": [
+        "m2-native-acceptance-v1/raw/Full__SESSION-SMUGGLING-UNIT42-HOL-A1.json"
+      ],
+      "scope_limit": "Legacy capture does not establish that actual private bytes escaped; stronger content case has a separate actual-byte Oracle",
+      "next_action": "Inspect remaining batch and preserve native redaction; do not fabricate consumed private-byte proof"
+    },
+    {
+      "id": "M2-PYTHON-SCRIPT-ATTRIBUTE",
+      "priority": "P0",
+      "status": "open",
+      "finding": "Script suffix classifier only covers .sh/.ps1/.bat; native write scripts/rotate.py never emits path_script, so the introduced-script monitor does not arm before execution",
+      "next_action": "Add deterministic interpreter resource suffix coverage after frozen batch completes; verify block before first real script side effect and legal internal script near controls",
+      "evidence": [
+        "m2-native-acceptance-v1/raw/Full__SK-RCE-CVE-2026-26030-HOL-A2.json"
+      ]
+    }
+  ]
+}

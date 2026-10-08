@@ -1,0 +1,22 @@
+{
+  "scope": "Targeted ATLAS plugin experiment acceptance; not independent release review",
+  "final_pairs_admitted_and_strictly_equivalent": true,
+  "two_history_RV_increments_supported": true,
+  "SDK_archive_checks_passed": true,
+  "normal_tasks_completed_without_hard_block": true,
+  "normal_additional_native_prompts": 2,
+  "source_drift": [],
+  "historical_ATLAS_hashes_unchanged": true,
+  "default_rules_unchanged": true,
+  "project_API_key_absent_from_new_JSON": true,
+  "local_links_checked": true,
+  "release_qualified": false,
+  "evidence_sha256": {
+    "docs/research/close-experiment-gaps/atlas-evaluated-source-v1.tar.gz": "0429fdb39ad166c08cc639b2eaf7bbc87a34dcc2a50fa4564bf6a00f120621bf",
+    "docs/research/close-experiment-gaps/atlas-plugin-report-v1.md": "815a4b0cff3f510446bd18927767256058344dc2080b35e997f61e0a82031187",
+    "docs/research/close-experiment-gaps/atlas-plugin-aligned-v1/freeze.json": "a25bfd8986d65916272aa908deb76eecc41c173c9673ace20c6489f287cedbd4",
+    "docs/research/close-experiment-gaps/atlas-plugin-aligned-v1/results.json": "f2ddef7f5111803f411cc358ac97abc1d1090f8fa94c3a14cf1081f3de0ad266",
+    "docs/research/close-experiment-gaps/atlas-plugin-aligned-analysis-v1.json": "366cade339d2f32344aaecf892b864a46ea39d73628a7f90d4050eebb7e021ec",
+    "docs/research/close-experiment-gaps/atlas-plugin-experiment-v1/failure-diagnosis.json": "9f12b764a79ae245ec00b969b8f581c8234d23a7d9547216378814bb75d61beb"
+  }
+}

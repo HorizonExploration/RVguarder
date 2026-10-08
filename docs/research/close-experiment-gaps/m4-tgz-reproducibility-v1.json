@@ -1,0 +1,8 @@
+{
+  "candidate": "dist/rvguard-m4-candidate-v1/openclaw-guard-hook.tgz",
+  "independent_build": "/tmp/rv-m4-plugin-repro-v1/openclaw-guard-hook.tgz",
+  "candidate_sha256": "14404d9ae844c2b8dcdb14e334fefc6f1701108b824a4147ca7304c04132f12f",
+  "independent_sha256": "14404d9ae844c2b8dcdb14e334fefc6f1701108b824a4147ca7304c04132f12f",
+  "byte_equal": true,
+  "release_qualified": false
+}

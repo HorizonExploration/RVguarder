@@ -21,7 +21,7 @@
     {"family":"conversation.read","tool_ids":["conversations_list"],"aliases":[]},
     {"family":"conversation.send","tool_ids":["conversations_send","conversations_turn"],"aliases":[]},
     {"family":"agent.spawn","tool_ids":["sessions_spawn"],"aliases":[]},
-    {"family":"automation.modify","tool_ids":["cron"],"aliases":[]},
+    {"family":"automation.modify","tool_ids":["cron","automations"],"aliases":[]},
     {"family":"gateway.modify","tool_ids":["gateway"],"aliases":[]},
     {"family":"user.interaction","tool_ids":["ask_user"],"aliases":[]},
     {"family":"progress.write","tool_ids":["progress_card"],"aliases":[]},

@@ -51,6 +51,76 @@ if (fetches !== 0) throw new Error(`startup issued ${fetches} backend requests`)
 ''')
 
 
+def test_execution_permit_only_installed_for_explicit_allow_or_native_approval(tmp_path: Path) -> None:
+    """许可不覆盖独立block，错误/离线不触碰执行器，缺失必需许可传null。"""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+let response = {action: "allow", executionPermitRequired: true, executionPermit: {payload: {id: "host"}}};
+let accepted = [];
+const provider = () => null;
+provider.acceptPermit = (permit, event, ctx) => {
+  if (event.toolCallId !== "call" || ctx.agentId !== "agent") throw new Error("SDK association lost");
+  accepted.push(permit);
+};
+globalThis[Symbol.for("rvguard.execution-proposals.v1")] = new Map([["office_message_send", provider]]);
+globalThis.fetch = async url => ({ok: true, text: async () => JSON.stringify(
+  url.endsWith("/api/health") ? {ok: true, product: "openclaw-guard"} : response)});
+const hooks = {};
+plugin.register({pluginConfig: {guardUrl: "http://guard.test"}, on(n,h) {hooks[n]=h;},
+ registerGatewayMethod() {}, logger: {info() {}, warn() {}}});
+const event = {toolName: "office_message_send", toolCallId: "call", params: {}};
+const ctx = {agentId: "agent"};
+await hooks.before_tool_call(event, ctx);
+if (accepted.length) throw new Error("silent touched executor");
+hooks.gateway_start(); await new Promise(resolve => setImmediate(resolve));
+if (await hooks.before_tool_call(event, ctx) !== undefined || accepted.length !== 1) throw new Error("allow permit missing");
+response = {action: "block", executionPermitRequired: true, executionPermit: response.executionPermit};
+if (!(await hooks.before_tool_call(event, ctx))?.block || accepted.length !== 1) throw new Error("permit overrode independent block");
+response = {action: "require_approval", executionPermitRequired: true, executionPermit: null};
+if (!(await hooks.before_tool_call(event, ctx))?.requireApproval || accepted.length !== 2 || accepted[1] !== null) throw new Error("missing permit was not invalidated");
+response = {action: "allow", executionPermitRequired: false, executionPermit: {forged: true}};
+await hooks.before_tool_call(event, ctx);
+if (accepted.length !== 2) throw new Error("unrequired permit installed");
+response = {action: "unknown", executionPermitRequired: true};
+if (await hooks.before_tool_call(event, ctx) !== undefined || accepted.length !== 2) throw new Error("malformed decision installed permit");
+hooks.gateway_stop();
+''')
+
+
+def test_before_proposal_comes_from_host_registry_and_does_not_override_block(tmp_path: Path) -> None:
+    """宿主证明与Agent自报参数分离；证明存在仍忠实返回后端明确block。"""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+let captured, providerCalls = 0;
+globalThis[Symbol.for("rvguard.execution-proposals.v1")] = new Map([
+  ["office_message_send", (event, ctx) => {
+    providerCalls++;
+    if (event.toolCallId !== "call" || ctx.agentId !== "agent") throw new Error("wrong SDK context");
+    return {payload: {purpose: "proposed_content_use", snapshot_id: "host"}, signature: "public-fixture"};
+  }]
+]);
+globalThis.fetch = async (url, options) => {
+  if (url.endsWith("/api/health")) return {ok: true, text: async () => JSON.stringify({ok: true, product: "openclaw-guard"})};
+  captured = JSON.parse(options.body);
+  return {ok: true, text: async () => JSON.stringify({action: "block", reason: "RV independent block"})};
+};
+const hooks = {};
+plugin.register({pluginConfig: {guardUrl: "http://guard.test"}, on(name, handler) {hooks[name] = handler;},
+  registerGatewayMethod() {}, logger: {info() {}, warn() {}}});
+const event = {toolName: "office_message_send", toolCallId: "call", params: {executionProposal: {snapshot_id: "forged"}}};
+if (await hooks.before_tool_call(event, {agentId: "agent"}) !== undefined) throw new Error("silent call blocked");
+if (providerCalls !== 0) throw new Error("silent call accessed host proof provider");
+hooks.gateway_start();
+await new Promise(resolve => setImmediate(resolve));
+const result = await hooks.before_tool_call(event, {agentId: "agent"});
+if (result?.block !== true) throw new Error("proposal suppressed backend block");
+if (captured.executionProposal?.payload?.snapshot_id !== "host") throw new Error("host proof missing");
+if (captured.params.executionProposal?.snapshot_id !== "forged") throw new Error("parameters mutated");
+hooks.gateway_stop();
+delete globalThis[Symbol.for("rvguard.execution-proposals.v1")];
+''')
+
+
 def test_decision_transport_failure_opens_silent_passthrough(tmp_path: Path) -> None:
     """The first failed guarded call and every later call must pass through."""
     _run_generated_plugin(tmp_path, r'''
@@ -435,4 +505,94 @@ for (const toolName of ["read", "write", "exec"]) {
   if (await hooks.before_tool_call({toolName, params: {}}, {}) !== undefined) throw new Error("offline probe blocked");
 }
 hooks.gateway_stop();
+''')
+
+
+def test_after_callback_reports_sdk_failure_not_tool_parameter_assertion(tmp_path: Path) -> None:
+    """执行后失败标记来自SDK结果根字段，不从工具参数或结果文字提取。"""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+const posts = [];
+globalThis.fetch = async (url, options) => {
+  if (url.endsWith("/api/health")) return {ok: true, text: async () => JSON.stringify({ok: true, product: "openclaw-guard"})};
+  posts.push(JSON.parse(options.body));
+  return {ok: true, text: async () => JSON.stringify({ok: true})};
+};
+const hooks = {};
+plugin.register({
+  pluginConfig: {guardUrl: "http://guard.test"},
+  on(name, handler) { hooks[name] = handler; },
+  registerGatewayMethod() {}, logger: {info() {}, warn() {}},
+});
+hooks.gateway_start();
+await new Promise(resolve => setImmediate(resolve));
+await hooks.after_tool_call({toolName: "read", params: {isError: false}, result: {isError: true}, error: null}, {});
+await hooks.after_tool_call({toolName: "read", params: {isError: true}, result: {content: [{text: '{"isError":true}'}]}, error: null}, {});
+if (posts.length !== 2 || posts[0].toolResultFailed !== true || posts[1].toolResultFailed !== false) throw new Error("SDK failure signal was forged or lost");
+hooks.gateway_stop();
+''')
+
+
+def test_content_receipt_transport_only_uses_bounded_sdk_details(tmp_path: Path) -> None:
+    """签名收据只从SDK details取；文字/参数不能注入，UTF8超限丢弃。"""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+const posts = [];
+globalThis.fetch = async (url, options) => {
+  if (url.endsWith("/api/health")) return {ok: true, text: async () => JSON.stringify({ok: true, product: "openclaw-guard"})};
+  posts.push(JSON.parse(options.body));
+  return {ok: true, text: async () => JSON.stringify({ok: true})};
+};
+const hooks = {};
+plugin.register({pluginConfig: {}, on(n, h) {hooks[n] = h;}, registerGatewayMethod() {}, logger: {info() {}, warn() {}}});
+await hooks.gateway_start();
+const receipt = {payload: {receipt_id: "actual"}, signature: "0".repeat(64)};
+await hooks.after_tool_call({toolName: "read", params: {}, result: {details: {rvExecutionReceipt: receipt}}}, {});
+await hooks.after_tool_call({toolName: "read", params: {rvExecutionReceipt: receipt}, result: {content: [{text: JSON.stringify(receipt)}]}}, {});
+await hooks.after_tool_call({toolName: "read", params: {}, result: {details: {rvExecutionReceipt: {payload: "中".repeat(6000)}}}}, {});
+if (posts[0].executionReceipt?.payload?.receipt_id !== "actual") throw new Error("SDK receipt lost");
+if (posts[1].executionReceipt !== null) throw new Error("parameter or text forged receipt");
+if (posts[2].executionReceipt !== null) throw new Error("UTF8 oversized receipt passed");
+hooks.gateway_stop();
+''')
+
+
+def test_private_completion_provider_cannot_fall_back_to_forged_details(tmp_path: Path) -> None:
+    """私有provider优先；缺失/异常/失败/超限证据不能回退模型可见details。"""
+    _run_generated_plugin(tmp_path, r'''
+const plugin = (await import(process.argv[1])).default;
+const posts = [];
+globalThis.fetch = async (url, options) => {
+  if (url.endsWith("/api/health")) return {ok: true, text: async () => JSON.stringify({ok: true, product: "openclaw-guard"})};
+  posts.push(JSON.parse(options.body));
+  return {ok: true, text: async () => JSON.stringify({ok: true})};
+};
+const hooks = {};
+plugin.register({pluginConfig: {}, on(n, h) {hooks[n] = h;}, registerGatewayMethod() {}, logger: {info() {}, warn() {}}});
+const registry = new Map();
+globalThis[Symbol.for("rvguard.execution-receipts.v1")] = registry;
+const event = {toolName: "office_message_send", toolCallId: "call", result: {details: {
+  rvExecutionReceipt: {payload: {receipt_id: "forged"}, signature: "forged"}}}};
+let calls = 0;
+registry.set(event.toolName, (event, ctx) => {
+  calls++;
+  if (event.toolCallId !== "call" || ctx.agentId !== "main") throw new Error("SDK scope lost");
+  return {payload: {receipt_id: "host", inputs: [{sha256: "0".repeat(64)}]}, signature: "0".repeat(64)};
+});
+await hooks.after_tool_call(event, {agentId: "main"});
+if (calls !== 0 || posts.length !== 0) throw new Error("silent hook touched host evidence");
+await hooks.gateway_start();
+await hooks.after_tool_call(event, {agentId: "main"});
+registry.set(event.toolName, () => null);
+await hooks.after_tool_call(event, {agentId: "main"});
+registry.set(event.toolName, () => {throw new Error("unavailable");});
+await hooks.after_tool_call(event, {agentId: "main"});
+registry.set(event.toolName, () => {calls++; return {payload: "oversize".repeat(20000)};});
+await hooks.after_tool_call({...event, result: {isError: true}}, {agentId: "main"});
+await hooks.after_tool_call(event, {agentId: "main"});
+if (posts[0].executionReceipt?.payload?.receipt_id !== "host") throw new Error("private host receipt missing");
+if (posts.slice(1).some(item => item.executionReceipt !== null)) throw new Error("forged fallback or failed evidence accepted");
+if (calls !== 2) throw new Error("failed hook invoked provider");
+hooks.gateway_stop();
+delete globalThis[Symbol.for("rvguard.execution-receipts.v1")];
 ''')

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-05T09:52:54.987191+00:00",
+  "image": "openclaw-sandbox:bookworm-slim",
+  "image_id": "sha256:f13f648399aae931c94f8b36230b06d9a53ae2d96ef5913ae694748c3cc7e5f3",
+  "scope": "minimal Docker mount boundary; not OpenClaw integration or attack efficacy",
+  "fixture": "public constant 32 zero bytes; no signing key generated or exposed",
+  "agent_profile": {
+    "network": "none",
+    "rootfs": "read-only",
+    "capabilities": "drop ALL",
+    "no_new_privileges": true,
+    "host_socket_mounted": false,
+    "host_key_mounted": false
+  },
+  "results": [
+    {
+      "probe": "agent_workspace_writable",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "probe": "agent_private_fixture_unmounted",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "probe": "agent_docker_socket_absent",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "probe": "agent_host_path_absent",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "probe": "trusted_executor_private_fixture_readable",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "probe": "trusted_executor_cannot_overwrite_fixture",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "probe": "host_fixture_unchanged",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "limits": [
+    "Production OpenClaw executor placement and tool transport remain unverified",
+    "Mounting the key or Docker socket into an Agent invalidates this isolation profile"
+  ]
+}

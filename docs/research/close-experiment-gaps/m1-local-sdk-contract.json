@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-05T10:08:44.279902+00:00",
+  "openclaw_version": "2026.9.5",
+  "sdk_module": "hooks-Jjh3afyP.mjs",
+  "sdk_sha256": "94e01df2379fd8657bff777eabe6f75c0bf25dfa70ab3127257b570931bc7bb8",
+  "scope": "actual installed SDK runner contract; mocked HTTP, no Gateway/Agent/native approval or side effect",
+  "outcomes": {
+    "passed": true,
+    "dispatch_allow": true,
+    "dispatch_block": true,
+    "sdk_details_preserved": true,
+    "sdk_failure_preserved": true,
+    "identity_context_preserved": true,
+    "decision_posts": 2
+  },
+  "signature_fixture_is_valid": false,
+  "limits": [
+    "SDK context fields remain optional",
+    "Transport preservation does not prove issuer trust or native approval behavior",
+    "This check is not a B0 comparison or security experiment sample"
+  ]
+}

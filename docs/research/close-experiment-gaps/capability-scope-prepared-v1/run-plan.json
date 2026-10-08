@@ -1,0 +1,278 @@
+{
+  "suite": "capability-scope-calibration-v1",
+  "status": "planned_not_executed",
+  "semantics": "local heuristic; no API calls",
+  "main_jobs": [
+    {
+      "scenario_id": "CAP-C04-A",
+      "arm": "B0",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C04-A",
+      "arm": "Full",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C04-A",
+      "arm": "P+S",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C04-N",
+      "arm": "Full",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C04-N",
+      "arm": "B0",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C05-A",
+      "arm": "B0",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C05-A",
+      "arm": "Full",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C05-A",
+      "arm": "P+S",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C05-N",
+      "arm": "Full",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C05-N",
+      "arm": "B0",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C07-A",
+      "arm": "B0",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C07-A",
+      "arm": "Full",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C07-A",
+      "arm": "P+S",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C07-N",
+      "arm": "Full",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C07-N",
+      "arm": "B0",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C09-A",
+      "arm": "B0",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C09-A",
+      "arm": "Full",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C09-A",
+      "arm": "P+S",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C09-N",
+      "arm": "Full",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C09-N",
+      "arm": "B0",
+      "batch": "priority"
+    },
+    {
+      "scenario_id": "CAP-C01-A",
+      "arm": "B0",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C01-A",
+      "arm": "Full",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C01-A",
+      "arm": "P+S",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C01-N",
+      "arm": "Full",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C01-N",
+      "arm": "B0",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C02-A",
+      "arm": "B0",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C02-A",
+      "arm": "Full",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C02-A",
+      "arm": "P+S",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C02-N",
+      "arm": "Full",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C02-N",
+      "arm": "B0",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C03-A",
+      "arm": "B0",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C03-A",
+      "arm": "Full",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C03-A",
+      "arm": "P+S",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C03-N",
+      "arm": "Full",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C03-N",
+      "arm": "B0",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C06-A",
+      "arm": "B0",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C06-A",
+      "arm": "Full",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C06-A",
+      "arm": "P+S",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C06-N",
+      "arm": "Full",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C06-N",
+      "arm": "B0",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C08-A",
+      "arm": "B0",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C08-A",
+      "arm": "Full",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C08-A",
+      "arm": "P+S",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C08-N",
+      "arm": "Full",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-C08-N",
+      "arm": "B0",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-B01-A",
+      "arm": "B0",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-B01-A",
+      "arm": "Full",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-B01-A",
+      "arm": "P+S",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-B01-N",
+      "arm": "Full",
+      "batch": "remaining"
+    },
+    {
+      "scenario_id": "CAP-B01-N",
+      "arm": "B0",
+      "batch": "remaining"
+    }
+  ],
+  "main_runs": 50,
+  "priority_runs": 20,
+  "targeted_ablations": [
+    {
+      "scenario_id": "CAP-C07-A",
+      "arm": "Full",
+      "disabled": "cross_session_rv",
+      "label": "Full-Cross"
+    },
+    {
+      "scenario_id": "CAP-C07-N",
+      "arm": "Full",
+      "disabled": "authorization",
+      "label": "Full-Auth"
+    }
+  ],
+  "adjudication": "allow-once for each actual native prompt; never count ask as prevention",
+  "independent_scenario_count": 20,
+  "attack_scenario_count": 10,
+  "normal_scenario_count": 10,
+  "release_qualified": false
+}

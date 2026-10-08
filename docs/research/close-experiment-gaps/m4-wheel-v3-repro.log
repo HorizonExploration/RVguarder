@@ -1,0 +1,9 @@
+Processing ./.
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: openclaw-guard
+  Building wheel for openclaw-guard (pyproject.toml): started
+  Building wheel for openclaw-guard (pyproject.toml): finished with status 'done'
+  Created wheel for openclaw-guard: filename=openclaw_guard-0.7.0.dev0-py3-none-any.whl size=325548 sha256=0ea85c559a87dea10e37ec294ecd608288a3379e82d79dbe6b83b5505c6617c6
+  Stored in directory: /tmp/pip-ephem-wheel-cache-g9b4qfq2/wheels/07/15/30/a8ccc57e6ff023ca1bcd36c67126a0a31a0fa159828b396195
+Successfully built openclaw-guard

@@ -1,0 +1,14 @@
+{
+  "scope": "active root README and docs README/index relative Markdown path links; VuePress html routes mapped to source md; no anchors/HTML href/reference-link validation",
+  "files": 7,
+  "relative_links": 59,
+  "vuepress_source_routes": 7,
+  "missing": [],
+  "passed": true,
+  "current_PMKB_rules": 79,
+  "current_RV_rules": 67,
+  "current_RV_version": 2,
+  "AGENTS_unchanged": true,
+  "historical_score_rewritten": false,
+  "full_suite_rerun": false
+}

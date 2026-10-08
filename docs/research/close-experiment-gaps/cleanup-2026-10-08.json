@@ -1,0 +1,2187 @@
+{
+  "status": "completed",
+  "date": "2026-10-08",
+  "deleted_directories": [
+    {
+      "path": "build",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 1142948,
+      "files": [
+        {
+          "path": "build/lib/openclaw_guard/services.py",
+          "sha256": "6a0e9821d4c281ea393e75a650a1f8109862f37283144373a060ba86f0ea2b50"
+        },
+        {
+          "path": "build/lib/openclaw_guard/main.py",
+          "sha256": "086067aef1c85f68ffb3b903be774b14312fcdcbce9800c8ba65a52c42ae1769"
+        },
+        {
+          "path": "build/lib/openclaw_guard/config.py",
+          "sha256": "622af8e2ee9faf5bdace3ae6c4538f407798869f4154290bbfbb42bb7c83a45b"
+        },
+        {
+          "path": "build/lib/openclaw_guard/conversation.py",
+          "sha256": "0ae9fefd33f63a31fb07f194fd8676b2250adfb6b417123415f670cce5f374f1"
+        },
+        {
+          "path": "build/lib/openclaw_guard/utils.py",
+          "sha256": "e7b7f530cc7705fb0647f4113930f7e9158147310b7e705c0478133ad04196e4"
+        },
+        {
+          "path": "build/lib/openclaw_guard/ui.py",
+          "sha256": "b2172845a91ce026e9b3ddb9c077d5214854a76076c4fcdd93aea6f2ccbc55f5"
+        },
+        {
+          "path": "build/lib/openclaw_guard/models.py",
+          "sha256": "a4f98619e340eec22beef799559e1e0ee424552f196d78168fd6bd95c2bdbc27"
+        },
+        {
+          "path": "build/lib/openclaw_guard/baseline.py",
+          "sha256": "a3bbe64381b4634bd7cd61e96302a5b0ae3fe90a5e046df5851e5757dfdfa0fc"
+        },
+        {
+          "path": "build/lib/openclaw_guard/manager.py",
+          "sha256": "5ab58f4f0aa9ef332658d3c23042154fd83806bbc279a99dd2d7a06caf9df353"
+        },
+        {
+          "path": "build/lib/openclaw_guard/ui_assets.py",
+          "sha256": "c750dde695f25eacf9417b7805e9ceeb9389c3e1ecad8aa9bafc2b1ae2166a5b"
+        },
+        {
+          "path": "build/lib/openclaw_guard/__init__.py",
+          "sha256": "aa40aebe6b23289b09b4c0911a2cdebf8842d318f1649b53f27363499d2e3bc6"
+        },
+        {
+          "path": "build/lib/openclaw_guard/events.py",
+          "sha256": "4a9a2b6473c3f1fda9060d05a20f384cc599dd90d30493f60c855bb4e2df6fc7"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/execution_proposals.py",
+          "sha256": "9acd928a092fe2904d50309b0f8721088f0dd2dd3ee584d830232d9893dd5055"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/content_flow.py",
+          "sha256": "a8126a1da3e50bed09526a6222b880b4db23c0d288a040aaac3b52a91b9835dc"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/nl2spec_generator.py",
+          "sha256": "2cb409c0638d860da1f5678fb1ca0f7d3b9fd47527e94bcf30c9f53354954198"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/spec_validator.py",
+          "sha256": "4d218043ef4ca1216ae62c749f274374c0ffe83595a25c976a545563d25bcea9"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/read_access_receipts.py",
+          "sha256": "88b5a45cad3c66384bcbfa6b1940d4addacbe32d693978663bd429b8677c3fa8"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/authorization_facts.py",
+          "sha256": "75806615d0a0090364165828bc38c93f26deeb09032fe45e400efc2266f90769"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/call_authorizer.py",
+          "sha256": "7133f147b1bd032224a6207133201cabbf0cabb98ebcec4ca75b9f939299babd"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/eval_traces.py",
+          "sha256": "9637f6d0a85dfff45bed0b7182afc59b6e9997dd9eea0c6f08089c2852a6fd71"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/resource_evidence.py",
+          "sha256": "f02f1e7efcb6db93b840c683345a859d3035a0cdc904fe3645fca5f5cb98283d"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/content_receipts.py",
+          "sha256": "02c794a37654a562d2c2ce08aa785935ae725721642a6d653481720a25206331"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/session_state.py",
+          "sha256": "bc20dad588727704f81a0aee5727e5305c7616ac2ba9a08b19401812cd242fdb"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/authorization_preparation.py",
+          "sha256": "f5f7b5f83b8d19366152df0bad0894cbd375fb89c352ae9d911089ce540ebef0"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/cross_history.py",
+          "sha256": "6b401620b2a159597b4ed7e2cd871c8153db25c28ecf848db73abb8ef42edd3f"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/host_authorization.py",
+          "sha256": "fb17fc620bb26c5d09e33ec57c9ba1e954b4815aa9d57a60f86603398e76b1df"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/__init__.py",
+          "sha256": "b431f58f57e6a48b4713e81b565fd709d52ddd214e6f5fa72bac697f907e3be0"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/history_facts.py",
+          "sha256": "35e017b243b51005cc5022856514b9f4e0c23710be746c2e68330ff3e5eb3709"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/authorization_cli.py",
+          "sha256": "9c55a0914ff42092e23d15612605d85d3dc1791ac4b1c661c10e536bd560497b"
+        },
+        {
+          "path": "build/lib/openclaw_guard/spec/task_history.py",
+          "sha256": "fe03b52f95fa9a7255f41fafcee11ed1e1b327c8898928e771a68292a44b907a"
+        },
+        {
+          "path": "build/lib/openclaw_guard/static_ui/index.html",
+          "sha256": "fbb331dc0983018fbd0db794b3a25b38bcbdacb3497a379848d828eb417c1c77"
+        },
+        {
+          "path": "build/lib/openclaw_guard/web/dependencies.py",
+          "sha256": "5ce2a1d4611ee8452fe91f5f70312eba8b28e192737aa86d7bf53551a2586063"
+        },
+        {
+          "path": "build/lib/openclaw_guard/web/app.py",
+          "sha256": "4ffa4eb0ba8a56a19fb59af9a8803e76629ba47353936c1922ab090ad8208801"
+        },
+        {
+          "path": "build/lib/openclaw_guard/web/__init__.py",
+          "sha256": "0598cd7e222415bae06480e3eeeb08e802d911edc5b973fdb5b02dc08e62afaa"
+        },
+        {
+          "path": "build/lib/openclaw_guard/web/errors.py",
+          "sha256": "23d0e062483b69a4418cc449ec15cd6a65fcc66a0f5802eb38b243f2a5b9e362"
+        },
+        {
+          "path": "build/lib/openclaw_guard/collectors/hook_bridge.py",
+          "sha256": "fc11a7a923e76a1799ca55fd90a87ef82d9d22857920140cc54809b1a32f8e06"
+        },
+        {
+          "path": "build/lib/openclaw_guard/collectors/ptrace_adapter.py",
+          "sha256": "a8ad32d1e4f8d3cba40bc80babfc93ce9741bbbbfaa34b1de285bffffe89cbbf"
+        },
+        {
+          "path": "build/lib/openclaw_guard/collectors/ebpf_adapter.py",
+          "sha256": "011d211ba0f01f0406b0770af10d42cd56d937d795f4b41dae2070061e4382ab"
+        },
+        {
+          "path": "build/lib/openclaw_guard/collectors/__init__.py",
+          "sha256": "ea65c3d69b8a9c446a04e7e3741a455605654d097ea7250f6386c59906f18a56"
+        },
+        {
+          "path": "build/lib/openclaw_guard/integrations/plugin_package.py",
+          "sha256": "4516b4411d4f71208cf6add2e43fd58ac72de3f8b7f5eb929997e7e2104ed11a"
+        },
+        {
+          "path": "build/lib/openclaw_guard/integrations/discovery.py",
+          "sha256": "5cf6e3261955c947f4c87f4b6c43dacf8c54b3d0f7ac1ef0bc649cd9c378b563"
+        },
+        {
+          "path": "build/lib/openclaw_guard/integrations/host_authorization_bridge.py",
+          "sha256": "902dc56636dc1263992e991ff8d779e3ea1aea54f2dd48292c3aee3bb9d6550a"
+        },
+        {
+          "path": "build/lib/openclaw_guard/integrations/hook_runtime.py",
+          "sha256": "c7f7449c79e8bfbb0cbcf2fe42e3d5d4f9eb871cba250fd64d1c2ad9f4d56861"
+        },
+        {
+          "path": "build/lib/openclaw_guard/integrations/openclaw_adapter.py",
+          "sha256": "cd633b6aa64f72a2ab3d4cc9e0a3f6900041e420169442baf9daade78490389c"
+        },
+        {
+          "path": "build/lib/openclaw_guard/integrations/tool_hook_bridge.py",
+          "sha256": "8d120b6e16a58815ef10e86cec5e291d219bdce88405d8a663633173b7ad9368"
+        },
+        {
+          "path": "build/lib/openclaw_guard/integrations/__init__.py",
+          "sha256": "d84fef3a1c9e5094764e863dc1869987016fc6e8263e22abdb5b371217938b57"
+        },
+        {
+          "path": "build/lib/openclaw_guard/api/_handlers.py",
+          "sha256": "5112b2e98090187a22b8ac198454e7ce05e7c63a754fa368a6c31e458136083b"
+        },
+        {
+          "path": "build/lib/openclaw_guard/api/__init__.py",
+          "sha256": "c16aae7151db0a87928c29541c1033b70b361aabfe2b8de5348eaafc038448ee"
+        },
+        {
+          "path": "build/lib/openclaw_guard/engine/command_safety.py",
+          "sha256": "fa2e8ce7b5f6e68f2aa9c0cc488b1ea1ca9b03cc5944ee16da2df5fb2520d30d"
+        },
+        {
+          "path": "build/lib/openclaw_guard/engine/approval.py",
+          "sha256": "02647c2e7036dd5bd9650213bb898d767bebdd94c390c8127a2a4dc99c751ed2"
+        },
+        {
+          "path": "build/lib/openclaw_guard/engine/semantic_models.py",
+          "sha256": "dc798b7a9ebf0571bc641e3e7b274cf6e066bfcacb9f391c37aa2504fc43ab45"
+        },
+        {
+          "path": "build/lib/openclaw_guard/engine/behavior.py",
+          "sha256": "667de457ffc2ee76b060e043b6db9b2ac70efcd68acb0fa280bae5e40808685c"
+        },
+        {
+          "path": "build/lib/openclaw_guard/engine/experiment_components.py",
+          "sha256": "2456eacd08f654efa57f3e795263ac587e61fb91271e8ab9262c057d865aa63c"
+        },
+        {
+          "path": "build/lib/openclaw_guard/engine/semantic_enhancer.py",
+          "sha256": "7aa1870cb932af8818b8471de8234df56baf883ad62d321a0bfc2cf4241a948e"
+        },
+        {
+          "path": "build/lib/openclaw_guard/engine/whitelist.py",
+          "sha256": "dbb16e63eb987bf5b2173e98df1e64d05e07da05b9224ac6aa2d3dbd23f000cc"
+        },
+        {
+          "path": "build/lib/openclaw_guard/engine/__init__.py",
+          "sha256": "d74e65f5aad81b919e3e0caf307f2dff0337e1eb98cff70d42d8f55dbb9d9391"
+        },
+        {
+          "path": "build/lib/openclaw_guard/engine/pipeline.py",
+          "sha256": "57a63f52255dbad12fda876bbfcb35a9ed4e0b86250bd9f86a40d658ff2bf801"
+        },
+        {
+          "path": "build/lib/openclaw_guard/engine/control.py",
+          "sha256": "114487baeb94abc92b13d9ded39e86db5d8336ba7df62cb7c3e96841657bb169"
+        },
+        {
+          "path": "build/lib/openclaw_guard/storage/__init__.py",
+          "sha256": "b7cd03ed29440e63ae2ea8e8a7b03b1a2254c6845a304c63f17d933042bd988d"
+        },
+        {
+          "path": "build/lib/openclaw_guard/storage/db_store.py",
+          "sha256": "62374e3103a230ac98130fcc38e43679cd0ffa87648e1e1036b90d04f4b5a896"
+        },
+        {
+          "path": "build/lib/openclaw_guard/storage/audit_store.py",
+          "sha256": "a4deed5c7a391776a9c0ffa22c8a41733979427f13b0412aebd998e299ee2ccd"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/engine.py",
+          "sha256": "662a4e91a48f73edce6e2e7717cb1a5b1122efa8f5dbee8b0506da83ece5a141"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/evaluator.py",
+          "sha256": "f9936b2a6c07ee95cd6c54efb8f133639c6ffabe51b0464a76552c241ffa5cde"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/permission_diff.py",
+          "sha256": "6e580b90a67588074c592d0297c22174a6d8ba564503262ab083364089300ed7"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/rv_compiler.py",
+          "sha256": "9c1f5423de96005bff75745eb22d61dacb542d68eee73e58f77500702aad515f"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/models.py",
+          "sha256": "f917d23438ed6fbdbff6b5d3c11c18e53693fbea164fad142eaf48f2a6c841cc"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/trace.py",
+          "sha256": "a047eec217204ddbc30c2e94c6b5c01853863e6a0f3fc5e7136f9a21781e1ce6"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/__init__.py",
+          "sha256": "87ea61af95dcfbc52dc546d81419c66b3f4ae1a6b903025dbded2bf43016fc90"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/risk_graph.py",
+          "sha256": "19ff46e4ee54d003a0288daccfde18e366de376202e4148e695a8965c6ac7ad6"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/catalog.py",
+          "sha256": "8063ea5dc0c3e45d0b4d7070fa85a56ddd1e987779cd29f2d515b07d7aaf653b"
+        },
+        {
+          "path": "build/lib/openclaw_guard/rv/rv_rules.json",
+          "sha256": "496daa04a0bd532d9f99eaaa6293e1f52505dc5f9b098cc94f0af40bb5c255a7"
+        },
+        {
+          "path": "build/lib/openclaw_guard/rv/baseline_learner.py",
+          "sha256": "28b760a8b47781c278ce0551fcdcc9a7ca418881da0bfaf9760517a4d372ebb0"
+        },
+        {
+          "path": "build/lib/openclaw_guard/rv/rv_dsl.py",
+          "sha256": "d44b7fc0157fde00eecc2a09f09f7d7344f640272dd04f55919afd4081689683"
+        },
+        {
+          "path": "build/lib/openclaw_guard/rv/ir.py",
+          "sha256": "2b3aa482f7f2fd48d07816e094e7eccb3afaa0568ffa663aa2f9173d3d3a4277"
+        },
+        {
+          "path": "build/lib/openclaw_guard/rv/runtime_verification.py",
+          "sha256": "df842b8261a7bd8d628960f891c3e15652005779d5540ccb8f2ffffd1298164f"
+        },
+        {
+          "path": "build/lib/openclaw_guard/rv/__init__.py",
+          "sha256": "4248aa172aed3b86a7588685a446969c631f72729bf80eeccd3d9939a968daca"
+        },
+        {
+          "path": "build/lib/openclaw_guard/rv/tool_events.py",
+          "sha256": "32b1a517d008e368cd00a847e3f0cbe01778d505bb6f29c84df94b55eeb16a43"
+        },
+        {
+          "path": "build/lib/openclaw_guard/rv/trace_abstractor.py",
+          "sha256": "c69d687b42e4c42fd7e539e85bc7313fffa64ea78c7283f1dac782ce3e6b6888"
+        },
+        {
+          "path": "build/lib/openclaw_guard/rv/baseline_monitor.py",
+          "sha256": "2a8b47a12332560600024ea2365b37e090989c7a71dc5e512493a53e647b2897"
+        },
+        {
+          "path": "build/lib/openclaw_guard/core/audit_service.py",
+          "sha256": "ae2c9221b93be9a07ae93d294b6f2b7d1b5fa35630cfa0457354f2caee612fe1"
+        },
+        {
+          "path": "build/lib/openclaw_guard/core/baseline_service.py",
+          "sha256": "2073a32bca608731b10149e0dd81a18196cde94837c4faeae8d14a3c7617097e"
+        },
+        {
+          "path": "build/lib/openclaw_guard/core/__init__.py",
+          "sha256": "42d716912fa1b1b88bff6dd4fedba509e1445d0faae344ed740fb4ddc160b309"
+        },
+        {
+          "path": "build/lib/openclaw_guard/core/action_service.py",
+          "sha256": "ff07128cb6f93ce0c161a849e26a8cd132750063ac2084d39ee7bac586ea74af"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/__init__.py",
+          "sha256": "401f6f8f07c0c768e8af857a725d314bf735c393d37609855db92fbdb842c203"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/__init__.py",
+          "sha256": "3e03b832841b6665465ed45300901d2c1cfe04fc083551abecaf7c6b4c22a02e"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/rules/native-legacy-migration.json",
+          "sha256": "5b35d385af49f25f1187b5ac03204b27bc9efc4884a31f2e22904b6f43557654"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/rules/__init__.py",
+          "sha256": "95b9fff4f5544658659689dc1f3488f5c3f1664cd26396f3ee433d4fa6bd145d"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/rules/p0-office.json",
+          "sha256": "cd399a5a37befaec005785e274e12e0b612710855286460e0af7954d41cc8ea8"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/catalog/operation-catalog.json",
+          "sha256": "f18699889b6b120bc27c1732403304fa0424d7a40e8d99c09156c8126fbb8765"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/catalog/__init__.py",
+          "sha256": "26ed2a33c8f9d93e63aea86ebf610122f1e52eb7913f8fd499c875dfc16c7879"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/migrations/legacy-1.1.json",
+          "sha256": "c57751c15ac936b55e35f09168a7cda0ec378188909461a3d0811233744acaae"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/traces/native-legacy-migration.json",
+          "sha256": "ab4e16789af4ec2e81b30cdc6a41465f408424b5c23fd3e4c28ae7700c2ce145"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/traces/__init__.py",
+          "sha256": "dd70ce464402f8f1b9a0f77ef20f99c57b26ac16affbfc79a07ff314fa893bee"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/traces/p0-office.json",
+          "sha256": "2591e9989eb3deebaa30a6ed99e46aa93ea51bc44b8cd4e3b54219f00f9c175b"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/schema/__init__.py",
+          "sha256": "c3498132c13e8e6159b3febb5b5b6aa1dd70660ac5671a54ef2e621aeb1b8f94"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/schema/permissions.schema.json",
+          "sha256": "de48593a6e19f18bed3c0985032f434aa22e0b883a3a227fab59925a832f2ae8"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/relations/p0-combinations.json",
+          "sha256": "4bb6a7d822acd8bc77239b91f832df9f0463be235ccc184200ad9657cdad66c5"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/relations/__init__.py",
+          "sha256": "9fd862f24bd2bc4240806cb301c0cf73318efe0a323f94c8fc9f1e4c3bf7e8ab"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/tests/native-legacy-migration.json",
+          "sha256": "402fac01e392130c2bee093d516d9444286d03c072c4791d41c27a0fda367d3b"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/tests/p0-vectors.json",
+          "sha256": "e95da5ad37f3d4cdaabd711511fcdb10531190dbd33c36b9b3efd4a66aaeced9"
+        },
+        {
+          "path": "build/lib/openclaw_guard/policy/data/permissions/tests/__init__.py",
+          "sha256": "e7f982c5b749f53911b959ae89b0661c4155f652a2fc653b81cb007f29da5526"
+        },
+        {
+          "path": "build/lib/openclaw_guard/web/routes/rv.py",
+          "sha256": "1263373d40d046f4d38e943221ba0df024a207e3da22f3ef065c429e48866019"
+        },
+        {
+          "path": "build/lib/openclaw_guard/web/routes/audit.py",
+          "sha256": "dd3e8cc4392208bf60f5052f1f831470c2f5eb19f2fbf5d28760f6cdb2993448"
+        },
+        {
+          "path": "build/lib/openclaw_guard/web/routes/actions.py",
+          "sha256": "a684011e412a81471510d7933c3ea123fde447a264fcb7b5b04cf75cd81a3d7c"
+        },
+        {
+          "path": "build/lib/openclaw_guard/web/routes/health.py",
+          "sha256": "b482e949ac6f30f472dc01829cab021147f38991af40e465dfe611e7a4636623"
+        },
+        {
+          "path": "build/lib/openclaw_guard/web/routes/static.py",
+          "sha256": "9dd9a0b1a4ebf9f7354bae759725d271c56d8591e953796516e61eca146037f3"
+        },
+        {
+          "path": "build/lib/openclaw_guard/web/routes/baseline.py",
+          "sha256": "66d24c3f922720dcfb31e110be9e0174615bcdb99caaa6962f175a461cc74183"
+        },
+        {
+          "path": "build/lib/openclaw_guard/web/routes/__init__.py",
+          "sha256": "0f27f9874bf940960c9a3d8a1bb77cdf2ff795d620b2a34d8a0980496147f94f"
+        },
+        {
+          "path": "build/lib/openclaw_guard/web/routes/events.py",
+          "sha256": "e16dcd5c7b586ab76e1dafe569efaba48a4ecf23d59226bb7e69eac03e85921a"
+        },
+        {
+          "path": "build/lib/openclaw_guard/web/routes/hook.py",
+          "sha256": "01e3f1b4fbe9b15790b4e986fa15322cc9ca330f7ef9e062c6f17cfdae944c0d"
+        },
+        {
+          "path": "build/lib/openclaw_guard/static_ui/assets/Rules-Bw9F3Bgv.js",
+          "sha256": "903a4ead54ee2e3f31aed35e9762a68c61414baa652aa48f50c6920640acbb97"
+        },
+        {
+          "path": "build/lib/openclaw_guard/static_ui/assets/Actions-CLaSmrV5.js",
+          "sha256": "4c332aa0e8d796d64be6549c4f1a11a128bb6e239c17ee155dca21462dcf1cc3"
+        },
+        {
+          "path": "build/lib/openclaw_guard/static_ui/assets/index-CYrZjyZB.js",
+          "sha256": "12ffcc1fd6b5c4053afee68f1b5f99a59a224e1495643d25ee88acc6236b83c8"
+        },
+        {
+          "path": "build/lib/openclaw_guard/static_ui/assets/Skills-DFzKAMpi.js",
+          "sha256": "b8485091cdf5b1d4993f8d8caef6fc9c14401b586ec1abdb1ef120af3ff0aa59"
+        },
+        {
+          "path": "build/lib/openclaw_guard/static_ui/assets/Settings-B79-ttjs.js",
+          "sha256": "eb29d09f61bfaeb4a0bc5f323de2237dc07b43c09e77711e6e58ccc48c83f9ad"
+        },
+        {
+          "path": "build/lib/openclaw_guard/static_ui/assets/index-AOjiQaoE.css",
+          "sha256": "f4b4527c88669064667444ce6d1a81318f1c5073a1ca11cb55f22583f42ce324"
+        }
+      ]
+    },
+    {
+      "path": ".pytest_cache",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 126737,
+      "files": [
+        {
+          "path": ".pytest_cache/README.md",
+          "sha256": "73fd6fccdd802c419a6b2d983d6c3173b7da97558ac4b589edec2dfe443db9ad"
+        },
+        {
+          "path": ".pytest_cache/CACHEDIR.TAG",
+          "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+        },
+        {
+          "path": ".pytest_cache/.gitignore",
+          "sha256": "3ed731b65d06150c138e2dadb0be0697550888a6b47eb8c45ecc9adba8b8e9bd"
+        },
+        {
+          "path": ".pytest_cache/v/cache/lastfailed",
+          "sha256": "440a0c3a875bdd51fa01367ec6a264b7787b7bbf247b7c88984dcb9624d0bd21"
+        },
+        {
+          "path": ".pytest_cache/v/cache/nodeids",
+          "sha256": "fd7ffbc74efbaac90e215cfd7dee1cd34bdcc67bdb18899f35959106d070919b"
+        }
+      ]
+    },
+    {
+      "path": "docs/.vuepress/.temp",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 17246,
+      "files": [
+        {
+          "path": "docs/.vuepress/.temp/pages/404.html.vue",
+          "sha256": "ac81cd27fcb6e3c1e20f9bd2e1f275176ea19c338db7b12e64e6214c498e4ff2"
+        },
+        {
+          "path": "docs/.vuepress/.temp/git/config.js",
+          "sha256": "87e16598f643b0fe7ae0d4c2514abebd97f57af4fc91d4b1380a73c80ceb8b5c"
+        },
+        {
+          "path": "docs/.vuepress/.temp/prismjs/config.js",
+          "sha256": "76ad838d5577082ff9de761da321d217b17554cf89ce6198e58f5d0748298fca"
+        },
+        {
+          "path": "docs/.vuepress/.temp/styles/index.scss",
+          "sha256": "c847492ad1ec977719401b55e7560e9dde6452aef7a460e5b18ca26756fbbbcf"
+        },
+        {
+          "path": "docs/.vuepress/.temp/styles/palette.scss",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "docs/.vuepress/.temp/internal/themeData.js",
+          "sha256": "64f8776f034b066b52ce46f9a95dce05b932f748ccfcf0bcfa785def968feb0e"
+        },
+        {
+          "path": "docs/.vuepress/.temp/internal/routes.js",
+          "sha256": "45dd21bbfc6e6440d4ff05c6c48259682dfa5ad1bbb7238e35e12277e2e65443"
+        },
+        {
+          "path": "docs/.vuepress/.temp/internal/clientConfigs.js",
+          "sha256": "420d271631502492f8f0e3807176ddcc410e20bd539026acf375f5430cca4593"
+        },
+        {
+          "path": "docs/.vuepress/.temp/internal/siteData.js",
+          "sha256": "70adadef9f38d05829834868dbddedde1bc9eb46cf783e3237e8689cdc7d287a"
+        },
+        {
+          "path": "docs/.vuepress/.temp/markdown-tab/config.js",
+          "sha256": "c059d03f959af90b8b40a5fb6ca32fbc289405f96ed4dacd543ec2b5b5b886c5"
+        }
+      ]
+    },
+    {
+      "path": "docs/.vuepress/dist",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 2532653,
+      "files": [
+        {
+          "path": "docs/.vuepress/dist/rv-permission-automata-flow.svg",
+          "sha256": "72c8406fd47663a4c7b07252976bfda891050308b7402df46f53854ba2eca8d9"
+        },
+        {
+          "path": "docs/.vuepress/dist/index.html",
+          "sha256": "9a695b633a26d8c4499478572f0c87e0e9230237784db1c3bbb2ffe2ed701132"
+        },
+        {
+          "path": "docs/.vuepress/dist/404.html",
+          "sha256": "9e3bbfcc70aace579b366841a87f089b289d50997388692af98fcb9e30e832f3"
+        },
+        {
+          "path": "docs/.vuepress/dist/mark.svg",
+          "sha256": "2e93167bbd838639756e70307775c6bc076e4b8303a566f08c1ff36305be6ef2"
+        },
+        {
+          "path": "docs/.vuepress/dist/research/permission-model-kb-and-cross-session-rv-plan.html",
+          "sha256": "9840f7892c0e01c13cd0f1d3cbb4261657ece418fe97f5741b41d03441f01ade"
+        },
+        {
+          "path": "docs/.vuepress/dist/research/agent-permission-rv-research-report-2026-08-25.html",
+          "sha256": "72fb9664a83f2025eaeb4612085654a67925ff953468684e8a75f73e2f0ba0b0"
+        },
+        {
+          "path": "docs/.vuepress/dist/research/openclaw-architecture-brief-2026-08-31.html",
+          "sha256": "1e7072fea302be92688421bdff1c8b8aec18bb73c5c1ab63dcbf6280daaca5d5"
+        },
+        {
+          "path": "docs/.vuepress/dist/research/index.html",
+          "sha256": "2e55e15a95ff19633ed788574c0e235d365bb9d19108c6cded8bd7f3161f9be2"
+        },
+        {
+          "path": "docs/.vuepress/dist/research/pmkb-network-baseline-implementation-report-2026-08-28.html",
+          "sha256": "aab174273ca59cb931ef74f0a71ec7496278805812d3b10ded91ef8d02b7c06e"
+        },
+        {
+          "path": "docs/.vuepress/dist/research/group-meeting-report-2026-09-13.html",
+          "sha256": "e0335cfb648b96f429afd437182cb6d11dd03b25866b617f07242c23c0bbff24"
+        },
+        {
+          "path": "docs/.vuepress/dist/test-design/openclaw-guard-test-design.html",
+          "sha256": "ef31fe8226cfda9ba0ebf1e2dd2eb1d1e91b468c958e742b361778df045ad133"
+        },
+        {
+          "path": "docs/.vuepress/dist/test-design/index.html",
+          "sha256": "2f202677f87658ff3033cab5102f7bce08a7b634e53b6ccd5af64e0776249ed7"
+        },
+        {
+          "path": "docs/.vuepress/dist/features/action-gate.html",
+          "sha256": "b8b3808aa8563952cf83f5789362f500d9a58655e6f86b3e8d757e90d01745d3"
+        },
+        {
+          "path": "docs/.vuepress/dist/features/audit.html",
+          "sha256": "e6992d5775e49ee69a401d3fe35eb51a5dc1d89eeb9bf503bc7f985249739d06"
+        },
+        {
+          "path": "docs/.vuepress/dist/features/runtime-hook.html",
+          "sha256": "8452285a721fbf1292c9e1130706e81cbd4e2798e2f57e9d13eb203b855d7853"
+        },
+        {
+          "path": "docs/.vuepress/dist/features/baseline.html",
+          "sha256": "03ad3ecca3e10aea63623637cb5cf70b9d5a0e9dc39ee9dbd06d26a8c6baa631"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/rv-permission-automata.html",
+          "sha256": "b326c3b6579e03c4ad8bb42bb7a7c158f37c96f78fc84cfbfce8b3fff77bb325"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/three-state-rv-runtime-plan-2026-09-03.html",
+          "sha256": "182677aefe011c4e3dbe569d67bf533f002bfc3b0cdbe9493c12578d78eb025d"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/legacy-rule-migration-matrix.html",
+          "sha256": "d5a60a198df59b0d3f1428880327da337e45b57a6b1fe42466e8fd9e2a9892cb"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/project-memory.html",
+          "sha256": "ae8de182a23d4e059264dfcf3e860bdd25b78260eea722c563cefe521de9da93"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/v070-engineering-unification-report-2026-09-02.html",
+          "sha256": "372e867b5223a8028ca67776e962313e9aadef6406df19655357a5072dead035"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/pmkb-e2e-audit-2026-09-15.html",
+          "sha256": "dbe942eff498ec9edf134d3879017c41831a5e19a552d122822ca5fbe6d74f8e"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/index.html",
+          "sha256": "ddadd2c3fcd6fce0165c7c0d21521fdef35e1611c1b79ea7631cee39c7d67353"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/permission-kb-runtime-architecture.html",
+          "sha256": "25c72ec0a99e27607307dc3ac05670d34455c26ccb4c055b3a821b44c271dd20"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/rv-engine-report.html",
+          "sha256": "894f8166ab67a89922609735716d26a6ce58bd910b70bc9934b903450b86665e"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/project-status-analysis.html",
+          "sha256": "c0e3cac4deeefab2b7ae616ad0c5015eaa1c504b2c5b9331fefe88b20b33db48"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/pmkb-review-issues-2026-09-15.html",
+          "sha256": "9a8594df1b82604a6ace4da31905671beed89b9689e15ae5c25c59f619e0a0a9"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/quality-assurance.html",
+          "sha256": "e0226c65b106589a527400c00bb313a409671c8a23472f39368f9f1e10f2e798"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/frontend-handoff-redesign-report.html",
+          "sha256": "aad8cf28fa420d774eb9ab2006c4e44c3a992260760d0df824194393eba03427"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/overview.html",
+          "sha256": "f3b988b01467e550b5cd481e9aa60ba7c911d270d3bd8888e57d2131fe0f81b9"
+        },
+        {
+          "path": "docs/.vuepress/dist/architecture/permission-modeling-diagrams.html",
+          "sha256": "a24eb3ff83f32ba8e3d5c90e40097a0317b60650870ec07199141425eb3629cd"
+        },
+        {
+          "path": "docs/.vuepress/dist/deployment/local.html",
+          "sha256": "514cf257268dc8f8e183fce83dbc4ac8de17f4dc79606b5ad734bc523698057f"
+        },
+        {
+          "path": "docs/.vuepress/dist/deployment/docker-k8s.html",
+          "sha256": "c0e82e004adca25d0012df204ddfebb8b1f9b6274a1ecbdb371d5321d71ebbef"
+        },
+        {
+          "path": "docs/.vuepress/dist/comparison/rvguard-vs-agent-security-tools.html",
+          "sha256": "9a2f6547cfd8842a8348836886583751b8c14e832e1f904f5a74b5dbb19d19a2"
+        },
+        {
+          "path": "docs/.vuepress/dist/semantic/index.html",
+          "sha256": "eaddcd56657802406d38906d4279ccdf3e28f0b0395ea10bec08d6adb0c77cd5"
+        },
+        {
+          "path": "docs/.vuepress/dist/semantic/office-scenario-matrix.html",
+          "sha256": "4c749de1cc84193a2c18401fd8a05cdad77e0887b71fdca251d8148d70944c84"
+        },
+        {
+          "path": "docs/.vuepress/dist/semantic/pmkb-network-case-baseline.html",
+          "sha256": "b76fea9796c748273d390a9974c1d8b259ac68c591710583a485f4c2464c7e58"
+        },
+        {
+          "path": "docs/.vuepress/dist/semantic/method.html",
+          "sha256": "bbc5a151230d80db86b6dd110d51105222524a03b05f4bf7710c2c5ff8357ae2"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/openclaw-guard-test-design-C-7tGlgx.js",
+          "sha256": "a9b9eb97aafe3ddb8693c93bdfb2b9c8eeaf85c8fe49dbd81ffb983ba2662154"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/research-BpPfKBQW.js",
+          "sha256": "1edef4d01c51be21869057c1ed47de25cfeadca0d0a5f6a1f483f62d5d0a9f35"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/permission-kb-runtime-architecture-BO9n2tmo.js",
+          "sha256": "0f88960a6d8244b4e87d69cf15d6bec2b184e87254b69f652181e14ce8de9a2f"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/v070-engineering-unification-report-2026-09-02-BWIZCZ-C.js",
+          "sha256": "042dce849ba2b06f6a05b1c3f208141c65a1c54b411490c29d0161add1e89afa"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/pmkb-network-baseline-implementation-report-2026-08-28-CDxwAznX.js",
+          "sha256": "d862f14f6a9b515db498233c721c2ee50167d9fb927a3993ea3e180e97c5e809"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/runtime-hook-CPlOuRk7.js",
+          "sha256": "1499892c8bbe14b185207f4485bdc47549a9764f600ad4bab91e4dfd5fa930d1"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/project-memory-DgDE4F-8.js",
+          "sha256": "1383b9693cea457f4ca9e24ff439429a3ae55d10c56b6a8399f7f0398e7aee88"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/docker-k8s-vXAwVq9R.js",
+          "sha256": "43a3de1cbb312ace9943f5ebe1a4876486584af113a9cc1b9e57d88bca585185"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/permission-model-kb-and-cross-session-rv-plan-D-3Tc0_s.js",
+          "sha256": "991bea3076d493bcb930d20ffa8f8851911b45d93d25f18215aea6f68d719914"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/architecture-BPCFDxUA.js",
+          "sha256": "c6d0dd9541929ea37c263048877f550efc4ad81af0a45dfbd3830364f4e965d6"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/pmkb-e2e-audit-2026-09-15-BlNantBw.js",
+          "sha256": "c711943137e5f3113f2c7a17a4bcc10779258e7a08b958f7959375a52395818d"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/action-gate-KDS2snYR.js",
+          "sha256": "645a92bd9e86cc711477dc568badc6eb42420a935c11350f993a298b4301a441"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/local-UQ43MLmR.js",
+          "sha256": "d762a29231243997289bad98b130692174be08f5220f6ae9dc63fd77b3675cc9"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/project-status-analysis-BIPWT6Dl.js",
+          "sha256": "2df990f5538d49bfcbdd2918fcaaffa91998703268bfbff38f0f6d9602827fbc"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/pmkb-network-case-baseline-CtbL4cq7.js",
+          "sha256": "6953e2eb4bd82b6de6ef2b3d0f688f2a384045471ad03af351c98e7ac115a422"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/overview-DMABv4eT.js",
+          "sha256": "7bcfaaf7d2daa26a32c701fd6be6acbee927380eea30a88440d003e31a293c80"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/office-scenario-matrix-CfvOTf2a.js",
+          "sha256": "bbee2c4e16b756ec5e14b41a726ae194a1938128542edcb5e7e21a1981bcfeb8"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/rv-permission-automata-CjjfNFAn.js",
+          "sha256": "22beb575eab0e9b09e817965a67f4ce85217091ddc1547e48ad2212993990cd5"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/semantic-DB1iPJIP.js",
+          "sha256": "670b544af06958d46802d2809d0a94093d99419586fc7d56b2eb005f802114a4"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/agent-permission-rv-research-report-2026-08-25-B8R0VWhj.js",
+          "sha256": "b717aedfe71dfe22ae2fda89757bb889b92118f97ca9ca470ad74a15255a9624"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/README-DGTcURDw.js",
+          "sha256": "4f645f9bc3189085d9512680cf68ec8a7eb436f82e866318a2e643e68cca4641"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/roadmap-B7Kkt7n5.js",
+          "sha256": "6b5f4e47bcd0e0b2ed6aec53d4255ef38fec9d09d23946f3a9e3129015780af6"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/test-design-CJqDLjQ-.js",
+          "sha256": "a8b1e47b6d544da99929fbbb7fb4fc66de90aa106d6e45cb774ec867427e0577"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/404.html-DhsJM0yd.js",
+          "sha256": "b2758af8858cd5e1090b9abe4fb6612456fb8ab6dbf0560622fac83d6428176a"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/rvguard-vs-agent-security-tools-Dd3Pnzp5.js",
+          "sha256": "b17adcd746345d3773a2cd8c50d6bf7c60bb4082da5abca8c456f188c26fc886"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/quality-assurance-Bynilwup.js",
+          "sha256": "bfd7a99189fea72282dec209fedf9781e83176a18f123478f25a0868573a6a01"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/frontend-handoff-redesign-report-Cs80dzr3.js",
+          "sha256": "6ba67118d7af4d3f2f7e073fe3e1db1d49e1a9266c3073d9d743938e42adb3c5"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/group-meeting-report-2026-09-13-hXm5KQvC.js",
+          "sha256": "e67f5b067f86a7971a5034514848c97074defc82c1e6cee5985a43d1759320c4"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/legacy-rule-migration-matrix-BoEp_J-F.js",
+          "sha256": "83eff10edc5bbe3432de76b09e517ae89f345a11eb6b18277b9239b0d3f22def"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/faq-B9wkW6kM.js",
+          "sha256": "91c27fcbdc6b1085ef215b189fd8e563c515f1fa9a0dd560a4c6b9433caa3413"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/app-D1zaGL9a.js",
+          "sha256": "1c6a6442f167127fbbbfb56ccff6bac32012b6ca9a7d0e3ca225e79cde9a2e85"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/three-state-rv-runtime-plan-2026-09-03-Bt7ELpHk.js",
+          "sha256": "64aaca702de1306966b4b9ce15b83bb05b1ed59020979ef89fb270c3a5e9949c"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/rv-engine-report-Bi5YoMA2.js",
+          "sha256": "703e85ce76e09059d1b4d8d898bebbdd9c4069ad48e4e429361f2a736eeab7d3"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/permission-modeling-diagrams-CbTTaD3R.js",
+          "sha256": "11ae6c130abeb06abc641d59ab2bacdf589e116df11b340307072cb3f32d58c0"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/openclaw-architecture-brief-2026-08-31-D9tUs6eg.js",
+          "sha256": "1f2235aab7545358504c5a53165d7cc8904cba7f61ecdf6e8c76d3dcc6649eb4"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/frontend-C9O38dWX.js",
+          "sha256": "bc44d6857fd0934908b5246ec1cd94cce1972e730519ef200e91b1768eadb985"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/http-DlUW9ZAO.js",
+          "sha256": "efb98b7a57bba2835dce38546a01f8c37eab1f631fb3249cd5185a6569ed8bf0"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/pmkb-review-issues-2026-09-15-Bdo0PI9L.js",
+          "sha256": "4799044877939149ae9bde0a4f277cbf2c656d570b97543636c09da93aef7ee2"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/method-Cv5gC9OM.js",
+          "sha256": "e6f1bb218b10b500194cf744317bae2e93b0251a81a87c9b5ee3b9f1a1d79a63"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/baseline-FjShynxi.js",
+          "sha256": "d78abe6a818ffffd8376e7011c022f11b06d977cc437ccad9f906af5b8e0a44e"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/audit-f-Crenkp.js",
+          "sha256": "15a30a5f3448d637820fd69e0cfdeceb9b39712db493380bbf2fc0b0399d7dda"
+        },
+        {
+          "path": "docs/.vuepress/dist/assets/style-zoJF6T99.css",
+          "sha256": "bd687493212ae750fce9b34ff3d1a2c57fc65ca387e76a6a91b5000a96f563c1"
+        },
+        {
+          "path": "docs/.vuepress/dist/dev/frontend.html",
+          "sha256": "d379e19f9e76b3920864571fa5891fb55ff42701895420b83706297d79dabad3"
+        },
+        {
+          "path": "docs/.vuepress/dist/api/http.html",
+          "sha256": "f43bf6ba901203d29356bae99da22e8445ffe7e680e647fe51fde518ed559c0d"
+        },
+        {
+          "path": "docs/.vuepress/dist/ops/roadmap.html",
+          "sha256": "a20d0c428e078ea59d43667f790a06c32daf25f44a977bb4821a23146ed487c4"
+        },
+        {
+          "path": "docs/.vuepress/dist/ops/faq.html",
+          "sha256": "c90caec5788cdc8e90e6410446e0dc7c5f0a1cd4a2679537110beb2cc14f13ca"
+        }
+      ]
+    },
+    {
+      "path": "openclaw_guard/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 180156,
+      "files": [
+        {
+          "path": "openclaw_guard/__pycache__/config.cpython-313.pyc",
+          "sha256": "6a3a8ab53415d919667c6ed0eaf5d4c8e64a429d9c6c234a55ef31dc398a2958"
+        },
+        {
+          "path": "openclaw_guard/__pycache__/manager.cpython-313.pyc",
+          "sha256": "4ba2bd93ea2992372b5a9989b237499faab981b96a83f5520f2961fa2b3dc208"
+        },
+        {
+          "path": "openclaw_guard/__pycache__/main.cpython-313.pyc",
+          "sha256": "2870da4e2bb07c0c005671464748cac09787e4a833f6bbd2648c9c21f6095062"
+        },
+        {
+          "path": "openclaw_guard/__pycache__/baseline.cpython-313.pyc",
+          "sha256": "afed6077d6945276b4c4e46f8a5155db757f3b21f112dbf06d5b6037b78bac58"
+        },
+        {
+          "path": "openclaw_guard/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "51bd1288b2f2ff5c163655a7976fbba6f05156045558fc056a0846529003dcb9"
+        },
+        {
+          "path": "openclaw_guard/__pycache__/ui.cpython-313.pyc",
+          "sha256": "cb6ddfbe9b4d39d1505e60c5e9988ad201fe5cdc68448b04d11a1260a61129ea"
+        },
+        {
+          "path": "openclaw_guard/__pycache__/events.cpython-313.pyc",
+          "sha256": "9dd4d4d9efc3c8e7ccf7c50f3b555b810c7d585f9efa4ee13c3a983d5943fecf"
+        },
+        {
+          "path": "openclaw_guard/__pycache__/services.cpython-313.pyc",
+          "sha256": "e07517fb8f0713b6c7acc101b3674fc2fe852bc8ac93fa72dc6798c14e1d0ac0"
+        },
+        {
+          "path": "openclaw_guard/__pycache__/ui_assets.cpython-313.pyc",
+          "sha256": "3f139dff50adfd89b022f06698f2acaeda047e4c46b7f7be4bd785d62a344149"
+        },
+        {
+          "path": "openclaw_guard/__pycache__/utils.cpython-313.pyc",
+          "sha256": "46322a9767a7056e6f9448090a5a460e536d63027c3e351f64f5285d9ae62c7b"
+        },
+        {
+          "path": "openclaw_guard/__pycache__/conversation.cpython-313.pyc",
+          "sha256": "9ebc0f8c860a15c83c59a6391c8e493fdf2673de1e171f14dd074eb51ba5cddc"
+        },
+        {
+          "path": "openclaw_guard/__pycache__/models.cpython-313.pyc",
+          "sha256": "bdcf1512567817005c366e6fb9dda6fc9375afc856c239491719d10d17b41a53"
+        }
+      ]
+    },
+    {
+      "path": "openclaw_guard/spec/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 179845,
+      "files": [
+        {
+          "path": "openclaw_guard/spec/__pycache__/read_access_receipts.cpython-313.pyc",
+          "sha256": "1388e6158a1286232b70c402006715e4e35b379aa1d02cfede90cfdc96fcd0b9"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/cross_history.cpython-313.pyc",
+          "sha256": "9707fdaf74a1169f103a2a29c6c8f1024f073a381c5b7f22ff8cc5f5b869ebc2"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/eval_traces.cpython-313.pyc",
+          "sha256": "c9b62db2e09dc44be8eeaf80470499a5a636f6ffaa1c20c8d84db9152388c2a3"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "3e177cc24405d606a20e65c0998ea8a6dc5462e2a1f667031136103c76969944"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/nl2spec_generator.cpython-313.pyc",
+          "sha256": "3f5499b65e411239d8ebd4484c85a8d455cdde8cad7a82518bb073f8fe35fdac"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/call_authorizer.cpython-313.pyc",
+          "sha256": "5e7b0cf20c8892381f2a8e1a50b08e0ec8bf0b612a54a43b380c678c5c7f8afc"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/authorization_preparation.cpython-313.pyc",
+          "sha256": "112dad3e1bf4ce7b6b3206e7363ece327fcee7fa048355ff48f2a1dc16cc688e"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/execution_proposals.cpython-313.pyc",
+          "sha256": "46a0da69cb1cce6a83736289626badde90c94c994a41f750f37bf2466273c171"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/spec_validator.cpython-313.pyc",
+          "sha256": "025b1883eca130a9b6d1de198f2331580b2ff717fbc4338a0f0e323d53683280"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/history_facts.cpython-313.pyc",
+          "sha256": "de8c7d64317bb631d08f44c691dfeeab2c2307fa4bceb6e2b9a035cfe31bd43b"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/host_authorization.cpython-313.pyc",
+          "sha256": "362c6bf02d42aaaf75cacd07cfdda706604a5003643adf95027ed24afbed1781"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/session_state.cpython-313.pyc",
+          "sha256": "71f7696a0bb1f6c9a14d614514fefa91f1ce11d5743c572ce25ca80fdbbce62e"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/authorization_facts.cpython-313.pyc",
+          "sha256": "83511e0406b95138464ce834e7e18e76ab9e087fdf3cb609808435727addda07"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/content_receipts.cpython-313.pyc",
+          "sha256": "bc93ed5d94ef9ab0abf49f249a50bc4102b3537d4de069a0aaf0fc5259e54f36"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/authorization_cli.cpython-313.pyc",
+          "sha256": "c841b7329de448036f066ed79280b75f9f86a112ee949b6042397849d6342762"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/resource_evidence.cpython-313.pyc",
+          "sha256": "9bcc2ce1dfd173a4d4d5108440ea2a3fa0dede0e5e34747c59af0b1e4773cca8"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/content_flow.cpython-313.pyc",
+          "sha256": "4538392ee17cf9bf3a04f079364b881c89eadd24448637b150bdead7662b61d7"
+        },
+        {
+          "path": "openclaw_guard/spec/__pycache__/task_history.cpython-313.pyc",
+          "sha256": "04b7fe477bdeb62fe2892670109179e03c39f41b7f26d0a59ea4e59dab7434d2"
+        }
+      ]
+    },
+    {
+      "path": "openclaw_guard/web/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 15858,
+      "files": [
+        {
+          "path": "openclaw_guard/web/__pycache__/dependencies.cpython-313.pyc",
+          "sha256": "c6542e263ae4cc8463b71a604e1b9ab0c015c584effeec804d900bdc89e35ffc"
+        },
+        {
+          "path": "openclaw_guard/web/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "2a60708c703448808b139d202f692d6ba57df1757466859815b45953c68f3f0a"
+        },
+        {
+          "path": "openclaw_guard/web/__pycache__/app.cpython-313.pyc",
+          "sha256": "d0adf9682ab125d88ad426b31a01fadb3ab4cf83534293880b54ea99ba7fe346"
+        },
+        {
+          "path": "openclaw_guard/web/__pycache__/errors.cpython-313.pyc",
+          "sha256": "1f4cbd1e5f48c89866cb36faf172e521bb642d2d5175e28ddea6860ad198bd06"
+        }
+      ]
+    },
+    {
+      "path": "openclaw_guard/collectors/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 3405,
+      "files": [
+        {
+          "path": "openclaw_guard/collectors/__pycache__/hook_bridge.cpython-313.pyc",
+          "sha256": "a427c1f49afa3c8a5cb466ad28dc89118a132fb774f058bb1e3b3adcfd08783a"
+        },
+        {
+          "path": "openclaw_guard/collectors/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "d7efce839f2c69dd6ca9199804d39a69f7ee84cd20b4e9da0a5b87034420d4f0"
+        },
+        {
+          "path": "openclaw_guard/collectors/__pycache__/ptrace_adapter.cpython-313.pyc",
+          "sha256": "8f4306a15078cb3e54601a96a66415c28b96b9f342b924ec1a8bc852bfb5827a"
+        },
+        {
+          "path": "openclaw_guard/collectors/__pycache__/ebpf_adapter.cpython-313.pyc",
+          "sha256": "949a75151ee6cbe5a089eca31b313e1cb8a72447bee517f8d90eb515fd38a9e1"
+        }
+      ]
+    },
+    {
+      "path": "openclaw_guard/integrations/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 150070,
+      "files": [
+        {
+          "path": "openclaw_guard/integrations/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "88f48db1b57084f2ad159ee92774d3749fcaf1ba2b8f94f30c1c417ea6769dda"
+        },
+        {
+          "path": "openclaw_guard/integrations/__pycache__/host_authorization_bridge.cpython-313.pyc",
+          "sha256": "fd6cd4bfbf62aa627239da1b113f882588a627b10864226a9cbb6d5f0a982664"
+        },
+        {
+          "path": "openclaw_guard/integrations/__pycache__/plugin_package.cpython-313.pyc",
+          "sha256": "229252a9e0f78aedf4be09bdac7df8f5e63fa44255cc1c0c4118235ccb8d0f2d"
+        },
+        {
+          "path": "openclaw_guard/integrations/__pycache__/openclaw_adapter.cpython-313.pyc",
+          "sha256": "00e8e864c1b7054864753c2674b19580e9f8b2f81027436e0f8701cce7c95cab"
+        },
+        {
+          "path": "openclaw_guard/integrations/__pycache__/tool_hook_bridge.cpython-313.pyc",
+          "sha256": "01c5c06a5c26e8f7dc9983e83be71647e13cd9f9fe708868a1c969d119b0190c"
+        },
+        {
+          "path": "openclaw_guard/integrations/__pycache__/discovery.cpython-313.pyc",
+          "sha256": "05433d2d6389bf477ee4255651862a7c485f26e43f2894f46ad39f84ee3839ee"
+        },
+        {
+          "path": "openclaw_guard/integrations/__pycache__/hook_runtime.cpython-313.pyc",
+          "sha256": "18ca54c26e5391254e0cf177557c645562e919c1fda143427c2a5f2886d3c4b7"
+        }
+      ]
+    },
+    {
+      "path": "openclaw_guard/api/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 24195,
+      "files": [
+        {
+          "path": "openclaw_guard/api/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "2a110d60f79c57781c4a43fb72b62a8e8dee47abb6cfb30313b96a05271d431b"
+        },
+        {
+          "path": "openclaw_guard/api/__pycache__/_handlers.cpython-313.pyc",
+          "sha256": "d11ad53906e008875d39ccd7514b4877b1e469485f51a2fe28a62a83c497f412"
+        }
+      ]
+    },
+    {
+      "path": "openclaw_guard/engine/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 220240,
+      "files": [
+        {
+          "path": "openclaw_guard/engine/__pycache__/semantic_enhancer.cpython-313.pyc",
+          "sha256": "71ee8627913aa96ad94956e7396326344654c05d6e0d3e22e400a7be891bfb99"
+        },
+        {
+          "path": "openclaw_guard/engine/__pycache__/semantic_models.cpython-313.pyc",
+          "sha256": "ead8ba1551058a2a804a81aeace6f1311f9b69e2e326d9e8398780a58d8db9ef"
+        },
+        {
+          "path": "openclaw_guard/engine/__pycache__/behavior.cpython-313.pyc",
+          "sha256": "7cf9a3213e77c204893eb0fe6f6ae6bae62e2c2fa3e33fcd10fe6f4f69ead194"
+        },
+        {
+          "path": "openclaw_guard/engine/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "6d2346ef465a231509309294b15c6fda1d1415abdef6e772388d6400c1f2e8f7"
+        },
+        {
+          "path": "openclaw_guard/engine/__pycache__/trusted_authorization.cpython-313.pyc",
+          "sha256": "deb10347940acf98b06e334ebb8bb69e1402b8bea16d29badf302c70cfe5419f"
+        },
+        {
+          "path": "openclaw_guard/engine/__pycache__/control.cpython-313.pyc",
+          "sha256": "392eb47ab18e55a82926b26209c89008c3a50bccdfe4bbca728cda2788381b30"
+        },
+        {
+          "path": "openclaw_guard/engine/__pycache__/approval.cpython-313.pyc",
+          "sha256": "e67bd8f3f54b751022c1346a87e6b41453810c8d3bb19918dfcdb538f21da774"
+        },
+        {
+          "path": "openclaw_guard/engine/__pycache__/command_safety.cpython-313.pyc",
+          "sha256": "8bdc9c49ce08edab18b65746434e9e4799098ac151709074118c6afdc9fbf694"
+        },
+        {
+          "path": "openclaw_guard/engine/__pycache__/pipeline.cpython-313.pyc",
+          "sha256": "fe3fe9c877d6921021dab5aeffed89da674f25d5e90d3a9ace54e0e41771a331"
+        },
+        {
+          "path": "openclaw_guard/engine/__pycache__/experiment_components.cpython-313.pyc",
+          "sha256": "e28a4af44cb178d759fb191fb44a391a1f8210d06954bb135d9007b0667de46a"
+        },
+        {
+          "path": "openclaw_guard/engine/__pycache__/hook_run_context.cpython-313.pyc",
+          "sha256": "3690e29f9140e09a566eb888b7848a45381f60f35d96e7ca3748b6a520294f58"
+        },
+        {
+          "path": "openclaw_guard/engine/__pycache__/whitelist.cpython-313.pyc",
+          "sha256": "577757f0c74ae0c66b58d43488466764df2bd2c70f2b0d56646161d40d24da25"
+        }
+      ]
+    },
+    {
+      "path": "openclaw_guard/storage/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 83685,
+      "files": [
+        {
+          "path": "openclaw_guard/storage/__pycache__/audit_store.cpython-313.pyc",
+          "sha256": "2f21962e184a46fd8705264a41afc59308b2e37cf80cdab3a977dbb2439f7f7e"
+        },
+        {
+          "path": "openclaw_guard/storage/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "ba1fde89d3afa33e15f5b360d5631f896432373832eaa232bb2b313c9aa77a31"
+        },
+        {
+          "path": "openclaw_guard/storage/__pycache__/db_store.cpython-313.pyc",
+          "sha256": "f4c933b3b2da82522b11512f004c52a82f7648487b79b9ef212ee2e5ca6bf860"
+        }
+      ]
+    },
+    {
+      "path": "openclaw_guard/policy/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 125978,
+      "files": [
+        {
+          "path": "openclaw_guard/policy/__pycache__/rv_compiler.cpython-313.pyc",
+          "sha256": "2ce212b6b1c56a0aeab137a406dc5de64e72dcd608ef51d94b45167644962843"
+        },
+        {
+          "path": "openclaw_guard/policy/__pycache__/risk_graph.cpython-313.pyc",
+          "sha256": "5f5596c9667f6cbbabf1537b14b813f91846393f44108e0fbf12a18d4fee1ac4"
+        },
+        {
+          "path": "openclaw_guard/policy/__pycache__/engine.cpython-313.pyc",
+          "sha256": "3138241c44aad1fcd44a11c2fc0c084a317dd7a481af1fca8184aaf1cc0a2ee6"
+        },
+        {
+          "path": "openclaw_guard/policy/__pycache__/catalog.cpython-313.pyc",
+          "sha256": "3399ca0e671049e765f03b7a77b71366e7afeb4aef17e07442bee8f91708e383"
+        },
+        {
+          "path": "openclaw_guard/policy/__pycache__/trace.cpython-313.pyc",
+          "sha256": "6ccd1d9778bcaf2932d83df0187b3b2a5a61cb9db69a813e7c0ea55143510584"
+        },
+        {
+          "path": "openclaw_guard/policy/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "476ae51246c7d48b336fdba015bf395d92a13f0dca4fdef8dbf784236afc9ede"
+        },
+        {
+          "path": "openclaw_guard/policy/__pycache__/permission_diff.cpython-313.pyc",
+          "sha256": "04c60ad013560aa9a4506b52d020ee979f36c2248ebbe0a07320c921c8dad3f5"
+        },
+        {
+          "path": "openclaw_guard/policy/__pycache__/evaluator.cpython-313.pyc",
+          "sha256": "8728a37521d4179c8109fb3ed4502770841a0160fed94fe9f73ceb4e10bf27a1"
+        },
+        {
+          "path": "openclaw_guard/policy/__pycache__/models.cpython-313.pyc",
+          "sha256": "4d6d52fe288058015874b68080f18706b1fbe8687a5a0807a94b7a71b9e96339"
+        }
+      ]
+    },
+    {
+      "path": "openclaw_guard/rv/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 144558,
+      "files": [
+        {
+          "path": "openclaw_guard/rv/__pycache__/baseline_monitor.cpython-313.pyc",
+          "sha256": "1116d135bfd25ab980fc1ce8c27e09492850e1138a302a468d467e3522c3ca0d"
+        },
+        {
+          "path": "openclaw_guard/rv/__pycache__/baseline_learner.cpython-313.pyc",
+          "sha256": "5874011744cbb6bd488fc574a6cc40579e93731b1c9396dfea1d57caee6656cd"
+        },
+        {
+          "path": "openclaw_guard/rv/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "2cc89d213ba45109d10ccfc8bdf3b0af6572b6b8222252a26d0b1a8bfb51db50"
+        },
+        {
+          "path": "openclaw_guard/rv/__pycache__/tool_events.cpython-313.pyc",
+          "sha256": "d9018cc63a1ccdacdd683c7afe192560660aef0d8740c4f9941efe99301759e1"
+        },
+        {
+          "path": "openclaw_guard/rv/__pycache__/ir.cpython-313.pyc",
+          "sha256": "b572cd07e7ca4ae990d5f6d9f7cdbc68e423db6276da3e5440fb27903cc918c8"
+        },
+        {
+          "path": "openclaw_guard/rv/__pycache__/runtime_verification.cpython-313.pyc",
+          "sha256": "4ef3337d144af34497349f1ba2cda99c40439d193988e0c2217ad685b71fa9d2"
+        },
+        {
+          "path": "openclaw_guard/rv/__pycache__/trace_abstractor.cpython-313.pyc",
+          "sha256": "d602b051baa71a70b8d7d69f44d6af8ae6bdb55021c2a57af84d1b30665f5233"
+        },
+        {
+          "path": "openclaw_guard/rv/__pycache__/rv_dsl.cpython-313.pyc",
+          "sha256": "93fb6fe5d808b060162d1401cdb9e4589e7c7ebef8faf62124734df7d3ba492f"
+        }
+      ]
+    },
+    {
+      "path": "openclaw_guard/core/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 18191,
+      "files": [
+        {
+          "path": "openclaw_guard/core/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "99013edd1e1ede5d840d7fbd17fa7abcdfad071927f16594d1295119dd4ffed1"
+        },
+        {
+          "path": "openclaw_guard/core/__pycache__/action_service.cpython-313.pyc",
+          "sha256": "ca0eb27be0b18426e6eeb56ff68d12db76bf449c059c1be3b509cb3e7a1dcd76"
+        },
+        {
+          "path": "openclaw_guard/core/__pycache__/baseline_service.cpython-313.pyc",
+          "sha256": "bc99de8a95f5622e62301de386d8ebdfad5beacafd155237f8b796fd8ba276bf"
+        },
+        {
+          "path": "openclaw_guard/core/__pycache__/audit_service.cpython-313.pyc",
+          "sha256": "1ef789972c0154a9a62c1e9525aaadc62d80fe2770cce074ab9bdd6e9b336789"
+        }
+      ]
+    },
+    {
+      "path": "openclaw_guard/web/routes/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 20117,
+      "files": [
+        {
+          "path": "openclaw_guard/web/routes/__pycache__/actions.cpython-313.pyc",
+          "sha256": "04db8c254a903945bfd431f9fca65822aad0e102708ff177759bf54a521735ba"
+        },
+        {
+          "path": "openclaw_guard/web/routes/__pycache__/hook.cpython-313.pyc",
+          "sha256": "ff15a5c189ec5fbefc6243f4233d5b99fd41346d948b8c7d33c735f7d0362759"
+        },
+        {
+          "path": "openclaw_guard/web/routes/__pycache__/baseline.cpython-313.pyc",
+          "sha256": "3625a9af7eaba2637bebe50d4abaf8234c8e0e2453aaf96e14ac405ffebffb69"
+        },
+        {
+          "path": "openclaw_guard/web/routes/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "22e3aaef5770774efce740e8425c00aa4ec64e6dbb547e04abda9bcb4c1b7a26"
+        },
+        {
+          "path": "openclaw_guard/web/routes/__pycache__/events.cpython-313.pyc",
+          "sha256": "8767805ccf6d591f838c1e424958340f7deeeae838518cc024473f763f6a066c"
+        },
+        {
+          "path": "openclaw_guard/web/routes/__pycache__/rv.cpython-313.pyc",
+          "sha256": "d0fe63167a035a50d54567fd10fc3a034a2082fdba15af5d895d3dc3b33b177e"
+        },
+        {
+          "path": "openclaw_guard/web/routes/__pycache__/health.cpython-313.pyc",
+          "sha256": "4a1bf3b27c51ea9fae46797a3cce8046fdec9de2472a463d52106f4cdd06fd2a"
+        },
+        {
+          "path": "openclaw_guard/web/routes/__pycache__/static.cpython-313.pyc",
+          "sha256": "6706ad1a0d6a7b5834e99236bb7f9af82dd07a7459262740cf761e1642c43b00"
+        },
+        {
+          "path": "openclaw_guard/web/routes/__pycache__/audit.cpython-313.pyc",
+          "sha256": "a545ea4e6150e400333cc6fb01fd76ea43ff0bcfe4dbab02a5cccbf57467450c"
+        }
+      ]
+    },
+    {
+      "path": "scripts/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 310882,
+      "files": [
+        {
+          "path": "scripts/__pycache__/run_native_autonomous.cpython-313.pyc",
+          "sha256": "b7762e9166ea16ddd4d0f58d63b9d1a5c7f383bfa0aa3cee54f975c425fdfaeb"
+        },
+        {
+          "path": "scripts/__pycache__/prepare_m3_inputs.cpython-313.pyc",
+          "sha256": "7266240351213d4e858a6b3f8837d97c6f8e50cfb600bb831e95bfaacddfa07b"
+        },
+        {
+          "path": "scripts/__pycache__/freeze_m3_holdout.cpython-313.pyc",
+          "sha256": "18d09505696752ef27e57fcc3015c66bc388b388b9f5e3d49e72301b3e2eab08"
+        },
+        {
+          "path": "scripts/__pycache__/run_m3_targeted_ablations.cpython-313.pyc",
+          "sha256": "c50008a5982748021d5ab985d526ee7cc7847ed19f791424a042813b7ad358a7"
+        },
+        {
+          "path": "scripts/__pycache__/check_native_host_isolation.cpython-313.pyc",
+          "sha256": "6c2c28448b3ad2be3f23d161fd919b0e76e7f1d7527b7a9a866d4bbac29f06b9"
+        },
+        {
+          "path": "scripts/__pycache__/check_local_sdk_hook_contract.cpython-313.pyc",
+          "sha256": "f1943f08fee882451ad2441c67f335446d638e2769ff230be6331217ef9da93e"
+        },
+        {
+          "path": "scripts/__pycache__/analyze_atlas_native_pilot.cpython-313.pyc",
+          "sha256": "9c0ee9a8adb4beb9e1e83340848b36d23fd1131636b7926030653f01060e285e"
+        },
+        {
+          "path": "scripts/__pycache__/run_atlas_baseline_alignment.cpython-313.pyc",
+          "sha256": "306f07cd0605a20c5ed9827c7c6b497c25d204cab68cbc4fe2a1e304d6cdcdc6"
+        },
+        {
+          "path": "scripts/__pycache__/check_native_snapshot_contract.cpython-313.pyc",
+          "sha256": "fef43f86e9da303ede598abb1fdf392f6ccb03c009e2c07b97b163d2cd029e85"
+        },
+        {
+          "path": "scripts/__pycache__/atlas_archive_adapter.cpython-313.pyc",
+          "sha256": "29b55cd4c1bc74ad7ec4e176e1716c02d6eb4587214d926aeb3a89b4a30a7c44"
+        },
+        {
+          "path": "scripts/__pycache__/record_m3_semantics.cpython-313.pyc",
+          "sha256": "8878852e878f67cedbb7ff26eb00ba592dbc2eac1d5ccb8a38dea2892f5f5773"
+        },
+        {
+          "path": "scripts/__pycache__/profile_hook_persistence.cpython-313.pyc",
+          "sha256": "81ba69f1f8ead958605d6e592fcc75411fd566b13649932acaaa9917f2998f6f"
+        },
+        {
+          "path": "scripts/__pycache__/check_candidate_native_install.cpython-313.pyc",
+          "sha256": "50fbc1f3dc00ab716026510a68d15cc1b31917859bb79ce15d37540ceccfbfa7"
+        },
+        {
+          "path": "scripts/__pycache__/analyze_m3_native_matrix.cpython-313.pyc",
+          "sha256": "8b64266d5b2759c922a0e3baa832409e244351a6d087ccb67cf62f1aabe364e3"
+        },
+        {
+          "path": "scripts/__pycache__/check_doc_links.cpython-313.pyc",
+          "sha256": "cd081836e8f00d659caf67eb9624c71100b3df4f5f7ea3cfe88d3af2e65126d9"
+        },
+        {
+          "path": "scripts/__pycache__/diagnose_m3_failures.cpython-313.pyc",
+          "sha256": "f755d560ea594f47cc00cc7c3eefa9b93651d31953d16345ce66d7e5b8b2a594"
+        },
+        {
+          "path": "scripts/__pycache__/run_m2_native_acceptance.cpython-313.pyc",
+          "sha256": "7078b6465cc244d34294042c0ef91ffaa72cfa836fbf7e30958f59e69e89b2d3"
+        },
+        {
+          "path": "scripts/__pycache__/native_fault_proxy.cpython-313.pyc",
+          "sha256": "19c2c9d58cb1d7ee8fd9be752a11c0cf90b55cb5fcf33c25a41eed8a9740fa28"
+        },
+        {
+          "path": "scripts/__pycache__/check_native_authorization_contract.cpython-313.pyc",
+          "sha256": "24efb44b3bd226f191a020a56c592fd5440aeb5226d0ad08d72b18aba560f8c5"
+        },
+        {
+          "path": "scripts/__pycache__/prepare_atlas_cases.cpython-313.pyc",
+          "sha256": "336c8d69204453ccd84c774f08604ba81170212a9ee622cc6e9d7746e186883b"
+        },
+        {
+          "path": "scripts/__pycache__/fix_approval_trust_commit.cpython-313.pyc",
+          "sha256": "cb1c00e633b03118da05593e4f505fa9e4132824ce9c391cacb061dc4cb39eda"
+        },
+        {
+          "path": "scripts/__pycache__/run_m3_native_matrix.cpython-313.pyc",
+          "sha256": "89e59ca8be13d6102f085cd1d043a39ecf0a90e6d255328100548d90159a3ae1"
+        },
+        {
+          "path": "scripts/__pycache__/check_content_key_isolation.cpython-313.pyc",
+          "sha256": "f24564ffc157d8b31ccc387dff6a324800b4f345d7464d23d3573103814a9028"
+        },
+        {
+          "path": "scripts/__pycache__/run_atlas_plugin_experiment.cpython-313.pyc",
+          "sha256": "eb542f0e3f4e94d1df161b38c0a60830debbcb8a9c424ea0d24ded04775e011e"
+        },
+        {
+          "path": "scripts/__pycache__/validate_experiment_ledger.cpython-313.pyc",
+          "sha256": "453287b18d0974ecf45141ab94de4fb273d15fa8ec6cc5c59176510037f3f8ca"
+        },
+        {
+          "path": "scripts/__pycache__/check_native_approval_trust.cpython-313.pyc",
+          "sha256": "5383fddd793972b20c22e9581980ef1192881428d6e08130956eb5f224a7e5ed"
+        },
+        {
+          "path": "scripts/__pycache__/review_m2_native_acceptance.cpython-313.pyc",
+          "sha256": "431cf64d28abab4d5b6bfac29757497f1fe1856a7af55d340e13e3da2062d00f"
+        },
+        {
+          "path": "scripts/__pycache__/run_atlas_native_pilot.cpython-313.pyc",
+          "sha256": "a9f20701cf7b5ec5017a28d5d3b220d028f2f044817c660d79dbcbbd6093ec8f"
+        },
+        {
+          "path": "scripts/__pycache__/reproduce_m2_native_gaps.cpython-313.pyc",
+          "sha256": "f6e95a10567a68f1de75d8ad6f089c7701443e0499de9e462e5f56dbb38c0caf"
+        },
+        {
+          "path": "scripts/__pycache__/run_m1_native_acceptance.cpython-313.pyc",
+          "sha256": "c41a03f64eff9484a8cba1e061036d8b7707f2a88c859360a027aa5d8a114b4d"
+        }
+      ]
+    },
+    {
+      "path": "tests/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 1976215,
+      "files": [
+        {
+          "path": "tests/__pycache__/test_three_state_control.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "b219c09eca98a4112c7402917d688360ee745e9fba1753a1f10241e65a3c6e47"
+        },
+        {
+          "path": "tests/__pycache__/test_hook_silent_passthrough.cpython-313.pyc",
+          "sha256": "f304b1aa904a4a06097a69362e208d5f5f0330ba15b6fe91cf4be6116ed9f911"
+        },
+        {
+          "path": "tests/__pycache__/test_office_history_value.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "3518b454f50d5833852b18bb7d22265f6432f59348de5501b3b937d45f1c6a25"
+        },
+        {
+          "path": "tests/__pycache__/test_ir.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "1f02354e61f932325587ffd48ff0898d127411a7597eedc0b042dd12babfc519"
+        },
+        {
+          "path": "tests/__pycache__/test_permission_diff.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "12b437c8a80ea876b8027340210ca22cfd14435fd90a30cdd1a11ea552b95323"
+        },
+        {
+          "path": "tests/__pycache__/test_daily_policy.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "06737a1e36e07f807a87830f0edca7a8a705823dc5d04148d37558b200aa791b"
+        },
+        {
+          "path": "tests/__pycache__/test_candidate_office_rules.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "8087f1177ccc7146ed951b8e8ddf7a552c35383466b71d5969778172815dc078"
+        },
+        {
+          "path": "tests/__pycache__/test_permission_risk_graph.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "f183faf5c22dcd020a2f47d8c7fa0d43775b10518b4f75a29a381b96ecce1594"
+        },
+        {
+          "path": "tests/__pycache__/test_office_chain_frozen_provider.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "91203e0aea58e1d18f75b36ba11298baa400420be00f1feefe706c3d0b16a703"
+        },
+        {
+          "path": "tests/__pycache__/test_perf_smoke.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "23cb8c9416e87cfdf16c89a4dc57ae11f22cf5c9ee39cafabadeb81acb33ae45"
+        },
+        {
+          "path": "tests/__pycache__/test_execution_proposals.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "8b983259cf76992be43fee821a5e0bfe56a3024a4699e0c696dee27c243d5255"
+        },
+        {
+          "path": "tests/__pycache__/test_semantic_enhancer.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "a6ccdee28e49646277aafb34b417825f7f494b865d52935cd7faf7fd238753ee"
+        },
+        {
+          "path": "tests/__pycache__/test_principal_capability_rv.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "09a28bfdfc1f9211b4fbb964f6c07f6912c507721cbeada5deccf66e46d91e76"
+        },
+        {
+          "path": "tests/__pycache__/test_native_uninstall_oracle.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "93b37eb65e7fdc740972952a782bb3460dd2b07f46d7087687c469761be31d32"
+        },
+        {
+          "path": "tests/__pycache__/test_office_chain_metrics.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "50294693e92c05c96d710c77efaa5d98ca7098e4372ea01b29d98b71867f428e"
+        },
+        {
+          "path": "tests/__pycache__/test_policy_catalog.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "5842d3affc2dedcb5bd7f56461b4bd30e930ca865f309acf3de8e7ffab3ae8f0"
+        },
+        {
+          "path": "tests/__pycache__/test_office_driver_cleanup.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "dbb826283af391df0aaa788e13d701c51ab659840a3ce6b22661059f99732b74"
+        },
+        {
+          "path": "tests/__pycache__/test_runtime_contract_cleanup.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "915e7c85b9798753e626d4b194dd3dc005a8438778de357f564ed5754334d28e"
+        },
+        {
+          "path": "tests/__pycache__/test_principal_rv_hook_integration.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "1dd8e40b49802fcf28f792869534e9f132d5fc7d920397dd265ed5c6ad92b5d0"
+        },
+        {
+          "path": "tests/__pycache__/test_checkpoint_upgrade.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "c44e4c15e20ff86cf65732b9f85c8aa499f2992b6f06bfcbfa2f137e070b2b56"
+        },
+        {
+          "path": "tests/__pycache__/test_native_policy_migration.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "682f359f430f08837320bba3f59373a5885643d3070fe473140a849185d38cb7"
+        },
+        {
+          "path": "tests/__pycache__/test_task_history.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "d19c9c5a95522109fbe16f98a3c7c5c9f210d617177319b32e71cae06052406f"
+        },
+        {
+          "path": "tests/__pycache__/test_call_authorizer.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "4a84165c3ff1916844c7d247aa9846eb77dffd862b4b36cc3cdebd3f10d44d6d"
+        },
+        {
+          "path": "tests/__pycache__/test_native_content_receipts.cpython-313.pyc",
+          "sha256": "97836e9c61b9773d4d8cf35c958f74aa418b7a4c5b26b6021a7cd039368dc74e"
+        },
+        {
+          "path": "tests/__pycache__/test_command_effect_boundary.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "ba18da8358ed46ac1b1486c4a2611ef5b42f96046ac97828dd404cbc978db0ba"
+        },
+        {
+          "path": "tests/__pycache__/test_rv_dsl_ext.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "9bbac95406d2c421d24159424ef27cf6f52c410b7182028d532dee8cbfa2f45d"
+        },
+        {
+          "path": "tests/__pycache__/test_office_chain_matrix.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "6a8fbd3bea1cdde76107a81bafc333800373660067e9e4c109d386cfb28d1bac"
+        },
+        {
+          "path": "tests/__pycache__/test_office_chain_near_unknown.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "3b4d8f9bfc81bddfff542c0d0f388fa5271402bea36ca5f59948fe32c7bc39a7"
+        },
+        {
+          "path": "tests/__pycache__/test_policy_docs.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "38747b09e8c6b7d8a1a3d12707a8e028d73d1791f7b837f7867f9747d68fbab3"
+        },
+        {
+          "path": "tests/__pycache__/test_relative_working_directory_scope.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "838fa043aa7b19464cd775c349103ef4e22370a2920ff985769b6d6020df7fa7"
+        },
+        {
+          "path": "tests/__pycache__/test_content_flow.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "7f3d0917998267bb1df6ddbe5e742fc0a956c6bceca5d25b7c163230c749a9c3"
+        },
+        {
+          "path": "tests/__pycache__/test_policy_vectors.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "5d0df99a0282f21deb1d7fa4db28c7dd321fbe9e659b6b0a89e32b21384eeac5"
+        },
+        {
+          "path": "tests/__pycache__/test_rv_authorization_guard.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "08fa12f39253b87d56430d40a1970cb932aeeb168ac0e658d390ed8327a5f01f"
+        },
+        {
+          "path": "tests/__pycache__/test_office_value_paired_probe.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "e6e73b1061aed2fce549efd694691190fce5c17487205dd167c71698c3ba560f"
+        },
+        {
+          "path": "tests/__pycache__/test_experiment_components.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "34b37ac252956be0ee61dc25262f625d0547d98047358b8f4feeb9eda8caa69d"
+        },
+        {
+          "path": "tests/__pycache__/test_rv_authorization_guard.cpython-313.pyc",
+          "sha256": "9bbe10ff3a5771874d5a9f4001c51035db56f535855e2ce17ac1f20d747daa63"
+        },
+        {
+          "path": "tests/__pycache__/test_native_oracles.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "c2c041d39cdd1d3cfcbe221d9972af2367461acdca464cf07a50854521752cac"
+        },
+        {
+          "path": "tests/__pycache__/test_office_chain_baseline.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "4f7564e16b8cd7c3fbed0991da9bd7a57b8716f8141d12b2b779b689d85cf6ec"
+        },
+        {
+          "path": "tests/__pycache__/test_sqlalchemy_store.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "543630c261369d6aefd843f49fdbd4b10ef2df1b3e5ec8e383981c5878c631ef"
+        },
+        {
+          "path": "tests/__pycache__/test_office_value_experiment.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "a3a33f4ec956c60266273bc4ad460c9337b0a0002dbaaec08f18b32c6c81a9e3"
+        },
+        {
+          "path": "tests/__pycache__/policy_factories.cpython-313.pyc",
+          "sha256": "50583f5a9814a3c521e7279832321c74cbaea0fe2b9b263601acb9818abca1bd"
+        },
+        {
+          "path": "tests/__pycache__/test_office_chain_arms.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "0bd9190a2502f0095949d04a391bc05f0effed4d51a6e16bfde2eb2f57c5506c"
+        },
+        {
+          "path": "tests/__pycache__/test_native_office_plugin.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "cf4b19f376140e0b44498a314011bd48bd6c778151e8323153a4edbf2e718f56"
+        },
+        {
+          "path": "tests/__pycache__/test_host_authorization.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "f66327e6463690c00a77c3db42db22b94daad5d94c160598c286414c8c684208"
+        },
+        {
+          "path": "tests/__pycache__/test_hook_runtime.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "ece68a4a8b9ff6579e07f3e2f84f47bd3b0f701df1d1114e9433a8208d73e890"
+        },
+        {
+          "path": "tests/__pycache__/test_office_model_budget.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "e451096caa7575d734b858302d215247dc95dbec93bdb929040bf683c6065332"
+        },
+        {
+          "path": "tests/__pycache__/test_cross_history_lifecycle.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "ce16fcbff16980dacb267ed70581b67d865192440efdfa0ab08c25f2912604a9"
+        },
+        {
+          "path": "tests/__pycache__/test_rv_tool_call_model.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "8a3f336f13cf9fcf0567f71d08bebd6a23042276f26f21eb4bc9019f5827c29a"
+        },
+        {
+          "path": "tests/__pycache__/test_office_trusted_authorization.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "11d08bd7af3ac193be25a55f060de743a8632443d579b3f31f87a260d744b1a5"
+        },
+        {
+          "path": "tests/__pycache__/test_ui_asset_delivery.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "4196ebea6039adb30dd01c1ddfbfa01de7ddd4516aaeb48187fb5c4134a48697"
+        },
+        {
+          "path": "tests/__pycache__/test_hook_run_context.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "2720652a46eea46313533d475ba5e059bd74b157e92dd7a81130c4f2388609e5"
+        },
+        {
+          "path": "tests/__pycache__/test_services.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "371c0144d3e5f87b587de297592b1a5627bba9fef066ae4950c6d6a396305310"
+        },
+        {
+          "path": "tests/__pycache__/test_semantic_matcher.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "d9901e8e8032a3443d0a8b7287b95c53dbd7f1b7ab236c4e50e70edfaa38b7ef"
+        },
+        {
+          "path": "tests/__pycache__/test_approval_trust_commit_gate.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "adeeb2138d6a13ea71f3bdc679429809d6be8a5d09886ab31f3306a94c232550"
+        },
+        {
+          "path": "tests/__pycache__/test_policy_evaluator.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "26d71db657195cf4208003bb9259a88b5720df5c40544fd3adc567709f4d5292"
+        },
+        {
+          "path": "tests/__pycache__/test_hook_persistence.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "f0d958fd7266d26137e2bc40b34082e7a96872431fa5909f6a5158c826fbe919"
+        },
+        {
+          "path": "tests/__pycache__/test_nl2spec.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "33576fe1313e227cf62a32889041f2631528b53c53dc3459cdbb8d815ab2bb9c"
+        },
+        {
+          "path": "tests/__pycache__/conftest.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "958713f8cf8bfddee356af51f028da844f04619d73c431115e0abd3ae3e16d34"
+        },
+        {
+          "path": "tests/__pycache__/test_native_content_receipts.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "5454e471e00c463d531d0c20ec6ea09775fa7e69a046d56527c49836c4263e42"
+        },
+        {
+          "path": "tests/__pycache__/test_authenticated_tool_completion.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "e51318baa4ff360076d2d2ebe1ff2101dc585057abeaf4980ae1834197401f81"
+        },
+        {
+          "path": "tests/__pycache__/test_tool_hook_bridge.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "490bbd2c8f37c4774ead45397d749f9e68fb4f05ee193681b6b495f7152584b2"
+        },
+        {
+          "path": "tests/__pycache__/test_hook_silent_passthrough.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "b888fdcd3dc6d21052001679a19e2b2aaf850327f6af7f40f7e471938140e964"
+        },
+        {
+          "path": "tests/__pycache__/test_authorization_trace.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "7efdbdb9eaac89bc34d3630bb02c376ecfd59217e3dc7f6136d2c0763a89e19d"
+        },
+        {
+          "path": "tests/__pycache__/test_rv_dsl.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "f481fa73be12446ab74b06d13447bf0862fd31f4d61321af84e3eb0e15ea4a21"
+        },
+        {
+          "path": "tests/__pycache__/test_policy_models.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "6c8d041908c79c89d76623a176283fe5e45f6198185ebd63c4d57f7e808774ff"
+        },
+        {
+          "path": "tests/__pycache__/test_content_receipts.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "4a335c613fb470e73d3c0e054a7af1f3f8770c458fbf505c67962fc1dff52a67"
+        },
+        {
+          "path": "tests/__pycache__/test_script_resource_projection.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "b5d84fec390862274c77fb8ed3a307d5429064ec71878f8e75f81aa55b832b48"
+        },
+        {
+          "path": "tests/__pycache__/test_permission_rv_compiler.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "60635a4972615fa22234e3d081e7de3617c572736d88de600d94b7e013a2b344"
+        },
+        {
+          "path": "tests/__pycache__/test_autonomous_evidence_layer.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "94ac1c816fd3d8fb825689e886467dc8f809a2371b78bff3703dcfeb19bb11c0"
+        },
+        {
+          "path": "tests/__pycache__/test_office_native_baseline.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "a39e540dfb2b9a29a7baac813eb041ce5202767d2f46527ca0dae0f657f94383"
+        },
+        {
+          "path": "tests/__pycache__/test_office_chain_records.cpython-313.pyc",
+          "sha256": "51092fef45cf63366c38412a9d3559c1af2f6b48b1a4d1a0bfb18e631a1905cb"
+        },
+        {
+          "path": "tests/__pycache__/test_baseline.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "24c215ae9b8e731be4f0f4cbdb831911a2e2c2c668f2dcc608a16d28e0b9bbea"
+        },
+        {
+          "path": "tests/__pycache__/test_runtime_verification.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "b49cb3fb00a32f862a2a713c38170c477c5ddbe663bd60e481db605c939f3a1f"
+        },
+        {
+          "path": "tests/__pycache__/test_rv_frontend_integration.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "ecac27ce4d89a9134e66375c38cab0e4625f74d14a0a60f7f318ce0904cb4663"
+        },
+        {
+          "path": "tests/__pycache__/test_release_contract.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "392eea3d710043533dadf9d5046f74da40ebabf574acd132193df13f83f471fd"
+        },
+        {
+          "path": "tests/__pycache__/test_frontend_rv_contract.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "5fc59bacaee749b9b58cc8fb7774dcf96a78bac6282c6e9cf286c82194fe7717"
+        },
+        {
+          "path": "tests/__pycache__/test_office_chain_approval_evidence.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "3147f463e8abe44f1bb019898416b9470ad6dc4b62c2fccd636ba3da37afb10c"
+        },
+        {
+          "path": "tests/__pycache__/test_approval_sync.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "946e1ea491fdac0d937e3b0ed8b5da1e5885b27db8d48e8f189c7b14016a9459"
+        },
+        {
+          "path": "tests/__pycache__/test_policy_security_contracts.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "2606603da7fd7dc38da68ea9c2caf35abe73bd44b5b1ebf8d6b3e91438a7bfab"
+        },
+        {
+          "path": "tests/__pycache__/test_integration_storage_rv_matrix.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "9113a30294200680d0ac2fb78bc194745e9e0dac2fc52c6e4ce5764b35595654"
+        },
+        {
+          "path": "tests/__pycache__/test_frontend_checkpoint_contract.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "acad4ad07f334ee68872dd4fa1e4146a2a3d497b80571da0657b25aa34621b79"
+        },
+        {
+          "path": "tests/__pycache__/test_web_cli.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "2428470e70f10f56adf460ab5792d7614c5ff5cbcf2697693a4c291b6b238bbd"
+        },
+        {
+          "path": "tests/__pycache__/test_office_chain_records.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "098bb919be42584118444f136dd480ff673575e72c22288df6d812733adb84a5"
+        },
+        {
+          "path": "tests/__pycache__/test_office_chain_semantic_recording.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "b1f8849d9309028f7242b9a9b616ed347c06c6a5fd7984b9a34ec38bc64b23dc"
+        },
+        {
+          "path": "tests/__pycache__/test_lazy_proxy.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "d69a25478e756dfa0f874e191733f112e97da8be2808b79c94c53ab752e3680b"
+        },
+        {
+          "path": "tests/__pycache__/test_pipeline.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "550db8502f57d8488a580a68096ba38cad28fc110cc10b8388aa1f0d34ba1dc6"
+        },
+        {
+          "path": "tests/__pycache__/test_openclaw_native_policy.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "1b06349a07f57b5592db313ed954a8c713ed8934e52bfa6d2eecb74dbc20616a"
+        },
+        {
+          "path": "tests/__pycache__/test_rv_cross_history_guard.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "426af3b919fb3d3be1d8f38fff0ee364379eceb31c1fbd08aab62f87887f1848"
+        },
+        {
+          "path": "tests/__pycache__/test_policy_decision_adapter.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "1dee82e28148346aad599819e8d121bcc6a99bac2d840e12742b68cbb077cd73"
+        },
+        {
+          "path": "tests/__pycache__/test_research_attack_fixtures.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "c35ed94374391e03d093fd10fcdcbf776c40ec747b94d0824559e3309177fa57"
+        },
+        {
+          "path": "tests/__pycache__/test_authorization_preparation.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "7ff5ba907327a88d48fae2614fbf7c186e19bfac4db1e599d52637ba319112a8"
+        },
+        {
+          "path": "tests/__pycache__/test_resource_evidence.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "62fbe84e2864c4b53a092e4730048e5d855972f899b9de83a6f640aa902e50b3"
+        },
+        {
+          "path": "tests/__pycache__/test_baseline_learner.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "a48dee151aabf0088e93dcc41a37499659b1c4acf4d315f9e65a7964d0cb389c"
+        },
+        {
+          "path": "tests/__pycache__/test_whitelist_audit.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "c036a766e374d7642edc5d3152cf1e23c977eb332f868ae96e70877d26278987"
+        },
+        {
+          "path": "tests/__pycache__/test_host_authorization_bridge.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "6f360adb497391572a744c13a62803519b0586dd8a58685fd598d7be30a9435c"
+        },
+        {
+          "path": "tests/__pycache__/test_policy_pipeline.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "d9d66707e5c99a1299975f85e41aafa5d8dfcd4f649e3d097b812248dfe1c251"
+        },
+        {
+          "path": "tests/__pycache__/test_plugin_package.cpython-313-pytest-9.1.1.pyc",
+          "sha256": "929e3739f91961c756d10707199eabdff990c5b73caf20aabbc80dd318c08fae"
+        }
+      ]
+    },
+    {
+      "path": "testlab/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 190,
+      "files": [
+        {
+          "path": "testlab/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "e977887b78db7c06b41b09b9838cca6cb6f416324ebed4f18273ca6cdcecb546"
+        }
+      ]
+    },
+    {
+      "path": "testlab/research/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 5372,
+      "files": [
+        {
+          "path": "testlab/research/__pycache__/fixtures.cpython-313.pyc",
+          "sha256": "502de9dfa4763c7c32caaab72560691efaafdc108a42a9dc6782f2a97ad70233"
+        },
+        {
+          "path": "testlab/research/__pycache__/baseline.cpython-313.pyc",
+          "sha256": "cf9add96348f21a1fd3f04933c20546104d888e2744659d837c1f201dd9301c4"
+        },
+        {
+          "path": "testlab/research/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "0a5d61eb6612e208686d6a08a8fdb3aaddf0947bc14eb8a8fc8e734346d2d97b"
+        }
+      ]
+    },
+    {
+      "path": "testlab/office_chain/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 368258,
+      "files": [
+        {
+          "path": "testlab/office_chain/__pycache__/gates.cpython-313.pyc",
+          "sha256": "71fbf8a79cae060865fccdfaf75ec065a8d4b31cfecb47c01e85ca62691a6e4f"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/arms.cpython-313.pyc",
+          "sha256": "01d415e9ebb4334994361fa8d4fa0c013a54ae4562cf83bfe37b5ed9dcc2dcfd"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/run.cpython-313.pyc",
+          "sha256": "84d81bb07768258060d3c3e77d15db90f3021e47eb942183c02fe80561def1b0"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/native_baseline.cpython-313.pyc",
+          "sha256": "3c40b6020d029e3981a7bcf642536852e35d9c5eb6f2ce405e717b7a501de98f"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/matrix.cpython-313.pyc",
+          "sha256": "fdd78eb6e0f24544185fd6ba5bfd9da764e5ef5d56f112a8572b45379156125b"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/guard_driver.cpython-313.pyc",
+          "sha256": "536dc7823f52655ee62b0329633881fbf806dd554eee82f2806f879167166347"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/rerun.cpython-313.pyc",
+          "sha256": "1b437e9ae951e904098e5123de6ecea7505f8da21c7d5ab054bb6ba0dea39bb3"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "c3b0db33b110d41ee43b66d410644ee8b9e6698f88548fa52ced2ccf63fcf950"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/native_oracles.cpython-313.pyc",
+          "sha256": "869a3c05f7f939cee5024d4408ae56d454954d4f68d5a63a092a74ecc7afd083"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/metrics.cpython-313.pyc",
+          "sha256": "36957604f339cee997cea5086027988250acb8e365d06a4c39b5e43e2a708b30"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/report.cpython-313.pyc",
+          "sha256": "40646b4fa67ac51805ccfabad2c62c280d4a8b472b6c7e7e2ff1476261a4d826"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/frozen_provider.cpython-313.pyc",
+          "sha256": "83d25b686cdcbe3041e19a145cd5290175a434275c8a2a5da291d024ce473761"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/office_driver.cpython-313.pyc",
+          "sha256": "b2d392bfa4d8b2fa9066cbf852ed3ea23c48c54e04838366a60cfd42b257a90a"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/records.cpython-313.pyc",
+          "sha256": "77b8186d83e224ab179486f2776e7416ea65173565fadc1e8e68dddfcfcf1ab2"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/record_semantics.cpython-313.pyc",
+          "sha256": "72178d5a8ae6c52fedfebdbc9d739139bd34459b2b07b995bab8dfe4c6011133"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/authorized_driver.cpython-313.pyc",
+          "sha256": "b5988c3cdc4c9c389e956d8209e715632ee1ec96c2d45ed736fafeaf173f619b"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/semantic_recording.cpython-313.pyc",
+          "sha256": "a1e058f9d8522b29d0103b9d782eb905cd78900142347a3341589a058427774c"
+        },
+        {
+          "path": "testlab/office_chain/__pycache__/artifacts.cpython-313.pyc",
+          "sha256": "a348e37b4417521d28968947eb2c678fe44920e6c1945c17361d08834849c873"
+        }
+      ]
+    },
+    {
+      "path": "testlab/office_value/__pycache__",
+      "reason": "Regenerable build/cache, not frozen evidence or candidate package",
+      "bytes": 236614,
+      "files": [
+        {
+          "path": "testlab/office_value/__pycache__/native_baseline.cpython-313.pyc",
+          "sha256": "6c83fabff7fab453844683027a16aefcfc7ce03da12641a46d1990ba93b52b0a"
+        },
+        {
+          "path": "testlab/office_value/__pycache__/__init__.cpython-313.pyc",
+          "sha256": "b940f0b143efb87508443d1f523f518a6b6b862f56e149addf88ca576845702c"
+        },
+        {
+          "path": "testlab/office_value/__pycache__/runner.cpython-313.pyc",
+          "sha256": "52a8673d5f23a596103fc31b814b06adbb5b20c2ce84376c35b23a991c17780e"
+        },
+        {
+          "path": "testlab/office_value/__pycache__/paired_probe.cpython-313.pyc",
+          "sha256": "6906dd61f8280740c49230403adaf056cb6327127b62e5c4d6d4dc9d2ce0c8bb"
+        },
+        {
+          "path": "testlab/office_value/__pycache__/history_probe.cpython-313.pyc",
+          "sha256": "b1fae9fb2e880cb4e64979fec637bfe6be08f2c4a9ab4c66ac0b07fe2f10a61a"
+        },
+        {
+          "path": "testlab/office_value/__pycache__/paired_report.cpython-313.pyc",
+          "sha256": "bef61935e2c3d2fad0e666c6e92ca68cda75e07b517856dfc3100e01e4cf355c"
+        },
+        {
+          "path": "testlab/office_value/__pycache__/report.cpython-313.pyc",
+          "sha256": "ada747afd9177f82dbf1439d3c006026d4d09222ce14b530bb03e1a256d43294"
+        },
+        {
+          "path": "testlab/office_value/__pycache__/budget_proxy.cpython-313.pyc",
+          "sha256": "72f9f20dc639c503d502583522d1fc29253b2873e3a210403c6b611798e8c5dd"
+        },
+        {
+          "path": "testlab/office_value/__pycache__/history_report.cpython-313.pyc",
+          "sha256": "be03faba62e26bf54d115f37adf52b56bd6133319bdff710cee0234d42120b91"
+        },
+        {
+          "path": "testlab/office_value/__pycache__/sandbox.cpython-313.pyc",
+          "sha256": "38e1c9fa45637ac3c294f29817fa8e6938b90934a4f2f37c8d8baf654d276c9f"
+        }
+      ]
+    }
+  ],
+  "recovery": {
+    "build": "python -m pip wheel . --no-deps --no-build-isolation --wheel-dir /tmp/rvguard-rebuild",
+    "__pycache__": "Regenerated when Python imports these modules",
+    ".pytest_cache": "Regenerated by the next pytest run",
+    "docs/.vuepress": "cd docs && npm run docs:build"
+  },
+  "retained": [
+    "All dist candidate packages: referenced by historical acceptance evidence",
+    "All frozen inputs, raw results, failure records, evaluated source archives and semantic recordings",
+    "frontend/dist: backend UI delivery uses these assets",
+    "runtime and output: not experiment-owned disposable caches"
+  ],
+  "protected_sha256": {
+    "docs/research/close-experiment-gaps/m3-holdout-analysis-v1.json": "4ef266f0c43e5cd9af744aabe4ba9e56a9ef6f5a2d5f2bdffb26f3fe100a0f3b",
+    "docs/research/close-experiment-gaps/m3-native-holdout-v1/results.json": "bfa870c79fb3777132ef5d403f662e6762254fb2d3c1e5da8f84250dbee009d4",
+    "docs/research/close-experiment-gaps/m3-autonomous-analysis-v1.json": "377e5801bab88a9b00988d0b9bf6dbd25aaac3ad9343c3343ea1b86564807e57",
+    "docs/research/close-experiment-gaps/m4-final-wheel-delivery-v3.json": "bef9a055d391379a93d7cc26bac937dff7758b614075233ada74c6a1dc21673b",
+    "docs/research/close-experiment-gaps/m4-native-install-v8/acceptance.json": "09c9e7f49345821a7f83c365851d94be9af809ba3f8773b1df38d3219fe4efa2",
+    "docs/research/close-experiment-gaps/m6-final-regression-v3.log": "f19c155a7ebb5f08141e0520f2852a4f63732cb0b47c7ed63b3c35ec26ee7c2e",
+    "docs/research/close-experiment-gaps/m3-evaluated-source-snapshot-v1.tar.gz": "ed5a38530ac0b68c96228316177c8e384d3b4bdea495dc7bbd17ce0a5b55436d",
+    "docs/research/close-experiment-gaps/atlas-cases-v2.json": "c0cee3eb1da3b06da76838688fa68cba0a76fda68c1e97b45a6add3ee389e008",
+    "docs/research/close-experiment-gaps/atlas-cases-v3.json": "a6e452f684191a930488d92cf35c383ede69ed4f3003cb44bd45e968e57fbc92",
+    "docs/research/close-experiment-gaps/atlas-native-pilot-v1/freeze.json": "f148a2e09823915e47a8d1d23288bc3cf8d2921f408dba8f0da76e2defc31255",
+    "docs/research/close-experiment-gaps/atlas-native-pilot-v1/results.json": "479bced317c44e53404a3a5675d95e25fb1fdcf7e8b8c2ad03ae25f5f1fcb3fb",
+    "docs/research/close-experiment-gaps/atlas-native-pilot-analysis-v2.json": "12b5f77401504fa952438f8c6e0ad16d53f4d20c061de0437282d08618c52477",
+    "docs/research/close-experiment-gaps/atlas-native-pilot-v1/evaluated-case-preparer.py": "613e499d51b079c7907364970ecd38df2511ff67f7513a56c11cc836885986a3",
+    "docs/research/close-experiment-gaps/atlas-evaluated-source-v1.tar.gz": "0429fdb39ad166c08cc639b2eaf7bbc87a34dcc2a50fa4564bf6a00f120621bf",
+    "docs/research/close-experiment-gaps/atlas-plugin-report-v1.md": "815a4b0cff3f510446bd18927767256058344dc2080b35e997f61e0a82031187",
+    "docs/research/close-experiment-gaps/atlas-plugin-aligned-v1/freeze.json": "a25bfd8986d65916272aa908deb76eecc41c173c9673ace20c6489f287cedbd4",
+    "docs/research/close-experiment-gaps/atlas-plugin-aligned-v1/results.json": "f2ddef7f5111803f411cc358ac97abc1d1090f8fa94c3a14cf1081f3de0ad266",
+    "docs/research/close-experiment-gaps/atlas-plugin-aligned-analysis-v1.json": "366cade339d2f32344aaecf892b864a46ea39d73628a7f90d4050eebb7e021ec",
+    "docs/research/close-experiment-gaps/atlas-plugin-experiment-v1/failure-diagnosis.json": "9f12b764a79ae245ec00b969b8f581c8234d23a7d9547216378814bb75d61beb",
+    "AGENTS.md": "221cae11026ef5a24901dc4fdea836803953dd506fe00a6cb3785991061f95ae",
+    "openclaw_guard/rv/rv_rules.json": "496daa04a0bd532d9f99eaaa6293e1f52505dc5f9b098cc94f0af40bb5c255a7"
+  },
+  "release_qualified": false,
+  "deleted_file_count": 466,
+  "freed_bytes": 7883413,
+  "protected_hashes_verified_after_cleanup": true,
+  "verification_regenerated_caches_removed": [
+    {
+      "path": "scripts/__pycache__",
+      "files": [
+        {
+          "path": "scripts/__pycache__/check_doc_links.cpython-313.pyc",
+          "sha256": "cd081836e8f00d659caf67eb9624c71100b3df4f5f7ea3cfe88d3af2e65126d9"
+        }
+      ]
+    }
+  ],
+  "all_selected_directories_absent_at_completion": true,
+  "commit_prep_deletions_2026-10-08": {
+    "reason": "提交前清理：删除无引用且被后续版本取代的中间产物、无引用的一次性脚本、README 索引的早期历史报告，以及可再生成缓存；不删除被现行文档或证据哈希引用的文件与候选包。",
+    "historical_reports": [
+      "testlab/results/aggregate_metrics_20260729_201159.json",
+      "testlab/results/comprehensive_rv_report_20260729_201159.md",
+      "testlab/results/experiment_a_results_20260729_201139.json",
+      "testlab/results/experiment_b_results_20260729_200555.json",
+      "testlab/results/experiment_c_results_20260729_200555.json"
+    ],
+    "unreferenced_scripts": [
+      "scripts/analyze_m3_native_matrix.py",
+      "scripts/check_doc_links.py",
+      "scripts/check_native_approval_trust.py",
+      "scripts/check_native_host_isolation.py",
+      "scripts/fix_approval_trust_commit.py",
+      "scripts/freeze_m3_holdout.py",
+      "scripts/record_m3_semantics.py",
+      "scripts/reproduce_m2_native_gaps.py",
+      "scripts/run_m1_native_acceptance.py"
+    ],
+    "superseded_intermediates": [
+      "docs/research/close-experiment-gaps/atlas-cases-v1.json",
+      "docs/research/close-experiment-gaps/m3-inputs-draft-v1.json",
+      "docs/research/close-experiment-gaps/m3-inputs-draft-v2.json",
+      "docs/research/close-experiment-gaps/m3-inputs-draft-v3.json",
+      "docs/research/close-experiment-gaps/m3-inputs-draft-v4.json",
+      "docs/research/close-experiment-gaps/m5-local-link-check-v1.json",
+      "docs/research/close-experiment-gaps/m5-local-link-check-v2.json",
+      "docs/research/close-experiment-gaps/m5-local-link-check-v3.json",
+      "docs/research/close-experiment-gaps/m5-local-link-check-v4.json",
+      "docs/research/close-experiment-gaps/m5-local-link-check-v5.json",
+      "docs/research/close-experiment-gaps/m5-local-link-check-v6.json",
+      "docs/research/close-experiment-gaps/m5-local-link-check-v7.json",
+      "docs/research/close-experiment-gaps/m3-native-mapping-v1",
+      "docs/research/close-experiment-gaps/m3-native-mapping-v2",
+      "docs/research/close-experiment-gaps/m3-native-mapping-v3",
+      "docs/research/close-experiment-gaps/m3-native-mapping-v4",
+      "docs/research/close-experiment-gaps/m3-native-mapping-v5",
+      "docs/research/close-experiment-gaps/m3-native-mapping-v6",
+      "docs/research/close-experiment-gaps/m3-native-trust-calibration-v2",
+      "docs/research/close-experiment-gaps/m4-native-install-v1",
+      "docs/research/close-experiment-gaps/m4-native-install-v2",
+      "docs/research/close-experiment-gaps/m4-native-install-v3",
+      "docs/research/close-experiment-gaps/m4-native-install-v4",
+      "docs/research/close-experiment-gaps/m4-native-install-v7"
+    ],
+    "regenerable_caches": [
+      "__pycache__/ (项目内全部)",
+      ".pytest_cache/",
+      "build/",
+      "openclaw_guard.egg-info/",
+      "docs/.vuepress/.temp/"
+    ],
+    "retained": [
+      "dist/ 各候选包（被安装验收证据引用）",
+      "被现行文档或冻结哈希引用的结果与失败记录",
+      "testlab/实验结果/ 及 testlab/results/ 其余历史证据",
+      "docs/research/close-experiment-gaps/ 的结论文档与验收结果（raw 分层载荷另见 raw_payloads_removed_2026-10-08）"
+    ]
+  },
+  "raw_payloads_removed_2026-10-08": {
+    "reason": "方案 B 载荷清理：close-experiment-gaps/ 的逐次运行原始载荷均为 .gitignore 排除、不随提交入库的本地工件，从工作树删除以精简目录；提交体积不变，载荷需重跑相应脚本再生。",
+    "raw_directories": {
+      "count": 14,
+      "bytes": 56106554,
+      "paths": [
+        "docs/research/close-experiment-gaps/atlas-model-native-probe-v1/raw",
+        "docs/research/close-experiment-gaps/atlas-native-pilot-v1/raw",
+        "docs/research/close-experiment-gaps/atlas-plugin-aligned-v1/raw",
+        "docs/research/close-experiment-gaps/atlas-plugin-experiment-v1/raw",
+        "docs/research/close-experiment-gaps/atlas-plugin-experiment-v2/raw",
+        "docs/research/close-experiment-gaps/m1-native-acceptance-v1/raw",
+        "docs/research/close-experiment-gaps/m1-native-acceptance-v2/raw",
+        "docs/research/close-experiment-gaps/m2-native-acceptance-v1/raw",
+        "docs/research/close-experiment-gaps/m2-native-repair-v2/raw",
+        "docs/research/close-experiment-gaps/m2-native-reproduction-v1/raw",
+        "docs/research/close-experiment-gaps/m3-autonomous-native-v1/raw",
+        "docs/research/close-experiment-gaps/m3-native-calibration-v1/raw",
+        "docs/research/close-experiment-gaps/m3-native-holdout-v1/raw",
+        "docs/research/close-experiment-gaps/m3-native-targeted-ablations-v1/raw"
+      ]
+    },
+    "payload_files": {
+      "count": 36,
+      "bytes": 3279274,
+      "patterns": [
+        "raw/",
+        "raw.json",
+        "*-raw.json",
+        "api-calls.json",
+        "recording.json",
+        "progress.json",
+        "m1-calibration-native-*.json",
+        "m2-native-cross-session-probe-v1.json"
+      ]
+    },
+    "empty_directories_removed": [
+      "docs/research/close-experiment-gaps/m3-calibration-semantic-v1",
+      "docs/research/close-experiment-gaps/m3-calibration-semantic-v2",
+      "docs/research/close-experiment-gaps/m3-holdout-semantic-v1",
+      "docs/research/close-experiment-gaps/semantic-scope-compatibility-v1"
+    ],
+    "directory_size": {
+      "before_bytes": 64595385,
+      "after_bytes": 5209557
+    },
+    "retained_exception": [
+      "docs/research/close-experiment-gaps/m1-causal-r2-OFFICE-HISTORY-A01-Full.json",
+      "docs/research/close-experiment-gaps/m1-causal-r2-OFFICE-HISTORY-B01-Full.json"
+    ],
+    "restore": "重跑对应脚本再生载荷；m1-causal-r2-*.json 因被 m1-native-decision-progress.md 链接而保留在工作树（仍不入库）。"
+  }
+}

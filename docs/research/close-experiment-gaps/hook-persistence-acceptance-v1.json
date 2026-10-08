@@ -1,0 +1,28 @@
+{
+  "scope": "Post-v3 persistence optimization only; archived Q5 and candidate unchanged",
+  "targeted_test_command": "python -m pytest -q tests/test_hook_persistence.py tests/test_approval_sync.py tests/test_hook_silent_passthrough.py tests/test_rv_authorization_guard.py tests/test_rv_cross_history_guard.py",
+  "targeted_result": "67 passed, 4 subtests passed in 11.64s",
+  "source_sha256": {
+    "openclaw_guard/engine/pipeline.py": "0a73f59b5e67c5de51bcbd3e209035876413e11cdc349cbf98b90ca97ea41261",
+    "tests/test_hook_persistence.py": "24e3b600c94764fe2aaf76adcb26a03080fe70ac4ca5c2a4ea6527d4bb3b72f0",
+    "scripts/profile_hook_persistence.py": "59ffd391331b5c049aa360e300a55fa4cf0febee3f5a9b44e43298aef3f27d9b",
+    "scripts/diagnose_m3_failures.py": "37f209950d58c37b1d37ea67a542f04f63002c75d1988a9427f7580c6eb19fe7"
+  },
+  "historical_evidence_sha256_verified": {
+    "m3-holdout-analysis-v1.json": "4ef266f0c43e5cd9af744aabe4ba9e56a9ef6f5a2d5f2bdffb26f3fe100a0f3b",
+    "m3-native-holdout-v1/results.json": "bfa870c79fb3777132ef5d403f662e6762254fb2d3c1e5da8f84250dbee009d4",
+    "m3-autonomous-analysis-v1.json": "377e5801bab88a9b00988d0b9bf6dbd25aaac3ad9343c3343ea1b86564807e57",
+    "m4-final-wheel-delivery-v3.json": "bef9a055d391379a93d7cc26bac937dff7758b614075233ada74c6a1dc21673b",
+    "m4-native-install-v8/acceptance.json": "09c9e7f49345821a7f83c365851d94be9af809ba3f8773b1df38d3219fe4efa2",
+    "m6-final-regression-v3.log": "f19c155a7ebb5f08141e0520f2852a4f63732cb0b47c7ed63b3c35ec26ee7c2e",
+    "m3-evaluated-source-snapshot-v1.tar.gz": "ed5a38530ac0b68c96228316177c8e384d3b4bdea495dc7bbd17ce0a5b55436d"
+  },
+  "default_rules_sha256": "496daa04a0bd532d9f99eaaa6293e1f52505dc5f9b098cc94f0af40bb5c255a7",
+  "before_action_writes": 150,
+  "after_action_writes": 90,
+  "local_before_p95_ms": 45.968452002853155,
+  "local_after_p95_ms": 39.95434498938266,
+  "full_SDK_latency_remeasured": false,
+  "new_security_rules_changed": false,
+  "release_qualified": false
+}

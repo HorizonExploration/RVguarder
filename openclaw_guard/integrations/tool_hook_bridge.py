@@ -465,7 +465,7 @@ def _native_tool_action(tool_name: str, params: dict[str, Any]) -> str:
     if tool_name.lower() == "browser":
         value = params.get("action") or params.get("operation")
         return str(value).strip().lower() if isinstance(value, str) and value.strip() else "navigate"
-    if tool_name.lower() in {"sessions", "cron", "gateway", "nodes", "computer"}:
+    if tool_name.lower() in {"sessions", "cron", "automations", "gateway", "nodes", "computer"}:
         value = params.get("action") or params.get("operation") or params.get("method")
         return str(value).strip().lower() if isinstance(value, str) and value.strip() else "invoke"
     return "invoke"

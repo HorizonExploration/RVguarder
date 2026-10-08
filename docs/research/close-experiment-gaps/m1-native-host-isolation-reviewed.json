@@ -1,0 +1,19 @@
+{
+  "source": "docs/research/close-experiment-gaps/m1-native-host-isolation-v2.json",
+  "source_sha256": "1b715c2ba8a3d36845fd029341d989557614a8a58b4b46489f6a293f8d092d08",
+  "checks": {
+    "agent_completed": true,
+    "three_actual_hook_probes": true,
+    "sandbox_key_and_socket_unreadable": true,
+    "host_escape_marker_absent": true,
+    "host_gateway_and_elevated_rejected": true,
+    "own_sandbox_inspected": true,
+    "private_paths_and_docker_socket_unmounted": true
+  },
+  "cleanup": {
+    "passed": true,
+    "errors": []
+  },
+  "scope": "native B0 host/key boundary contract, not safety denominator",
+  "passed": true
+}

@@ -253,4 +253,4 @@ cd e2e && npm install && npm run install:browsers && npm test
 
 ---
 
-*CLAUDE.md 最后更新: 2026-09-15 · DSL-only 与分级故障策略复核*
+*CLAUDE.md 最后更新: 2026-10-05 · 有限工具调用建模与后端错误严格透传策略*

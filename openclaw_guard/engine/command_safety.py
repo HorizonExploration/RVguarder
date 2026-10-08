@@ -13,6 +13,8 @@ import re
 import shlex
 from typing import Any
 
+from openclaw_guard.engine.python_effects import inline_python_effects
+
 
 _SAFE_COMMANDS = {
     "pwd", "ls", "find", "grep", "rg", "cat", "head", "tail", "sed",
@@ -40,6 +42,7 @@ class CommandSafety:
     commands: tuple[str, ...] = ()
     path_hints: tuple[str, ...] = ()
     reason_codes: tuple[str, ...] = ()
+    potential_effects: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -48,10 +51,74 @@ class CommandSafety:
             "commands": list(self.commands),
             "path_hints": list(self.path_hints),
             "reason_codes": list(self.reason_codes),
+            "potential_effects": list(self.potential_effects),
         }
 
 
 def analyze_command(command: str | None) -> CommandSafety:
+    """有界分析整条有限exec调用；能力提示不是子调用或实际副作用收据。"""
+    raw = str(command or "").strip()
+    if len(raw) > 32768:
+        return CommandSafety("unknown", False, reason_codes=("command_budget",), potential_effects=("unknown",))
+    first = _analyze_command_prefix(raw)
+    if not raw or any(char in raw for char in ("\n", "\r", "$", "`")):
+        return first
+    try:
+        lexer = shlex.shlex(raw, posix=True, punctuation_chars=";&|><()")
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+    except ValueError:
+        return first
+    if len(tokens) > 512:
+        return CommandSafety("unknown", False, reason_codes=("command_budget",), potential_effects=("unknown",))
+    segments: list[list[str]] = [[]]
+    for token in tokens:
+        if token in {";", "&&", "||", "|"}:
+            segments.append([])
+        else:
+            segments[-1].append(token)
+    if len(segments) > 32 or any(not segment for segment in segments):
+        return CommandSafety("unknown", False, reason_codes=("command_budget_or_empty_segment",), potential_effects=("unknown",))
+    commands, reasons, capabilities, classifications, inline_paths = [], [], [], [], []
+    for segment in segments:
+        result = _analyze_command_prefix(shlex.join(segment))
+        name = _command_name(segment)
+        if name:
+            commands.append(name)
+        reasons.extend(result.reason_codes)
+        classifications.append(result.classification)
+        if re.fullmatch(r"python(?:3(?:\.\d+)?)?", name or ""):
+            python_effects, python_paths, python_reasons = inline_python_effects(segment)
+            capabilities.extend(python_effects)
+            inline_paths.extend(python_paths)
+            reasons.extend(python_reasons)
+        elif name in _NETWORK_COMMANDS:
+            capabilities.append("egress")
+        elif name in {"rm", "rmdir"}:
+            capabilities.append("delete")
+        elif name in {"cp", "mv"}:
+            capabilities.extend(["read", "write", "transform"])
+            if name == "mv":
+                capabilities.append("delete")
+        elif name in {"tar", "zip", "gzip", "bzip2", "xz"}:
+            capabilities.extend(["read", "write", "transform", "unknown"])
+        elif result.safe_read_only:
+            capabilities.append("read")
+        else:
+            capabilities.append("unknown")
+        if any(token.startswith((">", "<")) for token in segment):
+            capabilities.append("write")
+    # 网络能力必须保留；delete还通过完整commands单独投影，不能被首段遮蔽。
+    rank = {"unknown": 0, "read_only": 0, "mutating": 1, "destructive": 2, "network": 3, "privileged": 4}
+    classification = max([first.classification, *classifications], key=lambda value: rank[value])
+    safe = first.safe_read_only and all(value == "read_only" for value in classifications)
+    if not safe and classification == "read_only":
+        classification = "unknown"
+    return CommandSafety(classification, safe, tuple(commands), tuple(dict.fromkeys([*_path_hints(tokens), *inline_paths]))[:16],
+                         tuple(dict.fromkeys(reasons)), tuple(dict.fromkeys(capabilities)))
+
+
+def _analyze_command_prefix(command: str | None) -> CommandSafety:
     """Classify a command without executing it.
 
     Pipes are accepted only when every segment is a known read-only command.

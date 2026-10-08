@@ -1,0 +1,65 @@
+{
+  "scope": "Current ATLAS tool model candidate package contents, clean installation and integrity verification; not full native release acceptance",
+  "release_qualified": false,
+  "q5_reassessed": false,
+  "default_source_rules": 67,
+  "default_effective_rules": 72,
+  "candidate_rules": 122,
+  "wheel_sha256": "7b856899e0cffa5ec85c73b94ee8dffc3647700ee21e00a8eb04d3d37780f1c6",
+  "plugin_tgz_sha256": "fd2a363813463d343851c46dbecd0a42cd83a27265f25405edd9db7d731be766",
+  "reproducible_wheel_sha256": "7b856899e0cffa5ec85c73b94ee8dffc3647700ee21e00a8eb04d3d37780f1c6",
+  "clean_install_verified": {
+    "default_effective_rules": 72,
+    "candidate_rules": 122,
+    "installed_inline_delete_projected": true
+  },
+  "required_wheel_files": [
+    "openclaw_guard/engine/python_effects.py",
+    "openclaw_guard/rv/native_contract_rules.py",
+    "openclaw_guard/rv/profiles/atlas-tool-policy-v2.json",
+    "openclaw_guard/rv/rv_rules.json"
+  ],
+  "ui_files": [
+    "openclaw_guard/static_ui/index.html",
+    "openclaw_guard/static_ui/assets/Actions-CLaSmrV5.js",
+    "openclaw_guard/static_ui/assets/Rules-Bw9F3Bgv.js",
+    "openclaw_guard/static_ui/assets/Settings-B79-ttjs.js",
+    "openclaw_guard/static_ui/assets/Skills-DFzKAMpi.js",
+    "openclaw_guard/static_ui/assets/index-AOjiQaoE.css",
+    "openclaw_guard/static_ui/assets/index-CYrZjyZB.js"
+  ],
+  "forbidden_wheel_files": [],
+  "historical_artifacts_verified": [
+    "docs/research/close-experiment-gaps/atlas-cases-v2.json",
+    "docs/research/close-experiment-gaps/atlas-cases-v3.json",
+    "docs/research/close-experiment-gaps/atlas-native-pilot-v1/freeze.json",
+    "docs/research/close-experiment-gaps/atlas-native-pilot-v1/results.json",
+    "docs/research/close-experiment-gaps/atlas-native-pilot-analysis-v2.json",
+    "docs/research/close-experiment-gaps/atlas-native-pilot-v1/evaluated-case-preparer.py",
+    "docs/research/close-experiment-gaps/atlas-evaluated-source-v1.tar.gz",
+    "docs/research/close-experiment-gaps/atlas-plugin-report-v1.md",
+    "docs/research/close-experiment-gaps/atlas-plugin-aligned-v1/freeze.json",
+    "docs/research/close-experiment-gaps/atlas-plugin-aligned-v1/results.json",
+    "docs/research/close-experiment-gaps/atlas-plugin-aligned-analysis-v1.json",
+    "docs/research/close-experiment-gaps/atlas-plugin-experiment-v1/failure-diagnosis.json",
+    "docs/research/close-experiment-gaps/m3-holdout-analysis-v1.json",
+    "docs/research/close-experiment-gaps/m3-native-holdout-v1/results.json",
+    "docs/research/close-experiment-gaps/m3-autonomous-analysis-v1.json",
+    "docs/research/close-experiment-gaps/m4-final-wheel-delivery-v3.json",
+    "docs/research/close-experiment-gaps/m4-native-install-v8/acceptance.json",
+    "docs/research/close-experiment-gaps/m6-final-regression-v3.log",
+    "docs/research/close-experiment-gaps/m3-evaluated-source-snapshot-v1.tar.gz"
+  ],
+  "historical_semantic_recording_unchanged": true,
+  "native_current_archive_install_tested": false,
+  "native_probe_source_archive": "atlas-model-evaluated-source-v1.tar.gz",
+  "final_regression": "atlas-model-full-regression-v2.log",
+  "final_regression_passed": 1105,
+  "final_regression_skipped": 18,
+  "remaining": [
+    "Full native acceptance of optional new rules",
+    "New independent holdout and normal approval budget",
+    "Full SDK timing boundary",
+    "Independent final review"
+  ]
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "path": "README.md",
+    "sha256": "e5ba2a950f01a2507b90a63f3cc5dfdf83f843f312025a918a35b594471614bf",
+    "observations": [
+      {
+        "line": 234,
+        "text": "- 遗留 `failClosed=true` 不覆盖传输故障透传；后端明确返回 HTTP 错误时仍可按原配置全量阻断"
+      }
+    ]
+  },
+  {
+    "path": "docs/ops/roadmap.md",
+    "sha256": "43cd6fe2b64e9f9dc61145978da3a9ca8600d287b20dc721497986d02c63968b",
+    "observations": [
+      {
+        "line": 15,
+        "text": "| 电路熔断器 | v0.2.1 → v0.7.0-dev | 健康检查与熔断状态 + 按工具影响面的分级降级；高影响调用不可达时暂停 |"
+      }
+    ]
+  }
+]

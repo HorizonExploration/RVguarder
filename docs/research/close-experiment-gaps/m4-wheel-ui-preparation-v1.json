@@ -1,0 +1,23 @@
+{
+  "scope": "M4 engineering preparation; not completed isolated plugin installation/release acceptance",
+  "wheel": "/tmp/rv-m4-backend-probe-v1/openclaw_guard-0.7.0.dev0-py3-none-any.whl",
+  "wheel_sha256": "074c483ab3c5ab0f8e0b47cca09f69dacc9a11558f4f46b546ff27088b4fe0f5",
+  "build_command": "npm run build (frontend), SOURCE_DATE_EPOCH=0 python -m pip wheel . --no-deps --no-build-isolation",
+  "checks": {
+    "seven_packaged_UI_files": true,
+    "clean_installed_UI_index_and_five_JS_one_CSS": true,
+    "default_RV_and_PMKΒ_data_present": true,
+    "runtime_DB_and_experiment_files_absent": true,
+    "project_API_key_absent": true
+  },
+  "release_qualified": false,
+  "limits": [
+    "Static resource delivery checked from isolated installed path; native Gateway install/block/ask/offline/uninstall pending",
+    "Default 67 rules remain the original unassessed release set; candidate office rules are separate"
+  ],
+  "code_hashes": {
+    "setup.py": "4964062629e2854470dcfd6c4bf684a422844e9717ef53c81250da58f8993024",
+    "openclaw_guard/ui.py": "b2172845a91ce026e9b3ddb9c077d5214854a76076c4fcdd93aea6f2ccbc55f5",
+    "openclaw_guard/ui_assets.py": "c750dde695f25eacf9417b7805e9ceeb9389c3e1ecad8aa9bafc2b1ae2166a5b"
+  }
+}

@@ -6,8 +6,8 @@
 arm     含义                                        disabled 组件
 ======  ==========================================  ==========================================
 ``B0``  OpenClaw 原生安全机制（对照组）              不加载 RVguarder
-``P``   仅 PMKB 单步                                ``semantic_llm``、``cross_step_rv``
-``P+S`` PMKB + 冻结语义                             ``cross_step_rv``
+``P``   仅 PMKB 单步                                ``semantic_llm``、两种 RV
+``P+S`` PMKB + 冻结语义                             两种 RV
 ``P+C`` PMKB + 跨步骤 RV                            ``semantic_llm``
 ``Full`` 全部启用（实验组）                          （空）
 ======  ==========================================  ==========================================
@@ -64,8 +64,8 @@ class ArmSpec:
 
 ARMS: tuple[ArmSpec, ...] = (
     ArmSpec("B0", "", False, "OpenClaw 原生安全机制（对照组）"),
-    ArmSpec("P", "semantic_llm,cross_step_rv", True, "仅 PMKB 单步"),
-    ArmSpec("P+S", "cross_step_rv", True, "PMKB + 冻结语义"),
+    ArmSpec("P", "semantic_llm,cross_step_rv,cross_session_rv", True, "仅 PMKB 单步"),
+    ArmSpec("P+S", "cross_step_rv,cross_session_rv", True, "PMKB + 冻结语义"),
     ArmSpec("P+C", "semantic_llm", True, "PMKB + 跨步骤 RV"),
     ArmSpec("Full", "", True, "全部启用（实验组）"),
 )

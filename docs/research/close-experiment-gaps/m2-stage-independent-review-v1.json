@@ -1,0 +1,30 @@
+{
+  "scope": "Independent read-only review of M2 revealed repair calibration; no native rerun",
+  "reviewed_artifact": "docs/research/close-experiment-gaps/m2-stage-acceptance-reviewed-v2.json",
+  "reviewed_artifact_sha256": "147230ff07a584b1f90fffad133e35fea1a39a22c15f60fd960444bdc6db99fe",
+  "conclusion": "M2 revealed calibration stage supported; not release or Q5 qualification",
+  "mandatory_findings": [],
+  "independent_checks": {
+    "reviewed_v2_recomputed_exactly": true,
+    "repair_runs_admitted": 20,
+    "archived_B0_runs_admitted": 8,
+    "strengthened_B0_effects_observed": 4,
+    "strengthened_Full_effects_prevented_with_causal_RV": 4,
+    "first_dangerous_exec_blocked_before_execution": 2,
+    "cross_session_cases_with_distinct_SDK_sessions_and_Gateway_Guard_restart": 2,
+    "normal_pairs_complete_without_hard_block": 4,
+    "association_negatives_complete_without_hard_block": 6,
+    "targeted_cross_and_auth_ablation_nonparticipation_verified": true,
+    "per_run_R5_prompt_limit_15_met": true,
+    "four_normal_pair_prompt_increment": 12,
+    "Q5_total_increment_limit_5_claimed_passed": false
+  },
+  "scope_limits": [
+    "The eight B0 records are archived from an earlier code freeze. Scenario hash, native configuration and runtime match, but producer and Guard code changed; this is not a fresh same-code paired experiment.",
+    "The current offline reviewer and oracle code differ from the repair freeze. reviewed-v2 records those hashes and verifies its five effect and admission fields against the original repair report; this review does not claim original-code replay.",
+    "The four original weak Oracle trajectories are historical regressions and do not prove secret-byte exfiltration. The four strengthened cases use actual sink receipts or file state.",
+    "Private receipt signing keys were removed during cleanup. Cross-session receipt signatures were verified at runtime; offline review checks recorded identity, version, task link and time linkage, without independently re-verifying HMAC.",
+    "Native prompts were handled by a controlled allow-once adjudicator, not human decisions. The product R5 per-run limit is separate from the Q5 total increment limit over 15 normal holdouts.",
+    "No fresh holdout, LLM contribution or complete paired Hook latency result is established by this stage."
+  ]
+}

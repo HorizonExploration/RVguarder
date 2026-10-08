@@ -1,0 +1,20 @@
+{
+  "wheel": "dist/rvguard-m4-candidate-v1/backend/openclaw_guard-0.7.0.dev0-py3-none-any.whl",
+  "sha256": "2f0da634075ad87da935aa4767b31b75dc44d289123c070e2d4d257eb91e4309",
+  "reproducible": true,
+  "packaged_UI_files": [
+    "openclaw_guard/static_ui/index.html",
+    "openclaw_guard/static_ui/assets/Actions-CLaSmrV5.js",
+    "openclaw_guard/static_ui/assets/Rules-Bw9F3Bgv.js",
+    "openclaw_guard/static_ui/assets/Settings-B79-ttjs.js",
+    "openclaw_guard/static_ui/assets/Skills-DFzKAMpi.js",
+    "openclaw_guard/static_ui/assets/index-AOjiQaoE.css",
+    "openclaw_guard/static_ui/assets/index-CYrZjyZB.js"
+  ],
+  "forbidden_files": [],
+  "tgz": "dist/rvguard-m4-candidate-v1/openclaw-guard-hook.tgz",
+  "tgz_sha256": "14404d9ae844c2b8dcdb14e334fefc6f1701108b824a4147ca7304c04132f12f",
+  "native_install_evidence": "docs/research/close-experiment-gaps/m4-native-install-v5/acceptance.json",
+  "scope": "candidate engineering acceptance; release and rule-set qualification separate",
+  "release_qualified": false
+}

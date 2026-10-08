@@ -32,7 +32,7 @@ _SYSTEM_PREFIXES = ("/bin", "/etc", "/usr", "/system")
 _LOG_PREFIXES = ("/var/log", "/tmp/openclaw")
 _SENSITIVE_PATH_MARKERS = ("/.ssh", "/.aws", "/.gnupg", "id_rsa", "api_key", "/secrets/", "/credentials/")
 _HIGH_VALUE_PATH_MARKERS = ("/cases/", "/evidence/", "evidence", "forensics")
-_SCRIPT_SUFFIXES = {".sh", ".ps1", ".bat"}
+_SCRIPT_SUFFIXES = {".sh", ".ps1", ".bat", ".py", ".pyw", ".js", ".mjs", ".cjs", ".rb", ".pl", ".lua"}
 _READONLY_COMMANDS = ("ls", "pwd", "cat ", "grep ", "find ", "echo ")
 
 _DEFAULT_LLM_BASE_URL = "https://api.deepseek.com/v1"
@@ -507,6 +507,10 @@ def _path_labels(event: BehaviorEvent) -> set[str]:
     for raw in event.target_paths:
         path = raw.lower()
         normalized = path.replace("\\", "/")
+        # 办公入口目录仅是低信任风险提示，不证明内容敏感、公开或授权。
+        # 只在实际读取调用上标记，上传/写入不能据路径自称已读取附件。
+        if event.action_type == "file_read" and {"inbox", "attachments"}.intersection(normalized.split("/")):
+            labels.add("external_source")
         if normalized.startswith(_SYSTEM_PREFIXES):
             labels.add("path_system_root")
         if any(marker in normalized for marker in _SENSITIVE_PATH_MARKERS):

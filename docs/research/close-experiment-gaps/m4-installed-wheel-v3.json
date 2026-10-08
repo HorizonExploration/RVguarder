@@ -1,0 +1,9 @@
+{
+  "module_path": "/tmp/rv-m4-wheel-install-v3/openclaw_guard/__init__.py",
+  "UI_index": true,
+  "UI_JS": 5,
+  "UI_CSS": 1,
+  "PMKB_rules": 79,
+  "PMKB_relations": 9,
+  "scope": "Isolated wheel resource and policy loading only; no editable source import"
+}

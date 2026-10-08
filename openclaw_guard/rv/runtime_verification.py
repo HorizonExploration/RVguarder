@@ -302,7 +302,12 @@ class RuntimeVerificationEngine:
         baseline_dfa_path: str | None = None,
         principal_state_limit: int = 256,
         permission_bundle: Any | None = None,
+        authorization_checker: Any | None = None,
+        history_checker: Any | None = None,
     ) -> None:
+        # 只允许宿主显式提供只读checker；默认无授权例外，无HTTP配置入口。
+        self._authorization_checker = authorization_checker
+        self._history_checker = history_checker
         self._window_size = window_size
         self._window_ttl = window_ttl_seconds
         self._rule_mode = self._normalize_rule_mode(
@@ -323,6 +328,7 @@ class RuntimeVerificationEngine:
         self._spec_monitors_template: list | None = None
         self._spec_ruleset: Any | None = None
         self._permission_ruleset: Any | None = None
+        self._permission_bundle: Any | None = None
         self._permission_monitors_template: list | None = None
         if permission_bundle is not None:
             self.configure_permission_monitors(permission_bundle)
@@ -390,6 +396,9 @@ class RuntimeVerificationEngine:
         keeps ownership of bundle loading, so this hot path never reads remote
         policy data or blocks an OpenClaw hook.
         """
+        self._permission_bundle = bundle
+        # A policy change must not retain authority learned under another graph.
+        self._principal_states.clear()
         if bundle is None:
             self._permission_ruleset = None
         else:
@@ -423,14 +432,14 @@ class RuntimeVerificationEngine:
         if self._spec_ruleset is None:
             rules_path = os.getenv("OPENCLAW_RV_RULES_PATH")
             self._spec_ruleset = load_ruleset(rules_path) if rules_path else load_ruleset()
-        self._spec_monitors_template = compile_monitors(self._spec_ruleset)
+        self._spec_monitors_template = compile_monitors(self._spec_ruleset, authorization_checker=self._authorization_checker, history_checker=self._history_checker)
 
     def _create_monitors(self) -> list:
         """基于模板创建新的监视器实例。"""
         self._lazy_init_monitors()
         from openclaw_guard.rv.rv_dsl import compile_monitors
 
-        return compile_monitors(self._spec_ruleset)
+        return compile_monitors(self._spec_ruleset, authorization_checker=self._authorization_checker, history_checker=self._history_checker)
 
     def _create_permission_monitors(self, scope: str) -> list:
         """Create fresh PMKB monitor instances for one state scope."""
@@ -495,10 +504,12 @@ class RuntimeVerificationEngine:
         triggered_rule_id: str | None = None
         trigger_step_id: str | None = None
         matched_history_step_ids: list[str] = []
+        cross_history_evidence: dict = {}
         reason: str | None = None
         monitor_timings: dict[str, float] = {}
         monitors = self._create_monitors()
         candidate_start = len(history)
+        authorization_exceptions: list[dict[str, str]] = []
         for monitor in monitors:
             started = _time.perf_counter()
             prefix_window = WindowManager(max_size=self._window_size, ttl_seconds=self._window_ttl)
@@ -510,6 +521,7 @@ class RuntimeVerificationEngine:
                     result = None
                 if index < candidate_start:
                     continue
+                authorization_exceptions.extend(getattr(monitor, "last_authorized_matches", []))
                 if result and severity_map.get(result, 0) > severity_map.get(final, 0):
                     final = result
                     triggered_by = monitor.__class__.__name__
@@ -518,6 +530,7 @@ class RuntimeVerificationEngine:
                     triggered_rule_id = match.get("rule_id")
                     trigger_step_id = match.get("trigger_step_id")
                     matched_history_step_ids = list(match.get("matched_history_step_ids") or [])
+                    cross_history_evidence = {key: list(match.get(key) or []) for key in ("verified_cross_session_receipt_ids", "verified_cross_session_link_ids") if match.get(key)}
             monitor_timings[monitor.__class__.__name__] = round(
                 (_time.perf_counter() - started) * 1000.0, 4
             )
@@ -537,6 +550,7 @@ class RuntimeVerificationEngine:
                 triggered_rule_id = match.get("rule_id")
                 trigger_step_id = match.get("trigger_step_id")
                 matched_history_step_ids = list(match.get("matched_history_step_ids") or [])
+                cross_history_evidence = {key: list(match.get(key) or []) for key in ("verified_cross_session_receipt_ids", "verified_cross_session_link_ids") if match.get(key)}
             monitor_timings[monitor.__class__.__name__] = round(
                 (_time.perf_counter() - started) * 1000.0, 4
             )
@@ -560,6 +574,7 @@ class RuntimeVerificationEngine:
                 triggered_rule_id = match.get("rule_id")
                 trigger_step_id = match.get("trigger_step_id")
                 matched_history_step_ids = list(match.get("matched_history_step_ids") or [])
+                cross_history_evidence = {key: list(match.get(key) or []) for key in ("verified_cross_session_receipt_ids", "verified_cross_session_link_ids") if match.get(key)}
             monitor_timings[monitor.__class__.__name__] = round(
                 (_time.perf_counter() - started) * 1000.0, 4
             )
@@ -578,6 +593,8 @@ class RuntimeVerificationEngine:
             "triggered_rule_id": triggered_rule_id,
             "trigger_step_id": trigger_step_id,
             "matched_history_step_ids": matched_history_step_ids,
+            **cross_history_evidence,
+            "authorization_exceptions": authorization_exceptions,
             "reason": reason,
             "window_size": len(replay_window),
             "session_key": session_key,
@@ -644,9 +661,11 @@ class RuntimeVerificationEngine:
         triggered_rule_id: str | None = None
         trigger_step_id: str | None = None
         matched_history_step_ids: list[str] = []
+        cross_history_evidence: dict = {}
         reason: str | None = None
         monitor_timings: dict[str, float] = {}
         candidate_start = max(0, len(committed_steps) - len(rv_trace))
+        authorization_exceptions: list[dict[str, str]] = []
 
         for monitor in monitors:
             m_start = _time.perf_counter()
@@ -659,6 +678,7 @@ class RuntimeVerificationEngine:
                     result = None
                 if index < candidate_start:
                     continue
+                authorization_exceptions.extend(getattr(monitor, "last_authorized_matches", []))
                 if result and severity_map.get(result, 0) > severity_map.get(final, 0):
                     final = result
                     triggered_by = monitor.__class__.__name__
@@ -667,6 +687,7 @@ class RuntimeVerificationEngine:
                     triggered_rule_id = match.get("rule_id")
                     trigger_step_id = match.get("trigger_step_id")
                     matched_history_step_ids = list(match.get("matched_history_step_ids") or [])
+                    cross_history_evidence = {key: list(match.get(key) or []) for key in ("verified_cross_session_receipt_ids", "verified_cross_session_link_ids") if match.get(key)}
             monitor_timings[monitor.__class__.__name__] = round(
                 (_time.perf_counter() - m_start) * 1000.0, 4
             )
@@ -690,6 +711,7 @@ class RuntimeVerificationEngine:
                     triggered_rule_id = match.get("rule_id")
                     trigger_step_id = match.get("trigger_step_id")
                     matched_history_step_ids = list(match.get("matched_history_step_ids") or [])
+                    cross_history_evidence = {key: list(match.get(key) or []) for key in ("verified_cross_session_receipt_ids", "verified_cross_session_link_ids") if match.get(key)}
                 monitor_timings[monitor.__class__.__name__] = round(
                     (_time.perf_counter() - m_start) * 1000.0, 4
                 )
@@ -717,6 +739,7 @@ class RuntimeVerificationEngine:
                     triggered_rule_id = match.get("rule_id")
                     trigger_step_id = match.get("trigger_step_id")
                     matched_history_step_ids = list(match.get("matched_history_step_ids") or [])
+                    cross_history_evidence = {key: list(match.get(key) or []) for key in ("verified_cross_session_receipt_ids", "verified_cross_session_link_ids") if match.get(key)}
                 monitor_timings[monitor.__class__.__name__] = round(
                     (_time.perf_counter() - m_start) * 1000.0, 4
                 )
@@ -735,6 +758,8 @@ class RuntimeVerificationEngine:
             "triggered_rule_id": triggered_rule_id,
             "trigger_step_id": trigger_step_id,
             "matched_history_step_ids": matched_history_step_ids,
+            **cross_history_evidence,
+            "authorization_exceptions": authorization_exceptions,
             "reason": reason,
             "window_size": len(window),
             "session_key": session_key,
@@ -903,6 +928,7 @@ class RuntimeVerificationEngine:
             self._principal_states.pop(oldest_key, None)
         state = PrincipalSecurityState(
             key[0], key[1], key[2], ttl_seconds=self._window_ttl,
+            policy_bundle=self._permission_bundle,
         )
         self._principal_states[key] = state
         return state
@@ -956,7 +982,9 @@ class RuntimeVerificationEngine:
             for data in raw_principal_states:
                 if not isinstance(data, dict):
                     continue
-                principal_state = PrincipalSecurityState.from_dict(data)
+                principal_state = PrincipalSecurityState.from_dict(
+                    data, policy_bundle=self._permission_bundle,
+                )
                 key = (
                     principal_state.principal_id,
                     principal_state.agent_id,

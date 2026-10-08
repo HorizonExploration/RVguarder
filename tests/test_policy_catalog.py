@@ -155,3 +155,23 @@ def test_loaded_bundle_rules_and_nested_match_data_are_immutable():
         "EX-10", "P0-MESSAGE-SEND", "NATIVE-API-001", "NATIVE-API-002",
         "NATIVE-API-003", "NATIVE-API-004",
     }
+
+
+def test_source_and_packaged_policy_data_are_identical():
+    """验证源码与安装包策略一致，防止开发和部署裁决分叉。"""
+    packaged = Path(__file__).resolve().parents[1] / "openclaw_guard/policy/data/permissions"
+    source_files = {p.relative_to(ROOT): json.loads(p.read_text()) for p in ROOT.rglob("*.json")}
+    packaged_files = {p.relative_to(packaged): json.loads(p.read_text()) for p in packaged.rglob("*.json")}
+    assert source_files == packaged_files
+
+
+@pytest.mark.parametrize("tool,family", [
+    ("office_message_send", "message.send"),
+    ("office_network_post", "network.egress"),
+    ("office_document_share", "network.egress"),
+])
+def test_evaluated_office_tools_map_identically_in_source_and_package(tool, family):
+    """两种加载路径均保留真实办公实验使用的工具映射。"""
+    packaged = Path(__file__).resolve().parents[1] / "openclaw_guard/policy/data/permissions"
+    assert PolicyBundle.load(ROOT).operation_for_tool(tool, {}).family == family
+    assert PolicyBundle.load(packaged).operation_for_tool(tool, {}).family == family

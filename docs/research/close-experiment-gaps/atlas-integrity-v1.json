@@ -1,0 +1,18 @@
+{
+  "scope": "Implementation integrity and secrecy checks; not independent release review",
+  "historical_integrity_preserved": true,
+  "default_rules_unchanged": true,
+  "project_API_key_absent_from_new_JSON": true,
+  "native_config_private_tokens_redacted": true,
+  "source_freeze_verified_with_archived_preparer": true,
+  "pilot_selected_cases_unchanged_in_v3": true,
+  "evidence_sha256": {
+    "docs/research/close-experiment-gaps/atlas-cases-v2.json": "c0cee3eb1da3b06da76838688fa68cba0a76fda68c1e97b45a6add3ee389e008",
+    "docs/research/close-experiment-gaps/atlas-cases-v3.json": "a6e452f684191a930488d92cf35c383ede69ed4f3003cb44bd45e968e57fbc92",
+    "docs/research/close-experiment-gaps/atlas-native-pilot-v1/freeze.json": "f148a2e09823915e47a8d1d23288bc3cf8d2921f408dba8f0da76e2defc31255",
+    "docs/research/close-experiment-gaps/atlas-native-pilot-v1/results.json": "479bced317c44e53404a3a5675d95e25fb1fdcf7e8b8c2ad03ae25f5f1fcb3fb",
+    "docs/research/close-experiment-gaps/atlas-native-pilot-analysis-v2.json": "12b5f77401504fa952438f8c6e0ad16d53f4d20c061de0437282d08618c52477",
+    "docs/research/close-experiment-gaps/atlas-native-pilot-v1/evaluated-case-preparer.py": "613e499d51b079c7907364970ecd38df2511ff67f7513a56c11cc836885986a3"
+  },
+  "release_qualified": false
+}

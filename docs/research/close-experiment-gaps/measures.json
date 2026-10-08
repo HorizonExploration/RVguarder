@@ -1,0 +1,502 @@
+{
+  "schema_version": 1,
+  "status": "frozen_m0_independently_reviewed",
+  "rows": [
+    {
+      "issue_id": "PREC-001",
+      "milestone": "M1",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "可信资源版本/来源关联，分开违规block、授权不明ask与合法共享",
+      "acceptance": "R1/R3/R4；公开摘要收据+攻击无敏感外发收据",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/defects.md",
+          "contains": "RV-PRECISION-001"
+        },
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/raw/Full__NEAR-UNKNOWN-TOOLCHAIN-B1.json",
+          "json_pointer": "/events/3/guard_evidence/rv_result/triggered_rule_id"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m1-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "TIME-001",
+      "milestone": "M2",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "独立定位首个越权副作用，提前到真实执行前边界",
+      "acceptance": "R1/R2；实际状态及收据",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/version-comparison.json",
+          "json_pointer": "/blocks_after_goal_already_attained"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m2-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "EXP-001",
+      "milestone": "M0",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "保留失败原始记录和恢复记录，补充原生裁决诊断",
+      "acceptance": "未应用审批不得算防护；恢复运行不增加安全分母",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/raw/Full__SESSION-SMUGGLING-UNIT42-CAL-A2.json",
+          "json_pointer": "/admission_checks/receipts_present"
+        },
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/retries/raw/Full__SESSION-SMUGGLING-UNIT42-CAL-A2__repeat2.json",
+          "json_pointer": "/admitted"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m0-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "EXP-002",
+      "milestone": "M0",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "保留已实现的受限裁决错误诊断并验证脱敏",
+      "acceptance": "既有回归及诊断允许字段，不输出工具内容",
+      "input_evidence": [
+        {
+          "path": "docs/ops/plugin-package-preparation-2026-10-05.md",
+          "contains": "原生审批解析保留退出码"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m0-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "closed"
+    },
+    {
+      "issue_id": "COV-001",
+      "milestone": "M2",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "独立复现SK-RCE外发，确定exec路径与首次副作用",
+      "acceptance": "R2 4/4中的独立一例，无越权外发收据",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/raw/Full__SK-RCE-CVE-2026-26030-HOL-A1.json",
+          "json_pointer": "/attack_goal_achieved"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m2-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "COV-002",
+      "milestone": "M2",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "独立复现SK-RCE删除，确定exec路径与首次副作用",
+      "acceptance": "R2 4/4中的独立一例，受保护内容未删除",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/raw/Full__SK-RCE-CVE-2026-26030-HOL-A2.json",
+          "json_pointer": "/attack_goal_achieved"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m2-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "COV-003",
+      "milestone": "M2",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "独立复现SESSION第一例，冻结可信任务关联",
+      "acceptance": "R2/R7；正确关联攻击被防止，错误关联对照正常",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/raw/Full__SESSION-SMUGGLING-UNIT42-HOL-A1.json",
+          "json_pointer": "/attack_goal_achieved"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m2-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "COV-004",
+      "milestone": "M2",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "独立复现SESSION第二例，不复用未验证根因",
+      "acceptance": "R2/R7；跨session副作用及错误关联对照",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/raw/Full__SESSION-SMUGGLING-UNIT42-HOL-A2.json",
+          "json_pointer": "/attack_goal_achieved"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m2-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "SEM-001",
+      "milestone": "M3",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "运行预指定语义消融，零收益如实报告",
+      "acceptance": "开关未参与预览/决策/提交；差异与规则证据一致，不要求制造增益",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-attack-chain-v1-gatefix-clean/gates.json",
+          "json_pointer": "/conditions/4/observed/frozen_semantic"
+        },
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/verified-summary.json",
+          "json_pointer": "/ablations/P → P+S"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m3-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "EVAL-001",
+      "milestone": "M3",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "新建机制/来源隔离的20校准+30holdout并冻结",
+      "acceptance": "M3全臂、规则/输入/配置hash和一次揭盲记录",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/manifest.json",
+          "json_pointer": "/source_hashes/openclaw_guard~1rv~1rv_rules.json"
+        },
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/report.md",
+          "contains": "旧矩阵已揭盲"
+        },
+        {
+          "path": "dist/rvguarder-test-candidate-20261005-r2/verification.json",
+          "json_pointer": "/shipped_dsl_rules"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m3-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "PKG-001",
+      "milestone": "M4",
+      "roles": [
+        "实施者",
+        "独立复核者",
+        "发布授权人"
+      ],
+      "measure": "隔离Docker真实安装卸载和block/ask/allow/失联恢复",
+      "acceptance": "M4实际注册与副作用收据；不接触日常Gateway",
+      "input_evidence": [
+        {
+          "path": "dist/rvguarder-test-candidate-20261005-r2/verification.json",
+          "json_pointer": "/native_install_test_performed"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m4-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "PKG-002",
+      "milestone": "M4",
+      "roles": [
+        "实施者",
+        "独立复核者",
+        "发布授权人"
+      ],
+      "measure": "脱离源码安装wheel后加载SPA静态资源",
+      "acceptance": "真实首页及引用资源可达，wheel包含构建产物",
+      "input_evidence": [
+        {
+          "path": "dist/rvguarder-test-candidate-20261005-r2/verification.json",
+          "json_pointer": "/remaining_release_gates"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m4-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "ENG-001",
+      "milestone": "M0",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "保留已评估办公工具映射，同步两目录并加一致性回归",
+      "acceptance": "全部10份JSON一致；三个办公工具在两种加载路径映射一致",
+      "input_evidence": [
+        {
+          "path": "docs/research/close-experiment-gaps/policy-observations.json",
+          "json_pointer": "/files"
+        },
+        {
+          "path": "tests/test_policy_catalog.py",
+          "contains": "test_source_and_packaged_policy_data_are_identical"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m0-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "closed"
+    },
+    {
+      "issue_id": "CROSS-001",
+      "milestone": "M2",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "补充正确关联正例与污染反例、TTL/撤销/重启/幂等",
+      "acceptance": "R7，不能仅用全禁用跨会话获得零误报",
+      "input_evidence": [
+        {
+          "path": ".trae/specs/close-experiment-gaps-and-ship-plugin/checklist.md",
+          "contains": "跨会话成功历史复用仅基于"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m2-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "BUDGET-001",
+      "milestone": "M1",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "逐调用归因审批，可信授权复用只限所绑定任务资源",
+      "acceptance": "R5产品门及Q5正常总新增≤5分别报告",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/verified-summary.json",
+          "json_pointer": "/groups/original_rerun~1holdout~1Full/native_requests_normal"
+        },
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/verified-summary.json",
+          "json_pointer": "/groups/original_rerun~1holdout~1B0/native_requests_normal"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m1-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "PERF-001",
+      "milestone": "M3",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "原生Hook同入口出口计时并与B0配对",
+      "acceptance": "R6绝对p95及Q5配对增量p95≤50ms，原始时间记录",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/report.md",
+          "contains": "延迟为进程内 Guard 决策时间"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m3-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "METHOD-001",
+      "milestone": "M0",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "将旧离线回放限定设计/校准，不计真实原生分母",
+      "acceptance": "报告单列来源与原生等价排除表",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-value-v3-foundation/report.md",
+          "contains": "当前 holdout 没有正常场景"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m0-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "PREC-002",
+      "milestone": "M1",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "保存v4 N03失败并将其加入可信授权回归",
+      "acceptance": "N03真实完成收据，攻击真实无越权副作用",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-history-rv-calibration-v1/summary.json",
+          "json_pointer": "/failed_conditions"
+        },
+        {
+          "path": "testlab/results/office-history-rv-calibration-v1/report.md",
+          "contains": "preserved_controls"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m1-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "METHOD-002",
+      "milestone": "M0",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "保留历史G门，仅用揭盲前固定的新R/Q5作新结论",
+      "acceptance": "历史原文件hash不变；新门hash在揭盲前冻结",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-attack-chain-v1-gatefix-clean/gates.json",
+          "json_pointer": "/preregistration/preregistration_revision"
+        },
+        {
+          "path": "testlab/results/office-attack-chain-v1-gatefix-clean/gates.json",
+          "json_pointer": "/preregistration/g5_min_component_gain"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m0-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "PKG-003",
+      "milestone": "M0",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "保留startupHealthCheck修复，在Docker验证首次注册",
+      "acceptance": "JS既有回归+M4原生首次请求进入Guard",
+      "input_evidence": [
+        {
+          "path": "docs/ops/plugin-package-preparation-2026-10-05.md",
+          "contains": "插件增加`startupHealthCheck`配置"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m0-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "closed"
+    },
+    {
+      "issue_id": "ENG-002",
+      "milestone": "M0",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "保留测试环境恢复修复，完整回归记录",
+      "acceptance": "全量回归无env跨测试污染，不以旧740结果代替未来测试",
+      "input_evidence": [
+        {
+          "path": "docs/ops/plugin-package-preparation-2026-10-05.md",
+          "contains": "把仓库 `.env` 的密钥永久写入同进程"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m0-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "closed"
+    },
+    {
+      "issue_id": "DOC-001",
+      "milestone": "M5",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "同步README/CLAUDE/路线图的严格fail-open描述，AGENTS只读核对",
+      "acceptance": "错误和不可解析响应全部透传，旧描述无现行入口残留",
+      "input_evidence": [
+        {
+          "path": "docs/research/close-experiment-gaps/document-observations.json",
+          "json_pointer": "/0/observations"
+        },
+        {
+          "path": "docs/research/close-experiment-gaps/document-observations.json",
+          "json_pointer": "/1/observations"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m5-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "EVAL-002",
+      "milestone": "M3",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "显式列出Hook之外入口和离线透传边界",
+      "acceptance": "边界清单，失败条件不被计为防护；不推断部署覆盖率",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-value-v3-foundation/report.md",
+          "contains": "直接 OS 调用、绕过 Hook"
+        },
+        {
+          "path": "docs/ops/plugin-package-preparation-2026-10-05.md",
+          "contains": "探活前和失联时仍透传"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m3-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "EVAL-003",
+      "milestone": "M3",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "增加真实自主Agent任务及定向Auth/Cross消融",
+      "acceptance": "独立报告是否尝试动作、结果和关闭组件证据",
+      "input_evidence": [
+        {
+          "path": "testlab/results/office-tool-model-no-pmkb-gate-20261004/report.md",
+          "contains": "本次未运行Full−Auth"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m3-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "open"
+    },
+    {
+      "issue_id": "GATE-001",
+      "milestone": "M0",
+      "roles": [
+        "实施者",
+        "独立复核者"
+      ],
+      "measure": "统一效果判据、零新增正常失败及产品/Q5双门",
+      "acceptance": "acceptance.json与spec/任务/计划一致；独立复核冻结",
+      "input_evidence": [
+        {
+          "path": "docs/research/close-experiment-gaps/gate-observations.json",
+          "json_pointer": "/observed_criteria"
+        }
+      ],
+      "required_output_evidence": "docs/research/close-experiment-gaps/m0-verification.json + 对应测试/结果包原始记录（待执行，不代表已经存在）",
+      "status": "closed"
+    }
+  ]
+}

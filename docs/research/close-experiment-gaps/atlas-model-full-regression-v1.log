@@ -1,0 +1,108 @@
+.................................................................... [  6%]
+........................................................................ [ 12%]
+........................................................................ [ 18%]
+........................................................................ [ 25%]
+..................................................................s..... [ 31%]
+........................................................................ [ 38%]
+........................................................................ [ 44%]
+........................................................................ [ 50%]
+....................F................................................... [ 57%]
+........................................................................ [ 63%]
+........................................................................ [ 70%]
+........................................................................ [ 76%]
+................................................................F....... [ 83%]
+........................................................................ [ 89%]
+..................................ssssssss.............................. [ 95%]
+.....F.......sss.s...ss....ss........s........                           [100%]
+=================================== FAILURES ===================================
+______________ test_shipped_recording_covers_every_scenario_event ______________
+
+    def test_shipped_recording_covers_every_scenario_event() -> None:
+        """随仓库冻结的录制必须覆盖矩阵每个事件在**运行时投影**下的提示词。
+    
+        运行时参数由冻结轨迹 provider 归一（收件人列表折叠、语义键改名），录制若用场景原始
+        参数渲染就会与回放分叉——实测会让三条办公外发工具事件整体漂移、语义层静默降级。
+        """
+    
+        matrix = load_matrix()
+        recording = load_recording()
+        recorded = {
+            str(entry["prompt_sha256"])
+            for entry in recording["entries"].values()
+            if entry.get("prompt_sha256")
+        }
+        enhancer = SemanticEnhancer(api_key="coverage-probe", model="probe", base_url="http://127.0.0.1:1")
+    
+        missing: list[str] = []
+        total = 0
+        for scenario in matrix["scenarios"]:
+            for index, event in enumerate(scenario["events"], start=1):
+                total += 1
+                digest = event_prompt_digest(enhancer, event)
+                if digest not in recorded:
+                    missing.append(f"{scenario['scenario_id']}#{index}")
+    
+        assert total == 168
+>       assert missing == [], f"冻结录制未覆盖以下事件（需重新录制）：{missing}"
+E       AssertionError: 冻结录制未覆盖以下事件（需重新录制）：['SK-RCE-CVE-2026-26030-CAL-A1#3', 'SK-RCE-CVE-2026-26030-CAL-B1#3', 'SK-RCE-CVE-2026-26030-CAL-A2#3', 'SK-RCE-CVE-2026-26030-CAL-B2#3', 'SK-RCE-CVE-2026-26030-HOL-A1#3', 'SK-RCE-CVE-2026-26030-HOL-B1#3', 'SK-RCE-CVE-2026-26030-HOL-A2#3', 'SK-RCE-CVE-2026-26030-HOL-B2#3']
+E       assert ['SK-RCE-CVE-...OL-B1#3', ...] == []
+E         
+E         Left contains 8 more items, first extra item: 'SK-RCE-CVE-2026-26030-CAL-A1#3'
+E         Use -v to get more diff
+
+tests/test_office_chain_semantic_recording.py:272: AssertionError
+______________ TestRvApiIntegration.test_rv_engine_is_initialized ______________
+
+self = <test_rv_frontend_integration.TestRvApiIntegration testMethod=test_rv_engine_is_initialized>
+
+    def test_rv_engine_is_initialized(self):
+        self.assertIsNotNone(self.manager.rv_engine)
+        # 先触发一次 evaluate 以完成懒加载初始化
+        self.manager.rv_engine.evaluate([])
+        summary = self.manager.rv_engine.result_summary()
+>       self.assertEqual(summary["monitor_count"], 9)  # 9 monitors (6 original + 2 phase D + 1 sensitive-access chain)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: 10 != 9
+
+tests/test_rv_frontend_integration.py:82: AssertionError
+___________ test_message_trace_preserves_all_recipients_and_quantity ___________
+
+    def test_message_trace_preserves_all_recipients_and_quantity():
+        recipients = [f"person-{index}@external.example" for index in range(11)]
+        event = build_hook_event({
+            "toolName": "message",
+            "params": {"to": recipients, "content": "status update"},
+            "runId": "recipient-trace-run",
+            "toolCallId": "recipient-trace-call",
+        })
+        semantic = SemanticEnhancer(api_key="").evaluate(
+            event,
+            {"source_message": "发送状态更新", "origin": "hook"},
+        )
+        event.metadata.update(semantic)
+        trace = TraceCompiler(PolicyBundle.load()).compile(
+            event,
+            semantic=semantic["semantic"],
+            rv_trace=semantic["rv_trace"],
+            source_message="发送状态更新",
+        )
+    
+        assert trace.resource.type == "recipient"
+>       assert len(trace.resource.ids) == 11
+E       AssertionError: assert 0 == 11
+E        +  where 0 = len([])
+E        +    where [] = ResourceRef(type='recipient', ids=[], scope='unknown').ids
+E        +      where ResourceRef(type='recipient', ids=[], scope='unknown') = AuthorizationTrace(trace_id='recipient-trace-run:recipient-trace-call', principal=PrincipalRef(id='unknown', type='age...', 'values': []}, {'kind': 'tool_name', 'values': ['message']}], 'constraints': [], 'confidence': 0.7999999999999999}]).resource
+
+tests/test_tool_hook_bridge.py:141: AssertionError
+=============================== warnings summary ===============================
+../miniconda3/lib/python3.13/site-packages/fastapi/testclient.py:1
+  /home/yosoro126/miniconda3/lib/python3.13/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_office_chain_semantic_recording.py::test_shipped_recording_covers_every_scenario_event
+FAILED tests/test_rv_frontend_integration.py::TestRvApiIntegration::test_rv_engine_is_initialized
+FAILED tests/test_tool_hook_bridge.py::test_message_trace_preserves_all_recipients_and_quantity
+3 failed, 1101 passed, 18 skipped, 1 warning, 4 subtests passed in 203.03s (0:03:23)

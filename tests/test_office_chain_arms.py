@@ -88,8 +88,8 @@ def test_b0_does_not_load_guard() -> None:
 
 
 def test_disabled_component_sets() -> None:
-    assert set(arm_spec("P").disabled_names()) == {"semantic_llm", "cross_step_rv"}
-    assert set(arm_spec("P+S").disabled_names()) == {"cross_step_rv"}
+    assert set(arm_spec("P").disabled_names()) == {"semantic_llm", "cross_step_rv", "cross_session_rv"}
+    assert set(arm_spec("P+S").disabled_names()) == {"cross_step_rv", "cross_session_rv"}
     assert set(arm_spec("P+C").disabled_names()) == {"semantic_llm"}
     assert set(arm_spec("Full").disabled_names()) == set()
 

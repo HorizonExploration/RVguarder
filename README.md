@@ -231,7 +231,7 @@ runtime/openclaw-guard-plugin/
 插件内置**电路熔断器**：
 - 后端不可达 → 所有工具（包括写入和执行）透传，Guard 保护与审计回传暂停
 - 后端恢复 → 健康检查通过后恢复正常策略
-- 遗留 `failClosed=true` 不覆盖传输故障透传；后端明确返回 HTTP 错误时仍可按原配置全量阻断
+- 后端 HTTP 4xx/5xx 或响应体不可解析时，所有工具同样透传；遗留 `failClosed=true` 不再阻断任何调用，只有 Guard 明确返回 `block` 才阻断
 - 后端从可用状态突然断开时，首个失败调用可能等待一次有界超时（默认 2 秒），后续调用不再同步等待
 
 ---
@@ -345,7 +345,9 @@ ChainRule DSL 监视器触发:
 python -m pytest -q
 ```
 
-本轮全量回归（2026-09-15）：`412 passed / 19 skipped / 4 subtests passed`；Chromium 与 Firefox Playwright 冒烟均为 `5 passed`（Firefox 在清除代理变量、单 worker 的独立环境复跑）。
+当前后端全量回归（2026-10-08）：`python -m pytest tests/ -q` → `1105 passed / 18 skipped / 4 subtests passed`，1 项依赖弃用警告。见[官方22项威胁与工具规约升级](docs/research/close-experiment-gaps/atlas-model-upgrade-v1.md)和[插件测试候选](docs/ops/plugin-candidate.md)。原Q5未通过结论保留；本轮是已知缺口修复与专项校准。
+
+历史前端验证（2026-09-15）：Chromium 与 Firefox Playwright 冒烟均为 `5 passed`（Firefox 在清除代理变量、单 worker 的独立环境复跑）；本轮未重跑浏览器实验。
 
 测试覆盖：
 

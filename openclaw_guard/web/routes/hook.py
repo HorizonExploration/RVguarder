@@ -30,7 +30,12 @@ def before_tool_call(request: Request, payload: dict = Depends(body_payload), ma
 
 
 @router.post("/after-tool-call")
-def after_tool_call(payload: dict = Depends(body_payload), manager=Depends(get_manager)):
+def after_tool_call(request: Request, payload: dict = Depends(body_payload), manager=Depends(get_manager)):
+    payload = {
+        **payload,
+        "_hook_auth_verified": bool(getattr(request.state, "openclaw_hook_authenticated", False)),
+        "_hook_auth_binding": getattr(request.state, "openclaw_hook_binding", None),
+    }
     payload, status = api.hook_after_tool_call(manager, payload)
     return JSONResponse(content=payload, status_code=int(status))
 

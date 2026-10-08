@@ -1,0 +1,189 @@
+{
+  "scope": "Local service boundary only; local semantics, synthetic workspaces; not SDK/Q5 evidence",
+  "pipeline_sha256": "57a63f52255dbad12fda876bbfcb35a9ed4e0b86250bd9f86a40d658ff2bf801",
+  "rows": [
+    {
+      "index": 0,
+      "elapsed_ms": 14.918282002327032,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 1,
+      "elapsed_ms": 13.156649001757614,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 2,
+      "elapsed_ms": 15.92283500940539,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 3,
+      "elapsed_ms": 14.934285005438142,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 4,
+      "elapsed_ms": 16.120967993629165,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 5,
+      "elapsed_ms": 16.10258501023054,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 6,
+      "elapsed_ms": 18.317529000341892,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 7,
+      "elapsed_ms": 20.402723996085115,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 8,
+      "elapsed_ms": 19.910342001821846,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 9,
+      "elapsed_ms": 20.796037002583034,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 10,
+      "elapsed_ms": 23.750781998387538,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 11,
+      "elapsed_ms": 23.89325699186884,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 12,
+      "elapsed_ms": 25.77416600252036,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 13,
+      "elapsed_ms": 25.406986009329557,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 14,
+      "elapsed_ms": 26.504778012167662,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 15,
+      "elapsed_ms": 28.180148001411,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 16,
+      "elapsed_ms": 29.534877990954556,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 17,
+      "elapsed_ms": 29.670534990145825,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 18,
+      "elapsed_ms": 31.738767997012474,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 19,
+      "elapsed_ms": 32.64462899824139,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 20,
+      "elapsed_ms": 35.170856994227506,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 21,
+      "elapsed_ms": 36.20156299439259,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 22,
+      "elapsed_ms": 39.102601003833115,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 23,
+      "elapsed_ms": 50.57186199701391,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 24,
+      "elapsed_ms": 39.23238199786283,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 25,
+      "elapsed_ms": 38.922840991290286,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 26,
+      "elapsed_ms": 45.968452002853155,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 27,
+      "elapsed_ms": 43.375264009227976,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 28,
+      "elapsed_ms": 42.6883800100768,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    },
+    {
+      "index": 29,
+      "elapsed_ms": 42.86678299831692,
+      "action": "allow",
+      "synchronous_action_writes": 5
+    }
+  ],
+  "warmup_excluded": 5,
+  "p95_ms": 45.968452002853155,
+  "total_action_writes": 150
+}

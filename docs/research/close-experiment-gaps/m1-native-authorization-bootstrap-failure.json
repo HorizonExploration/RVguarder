@@ -1,0 +1,10 @@
+{
+  "scope": "first native authorization bootstrap failed before Gateway started",
+  "passed": false,
+  "failure": "production installer skipped plugin because transient project did not contain target profile; corrected project placement without bypassing protection",
+  "temporary_paths_removed": [
+    "/tmp/rv-native-authorization-3ipv93ol",
+    "/home/yosoro126/.openclaw-office-chain-5e55d3c0a0"
+  ],
+  "no_native_security_sample": true
+}

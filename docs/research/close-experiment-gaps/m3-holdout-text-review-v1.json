@@ -1,0 +1,15 @@
+{
+  "reviewer": "guard_review",
+  "review_scope": "Provided text consistency only; tool approval service quota blocked raw disk inspection",
+  "Q5_false_consistent": true,
+  "raw_hashes_independently_verified": false,
+  "component_nonparticipation_certified": false,
+  "findings": [
+    "15 B0 effects vs 7 Full effects, 8 prevented",
+    "Normal prompts 14*1+2=16",
+    "80 pair nearest-rank index76 =381.348975ms",
+    "7 history-causal prevents, 1 single-step RV prevent",
+    "Autonomous matching normal failure IDs subsequently saved by implementation",
+    "Scope escape and failed trust-write regressions subsequently passed by implementation"
+  ]
+}

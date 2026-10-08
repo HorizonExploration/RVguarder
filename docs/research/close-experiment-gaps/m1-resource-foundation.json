@@ -1,0 +1,118 @@
+{
+  "milestone": "M1",
+  "status": "in_progress",
+  "component": "host resource observation foundation",
+  "files": [
+    "openclaw_guard/spec/resource_evidence.py",
+    "tests/test_resource_evidence.py"
+  ],
+  "implemented": [
+    "受控宿主命名空间与目录身份",
+    "规范资源ID、真实内容SHA版本、分类证据来源",
+    "拒绝中间/末端符号链接、绝对路径和目录逃逸",
+    "读取期间文件变化检测及大小限制",
+    "受控宿主authorization issue/query/revoke命令及私有SQLite存储",
+    "有限工具操作目录内授权，精确任务/主体/Agent/session或run/资源版本/接收方/期限/撤销绑定",
+    "从宿主有效记录解析任务；歧义上下文不授权",
+    "显式启用认证Hook资源引用与宿主任务关联，补充唯一tool-call-v1上下文，不改变效果或裁决",
+    "Auth关闭时引用证据路径不参与；具体工具操作族及命名空间严格校验",
+    "认证执行后回调与执行前绑定一致；已知身份上下文不能遗漏",
+    "SDK工具结果失败不提交成功历史；唯一有限事件记录认证成功来源，明确无内容血缘证明",
+    "受控执行器签名内容收据，绑定实际字节/参数哈希及完整调用身份，后台核验唯一活动宿主任务",
+    "三个Node合成办公工具实际消费Buffer签名互通；可选消费版本检查先于副作用",
+    "同任务/Agent/session/run的已核验内容关系图，不预置攻击链，不推断公开或输出含秘密"
+  ],
+  "verification": {
+    "command": "python -m pytest tests/test_resource_evidence.py -q",
+    "result": "11 passed in 1.23s"
+  },
+  "not_yet_completed": [
+    "实际OpenClaw部署中Agent无密钥/授权库访问与可信执行器隔离验收",
+    "原生read/write/复制打包变换的可信生产收据适配",
+    "授权撤销时效与版本执行契约强制接入",
+    "RV类型化资源/授权守卫及单调裁决接入",
+    "Docker近邻公开摘要、v4 N03与17例防护集合阶段验收",
+    "持久恢复和安全跨session复用（M2）"
+  ],
+  "security_limit": "描述输出不构成授权；宿主分类入参只能来自受控配置，尚无接受工具参数的公开签发接口。执行前读取版本不等于消除之后执行TOCTOU。",
+  "experiment_rerun": false,
+  "release_qualified": false,
+  "authorization_tests": {
+    "command": "python -m pytest tests/test_host_authorization.py -q",
+    "result": "25 passed (independent reviewer rerun)"
+  },
+  "full_regression": {
+    "command": "python -m pytest tests/ -q",
+    "result": "777 passed, 20 skipped, 4 subtests passed in 126.47s",
+    "scope_note": "全量采集后增加任务解析两项及陈旧描述一项，随后授权文件25项全部通过；修正后的CLI/策略/资源相关回归另记录，不伪称全量包含最新3项"
+  },
+  "docker_status": "Docker 29.8.0已恢复；公开固定fixture的7项挂载边界通过，实际OpenClaw隔离未验收",
+  "preservation": {
+    "m0_frozen_hash_errors": [],
+    "rv_rules_sha256": "496daa04a0bd532d9f99eaaa6293e1f52505dc5f9b098cc94f0af40bb5c255a7",
+    "matches_previous_experiment": true,
+    "historical_results_modified": false,
+    "daily_gateway_modified": false,
+    "finite_tool_model_changed": false
+  },
+  "independent_review": {
+    "agent": "/root/stage1_review",
+    "status": "foundation_passed_after_fix",
+    "must_fix_closed": "AUTH-001",
+    "limits": "未接入Hook/RV、Docker隔离未验证、M1未通过"
+  },
+  "post_review_regression": {
+    "command": "python -m pytest tests/test_host_authorization.py tests/test_resource_evidence.py tests/test_policy_catalog.py tests/test_web_cli.py -q",
+    "result": "83 passed, 9 skipped in 39.46s"
+  },
+  "hook_reference_tests": {
+    "first": "51 passed in 3.56s (bridge + finite tool model)",
+    "followup": "9 passed in 0.24s (bridge after added mismatch case)",
+    "full_regression_run": false,
+    "real_experiment_run": false,
+    "final": "12 passed (bridge after async fix and explicit CLI config check)"
+  },
+  "hook_reference_architecture": "非阻塞有界提交，单daemon后台观察，16待处理项、64诊断结果；后台结果不参与放行",
+  "hook_reference_independent_review": {
+    "status": "local_integration_passed_after_AUTH-002_fix",
+    "scope": "参考引用证据，未接入授权放行",
+    "remaining": "实际内容血缘、Agent/session/run来源、Docker隔离未验收"
+  },
+  "authenticated_completion_tests": {
+    "new": "9 passed in 3.95s",
+    "selected_existing_and_actual_node": "5 passed in 0.97s",
+    "full_regression_run": false,
+    "real_experiment_run": false
+  },
+  "authenticated_completion_independent_review": {
+    "status": "local_callback_boundary_passed",
+    "reviewer": "/root/stage1_review",
+    "remaining": "内容血缘及每Agent/session/run可信归属未验收；M1未通过"
+  },
+  "content_foundation_tests": {
+    "result": "内容20、Node互通/版本9、来源图9；既有Node6；SDK details-only新增1项通过",
+    "security_experiment_samples": 0,
+    "full_suite_rerun": false
+  },
+  "current_related_regression": {
+    "command": "python -m pytest <19 related modules> -q",
+    "result": "294 passed, 1 dependency deprecation warning in 18.56s",
+    "scope": "本轮内容/授权/Hook/有限调用/RV/策略及流水线相关模块，不是全量回归或安全效果实验"
+  },
+  "content_independent_review": {
+    "reviewer": "/root/stage1_review",
+    "status": "local_foundation_passed",
+    "closed_defects": [
+      "AUTH-005",
+      "AUTH-006",
+      "AUTH-007"
+    ],
+    "limits": "实际部署/权限/审批/资源分类及授权决策未验收；M1未通过"
+  },
+  "recipient_projection": {
+    "implemented": "具体office工具实际接收方投影；弱模型冲突仅诊断；未经验证执行器域配置不内部autoallow",
+    "tests": "75 passed in 5.02s (trace, finite model, policy pipeline, principal Hook)",
+    "independent_review": "最终复核通过，直接影响测试26 passed",
+    "risk": "保守scope可能增加审批；尚未用真实阶段实验判定R1及正常代价"
+  }
+}

@@ -79,7 +79,7 @@ class TestRvApiIntegration(unittest.TestCase):
         # 先触发一次 evaluate 以完成懒加载初始化
         self.manager.rv_engine.evaluate([])
         summary = self.manager.rv_engine.result_summary()
-        self.assertEqual(summary["monitor_count"], 9)  # 9 monitors (6 original + 2 phase D + 1 sensitive-access chain)
+        self.assertEqual(summary["monitor_count"], 10)  # 原9个 + 原生网络请求边界
 
     def test_rv_engine_trace_preserves_after_action(self):
         # 模拟一个动作触发 RV

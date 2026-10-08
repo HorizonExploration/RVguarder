@@ -371,6 +371,87 @@ function trimTrailingSlash(value) {{
   return String(value || "").replace(/\\/+$/, "");
 }}
 
+function boundedExecutionReceipt(value) {{
+  const receipt = value?.details?.rvExecutionReceipt;
+  if (!receipt || typeof receipt !== "object" || Array.isArray(receipt)) return null;
+  try {{
+    let nodes = 256, budget = 16384;
+    const inspect = (item, depth) => {{
+      if (--nodes < 0 || depth > 8) throw new Error("receipt complexity");
+      if (typeof item === "string") {{
+        if (item.length > 16384) throw new Error("receipt size");
+        budget -= Buffer.byteLength(item, "utf8");
+      }} else if (item === null || typeof item === "boolean" || (typeof item === "number" && Number.isFinite(item))) budget -= 32;
+      else if (Array.isArray(item)) {{
+        if (item.length > 16) throw new Error("receipt complexity");
+        for (const child of item) inspect(child, depth + 1);
+      }} else if (item && typeof item === "object") {{
+        const entries = Object.entries(item);
+        if (entries.length > nodes) throw new Error("receipt complexity");
+        for (const [key, child] of entries) {{ budget -= Buffer.byteLength(key, "utf8"); inspect(child, depth + 1); }}
+      }} else throw new Error("receipt type");
+      if (budget < 0) throw new Error("receipt size");
+    }};
+    inspect(receipt, 0);
+    const encoded = JSON.stringify(receipt);
+    return Buffer.byteLength(encoded, "utf8") <= 16384 ? JSON.parse(encoded) : null;
+  }} catch (_error) {{
+    return null;
+  }}
+}}
+
+function executionContractFromHost(event, hookCtx) {{
+  // Agent params/text never supply the envelope; only a registered host executor.
+  try {{
+    const registry = globalThis[Symbol.for("rvguard.execution-proposals.v1")];
+    if (!(registry instanceof Map)) return null;
+    const provider = registry.get(event.toolName);
+    if (typeof provider !== "function") return null;
+    // HTTP等待期间registry或provider方法变化，不能换用另一个执行器。
+    const acceptPermit = typeof provider.acceptPermit === "function" ? provider.acceptPermit.bind(provider) : null;
+    const invalidate = typeof provider.invalidateSnapshot === "function" ? provider.invalidateSnapshot.bind(provider) : null;
+    const proposal = provider(event, hookCtx);
+    if (!proposal || typeof proposal !== "object" || Array.isArray(proposal)) return {{proposal: null, acceptPermit, invalidate}};
+    let nodes = 128, budget = 16384;
+    const inspect = (value, depth) => {{
+      if (--nodes < 0 || depth > 6) throw new Error("proposal complexity");
+      if (typeof value === "string") budget -= value.length;
+      else if (value === null || typeof value === "boolean" || (typeof value === "number" && Number.isFinite(value))) budget -= 32;
+      else if (value && typeof value === "object" && !Array.isArray(value)) {{
+        const entries = Object.entries(value);
+        if (entries.length > nodes) throw new Error("proposal complexity");
+        for (const [key, child] of entries) {{ budget -= key.length; inspect(child, depth + 1); }}
+      }} else throw new Error("proposal type");
+      if (budget < 0) throw new Error("proposal size");
+    }};
+    inspect(proposal, 0);
+    const encoded = JSON.stringify(proposal);
+    return {{proposal: Buffer.byteLength(encoded, "utf8") <= 16384 ? JSON.parse(encoded) : null, acceptPermit, invalidate}};
+  }} catch (_error) {{ return null; }}
+}}
+
+function executionReceiptFromHost(event, hookCtx) {{
+  // Signed evidence stays in host memory, outside model-visible tool results.
+  if (event.error || event.result?.isError === true) return null;
+  try {{
+    const registry = globalThis[Symbol.for("rvguard.execution-receipts.v1")];
+    const provider = registry instanceof Map ? registry.get(event.toolName) : null;
+    if (typeof provider === "function") {{
+      return boundedExecutionReceipt({{details: {{rvExecutionReceipt: provider(event, hookCtx)}} }});
+    }}
+  }} catch (_error) {{ return null; }}
+  return boundedExecutionReceipt(event.result);
+}}
+
+function installExecutionPermit(result, event, hookCtx, contract) {{
+  if (result.executionPermitRequired !== true) return;
+  try {{
+    // 许可失效由登记执行器拒绝快照，不能构造额外Guard block或全局门。
+    if (contract?.acceptPermit?.(result.executionPermit, event, hookCtx) === true) return;
+  }} catch (_error) {{ /* invalidate original executor below */ }}
+  try {{ contract?.invalidate?.(event, hookCtx); }} catch (_error) {{ /* trusted executor lifecycle */ }}
+}}
+
 function summarizeResult(value) {{
   if (value == null) {{
     return null;
@@ -579,6 +660,7 @@ export default {{
         }}
         api.logger.info(`[${{PLUGIN_ID}}] before_tool_call FIRED: ${{event.toolName}}`);
         try {{
+          const executionContract = executionContractFromHost(event, hookCtx);
           const result = await postJson(
             `${{guardUrl}}/api/hook/before-tool-call`,
             {{
@@ -589,18 +671,21 @@ export default {{
               derivedPaths: event.derivedPaths || [],
               runId: event.runId || hookCtx.runId || "",
               toolCallId: event.toolCallId || "",
-              agentId: event.context?.agentId || hookCtx.agentId || "",
-              sessionKey: event.context?.sessionKey || hookCtx.sessionKey || "",
-              sessionId: event.context?.sessionId || hookCtx.sessionId || "",
+              agentId: hookCtx.agentId || event.context?.agentId || "",
+              sessionKey: hookCtx.sessionKey || event.context?.sessionKey || "",
+              sessionId: hookCtx.sessionId || event.context?.sessionId || "",
+              executionProposal: executionContract?.proposal ?? null,
             }},
             decisionTimeoutMs,
             authToken,
           );
           if (result.action === "allow") {{
+            installExecutionPermit(result, event, hookCtx, executionContract);
             return undefined;
           }}
 
           if (result.action === "require_approval") {{
+            installExecutionPermit(result, event, hookCtx, executionContract);
             api.logger.info(`[${{PLUGIN_ID}}] requiring approval for: ${{event.toolName}}`);
             return {{
               requireApproval: {{
@@ -633,6 +718,11 @@ export default {{
           }}
 
           if (result.action === "block") {{
+            // The native dispatcher skips remaining callbacks on explicit block.
+            // Optional isolated timing observer does memory-only bookkeeping.
+            try {{
+              globalThis[Symbol.for("rvguard.hook-boundary-timing.v1")]?.finish(event, hookCtx, "block");
+            }} catch {{ /* observation never changes a Guard decision */ }}
             return {{
               block: true,
               blockReason: boundedApprovalText(result.blockReason || result.message, "龙虾卫士已阻止该操作，请查看风险说明。", MAX_APPROVAL_DESCRIPTION_CHARS),
@@ -675,11 +765,13 @@ export default {{
               derivedPaths: event.derivedPaths || [],
               runId: event.runId || hookCtx.runId || "",
               toolCallId: event.toolCallId || "",
-              agentId: event.context?.agentId || hookCtx.agentId || "",
-              sessionKey: event.context?.sessionKey || hookCtx.sessionKey || "",
-              sessionId: event.context?.sessionId || hookCtx.sessionId || "",
+              agentId: hookCtx.agentId || event.context?.agentId || "",
+              sessionKey: hookCtx.sessionKey || event.context?.sessionKey || "",
+              sessionId: hookCtx.sessionId || event.context?.sessionId || "",
               error: event.error || null,
               durationMs: event.durationMs || null,
+              toolResultFailed: event.result?.isError === true,
+              executionReceipt: executionReceiptFromHost(event, hookCtx),
               resultSummary: summarizeResult(event.result),
             }},
             callbackTimeoutMs,

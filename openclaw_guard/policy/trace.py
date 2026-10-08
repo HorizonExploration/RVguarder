@@ -55,6 +55,19 @@ class TraceCompiler:
         for step in steps:
             labels.update(str(x) for x in step.get("props", []) if isinstance(x, str))
         recipients = _entities(semantic, steps, "recipients")
+        # 已登记执行器消费recipient字符串；模型实体不能替换实际接收方。
+        # 网络分享仍是原有限operation，不新增消息调用或授权事实。
+        office_recipient_contract = tool_id in {"office_message_send", "office_document_share"}
+        suggested_recipients = list(recipients)
+        if office_recipient_contract:
+            actual_recipient = params.get("recipient")
+            recipients = [actual_recipient.strip()] if isinstance(actual_recipient, str) and actual_recipient.strip() else []
+        native_recipient_contract = tool_id == "message" and event.metadata.get("tool_action") in {"send", "broadcast"}
+        if native_recipient_contract:
+            explicit_target = next((params[key] for key in ("target", "to", "channelId")
+                                    if isinstance(params.get(key), str) and params[key].strip()), None)
+            targets = params.get("targets", []) if event.metadata.get("tool_action") == "broadcast" else [explicit_target]
+            recipients = [value.strip() for value in targets if isinstance(value, str) and value.strip()] if isinstance(targets, list) else []
         paths = _entities(semantic, steps, "paths") or list(event.target_paths)
         if operation.family == "process.execute" and not paths and isinstance(command_safety, dict):
             hints = command_safety.get("path_hints")
@@ -64,6 +77,8 @@ class TraceCompiler:
         if operation.family == "process.execute" and not (recipients or paths or urls) and (event.command or tool_id == "process.execute"):
             paths = [event.command or tool_id]
         resource_ids = recipients or paths or urls
+        if office_recipient_contract or native_recipient_contract:
+            resource_ids = recipients
         native_low = (
             event.metadata.get("tool_origin") == "openclaw_native"
             and event.metadata.get("risk_class") == "low"
@@ -74,6 +89,8 @@ class TraceCompiler:
         if native_control_plane and not resource_ids:
             resource_ids = [f"openclaw:{tool_id}"]
         resource_type = "recipient" if recipients else ("path" if paths else ("url" if urls else "unknown"))
+        if office_recipient_contract or native_recipient_contract:
+            resource_type = "recipient"
         if native_control_plane:
             resource_type = "control_plane"
         if operation.family == "process.execute":
@@ -91,12 +108,27 @@ class TraceCompiler:
                 scope = "outside" if outside else ("workspace" if paths else "unknown")
         if urls and not paths:
             scope = "external"
+        if office_recipient_contract:
+            # 未绑定执行器internalDomains时，绝不以默认域名授予内部低风险。
+            # 外部标记只能增加风险；false不是内部证明。
+            office_external = bool(recipients) and (
+                params.get("external") is True or str(params.get("access") or "").lower() == "external"
+            )
+            scope = "external" if recipients else "unknown"
         if native_control_plane and scope == "unknown":
             scope = "workspace"
 
         classification = _classification(semantic, labels, steps)
         quantity = _quantity(semantic, steps, len(resource_ids))
+        if native_recipient_contract:
+            quantity = len(recipients)  # 接收方数量来自原生参数，不能由模型缩小。
         recipient_zone = "external" if recipients and any(_external(x) for x in recipients) else ("internal" if recipients else "unknown")
+        if office_recipient_contract:
+            recipient_zone = "external" if office_external else "unknown"
+        elif native_recipient_contract and (not recipients or any('@' not in value for value in recipients)):
+            # 渠道ID/别名没有已验证内部域；不能由模型称其为内部收件人。
+            recipient_zone = "unknown"
+            scope = "unknown"
         purpose = str(semantic.get("purpose") or semantic.get("intent", {}).get("goal", "") if isinstance(semantic.get("intent"), dict) else semantic.get("purpose", ""))
         missing = []
         resource_gap = _resource_gap(operation.family, resource_ids)
@@ -108,6 +140,13 @@ class TraceCompiler:
         if resource_gap:
             gaps.append(resource_gap)
         security_facts, fact_conflicts = _security_facts(event, semantic_match)
+        if office_recipient_contract or native_recipient_contract:
+            # 弱模型矛盾只记录诊断，不污染coverage而压低确定硬约束。
+            event.metadata["resource_projection"] = {
+                "source": "registered_office_recipient_contract" if office_recipient_contract else "native_message_recipient_contract", "recipient_ids": list(recipients),
+                "executor_internal_domains_verified": False,
+                "conflicts": ["resource.recipient_conflict"] if suggested_recipients and suggested_recipients != recipients else [],
+            }
         coverage_status = "conflict" if fact_conflicts else ("complete" if not missing else "partial")
         coverage = CoverageResult(
             status=coverage_status,
